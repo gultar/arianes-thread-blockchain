@@ -1,0 +1,1075 @@
+/**
+
+
+
+*/
+
+'use strict'
+const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io')
+const ioClient = require('socket.io-client');
+const bodyParser = require('body-parser');
+const {
+  initBlockchain,
+  loadBlockchainFromServer,
+  saveBlockchain,
+  instanciateBlockchain  } = require('./backend/blockchainHandler.js');
+const Wallet = require('./backend/walletHandler');
+const Blockchain = require('./backend/blockchain');
+const Transaction = require('./backend/transaction');
+const { displayTime } = require('./backend/utils');
+const sha256 = require('./backend/sha256');
+const save = require('./save');
+const crypto = require('crypto');
+const fs = require('fs');
+const axios = require('axios');
+const chalk = require('chalk');
+
+// const RoutingTable = require('kademlia-routing-table')
+// const { randomBytes } = require('crypto')
+process.env.END_MINING = false;
+
+/**
+  Instanciates a blockchain node
+  @constructor
+  @param {string} $address - Peer Ip address
+  @param {number} $port - Connection on port
+*/
+
+class Node {
+  constructor(address, port){
+    this.address = 'http://'+address+':'+port,
+    this.port = port
+    this.id = sha256(this.address);
+    this.ioServer = {};
+    this.wallets = {};
+    this.publicKey = '';
+    this.userInterfaces = [];
+    this.peersConnected = {};
+    this.connectionsToPeers = {};
+    this.knownPeers = [];
+    this.token = {};
+    this.chain = {};
+    this.messageBuffer = {};
+    this.isMining = false;
+    this.longestChain = {
+      length:0,
+      peerAddress:''
+    }  //Serves to store messages from other nodes to avoid infinite feedback
+  }
+
+
+  /**
+    P2P Server with two main APIs. A socket.io API for fast communication with connected peers
+    and an HTTP Api for remote peer connections as well as routine tasks like updating blockchain.
+  */
+  startServer(app=express()){
+    try{
+
+      console.log(chalk.cyan('\n******************************************'))
+      console.log(chalk.cyan('*')+' Starting node at '+this.address+chalk.cyan(" *"));
+      console.log(chalk.cyan('******************************************\n'))
+      const expressWs = require('express-ws')(app);
+      app.use(express.static(__dirname+'/views'));
+      const server = http.createServer(app).listen(this.port);
+      this.initHTTPAPI(app);
+      this.cleanMessageBuffer();
+      this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
+
+      this.loadWallet((wallet)=>{
+        this.wallets[wallet.id] = wallet;
+        initBlockchain(this.address, true, (loadedBlockchain)=>{
+          // blockchain = loadedBlockchain;
+          this.chain = loadedBlockchain;
+          this.knownPeers=  loadedBlockchain.ipAddresses;
+        });
+      });
+
+
+    }catch(e){
+      console.log(e);
+    }
+
+    this.ioServer.on('connection', (socket) => {
+      if(socket){
+        let peerAddress;
+        let peerToken;
+         if(socket.handshake.query.token !== undefined){
+
+             try{
+
+               socket.on('message', (msg) => { console.log('Client:', msg); });
+
+               peerAddress = socket.handshake.query.token.address;
+               if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
+
+                 this.peersConnected[peerAddress] = socket;
+                 if(peerAddress){
+                   this.knownPeers.push(peerAddress);
+                 }
+
+                 this.save()
+                 this.nodeEventHandlers(socket)
+               }else{
+                 socket.emit('message', 'Connected to local node');
+
+                 this.externalEventHandlers(socket);
+
+               }
+
+             }catch(e){
+               console.log(e)
+             }
+
+         }else{
+           socket.emit('message', 'Connected to local node')
+           this.externalEventHandlers(socket);
+         }
+      }
+
+    });
+
+    this.ioServer.on('disconnect', ()=>{ console.log('a node has disconnected') })
+
+    this.ioServer.on('error', (err) =>{ console.log(err);  })
+  }
+
+  joinPeers(){
+    try{
+      if(this.knownPeers){
+        this.knownPeers.forEach((peer)=>{
+          this.connectToPeer(peer);
+        })
+      }
+    }catch(e){
+      console.log(e)
+    }
+
+  }
+  //Only handles one wallet......
+  /**
+    Public (and optionally private) key loader
+    @param {string} $callback - callback that hands out the loaded wallet
+  */
+  loadWallet(callback){
+    //Fetch from .json file
+    //Need to handle more than one
+    let wallet = new Wallet();
+    wallet.initWalletID((id)=>{
+      wallet.id = id;
+      this.wallets[wallet.id] = wallet;
+      this.publicKey = wallet.publicKey
+      callback(wallet)
+
+    });
+  }
+
+
+  /**
+    Basis for P2P connection
+*/
+  connectToPeer(address, callback){
+
+    if(address){
+      if(this.connectionsToPeers[address] == undefined){
+        let connectionAttempts = 0;
+        let peer;
+        try{
+          peer = ioClient(address, {
+            'reconnection limit' : 1000,
+            'max reconnection attempts' : 20,
+            'query':{
+              token: { 'address':this.address }
+            }
+          });
+
+          peer.heartbeatTimeout = 120000;
+          console.log('Requesting connection to '+ address+ ' ...');
+          this.log('Requesting connection to '+ address+ ' ...');
+          peer.on('connect_timeout', (timeout)=>{
+            if(connectionAttempts >= 3) { peer.destroy() }
+              console.log('Connection attempt to address '+address+' timed out.\n'+(4-connectionAttempts)+' attempts left');
+              connectionAttempts++;
+
+          })
+
+          peer.on('connect', () =>{
+              console.log(chalk.green('Connected to ', address))
+              peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
+              this.log('Peer connection established by '+ this.address+' at : '+ displayTime())
+              if(this.knownPeers.indexOf(address) < 0)  {  this.knownPeers.push(address);  }
+              this.connectionsToPeers[address] = peer;
+              peer.emit('connectionRequest', this.address);
+
+          })
+
+          peer.on('message', (message)=>{
+              console.log('Server: ' + message);
+          })
+
+          peer.on('address', (response)=>{
+            if(!response){
+              //change peer?
+            }else{
+              if(Array.isArray(response)){
+                for(let address in response){
+                  this.knownPeers.push(address);
+                }
+              }else if(typeof response == 'string'){
+                this.knownPeers.push(response);
+              }
+            }
+
+          })
+
+          peer.on('disconnect', () =>{
+            console.log('connection with peer dropped');
+            delete this.connectionsToPeers[address];
+            peer.destroy()
+          })
+
+          if(callback){
+            callback(peer)
+          }
+
+
+
+        }catch(err){
+          console.log(err);
+        }
+
+      }else{
+        console.log('Peer already connected')
+      }
+
+    }else{
+      console.log('Address in undefined');
+    }
+  }
+
+
+  /**
+    Broadcasts a defined event
+    @param {string} $eventType - Event type/name
+    @param {Object} $data - May be an object or any kind of data
+    @param {Object} $moreData - Optional: any kind of data also
+*/
+  broadcast(eventType, data, moreData=false ){
+    try{
+      if(this.connectionsToPeers){
+          Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
+            if(!moreData){
+
+                this.connectionsToPeers[peerAddress].emit(eventType, data);
+            }else{
+                this.connectionsToPeers[peerAddress].emit(eventType, data, moreData);
+            }
+          })
+        }
+    }catch(e){
+      console.log(e);
+    }
+
+  }
+
+
+  /**
+    Broadcast only to this node's connected peers. Does not gossip
+    @param {string} $eventType - Type of node event
+    @param {object} $data - Various data to be broadcasted
+  */
+  serverBroadcast(eventType, data){
+    this.ioServer.emit(eventType, data);
+  }
+
+
+  /**
+    Relays certain console logs to the web UI
+    @param {string} $message - Console log to be sent
+    @param {object} $arg - Data of any type that can be console logged on web UI
+  */
+  outputToUI(message, arg){
+    if(this.userInterfaces && message){
+      for(var i=0; i < this.userInterfaces.length; i++){
+        if(arg){
+          console.log('Number of UIs', this.userInterfaces.length);
+          this.userInterfaces[i].emit('message', message+' '+arg);
+        }else{
+          this.userInterfaces[i].emit('message', message);
+        }
+
+      }
+    }
+
+  }
+
+
+  /**
+    Send an node event to peer
+    @param {string} $eventType - Event type/name
+    @param {Object} $data - May be an object or any kind of data
+    @param {string} $address - peer address
+  */
+  sendToPeer(eventType, data, address){
+    if(address && this.connectionsToPeers[address]){
+      try{
+        this.connectionsToPeers[address].emit(eventType, data);
+      }catch(e){
+        console.log(e);
+      }
+    }
+  }
+
+
+  /**
+    Internode API that can be used by UIs to get data from blockchain and send transactions
+    @param {Object} $app - Express App
+  */
+  initHTTPAPI(app){
+    app.use(bodyParser.json());
+    app.set('json spaces', 2)
+
+    app.post('/node', (req, res) => {
+      const { host, port } = req.body;
+      const { callback } = req.query;
+      const node = `http://${host}:${port}`;
+
+      this.connectToPeer(node, ()=>{
+
+      });
+      res.json({ message: 'attempting connection to peer '+node}).end()
+    });
+
+    app.post('/transaction', (req, res) => {
+      const { sender, receiver, amount, data } = req.body;
+      let transaction = new Transaction(sender, receiver, amount, data);
+      this.emitNewTransaction(sender, receiver, amount, data, (success)=>{
+        if(!success){
+          res.json({ message: 'transaction failed' }).end()
+        }else{
+          res.json({ message: 'transaction success' }).end();
+        }
+      })
+    });
+
+    app.get('/getAddress', (req, res)=>{
+      res.json({ nodes: this.knownPeers }).end();
+    })
+
+    app.post('/chainLength', (req, res) =>{
+      try{
+        const { length, peerAddress } = req.body;
+        if(this.longestChain.length < length){
+          this.longestChain.length = length;
+          this.longestChain.peerAddress = peerAddress
+          console.log(peerAddress+' has sent its chain length: '+length)
+          res.end()
+        }
+      }catch(e){
+        console.log(e)
+      }
+    })
+
+    app.post('/chainInfo', (req, res) =>{
+      const { chainInfo } = req.body;
+      var isValidChain = this.validateChainInfo(chainInfo);
+      if(isValidChain){
+        this.fetchBlocks(chainInfo.address)
+      }
+
+    })
+
+    app.get('/getChainInfo', (req, res)=>{
+      try{
+        let index = parseInt(req.query.index)
+        console.log(index)
+        if(index >=0){
+          let chainInfo = this.getChainInfo(index);
+          if(chainInfo){
+            res.json({ chainInfo:chainInfo }).end()
+          }else{
+            res.json({ error:'chain is not the longest' }).end()
+          }
+        }else{
+          res.json({ error:'index of current block required' }).end()
+        }
+      }catch(e){
+        console.log(e);
+      }
+
+
+    })
+
+    app.get('/getNextBlock', (req, res)=>{
+      var blockHash = req.query.hash
+
+      if(this.chain instanceof Blockchain){
+        const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
+        const lastBlock = this.chain.getLatestBlock();
+        if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
+
+          var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
+          if(nextBlock){
+            res.json(nextBlock).end()
+          }
+          if(blockHash === lastBlock.hash){
+            res.json( { error:'end of chain' } ).end()
+          }
+
+        }else{
+          res.json( { error:'no block found' } ).end()
+        }
+      }
+    })
+
+    app.get('/listOfBlockHashes', (req, res)=>{
+      if(this.chain instanceof Blockchain){
+        res.json(Object.keys(this.chain.chain)).end()
+      }
+
+    })
+
+    app.get('/newBlock', (req, res)=>{
+      if(this.chain instanceof Blockchain){
+        res.json(this.chain.getLatestBlock()).end();
+      }
+
+    });
+
+
+    app.get('chainInfo', (req, res)=>{
+      if(this.chain instanceof Blockchain){
+        this.handleChainInfo();
+      }
+    });
+
+    app.get('/chain', (req, res) => {
+      try{
+        res.json(this.chain).end();
+      }catch(e){
+        console.log(e)
+      }
+
+    });
+  }
+
+
+  /**
+    Socket listeners only usable by server nodes
+    @param {object} $socket - Client socket connection to this node's server
+  */
+  nodeEventHandlers(socket){
+    if(socket){
+
+     socket.on('error', (err)=>{
+       console.log(err);
+     })
+
+     socket.on('connectionRequest', (address)=>{
+       this.connectToPeer(address, (peer)=>{
+       });
+     });
+
+     // Basis for gossip protocol on network
+     socket.on('peerMessage', (data)=>{
+       var { type, originAddress, messageId, data } = data
+       this.handlePeerMessage(type, originAddress, messageId, data);
+     })
+
+     socket.on('disconnect', ()=>{
+       if(socket.handshake.headers.host){
+         var disconnectedAddress = 'http://'+socket.handshake.headers.host
+         delete this.peersConnected[disconnectedAddress]
+       }
+
+     })
+
+   }
+  }
+
+
+  /**
+    Socket listeners only usable by external UIs and APIs
+    @param {object} $socket - Client socket connection to this node's server
+  */
+  externalEventHandlers(socket){
+
+    this.userInterfaces.push(socket)
+
+    socket.on('error', (err)=>{
+      console.log(err);
+    })
+    socket.on('connectionRequest', (address)=>{
+      this.connectToPeer(address, (peer)=>{});
+    });
+    socket.on('getBlockchain', ()=>{
+      socket.emit('blockchain', this.chain);
+    })
+    socket.on('transaction', (fromAddress, toAddress, amount, data)=>{
+      this.emitNewTransaction(fromAddress, toAddress, amount, data);
+    })
+    socket.on('getAddress', (address)=>{
+      this.requestKnownPeers(address);
+    })
+
+    socket.on('knownPeers', ()=>{
+      try{
+        socket.emit('message', JSON.stringify({ peers:this.knownPeers }, null, 2))
+      }catch(e){
+        console.log(e)
+      }
+    })
+
+    socket.on('startMiner', ()=>{
+      this.startMiner();
+    })
+
+    socket.on('isChainValid', ()=>{
+      this.validateBlockchain();
+    })
+
+    socket.on('changeConnectAddress', (address)=>{ //For testing purposes only
+      this.address = address;
+    })
+
+    socket.on('update', (address)=>{
+      if(address){
+        this.fetchBlocks(address)
+      }else{
+        this.update()
+      }
+    })
+
+    socket.on('txgen', ()=>{
+		setInterval(()=>{
+    		  this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
+          "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
+
+        }, 2000)
+    })
+
+    socket.on('disconnect', ()=>{
+      var index = this.userInterfaces.length
+      this.userInterfaces.splice(index-1, 1)
+    })
+  }
+
+
+  /**
+    Basis for gossip protocol on network
+    Generates a message uid to be temporarilly stored by all nodes
+    to avoid doubles, then erased so that memory does not overflow.
+    @param {string} $type - peer message type
+  */
+  sendPeerMessage(type, data){
+    if(type){
+      try{
+        if(typeof data == 'object')
+          data = JSON.stringify(data);
+        var shaInput = (Math.random() * Date.now()).toString()
+        var messageId = sha256(shaInput);
+        this.messageBuffer[messageId] = messageId;
+        this.broadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
+
+      }catch(e){
+        console.log(e);
+      }
+
+    }
+  }
+
+
+  /**
+    @param {String} $type - Peer message type
+    @param {String} $originAddress - IP Address of sender
+    @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
+  */
+  handlePeerMessage(type, originAddress, messageId, data){
+    let peerMessage = { 'type':type, 'originAddress':originAddress, 'messageId':messageId, 'data':data }
+
+    if(!this.messageBuffer[messageId]){
+      switch(type){
+        case 'transaction':
+          try{
+            var transaction = JSON.parse(data);
+            if(transaction && !this.chain.pendingTransactions[transaction.hash]){
+
+              this.chain.validateTransaction(transaction, (valid)=>{
+                if(valid){
+                  this.chain.pendingTransactions[transaction.hash] = transaction;
+                  console.log(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                }
+              });
+
+            }
+          }catch(e){
+            console.log(e)
+          }
+          break;
+        case 'endMining':
+          if(this.isMining){
+            process.env.END_MINING = true;
+
+            setTimeout(()=>{
+              process.env.END_MINING = false;
+            },5000)
+          }
+          break;
+        case 'newBlock':
+          this.fetchBlocks(originAddress);
+          break;
+        case 'whoisLongestChain':
+          try{
+            axios.post(originAddress+'/chainLength', {
+              length:this.chain.chain.length,
+              peerAddress:this.address
+            }).then((response)=>{
+              console.log(response);
+            }).catch((e)=>{
+              console.log(e)
+            })
+          }catch(e){
+            console.log(e)
+          }
+          break;
+        case 'message':
+          console.log(chalk.green('['+originAddress+']')+' -> '+data)
+          break;
+
+
+      }
+
+      this.messageBuffer[messageId] = peerMessage;
+      this.broadcast('peerMessage', peerMessage)
+    }
+  }
+
+
+  /**
+    @param {number} $index - gather all chain info starting from this index
+  */
+  getChainInfo(index){
+    if(index >= 0){
+      try{
+        var chainLength = this.chain.chain.length;
+        var blockHashesFromIndex = [];
+        var headers = []
+        if(index < chainLength){
+          for(var i=index; i <chainLength; i++){
+            blockHashesFromIndex.push(this.chain.chain[i].hash);
+            headers.push(this.chain.getBlockHeader(i))
+          }
+
+          var chainInfo = {
+            length: chainLength,
+            blockHashes:blockHashesFromIndex,
+            headers:headers,
+            address:this.address
+          }
+
+          return chainInfo
+
+        }else{
+          return false
+        }
+
+
+      }catch(e){
+        console.log(e)
+      }
+    }
+
+
+  }
+
+
+  /**
+    This a way to verify if the peer has a valid chain before updating through him
+    @param {object} $chainInfo - all block hashes, headers and its chain length
+  */
+  validateChainInfo(chainInfo){
+    try{
+      if(chainInfo){
+        if(this.chain instanceof Blockchain){
+
+          var isLinked = false;
+          var areHashesValid = false;
+          const lastBlock = this.chain.getLatestBlock();
+
+            if(chainInfo.length > this.chain.chain.length){
+              for(var i=1; i < this.chain.chain.length; i++){
+
+                areHashesValid = this.chain.validateBlockHeader(chainInfo.headers[i]);
+
+                if(i > 0){
+                  isLinked = chainInfo.headers[i-1].hash = chainInfo.headers[i].previousHash
+                }
+
+                if(!isLinked && areHashesValid){
+                  return false;
+                }
+
+              }
+              return true
+
+            }else if(chainInfo.length < this.chain.chain.length){
+
+              //Find something to do with chain info?
+            }
+        }
+      }
+    }catch(e){
+      console.log(e)
+    }
+
+  }
+
+
+  /**
+    Response to a whoisLongestChain, to determine from which peer to update
+    @param {string} $address - Requesting peer address
+  */
+  sendChainLength(address){
+    if(address){
+      try{
+        axios.post(peerAddress+'/chainLength', {
+          chainLength:this.chain.chain.length,
+          peerAddress:this.address
+        })
+        .then(function (response) {
+            console.log(response);
+        })
+        .catch((err)=>{
+          if(err.code == 'ECONRESET'){
+            console.log('BOOGA BOOGA')
+          }
+          console.log(err)
+        })
+      }catch(e){
+        console.log(e);
+      }
+    }
+  }
+
+
+  /**
+    Validates every block that gets added to blockchain.
+    @param {Object} $newBlock - Block to be added
+  */
+  receiveNewBlock(newBlock){
+      if(newBlock != undefined && newBlock != null && typeof newBlock == 'object'){
+        let minerOfLastBlock = this.chain.getLatestBlock().minedBy;
+        var isBlockSynced = this.chain.syncBlock(newBlock);
+        if(isBlockSynced === true){
+
+          console.log(chalk.blue(' * Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
+          this.clearOutPendingTransactions(Object.keys(newBlock.transactions))
+
+          return true;
+        }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
+          //Start syncing from the index returned by syncBlock;
+          //this.fetchBlocks(minerOfLastBlock);
+          console.log('ERROR: Block already present in chain')
+          return false;
+        }else if(isBlockSynced < 0){
+          console.log('ERROR: Could not sync new block')
+          return false;
+        }else{
+          return false;
+        }
+      }else{
+        console.log('ERROR: New block is undefined');
+        return false;
+      }
+  }
+
+
+  /**
+    Peer discovery request
+    @param {string} $address - Peer address
+  */
+  requestKnownPeers(address){
+    let peerKnownNodes;
+
+    axios.get(address+'/getAddress')
+      .then((response) =>{
+        peerKnownNodes = response.data.nodes;
+
+        for(var i=0; i <peerKnownNodes.length; i++){
+          var peer = peerKnownNodes[i];
+          if(!this.knownPeers.includes(peer)){
+            this.knownPeers.push(peer);
+          }
+        }
+
+      })
+      .catch(function (error) {
+        console.log(error);
+      })
+  }
+
+
+  /**
+    Keeps the sync on the blockchain. Can be launched manually upon creation of node
+    to get in sync with the network.
+    @param {string} $address - Peer address to sync with
+    @param {function} $cb - Optional callback
+  */
+  fetchBlocks(address, cb){
+
+  //var updateAddress = (address ? address : longestChain.peerAddress)
+  try{
+    if(this.chain instanceof Blockchain){
+      const latestBlock = this.chain.getLatestBlock();
+
+      axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash } })
+        .then((response) =>{
+          var block = response.data;
+          if(block){
+
+              var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
+              if(!synced){
+                if(response.data.error == 'end of chain'){
+                  console.log(chalk.green('Blockchain successfully updated'));
+                  this.validateBlockchain();
+                  saveBlockchain(this.chain)
+                  if(cb){
+                    cb(true)
+                  }
+                  return true;
+                }else if(response.data.error == 'no block found'){
+
+                  console.log(chalk.red(response.data.error));
+                  return false
+                }
+                return false
+              }else{
+                setTimeout(()=>{
+                  this.fetchBlocks(address)
+
+                },500)
+              }
+          }
+        })
+        .catch((error)=>{
+          console.log(error);
+          return false;
+        })
+    }
+  }catch(e){
+    console.log(e);
+    return false;
+  }
+
+
+ }
+
+
+  validateBlockchain(){
+     console.log('Is blockchain valid?',this.chain.isChainValid())
+   }
+
+   /**
+    @param {number} $number - Index of block from which to show block creation time
+   */
+  showBlockTime(number){
+     try{
+       if(this.chain instanceof Blockchain){
+         var latestBlock = this.chain.chain[number];
+         var ind1 = latestBlock.blockNumber;
+         var ind2 = ind1-1;
+         var blockBeforeThat = this.chain.chain[ind2];
+         return ((latestBlock.timestamp - blockBeforeThat.timestamp)/1000)
+       }
+     }catch(e){
+       console.log(e)
+     }
+
+   }
+
+
+  rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon
+    if(typeof blockIndex == 'number' && this.chain instanceof Blockchain){
+      var sideChain = [];
+      sideChain = this.chain.chain.splice(blockIndex);
+      return sideChain;
+    }
+  }
+
+
+  /**
+    @desc Emits all transactions as peerMessages.
+    @param {string} $sender - Sender of coins's Public key
+    @param {string} $receiver - Receiver of coins's Public key
+    @param {number} $amount - Amount of coins to send. Optional IF blockbase query
+    @param {object} $data - data to send along with transaction
+  */
+  emitNewTransaction(sender, receiver, amount, data){
+    try{
+      let transaction = new Transaction(sender, receiver, amount, data);
+      let transactionValidated;
+      transaction.sign((signature)=>{
+        if(!signature){
+          console.log('Transaction signature failed. Check both public key addresses.')
+          return false
+        }else{
+          transaction.signature = signature;
+          this.chain.validateTransaction(transaction, (valid)=>{
+            if(valid){
+              this.chain.createTransaction(transaction);
+              this.log('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+              console.log(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+              this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
+
+            }else{
+              console.log('Received an invalid transaction');
+              return false;
+            }
+
+          })
+        }
+
+      })
+
+    }catch(e){
+      console.log(e);
+    }
+
+  }
+
+  updateAndMine(){
+    this.sendPeerMessage('whoisLongestChain');
+    console.log('Querying the network for the longest chain before starting the miner')
+    setTimeout(()=>{
+      if(this.longestChain.peerAddress !== ''){
+        this.fetchBlocks(this.longestChain.peerAddress, ()=>{
+          console.log('Starting miner!')
+          this.outputToUI('Starting miner!')
+          this.startMiner();
+        })
+      }else{
+        return this.updateAndMine()
+      }
+
+    },8000)
+  }
+
+  update(){
+    this.sendPeerMessage('whoisLongestChain');
+    console.log('Querying the network for the longest chain before starting the miner')
+    setTimeout(()=>{
+      if(this.longestChain.peerAddress !== ''){
+          this.fetchBlocks(this.longestChain.peerAddress, ()=>{
+        })
+      }else{
+        // this.startMiner()
+        return this.update();
+      }
+
+    },8000)
+  }
+
+  /**
+    @desc Miner loop can be launched via the web UI or upon Node creation
+  */
+  startMiner(){
+
+      if(this.chain instanceof Blockchain){
+        this.isMining = true;
+
+        this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
+          try{
+            if(success){
+              if(blockHash){
+                this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+                console.log('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
+                saveBlockchain(this.chain);
+                setTimeout(()=>{
+                  var newBlockNumber = this.chain.getLatestBlock().blockNumber
+                  // this.sendPeerMessage('validateBlock', this.chain.getBlockHeader(newBlockNumber))
+                  this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+                  console.log('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
+                  this.startMiner();
+                },2000)
+              }
+            }else{
+              setTimeout(()=>{
+                this.startMiner();
+              },1000)
+
+            }
+          }catch(e){
+            console.log(e)
+          }
+
+        });
+      }
+
+  }
+  /**
+    @desc Fires upon sync block to avoid transaction doubles
+    @param {array} $hashesOfTransactions - List of block transactions to delete from pending transactions
+  */
+  clearOutPendingTransactions(hashesOfTransactions){
+    for(var transact of Object.keys(hashesOfTransactions)){
+      if(this.chain.pendingTransactions[transact]){
+        delete this.chain.pendingTransactions[transact];
+      }
+    }
+  }
+
+  save(){
+    this.chain.ipAddresses = this.knownPeers;
+    saveBlockchain(this.chain);
+  }
+  /**
+    @desc Periodically clears out peer messages to avoid overflow
+  */
+  cleanMessageBuffer(){
+    var that = this;
+    setInterval(()=>{
+      that.messageBuffer = {};
+    }, 30000)
+  }
+
+  log(message, arg){
+    if(arg){
+      // console.log(message, arg);
+      this.outputToUI(message, arg)
+    }else{
+      // console.log(message);
+      this.outputToUI(message)
+    }
+  }
+
+  // setupBlockbase(){
+  //   const table = new RoutingTable(randomBytes(32))
+  //
+  //   // Add a node to the routing table
+  //   table.add({
+  //     id: randomBytes(32), // this field is required
+  //     nodeAddress:this.address
+  //   })
+  //
+  //   table.on('row', function (row) {
+  //     // A new row has been added to the routing table
+  //     // This row represents row.index similar bits to the table.id
+  //
+  //     row.on('full', function (node) {
+  //       // The row is full and cannot be split, so node cannot be added.
+  //       // If any of the nodes in the row are "worse", based on
+  //       // some application specific metric then we should remove
+  //       // the worst node from the row and re-add the node.
+  //     })
+  //   })
+  // }
+
+
+}
+
+
+
+
+
+module.exports = Node

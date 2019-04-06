@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>jQuery JSON View Demo</title>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+        <script src="../dist/jquery.json-view.js"></script>
+        <link href="http://www.jqueryscript.net/css/jquerysctipttop.css" rel="stylesheet" type="text/css">
+        <link href="../dist/jquery.json-view.css" rel="stylesheet">
+        <style>
+        #element { max-width:760px; margin:0 auto;}
+        </style>
+    </head>
+<body><div id="jquery-script-menu">
+<div class="jquery-script-center">
+<ul>
+<li><a href="http://www.jqueryscript.net/other/jQuery-Based-Pretty-Collapsible-JSON-Tree-Viewer.html">Download This Plugin</a></li>
+<li><a href="http://www.jqueryscript.net/">Back To jQueryScript.Net</a></li>
+</ul>
+<div class="jquery-script-ads"><script type="text/javascript"><!--
+google_ad_client = "ca-pub-2783044520727903";
+/* jQuery_demo */
+google_ad_slot = "2780937993";
+google_ad_width = 728;
+google_ad_height = 90;
+//-->
+</script>
+<script type="text/javascript"
+src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script></div>
+<div class="jquery-script-clear"></div>
+</div>
+</div>
+<h1 style="margin:150px auto 30px auto; text-align:center;">jQuery JSON View Demo</h1>
+    <div id="element"></div>
+<script>
+            $(function() {
+                $('#element').jsonView(JSON.stringify({
+                    demo: 'string',
+                    notSet: null,
+                    zero: 0,
+                    'true': true,
+                    'false': false,
+                    undef: undefined,
+                    number: 5,
+                    arr: [1, 2, 3, 'string', null, { a: 1 }, [2, 3, 4]],
+                    obj: {
+                        string: 'test string',
+                        arr: [1, 2, 3, 4, 'myString', ['wow', [9,8,7,6]]],
+                        obj1: {
+                            hello: 'world',
+                            nice: {
+                                to: 'meet you',
+                                'finally': [1, 2, 3, 4, 5]
+                            }
+                        }
+                    }
+                }));
+            });
+        </script>
+</body>
+</html>

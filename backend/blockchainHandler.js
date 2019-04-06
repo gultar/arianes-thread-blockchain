@@ -1,0 +1,142 @@
+const Blockchain = require('./blockchain');
+const Block = require('./block')
+const Transaction = require('./transaction');
+const Node = require('../node.js')
+const fs = require('fs');
+const merkle = require('merkle');
+const sha256 = require('./sha256');
+var crypto = require('crypto');
+
+var dataBuffer;
+
+class BlockchainHandler{
+  constructor(){
+    this.initBlockchain = '';
+    this.loadBlockchainFromServer = '';
+    this.saveBlockchain = '';
+  }
+}
+
+
+const initBlockchain = (token, tryOnceAgain=true, cb) => {
+  //flag to avoid crashes if a transaction is sent while loading
+  var { port, address } = token;
+   console.log('Initiating blockchain');
+   let blockchain;
+   loadBlockchainFromServer((data, err)=>{
+
+     if(err){
+       console.log(err);
+       cb(false, err);
+     }
+      blockchain = instanciateBlockchain(data);
+      cb(blockchain)
+    })
+
+};
+
+const loadBlockchainFromServer = (cb) => {
+  //flag to avoid crashes if a transaction is sent while loading
+  fs.exists('./blockchain.json', function(exists){
+    if(exists){
+        var data = '';
+        let blockchainDataFromFile;
+        var rstream = fs.createReadStream('blockchain.json');
+        console.log('Reading blockchain.json file...');
+
+        rstream.on('error', (err) =>{
+                console.log(err);
+                cb(false, err);
+        })
+
+        rstream.on('data', (chunk) => {
+                data += chunk;
+        });
+
+        rstream.on('close', () =>{  // done
+
+        if(data != undefined){
+          try{
+            blockchainDataFromFile = JSON.parse(data);
+            dataBuffer = instanciateBlockchain(blockchainDataFromFile);
+            console.log('Blockchain successfully loaded from file and validated')
+          }catch(err){
+            cb(false, err);
+          }
+
+          cb(dataBuffer);
+
+        }else{
+          cb(false, 'ERROR: No data found!')
+        }
+
+      });
+
+    }else {
+            console.log('Generating new blockchain')
+            let newBlockchain = new Blockchain();
+            // newBlockchain = seedNodeList(newBlockchain, thisNode);
+            // seedNodeList(newBlockchain); //------------------------Have to find a better way to create nodes
+            blockchain = newBlockchain;
+            saveBlockchain(newBlockchain);
+            cb(blockchain, "file does not exist. New blockchain generated");
+    }
+
+  });
+
+
+}
+
+const saveBlockchain = (blockchainReceived) => {
+
+  fs.exists('blockchain.json', function(exists){
+      if(exists){
+          var longestBlockchain;
+
+          if(blockchainReceived != undefined){
+
+              if(!(blockchainReceived instanceof Blockchain)){
+                      blockchainReceived = instanciateBlockchain(blockchainReceived);
+              }
+
+              let json = JSON.stringify(blockchainReceived, null, 4);
+
+              if(json != undefined){
+                  console.log('Writing to blockchain file...');
+
+                  var wstream = fs.createWriteStream('blockchain.json');
+
+                  wstream.write(json);
+                  wstream.end();
+
+              }
+
+          }
+
+      } else {
+        console.log("Creating new Blockchain file and saving to it")
+        let json = JSON.stringify(blockchainReceived, null, 4);
+        if(json != undefined){
+
+          var wstream = fs.createWriteStream('blockchain.json');
+
+          wstream.write(json);
+          wstream.end();
+
+        }
+
+      }
+  });
+}
+
+
+const instanciateBlockchain = (blockchain) =>{
+    return new Blockchain(blockchain.chain, blockchain.pendingTransactions, blockchain.nodeTokens, blockchain.ipAddresses, blockchain.publicKeys);
+}
+
+module.exports = {
+  initBlockchain,
+  loadBlockchainFromServer,
+  saveBlockchain,
+  instanciateBlockchain,
+}

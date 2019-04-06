@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>NodeJS Blockchain Management Console</title>
+    <link href="https://fonts.googleapis.com/css?family=Inconsolata"
+          rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="main.css" type="text/css"/>
+    <link rel="canonical" href="https://robwu.nl/cors-anywhere.html">
+    <link rel="stylesheet" href="./scripts/jQuery-Based-Pretty-Collapsible-JSON-Tree-Viewer/src/jquery.json-view.css">
+    <link rel="icon" href="./images/terminal.ico">
+    <script src="./scripts/ipFinder-client.js"></script>
+
+  </head>
+  <body>
+    <div style="overflow:scroll;" class="console-panel", id="console-panel">
+      <div id="second-container"><ul id="myULContainer"><div id="element"></div></ul></div>
+    </div>
+    <div style='overflow:scroll;' class="panel">
+
+      <div id="container">
+
+        <output>
+        </output>
+
+        <div action="#" id="input-line" class="input-line">
+
+          <div class="prompt"></div><div><input class="cmdline" autofocus /></div>
+
+        </div>
+
+        <button id="mobile-enter">Enter</button>
+        <canvas id="myCanvas" width="100" height="100"></canvas>
+        <div class="blockchain-output" id="blockchain-output"></div>
+        <div class="address-buffer"></div>
+      </div>
+
+    </div>
+
+
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script  src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"
+            integrity="sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E="
+            crossorigin="anonymous"></script>
+    <!--<script src="https://s.codepen.io/AndrewBarfield/pen/LEbPJx.js"></script>-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.0/socket.io.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.0/socket.io.dev.js'></script>
+    <script src="./scripts/jQuery-Based-Pretty-Collapsible-JSON-Tree-Viewer/src/jquery.json-view.js"></script>
+    <script src="./scripts/sha256.js"></script>
+    <script src="./scripts/time.js"></script>
+    <script src="./scripts/cryptos.js"></script>
+    <script src="./scripts/getweather.js"></script>
+    <script src="./scripts/terminal.js"></script>
+    <script src="./scripts/main.js"></script>
+    <script src="./scripts/iching.js"></script>
+
+
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/js-sha256/0.9.0/sha256.min.js'></script>
+
+  </body>
+</html>
