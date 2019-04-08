@@ -56,7 +56,7 @@ class Node {
     this.longestChain = {
       length:0,
       peerAddress:''
-    }  //Serves to store messages from other nodes to avoid infinite feedback
+    }
   }
 
 
@@ -522,7 +522,7 @@ class Node {
     })
 
     socket.on('startMiner', ()=>{
-      this.startMiner();
+      this.updateAndMine();
     })
 
     socket.on('isChainValid', ()=>{
@@ -738,7 +738,7 @@ class Node {
           peerAddress:this.address
         })
         .then(function (response) {
-            console.log(response);
+            //console.log(response);
         })
         .catch((err)=>{
           if(err.code == 'ECONRESET'){
