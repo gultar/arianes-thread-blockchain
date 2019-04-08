@@ -440,7 +440,7 @@ class Node {
               }
 
             }else{
-              console.log(blockHeader);
+              console.log(blockHeader.previousHash);
               res.json({ error:'chain out of sync' })
             }
             // if(blockHeight === lastBlock.blockNumber && blockHash !== lastBlock.hash){
