@@ -427,8 +427,8 @@ class Node {
             }
 
           }else{
-            if(blockHeight === lastBlock.blockNumber){
-              if(blockTimestamp > lastBlock.timestamp){
+            if(blockHeight === lastBlock.blockNumber && blockHash !== lastBlock.hash){
+              if(blockTimestamp >= lastBlock.timestamp){
 
                 res.json( {
                   error:'block already mined',
@@ -441,10 +441,10 @@ class Node {
                 console.log('Peer has mined a block before: sending current last block to orphaned blocks')
                 let orphanedBlock = this.chain.chain.pop();
                 this.chain.orphanedBlocks.push(orphanedblock);
-                res.json({ error:'target peer chain is outdated' }).end()
+                res.json({ error:'target peer chain is out of sync' }).end()
 
               }
-            }else if(blockHeight == lastBlock.blockNumber - 1){
+            }else if(blockHash === lastBlock.previousHash){
               res.json( { error:'chain out of sync by 1 block' }).end()
             }else{
               res.json( { error:'chain out of sync' }).end()
@@ -897,18 +897,18 @@ class Node {
                   console.log(chalk.red(response.data.error));
                   return false
                 }else if(response.data.error == 'chain out of sync by 1 block'){
-                  let peerBlockHeader = response.data.header;
-                  if(peerBlockHeader){
-                    let valid = this.chain.validateBlockHeader(peerBlockHeader);
-                    if(valid){
-                      console.log('Block already mined: sending current last block to orphaned blocks')
-                      let orphanedBlocks = this.chain.chain.splice(-1, 2);
-                      this.chain.orphanedBlocks.push(orphanedBlocks)
-                      this.update()
-                    }
-                  }
-                }
-                else if(response.data.error == 'block already mined'){
+                  console.log('Block already mined: sending current last block to orphaned blocks')
+                  let orphanedBlocks = this.chain.chain.splice(-1, 2);
+                  this.chain.orphanedBlocks.push(orphanedBlocks)
+                  this.update()
+                  // let peerBlockHeader = response.data.header;
+                  // if(peerBlockHeader){
+                  //   let valid = this.chain.validateBlockHeader(peerBlockHeader);
+                  //   if(valid){
+                  //
+                  //   }
+                  // }
+                }else if(response.data.error == 'block already mined'){
                   let peerBlockHeader = response.data.header;
                   if(peerBlockHeader){
                     let valid = this.chain.validateBlockHeader(peerBlockHeader);
@@ -919,6 +919,8 @@ class Node {
                       this.update();
                     }
                   }
+                }else if(response.data.error == 'target peer chain is out of sync'){
+
                 }
                 return false
               }else{
