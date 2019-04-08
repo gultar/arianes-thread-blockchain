@@ -405,7 +405,7 @@ class Node {
     app.get('/getNextBlock', (req, res)=>{
       try{
         var blockHash = req.query.hash;
-        var blockHeader = req.query.header;
+        var blockHeader = JSON.parse(req.query.header);
 
         if(this.chain instanceof Blockchain){
 
@@ -442,7 +442,7 @@ class Node {
 
             }else{
 
-              console.log(JSON.parse(blockHeader));
+
               res.json({ error:'chain out of sync' })
             }
             // if(blockHeight === lastBlock.blockNumber && blockHash !== lastBlock.hash){
