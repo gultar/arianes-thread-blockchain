@@ -576,9 +576,9 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      console.log(this.chain.getBlockHeader(this.chain.getLatestBlock()))
+      console.log(this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber))
       this.rollBackBlocks(25);
-      console.log(this.chain.getBlockHeader(this.chain.getLatestBlock()))
+      console.log(this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber))
     })
 
     socket.on('disconnect', ()=>{
