@@ -29,7 +29,8 @@ const chalk = require('chalk');
 // const RoutingTable = require('kademlia-routing-table')
 // const { randomBytes } = require('crypto')
 process.env.END_MINING = false;
-
+txgenCounter = 2000;
+stopTxgen = false;
 /**
   Instanciates a blockchain node
   @constructor
@@ -402,11 +403,29 @@ class Node {
     })
 
     app.get('/getNextBlock', (req, res)=>{
-      var blockHash = req.query.hash
-
+      var blockHash = req.query.hash;
+      var blockHeight = req.query.blockHeight;
+      var blockTimestamp = req.query.blockTimestamp;
       if(this.chain instanceof Blockchain){
+
         const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
         const lastBlock = this.chain.getLatestBlock();
+        if(blockHeight === lastBlock.blockNumber){
+          if(blockTimestamp > lastBlock.timestamp){
+
+            res.json( {
+              error:'block already mined',
+              hash:lastBlock.hash,
+              header:this.chain.getBlockHeader(lastBlock.blockNumber)
+            } ).end()
+
+          }else if(blockTimestamp < lastBlock.timestamp){
+            //Sending current last block to orphaned blocks
+            console.log('Peer has mined a block before: sending current last block to orphaned blocks')
+            let orphanedBlock = this.chain.chain.pop();
+            this.chain.orphanedBlocks.push(orphanedblock);
+          }
+        }
         if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
 
           var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
@@ -414,10 +433,12 @@ class Node {
             res.json(nextBlock).end()
           }
           if(blockHash === lastBlock.hash){
+
             res.json( { error:'end of chain' } ).end()
           }
 
         }else{
+
           res.json( { error:'no block found' } ).end()
         }
       }
@@ -542,11 +563,20 @@ class Node {
     })
 
     socket.on('txgen', ()=>{
-		setInterval(()=>{
-    		  this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
-          "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
+      this.txgen(false);
+		// setInterval(()=>{
+    // 		  // this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
+    //       // "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
+    //
+    //     })
+    })
 
-        }, 2000)
+    socket.on('stoptxgen', ()=>{
+
+    })
+
+    socket.on('test', ()=>{
+      this.rollBackBlocks(25);
     })
 
     socket.on('disconnect', ()=>{
@@ -824,8 +854,15 @@ class Node {
     if(this.chain instanceof Blockchain){
       const latestBlock = this.chain.getLatestBlock();
 
-      axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash } })
-        .then((response) =>{
+      axios.get(address+'/getNextBlock',
+        { params:
+          {
+            hash: latestBlock.hash,
+            blockHeight:latestBlock.blockNumber,
+            blockTimestamp:latestBlock.timestamp
+          }
+         })
+      .then((response) =>{
           var block = response.data;
           if(block){
 
@@ -843,6 +880,16 @@ class Node {
 
                   console.log(chalk.red(response.data.error));
                   return false
+                }else if(response.data.error == 'block already mined'){
+                  let peerBlockHeader = response.data.header;
+                  if(peerBlockHeader){
+                    let valid = this.chain.validateBlockHeader(peerBlockHeader);
+                    if(valid){
+                      console.log('Block already mined: sending current last block to orphaned blocks')
+                      let orphanedBlock = this.chain.chain.pop();
+                      this.chain.orphanedBlocks.push(orphanedBlock)
+                    }
+                  }
                 }
                 return false
               }else{
@@ -1046,6 +1093,19 @@ class Node {
     }else{
       // console.log(message);
       this.outputToUI(message)
+    }
+  }
+
+  txgen(stopTxgen=false){
+    if(!stopTxgen){
+      let increaseThreshold = 0.5;
+      setTimeout(()=>{
+        this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
+        "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
+        txgenCounter = txgenCounter * Math.random();
+        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 1000 : txgenCounter - 1000)
+      },txgenCounter)
+      this.txgen(false)
     }
   }
 
