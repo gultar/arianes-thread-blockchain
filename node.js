@@ -432,7 +432,8 @@ class Node {
             if(blockHeader.previousHash == lastBlock.previousHash){
 
               if(blockHeader.blockNumber == lastBlock.blockNumber){
-                res.json({ error:"block conflict", header:this.chain.getBlockHeader(lastBlock.blockNumber) }).end()
+                let lastBlockHeader = JSON.stringify(this.chain.getBlockHeader(lastBlock.blockNumber))
+                res.json({ error:"block conflict", header:lastBlockHeader }).end()
               }else if(blockHeader.blockNumber < lastBlock.blockNumber){
                 res.json({ error:'chain falling behind by '+lastBlock.blockNumber-blockHeader.blockNumber+' blocks' }).end()
               }else{
@@ -441,7 +442,7 @@ class Node {
 
             }else{
 
-              console.log(JSON.stringify(blockHeader, null, 2));
+              console.log(JSON.parse(blockHeader));
               res.json({ error:'chain out of sync' })
             }
             // if(blockHeight === lastBlock.blockNumber && blockHash !== lastBlock.hash){
