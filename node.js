@@ -56,7 +56,7 @@ class Node {
     this.longestChain = {
       length:0,
       peerAddress:''
-    }
+    }  //Serves to store messages from other nodes to avoid infinite feedback
   }
 
 
@@ -598,6 +598,7 @@ class Node {
               this.chain.validateTransaction(transaction, (valid)=>{
                 if(valid){
                   this.chain.pendingTransactions[transaction.hash] = transaction;
+                  this.log('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
                   console.log(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
                 }
               });
@@ -738,7 +739,7 @@ class Node {
           peerAddress:this.address
         })
         .then(function (response) {
-            //console.log(response);
+            console.log(response);
         })
         .catch((err)=>{
           if(err.code == 'ECONRESET'){
@@ -897,6 +898,10 @@ class Node {
     }
   }
 
+  rollBackUnconfirmedBlocks(){
+
+  }
+
 
   /**
     @desc Emits all transactions as peerMessages.
@@ -989,6 +994,7 @@ class Node {
                   var newBlockNumber = this.chain.getLatestBlock().blockNumber
                   // this.sendPeerMessage('validateBlock', this.chain.getBlockHeader(newBlockNumber))
                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+
                   console.log('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                   this.startMiner();
                 },2000)
