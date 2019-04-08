@@ -429,6 +429,8 @@ class Node {
 
           }else{
 
+            console.log(blockHeader)
+
             if(blockHeader.previousHash == lastBlock.previousHash){
 
               if(blockHeader.blockNumber == lastBlock.blockNumber){
