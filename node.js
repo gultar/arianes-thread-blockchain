@@ -29,8 +29,8 @@ const chalk = require('chalk');
 // const RoutingTable = require('kademlia-routing-table')
 // const { randomBytes } = require('crypto')
 process.env.END_MINING = false;
-txgenCounter = 2000;
-stopTxgen = false;
+let txgenCounter = 2000;
+let stopTxgen = false;
 /**
   Instanciates a blockchain node
   @constructor
