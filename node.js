@@ -405,8 +405,7 @@ class Node {
     app.get('/getNextBlock', (req, res)=>{
       try{
         var blockHash = req.query.hash;
-        var blockHeight = req.query.blockHeight;
-        var blockTimestamp = req.query.blockTimestamp;
+        var blockHeader = req.query.header;
 
         if(this.chain instanceof Blockchain){
 
@@ -424,31 +423,47 @@ class Node {
             if(blockHash === lastBlock.hash){
 
               res.json( { error:'end of chain' } ).end()
+            }else{
+              console.log('Block fork')
             }
 
           }else{
-            if(blockHeight === lastBlock.blockNumber && blockHash !== lastBlock.hash){
-              if(blockTimestamp >= lastBlock.timestamp){
 
-                res.json( {
-                  error:'block already mined',
-                  hash:lastBlock.hash,
-                  header:this.chain.getBlockHeader(lastBlock.blockNumber)
-                } ).end()
+            if(blockHeader.previousHash == lastBlock.previousHash){
 
-              }else if(blockTimestamp < lastBlock.timestamp){
-                //Sending current last block to orphaned blocks
-                console.log('Peer has mined a block before: sending current last block to orphaned blocks')
-                let orphanedBlock = this.chain.chain.pop();
-                this.chain.orphanedBlocks.push(orphanedblock);
-                res.json({ error:'target peer chain is out of sync' }).end()
-
+              if(blockHeader.blockNumber == lastBlock.blockNumber){
+                res.json({ error:"block conflict", header:this.chain.getBlockHeader(lastBlock.blockNumber) }).end()
+              }else if(blockHeader.blockNumber < lastBlock.blockNumber){
+                res.json({ error:'chain falling behind by '+lastBlock.blockNumber-blockHeader.blockNumber+' blocks' }).end()
+              }else{
+                res.json({ error:'target peer chain is falling behind' }).end()
               }
-            }else if(blockHash === lastBlock.previousHash){
-              res.json( { error:'chain out of sync by 1 block' }).end()
+
             }else{
-              res.json( { error:'chain out of sync' }).end()
+              res.json({ error:'chain out of sync' })
             }
+            // if(blockHeight === lastBlock.blockNumber && blockHash !== lastBlock.hash){
+            //   if(blockTimestamp >= lastBlock.timestamp){
+            //
+            //     res.json( {
+            //       error:'block already mined',
+            //       hash:lastBlock.hash,
+            //       header:this.chain.getBlockHeader(lastBlock.blockNumber)
+            //     } ).end()
+            //
+            //   }else if(blockTimestamp < lastBlock.timestamp){
+            //     //Sending current last block to orphaned blocks
+            //     console.log('Peer has mined a block before: sending current last block to orphaned blocks')
+            //     let orphanedBlock = this.chain.chain.pop();
+            //     this.chain.orphanedBlocks.push(orphanedblock);
+            //     res.json({ error:'target peer chain is out of sync' }).end()
+            //
+            //   }
+            // }else if(blockHash === lastBlock.previousHash){
+            //   res.json( { error:'chain out of sync by 1 block' }).end()
+            // }else{
+            //   res.json( { error:'chain out of sync' }).end()
+            // }
             //res.json( { error:'no block found' } ).end()
           }
         }
@@ -874,8 +889,7 @@ class Node {
         { params:
           {
             hash: latestBlock.hash,
-            blockHeight:latestBlock.blockNumber,
-            blockTimestamp:latestBlock.timestamp
+            header:this.chain.getBlockHeader(latestBlock.blockNumber)
           }
          })
       .then((response) =>{
@@ -892,36 +906,38 @@ class Node {
                     cb(true)
                   }
                   return true;
-                }else if(response.data.error == 'chain out of sync'){
+                }else if(response.data.error){
                   //Fetch chain info of peer and compare. Orphan divergent blocks
                   console.log(chalk.red(response.data.error));
                   return false
-                }else if(response.data.error == 'chain out of sync by 1 block'){
-                  console.log('Block already mined: sending current last block to orphaned blocks')
-                  let orphanedBlocks = this.chain.chain.splice(-1, 2);
-                  this.chain.orphanedBlocks.push(orphanedBlocks)
-                  this.update()
-                  // let peerBlockHeader = response.data.header;
-                  // if(peerBlockHeader){
-                  //   let valid = this.chain.validateBlockHeader(peerBlockHeader);
-                  //   if(valid){
-                  //
-                  //   }
-                  // }
-                }else if(response.data.error == 'block already mined'){
-                  let peerBlockHeader = response.data.header;
-                  if(peerBlockHeader){
-                    let valid = this.chain.validateBlockHeader(peerBlockHeader);
-                    if(valid){
-                      console.log('Block already mined: sending current last block to orphaned blocks')
-                      let orphanedBlock = this.chain.chain.pop();
-                      this.chain.orphanedBlocks.push(orphanedBlock);
-                      this.update();
-                    }
-                  }
-                }else if(response.data.error == 'target peer chain is out of sync'){
-
                 }
+
+                // else if(response.data.error == 'chain out of sync by 1 block'){
+                //   console.log('Block already mined: sending current last block to orphaned blocks')
+                //   let orphanedBlocks = this.chain.chain.splice(-1, 2);
+                //   this.chain.orphanedBlocks.push(orphanedBlocks)
+                //   this.update()
+                //   // let peerBlockHeader = response.data.header;
+                //   // if(peerBlockHeader){
+                //   //   let valid = this.chain.validateBlockHeader(peerBlockHeader);
+                //   //   if(valid){
+                //   //
+                //   //   }
+                //   // }
+                // }else if(response.data.error == 'block already mined'){
+                //   let peerBlockHeader = response.data.header;
+                //   if(peerBlockHeader){
+                //     let valid = this.chain.validateBlockHeader(peerBlockHeader);
+                //     if(valid){
+                //       console.log('Block already mined: sending current last block to orphaned blocks')
+                //       let orphanedBlock = this.chain.chain.pop();
+                //       this.chain.orphanedBlocks.push(orphanedBlock);
+                //       this.update();
+                //     }
+                //   }
+                // }else if(response.data.error == 'target peer chain is out of sync'){
+                //
+                // }
                 return false
               }else{
                 setTimeout(()=>{
