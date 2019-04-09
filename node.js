@@ -679,6 +679,17 @@ class Node {
           break;
         case 'whoisLongestChain':
           try{
+            let params = {
+              length:this.chain.chain.length,
+              peerAddress:this.address
+            }
+            fetch(originAddress+'/chainLength', { method: 'POST', body:params  })
+              .catch(err => console.log(err))
+              .then(res => res.json())
+              .then(json => console.log(json));
+              
+
+
             axios.post(originAddress+'/chainLength', {
               length:this.chain.chain.length,
               peerAddress:this.address
