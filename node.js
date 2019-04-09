@@ -587,7 +587,7 @@ class Node {
       axios.get('http://10.10.10.10:8001/getChainHeaders')
       .then((headers)=>{
         console.log('Headers are the same:', this.compareChainHeaders(headers));
-        console.log(headers.headers.length);
+        console.log(headers);
       })
       .catch((e)=>{
         console.log(e)
