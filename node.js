@@ -578,7 +578,7 @@ class Node {
 
     socket.on('test', ()=>{
       console.log('Resolving fork!');
-      this.resolveBlockFork(address);
+      this.resolveBlockFork('http://10.10.10.10:8001');
 
     })
 
