@@ -600,18 +600,9 @@ class Node {
       stopTxgen = true;
     })
 
-    socket.on('testHeader', (num)=>{
-      var header = this.chain.getBlockHeader(num)
-      console.log(header);
-      console.log(this.chain.validateBlockHeader(header))
-      console.log(sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce).toString())
-      console.log(header.hash)
-    })
-
     socket.on('test', ()=>{
-      console.log(this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber))
-      this.rollBackBlocks(25);
-      console.log(this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber))
+      let info = this.getChainInfo(this.chain.chain.length-1)
+      console.log(this.compareChains(info));
     })
 
     socket.on('disconnect', ()=>{
@@ -911,6 +902,7 @@ class Node {
                 }else if(response.data.error){
                   //Fetch chain info of peer and compare. Orphan divergent blocks
                   switch(response.data.error){
+
                     case 'block conflict':
                       let peerBlockHeader = response.data.header;
                       let headerValid = this.chain.validateBlockHeader(peerBlockHeader);
@@ -922,9 +914,6 @@ class Node {
                       }else{
                         console.log("Headers not valid")
                       }
-                        
-                      
-                      
                       break;
                     case 'chain falling behind':
                       let byNumberOfBlocks = response.data.byNumberOfBlocks;
@@ -940,12 +929,17 @@ class Node {
                       //fetch chain info and compare
                       axios.get(address+'/getChainHeaders')
                       .then((response)=>{
-                        let headers = response.data.chainHeaders
+                        try{
+                          let headers = JSON.parse(response.data.chainHeaders)
+                          
+                          let comparisonResult = this.compareChains(headers);
+                          if(comparisonResult === true) this.update();
+                          if(comparisonResult >= 1) this.rollBackBlocks(comparisonResult);
+                          if(comparisonResult !== false) console.log('Peer chain headers are invalid')
+                        }catch(e){
+                          console.log(e)
+                        }
                         
-                        let comparisonResult = this.compareChains(headers);
-                        if(comparisonResult === true) this.update();
-                        if(comparisonResult >= 1) this.rollBackBlocks(comparisonResult);
-                        if(comparisonResult !== false) console.log('Peer chain headers are invalid')
                       })
                       .catch((e)=>{
                         console.log(e)
@@ -959,34 +953,6 @@ class Node {
                   console.log(chalk.red(response.data.error));
                   return false
                 }
-
-
-                // else if(response.data.error == 'chain out of sync by 1 block'){
-                //   console.log('Block already mined: sending current last block to orphaned blocks')
-                //   let orphanedBlocks = this.chain.chain.splice(-1, 2);
-                //   this.chain.orphanedBlocks.push(orphanedBlocks)
-                //   this.update()
-                //   // let peerBlockHeader = response.data.header;
-                //   // if(peerBlockHeader){
-                //   //   let valid = this.chain.validateBlockHeader(peerBlockHeader);
-                //   //   if(valid){
-                //   //
-                //   //   }
-                //   // }
-                // }else if(response.data.error == 'block already mined'){
-                //   let peerBlockHeader = response.data.header;
-                //   if(peerBlockHeader){
-                //     let valid = this.chain.validateBlockHeader(peerBlockHeader);
-                //     if(valid){
-                //       console.log('Block already mined: sending current last block to orphaned blocks')
-                //       let orphanedBlock = this.chain.chain.pop();
-                //       this.chain.orphanedBlocks.push(orphanedBlock);
-                //       this.update();
-                //     }
-                //   }
-                // }else if(response.data.error == 'target peer chain is out of sync'){
-                //
-                // }
                 return false
               }else{
                 setTimeout(()=>{
@@ -1031,9 +997,6 @@ class Node {
             if(!isLinked) return false;
           }
           
-
-          
-           
         }
         return true;
       }
