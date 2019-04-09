@@ -407,9 +407,9 @@ class Node {
     app.get('/getChainHeaders', (req, res)=>{
       try{
 
-          let chainHeaders = this.getChainInfo(this.chain.chain.length-1);
+          let chainHeaders = this.getChainInfo(1);
           res.json({ chainHeaders:chainHeaders }).end()
-      
+
       }catch(e){
         console.log(e);
       }
@@ -421,7 +421,7 @@ class Node {
       try{
         var blockHash = req.query.hash;
         var blockHeader = req.query.header;
-      
+
         if(this.chain instanceof Blockchain){
           const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
           const lastBlock = this.chain.getLatestBlock();
@@ -447,7 +447,7 @@ class Node {
       }catch(e){
         console.log(e)
       }
-      
+
     })
 
     app.get('/listOfBlockHashes', (req, res)=>{
@@ -577,9 +577,21 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      let info = this.getChainInfo(1)
-      console.log(info.length)
-      console.log(this.compareChains(info));
+      // let headers = this.getChainInfo(1);
+
+      // headers.headers.forEach((h)=>{
+      //     console.log('Header '+h.blockNumber+' valid:', this.chain.validateBlockHeader(h));
+      // })
+      // console.log('Header chain is valid:', this.validateChainInfo(headers))
+      // console.log('Chain headers are the same', this.compareChainHeaders(headers))
+      axios.get('http://10.10.10.10:8001/getChainHeaders')
+      .then((headers)=>{
+        console.log('Headers are the same:', this.compareChainHeaders(headers));
+        console.log(headers.blockHashes.length);
+      })
+      .catch((e)=>{
+        console.log(e)
+      })
     })
 
     socket.on('disconnect', ()=>{
@@ -724,35 +736,35 @@ class Node {
   */
   validateChainInfo(chainInfo){
     try{
-      if(chainInfo){
-        if(this.chain instanceof Blockchain){
+      var isLinked = false;
+      var areHashesValid = false;
+      for(var i=1; i < chainInfo.headers.length; i++){
 
-          var isLinked = false;
-          var areHashesValid = false;
-          const lastBlock = this.chain.getLatestBlock();
+          areHashesValid = this.chain.validateBlockHeader(chainInfo.headers[i]);
 
-            if(chainInfo.length > this.chain.chain.length){
-              for(var i=1; i < this.chain.chain.length; i++){
+          var currentHeader = chainInfo.headers[i];
 
-                areHashesValid = this.chain.validateBlockHeader(chainInfo.headers[i]);
+          if(i > 1 && currentHeader){
+            isLinked = chainInfo.headers[i-1].hash == currentHeader.previousHash
 
-                if(i > 0){
-                  isLinked = chainInfo.headers[i-1].hash = chainInfo.headers[i].previousHash
-                }
-
-                if(!isLinked && areHashesValid){
-                  return false;
-                }
-
-              }
-              return true
-
-            }else if(chainInfo.length < this.chain.chain.length){
-
-              //Find something to do with chain info?
+            if(!isLinked && areHashesValid){
+              console.log("Block number "+i+" is not linked");
+              return false;
+            }else if(!isLinked && !areHashesValid){
+              console.log("Block number "+i+" is not linked");
+              console.log('Header hashes are not valid at position '+i);
+              return false;
+            }else if(isLinked && !areHashesValid){
+              console.log('Header hashes are not valid at position '+i);
+              return false;
             }
-        }
+          }
+
+
+
       }
+
+      return isLinked;
     }catch(e){
       console.log(e)
     }
@@ -775,7 +787,7 @@ class Node {
             console.log(response.data);
         })
         .catch((err)=>{
-          
+
           console.log(err.status)
         })
       }catch(e){
@@ -875,7 +887,7 @@ class Node {
                   this.chain.orphanedBlocks.push(orphanBlock);
                   this.fetch(address);
                 }else if(response.data.error == 'no block found'){
-                  
+
                   console.log(chalk.red(response.data.error));
                   return false
                 }
@@ -906,38 +918,38 @@ class Node {
      console.log('Is blockchain valid?',this.chain.isChainValid())
   }
 
-  // compareChains(headers){
-  //   // console.log(headers)
-  //   if(this.chain instanceof Blockchain){
-  //     if(headers){
-  //       for(var i=0; i < headers.headers.length; i++){
-          
-  //         var header = headers.headers[i]
-          
-  //         try{
-          
-  //         if(i > 1){
-  //           var localBlockHeader = this.chain.getBlockHeader(i);
-  //           console.log(headers.headers[i])
-  //           console.log('Local', localBlockHeader.hash);
-  //           console.log('Header', header.hash);
-  //           let containsBlock = localBlockHeader.hash == header.hash;
-  //           let isValid = this.chain.validateBlockHeader(header);
-  //           let isLinked = headers.headers[i-1].hash = header.previousHash;
-  //           if(!containsBlock) return i;
-  //           if(!isValid) return false;
-  //           if(!isLinked) return false;
-  //         }
-  //         }catch(e){
-  //           console.log(e)
-  //         }
-          
-          
-  //       }
-  //       return true;
-  //     }
-  //   }
-  // }
+  compareChainHeaders(headers){
+    // console.log(headers)
+    if(this.chain instanceof Blockchain){
+      if(headers){
+        for(var i=0; i < headers.headers.length; i++){
+
+          var header = headers.headers[i]
+          var localBlockHeader = this.chain.getBlockHeader(i+1);
+          try{
+
+            if(i > 1 && header){
+
+              console.log(headers.headers[i])
+              console.log('Local', localBlockHeader.hash);
+              console.log('Header', header.hash);
+              let containsBlock = localBlockHeader.hash == header.hash;
+              let isValid = this.chain.validateBlockHeader(header);
+
+              if(!containsBlock) return i;
+              if(!isValid) return false;
+            }
+
+          }catch(e){
+            console.log(e)
+          }
+
+
+        }
+        return true;
+      }
+    }
+  }
 
    /**
     @param {number} $number - Index of block from which to show block creation time
@@ -965,7 +977,7 @@ class Node {
       sideChain.forEach((block)=>{
         this.chain.orphanedBlocks.push(block)
       })
-      
+
       return sideChain;
     }
   }
@@ -1123,11 +1135,11 @@ class Node {
       setTimeout(()=>{
         this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
         "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
-        
+
         txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
         this.txgen()
       },txgenCounter)
-      
+
     }
   }
 
