@@ -587,11 +587,12 @@ class Node {
               console.log('Index:', spliceIndex)
               var numberOfForkingBlocks = this.chain.chain.length - spliceIndex;
               console.log('Num. of forking blocks',numberOfForkingBlocks);
+              console.log('Chain length:', this.chain.chain.length)
               for(var i=0;i<=numberOfForkingBlocks;i++ ){
                 let orphanBlocks = this.chain.chain.pop();
-                console.log(orphanBlocks);
+                this.chain.orphanedBlocks.push(orphanBlocks);
               }
-
+              console.log('Chain length:', this.chain.chain.length)
 
             }
           }else{
