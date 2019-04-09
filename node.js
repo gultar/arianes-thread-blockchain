@@ -363,8 +363,6 @@ class Node {
     app.post('/chainLength', (req, res) =>{
       try{
         const { length, peerAddress } = req.body;
-        console.log('Lenght:', length);
-        console.log('peerAddress', peerAddress)
         if(this.longestChain.length <= length){
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
