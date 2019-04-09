@@ -367,7 +367,7 @@ class Node {
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
           console.log(peerAddress+' has sent its chain length: '+length)
-          res.end()
+          res.end('OK')
         }
       }catch(e){
         console.log(e)
