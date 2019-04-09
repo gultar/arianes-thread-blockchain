@@ -383,7 +383,8 @@ class Blockchain{
       var block = this.chain[blockNumber];
 
       if(block){
-        var mroot = merkleRoot(Object.keys(block.transactions))
+        var transactionHashes = Object.keys(block.transactions);
+        var mroot = merkle('sha256').sync(transactionHashes);
         if(!mroot){
           console.log('no mroot')
           return false;

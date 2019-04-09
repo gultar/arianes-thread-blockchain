@@ -807,9 +807,7 @@ class Node {
             console.log(response);
         })
         .catch((err)=>{
-          if(err.code == 'ECONRESET'){
-            console.log('BOOGA BOOGA')
-          }
+          
           console.log(err)
         })
       }catch(e){
@@ -916,14 +914,12 @@ class Node {
                     case 'block conflict':
                       let peerBlockHeader = response.data.header;
                       let headerValid = this.chain.validateBlockHeader(peerBlockHeader);
-                      if(headerValid){
+                      if(headerValid)
                         console.log('Block conflict: last block is now orphaned')
                         let orphanedBlock = this.chain.chain.pop();
                         this.chain.orphanedBlocks.push(orphanedBlock);
                         this.fetchBlocks(address);
-                      }else{
-                        console.log("Peer's header is not valid")
-                      }
+                      
                       
                       break;
                     case 'chain falling behind':
