@@ -715,6 +715,7 @@ window.onload = function() {
 
     $('#myCanvas').css('visibility', 'hidden');
     $('body').css("background-image", localStorage.getItem('savedBackground'));
+    setInterval(function(){ $('#myULContainer').html('<div id="element"></div>'); },60000)
 }
 
 function longestChain(localBlockchain=false, distantBlockchain=false){
