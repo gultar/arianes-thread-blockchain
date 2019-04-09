@@ -420,7 +420,7 @@ class Node {
     app.get('/getNextBlock', (req, res)=>{
       try{
         var blockHash = req.query.hash;
-        var blockHeader = JSON.parse(req.query.header);
+        var blockHeader = req.query.header;
       
         if(this.chain instanceof Blockchain){
           const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
