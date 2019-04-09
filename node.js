@@ -885,7 +885,6 @@ class Node {
     @param {function} $cb - Optional callback
   */
   fetchBlocks(address, cb){
-    let address = address
   //var updateAddress = (address ? address : longestChain.peerAddress)
   try{
     if(this.chain instanceof Blockchain){
@@ -912,21 +911,35 @@ class Node {
                     cb(true)
                   }
                   return true;
+
                 }else if(response.data.error){
                   //Fetch chain info of peer and compare. Orphan divergent blocks
                   switch(response.data.error){
                     case 'block conflict':
-                      console.log('Block conflict: last block is now orphaned')
-                      let orphanedBlock = this.chain.chain.pop();
-                      this.chain.orphanedBlocks.push(orphanedBlock);
-                      this.fetchBlocks(address);
+                      let peerBlockHeader = response.data.header;
+                      let headerValid = this.chain.validateBlockHeader(peerBlockHeader);
+                      if(headerValid){
+                        console.log('Block conflict: last block is now orphaned')
+                        let orphanedBlock = this.chain.chain.pop();
+                        this.chain.orphanedBlocks.push(orphanedBlock);
+                        this.fetchBlocks(address);
+                      }else{
+                        console.log("Peer's header is not valid")
+                      }
+                      
                       break;
                     case 'chain falling behind':
-                      let byNumberOfBlocks = response.data.byNumberOfBlocks
+                      let byNumberOfBlocks = response.data.byNumberOfBlocks;
+                      console.log('chain falling behind')
                       break;
                     case "querying peer's block contains more work":
+                      console.log("querying peer's block contains more work")
                       break;
                     case 'target peer chain is falling behind':
+                      console.log('target peer chain is falling behind')
+                      break;
+                    case 'chain out of sync':
+                      //fetch chain info and compare
                       break;
                     default:
                       break;
