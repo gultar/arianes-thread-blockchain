@@ -24,7 +24,7 @@ const save = require('./save');
 const crypto = require('crypto');
 const fs = require('fs');
 const axios = require('axios');
-const fetch = require('fetch');
+const fetch = require('node-fetch');
 const chalk = require('chalk');
 
 // const RoutingTable = require('kademlia-routing-table')
