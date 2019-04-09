@@ -1159,12 +1159,12 @@ class Node {
   txgen(){
     if(!stopTxgen){
       let increaseThreshold = 0.5;
-      setTimeout(()=>{
+      setInterval(()=>{
         this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
         "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
 
-        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
-        this.txgen()
+        // txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
+        // this.txgen()
       },txgenCounter)
 
     }
