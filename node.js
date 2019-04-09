@@ -448,6 +448,7 @@ class Node {
               if(blockHeader.blockNumber == lastBlock.blockNumber){
                 if(blockHeader.nonce <= lastBlock.nonce){
                   let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber)
+                  console.log('Last block header',lastBlockHeader)
                   res.json({ error:"block conflict", header:lastBlockHeader }).end()
                 }else{
                   res.json({ error:"querying peer's block contains more work" }).end()
@@ -932,6 +933,7 @@ class Node {
                       axios.get(address+'/getChainHeaders')
                       .then((response)=>{
                         let headers = response.data.chainHeaders
+                        
                         let comparisonResult = this.compareChains(headers);
                         if(comparisonResult === true) this.update();
                         if(comparisonResult >= 1) this.rollBackBlocks(comparisonResult);
@@ -1058,7 +1060,7 @@ class Node {
     }
   }
 
-  rollBackUnconfirmedBlocks(){
+  resolveChainForking(){
 
   }
 
