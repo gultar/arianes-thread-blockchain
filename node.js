@@ -585,10 +585,14 @@ class Node {
             if(typeof areValidHeaders == 'number'){
               var spliceIndex = areValidHeaders;
               console.log('Index:', spliceIndex)
-              var startAtIndex = this.chain.chain.length - spliceIndex;
-              console.log('Start at', startAtIndex);
-              let orphanBlocks = this.chain.chain.splice(-1, startAtIndex);
-              console.log(orphanBlocks);
+              var numberOfForkingBlocks = this.chain.chain.length - spliceIndex;
+              console.log('Num. of forking blocks',numberOfForkingBlocks);
+              for(var i=0;i<=numberOfForkingBlocks;i++ ){
+                let orphanBlocks = this.chain.chain.pop();
+                console.log(orphanBlocks);
+              }
+
+
             }
           }else{
 
