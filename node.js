@@ -662,7 +662,7 @@ class Node {
               length:this.chain.chain.length,
               peerAddress:this.address
             }).then((response)=>{
-              // console.log(response);
+              console.log("Peer received chain's length",response.data);
             }).catch((e)=>{
               console.log(e)
             })
