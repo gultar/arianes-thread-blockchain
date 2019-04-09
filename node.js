@@ -772,7 +772,7 @@ class Node {
           peerAddress:this.address
         })
         .then(function (response) {
-            // console.log(response);
+            console.log(response.data);
         })
         .catch((err)=>{
           
