@@ -600,6 +600,12 @@ class Node {
       stopTxgen = true;
     })
 
+    socket.on('testHeader', (num)=>{
+      var head = this.chain.getBlockHeader(num)
+      console.log(head);
+      console.log(this.chain.validateBlockHeader(head))
+    })
+
     socket.on('test', ()=>{
       console.log(this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber))
       this.rollBackBlocks(25);
