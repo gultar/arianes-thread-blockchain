@@ -585,7 +585,8 @@ class Node {
       // console.log('Header chain is valid:', this.validateChainInfo(headers))
       // console.log('Chain headers are the same', this.compareChainHeaders(headers))
       axios.get('http://10.10.10.10:8001/getChainHeaders')
-      .then((headers)=>{
+      .then((response)=>{
+        let headers = response.data.chainHeaders
         console.log('Headers are the same:', this.compareChainHeaders(headers));
         console.log(headers);
       })
