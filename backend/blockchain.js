@@ -384,7 +384,8 @@ class Blockchain{
 
       if(block){
         var transactionHashes = Object.keys(block.transactions);
-        var mroot = merkle('sha256').sync(transactionHashes);
+        var mrootStructure = merkle('sha256').sync(transactionHashes);
+        var mroot = mrootStructure.root()
         if(!mroot){
           console.log('no mroot')
           return false;

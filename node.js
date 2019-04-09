@@ -914,11 +914,15 @@ class Node {
                     case 'block conflict':
                       let peerBlockHeader = response.data.header;
                       let headerValid = this.chain.validateBlockHeader(peerBlockHeader);
-                      if(headerValid)
+                      if(headerValid){
                         console.log('Block conflict: last block is now orphaned')
                         let orphanedBlock = this.chain.chain.pop();
                         this.chain.orphanedBlocks.push(orphanedBlock);
                         this.fetchBlocks(address);
+                      }else{
+                        console.log("Headers not valid")
+                      }
+                        
                       
                       
                       break;
