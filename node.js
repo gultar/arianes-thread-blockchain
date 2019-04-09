@@ -367,9 +367,7 @@ class Node {
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
           console.log(peerAddress+' has sent its chain length: '+length)
-          res.end("OK");
-        }else if(this.longestChain.length > length){
-          res.json({message:'this is the longest chain'}).end()
+          res.end()
         }
       }catch(e){
         console.log(e)
@@ -682,20 +680,11 @@ class Node {
           break;
         case 'whoisLongestChain':
           try{
-            // let params = {
-            //   length:this.chain.chain.length,
-            //   peerAddress:this.address
-            // }
-            // fetch(originAddress+'/chainLength', { method: 'POST', body:params  })
-            //   .catch(err => console.log(err))
-            //   .then(res => res.json())
-            //   .then(json => console.log(json));
-
             axios.post(originAddress+'/chainLength', {
               length:this.chain.chain.length,
               peerAddress:this.address
             }).then((response)=>{
-              console.log(`statusCode: ${response.statusCode}`)
+              console.log(response);
             }).catch((e)=>{
               console.log(e)
             })
