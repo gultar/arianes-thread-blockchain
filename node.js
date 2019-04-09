@@ -418,60 +418,24 @@ class Node {
     })
 
     app.get('/getNextBlock', (req, res)=>{
-      try{
-        var blockHash = req.query.hash;
-        var blockHeader = JSON.parse(req.query.header);
+      var blockHash = req.query.hash
 
-        if(this.chain instanceof Blockchain){
+      if(this.chain instanceof Blockchain){
+        const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
+        const lastBlock = this.chain.getLatestBlock();
+        if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
 
-          const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
-          const lastBlock = this.chain.getLatestBlock();
-
-
-          if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
-
-            var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
-            if(nextBlock){
-              res.json(nextBlock).end()
-            }
-            if(blockHash === lastBlock.hash){
-
-              res.json( { error:'end of chain' } ).end()
-            }
-
-          }else{
-
-            console.log('Head prev hash',blockHeader.previousHash);
-            console.log('Last block prev hash',lastBlock.previousHash);
-
-            if(blockHeader.previousHash == lastBlock.previousHash){
-
-              if(blockHeader.blockNumber == lastBlock.blockNumber){
-                if(blockHeader.nonce <= lastBlock.nonce){
-                  let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber)
-                  console.log('Last block header',lastBlockHeader)
-                  res.json({ error:"block conflict", header:lastBlockHeader }).end()
-                }else{
-                  res.json({ error:"querying peer's block contains more work" }).end()
-                }
-
-
-              }else if(blockHeader.blockNumber < lastBlock.blockNumber){
-                let blockDifference = (lastBlock.blockNumber-blockHeader.blockNumber)
-                res.json({ error:'chain falling behind', byNumberOfBlocks:blockDifference }).end()
-              }else{
-                res.json({ error:'target peer chain is falling behind' }).end()
-              }
-
-            }else{
-
-              res.json({ error:'chain out of sync' })
-            }
+          var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
+          if(nextBlock){
+            res.json(nextBlock).end()
           }
-        }
-      }
-      catch(e){
+          if(blockHash === lastBlock.hash){
+            res.json( { error:'end of chain' } ).end()
+          }
 
+        }else{
+          res.json( { error:'no block found' } ).end()
+        }
       }
     })
 
@@ -873,20 +837,15 @@ class Node {
     @param {string} $address - Peer address to sync with
     @param {function} $cb - Optional callback
   */
-  fetchBlocks(address, cb){
+ fetchBlocks(address, cb){
+
   //var updateAddress = (address ? address : longestChain.peerAddress)
   try{
     if(this.chain instanceof Blockchain){
       const latestBlock = this.chain.getLatestBlock();
 
-      axios.get(address+'/getNextBlock',
-        { params:
-          {
-            hash: latestBlock.hash,
-            header:this.chain.getBlockHeader(latestBlock.blockNumber)
-          }
-         })
-      .then((response) =>{
+      axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash } })
+        .then((response) =>{
           var block = response.data;
           if(block){
 
@@ -900,58 +859,7 @@ class Node {
                     cb(true)
                   }
                   return true;
-
-                }else if(response.data.error){
-                  //Fetch chain info of peer and compare. Orphan divergent blocks
-                  switch(response.data.error){
-
-                    case 'block conflict':
-                      let peerBlockHeader = response.data.header;
-                      let headerValid = this.chain.validateBlockHeader(peerBlockHeader);
-                      if(headerValid){
-                        console.log('Block conflict: last block is now orphaned')
-                        let orphanedBlock = this.chain.chain.pop();
-                        this.chain.orphanedBlocks.push(orphanedBlock);
-                        this.fetchBlocks(address);
-                      }else{
-                        console.log("Headers not valid")
-                      }
-                      break;
-                    case 'chain falling behind':
-                      let byNumberOfBlocks = response.data.byNumberOfBlocks;
-                      console.log('chain falling behind')
-                      break;
-                    case "querying peer's block contains more work":
-                      console.log("querying peer's block contains more work")
-                      break;
-                    case 'target peer chain is falling behind':
-                      console.log('target peer chain is falling behind')
-                      break;
-                    case 'chain out of sync':
-                      console.log('Chain out of sync')
-                      //fetch chain info and compare
-                      // axios.get(address+'/getChainHeaders')
-                      // .then((response)=>{
-                      //   try{
-                      //     let headers = JSON.parse(response.data.chainHeaders)
-                          
-                      //     let comparisonResult = this.compareChains(headers);
-                      //     if(comparisonResult === true) this.update();
-                      //     if(comparisonResult >= 1) this.rollBackBlocks(comparisonResult);
-                      //     if(comparisonResult !== false) console.log('Peer chain headers are invalid')
-                      //   }catch(e){
-                      //     console.log(e)
-                      //   }
-                        
-                      // })
-                      // .catch((e)=>{
-                      //   console.log(e)
-                      // })
-                      break;
-                    default:
-                      break;
-                  }
-
+                }else if(response.data.error == 'no block found'){
 
                   console.log(chalk.red(response.data.error));
                   return false
