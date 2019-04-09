@@ -776,7 +776,7 @@ class Node {
         })
         .catch((err)=>{
           
-          console.log(err)
+          console.log(err.status)
         })
       }catch(e){
         console.log(e);
