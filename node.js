@@ -588,7 +588,7 @@ class Node {
       .then((response)=>{
         let headers = response.data.chainHeaders
         console.log('Headers are the same:', this.compareChainHeaders(headers));
-        console.log(headers);
+        // console.log(headers);
       })
       .catch((e)=>{
         console.log(e)
