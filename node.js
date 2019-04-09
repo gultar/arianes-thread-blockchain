@@ -587,7 +587,7 @@ class Node {
               console.log('Index:', spliceIndex)
               var startAtIndex = this.chain.chain.length - spliceIndex;
               console.log('Start at', startAtIndex);
-              let orphanBlocks = this.chain.chain.slice(-1, startAtIndex);
+              let orphanBlocks = this.chain.chain.splice(-1, startAtIndex);
               console.log(orphanBlocks);
             }
           }else{
