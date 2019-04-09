@@ -365,12 +365,12 @@ class Node {
         const { length, peerAddress } = req.body;
         console.log('Lenght:', length);
         console.log('peerAddress', peerAddress)
-        if(this.longestChain.length < length){
+        if(this.longestChain.length <= length){
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
           console.log(peerAddress+' has sent its chain length: '+length)
-          res.end()
-        }else if(this.longestChain.length >= length){
+          res.end("OK");
+        }else if(this.longestChain.length > length){
           res.json({message:'this is the longest chain'}).end()
         }
       }catch(e){
@@ -684,25 +684,34 @@ class Node {
           break;
         case 'whoisLongestChain':
           try{
-            let params = {
-              length:this.chain.chain.length,
-              peerAddress:this.address
-            }
-            fetch(originAddress+'/chainLength', { method: 'POST', body:params  })
-              .catch(err => console.log(err))
-              .then(res => res.json())
-              .then(json => console.log(json));
-              
-
-
-            // axios.post(originAddress+'/chainLength', {
+            // let params = {
             //   length:this.chain.chain.length,
             //   peerAddress:this.address
-            // }).then((response)=>{
-            //   console.log(response);
-            // }).catch((e)=>{
-            //   console.log(e)
-            // })
+            // }
+            // fetch(originAddress+'/chainLength', { method: 'POST', body:params  })
+            //   .catch(err => console.log(err))
+            //   .then(res => res.json())
+            //   .then(json => console.log(json));
+              
+            axios.post('https://flaviocopes.com/todos', {
+              todo: 'Buy the milk'
+            })
+            .then((res) => {
+              
+              console.log(res)
+            })
+            .catch((error) => {
+              console.error(error)
+            })
+
+            axios.post(originAddress+'/chainLength', {
+              length:this.chain.chain.length,
+              peerAddress:this.address
+            }).then((response)=>{
+              console.log(`statusCode: ${response.statusCode}`)
+            }).catch((e)=>{
+              console.log(e)
+            })
           }catch(e){
             console.log(e)
           }
