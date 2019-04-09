@@ -418,25 +418,36 @@ class Node {
     })
 
     app.get('/getNextBlock', (req, res)=>{
-      var blockHash = req.query.hash
+      try{
+        var blockHash = req.query.hash;
+        var blockHeader = JSON.parse(req.query.header);
+      
+        if(this.chain instanceof Blockchain){
+          const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
+          const lastBlock = this.chain.getLatestBlock();
+          if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
 
-      if(this.chain instanceof Blockchain){
-        const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
-        const lastBlock = this.chain.getLatestBlock();
-        if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
+            var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
+            if(nextBlock){
+              res.json(nextBlock).end()
+            }
+            if(blockHash === lastBlock.hash){
+              res.json( { error:'end of chain' } ).end()
+            }
 
-          var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
-          if(nextBlock){
-            res.json(nextBlock).end()
+          }else{
+
+            if(blockHeader.blockNumber == lastBlock.blockNumber){
+              res.json( { error:'block fork' } ).end()
+            }
+
+            res.json( { error:'no block found' } ).end()
           }
-          if(blockHash === lastBlock.hash){
-            res.json( { error:'end of chain' } ).end()
-          }
-
-        }else{
-          res.json( { error:'no block found' } ).end()
         }
+      }catch(e){
+        console.log(e)
       }
+      
     })
 
     app.get('/listOfBlockHashes', (req, res)=>{
@@ -843,8 +854,8 @@ class Node {
   try{
     if(this.chain instanceof Blockchain){
       const latestBlock = this.chain.getLatestBlock();
-
-      axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash } })
+      const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
+      axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
         .then((response) =>{
           var block = response.data;
           if(block){
@@ -859,8 +870,12 @@ class Node {
                     cb(true)
                   }
                   return true;
+                }else if(response.data.error == 'block fork'){
+                  let orphanBlock = this.chain.chain.pop();
+                  this.chain.orphanedBlocks.push(orphanBlock);
+                  this.fetch(address);
                 }else if(response.data.error == 'no block found'){
-
+                  
                   console.log(chalk.red(response.data.error));
                   return false
                 }
