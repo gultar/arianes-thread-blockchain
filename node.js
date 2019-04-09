@@ -1010,7 +1010,8 @@ class Node {
         for(var i=1; i < headers.length; i++){
           let header = headers[i]
           let localBlockHeader = this.chain.getBlockHeader(i);
-
+          console.log('Local', localBlockHeader);
+          console.log('Header', header);
           let containsBlock = localBlockHeader.hash == header.hash;
           let isValid = this.chain.validateBlockHeader(header);
           let isLinked = headers[i-1].hash = header.previousHash;
