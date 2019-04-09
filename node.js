@@ -577,13 +577,23 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      // let headers = this.getChainInfo(1);
+      axios.get('http://10.10.10.10:8001/getChainHeaders')
+      .then((response)=>{
+        let headers = response.data.chainHeaders
+          let areValidHeaders = this.compareChainHeaders(headers)
+          if(areValidHeaders){
+            if(typeof areValidHeaders == 'number'){
+              var spliceIndex = areValidHeaders;
+              var startAtIndex = this.chain.chain.length - spliceIndex;
+              let orphanBlocks = this.chain.chain.slice(-1, startAtIndex);
+              console.log(orphanBlocks);
+            }
+          }else{
 
-      // headers.headers.forEach((h)=>{
-      //     console.log('Header '+h.blockNumber+' valid:', this.chain.validateBlockHeader(h));
-      // })
-      // console.log('Header chain is valid:', this.validateChainInfo(headers))
-      // console.log('Chain headers are the same', this.compareChainHeaders(headers))
+          }
+
+        // console.log(headers);
+      })
 
     })
 
@@ -922,7 +932,7 @@ class Node {
 
           try{
             var peerChainIsLongerThanThisChain = (headers.headers.length > this.chain.chain.length);
-            
+
             if(!peerChainIsLongerThanThisChain){
               console.log('This chain is longer than peer chain')
               return false;
