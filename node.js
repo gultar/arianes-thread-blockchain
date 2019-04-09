@@ -577,30 +577,8 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      axios.get('http://10.10.10.10:8001/getChainHeaders')
-      .then((response)=>{
-        let headers = response.data.chainHeaders
-          let areValidHeaders = this.compareChainHeaders(headers)
-          if(areValidHeaders){
-            if(typeof areValidHeaders == 'number'){
-              var spliceIndex = areValidHeaders;
-              console.log('Index:', spliceIndex)
-              var numberOfForkingBlocks = this.chain.chain.length - spliceIndex;
-              console.log('Num. of forking blocks',numberOfForkingBlocks);
-              console.log('Chain length:', this.chain.chain.length)
-              for(var i=0;i<=numberOfForkingBlocks;i++ ){
-                let orphanBlocks = this.chain.chain.pop();
-                this.chain.orphanedBlocks.push(orphanBlocks);
-              }
-              console.log('Chain length:', this.chain.chain.length)
-
-            }
-          }else{
-
-          }
-
-        // console.log(headers);
-      })
+      console.log('Resolving fork!');
+      this.resolveBlockFork(address);
 
     })
 
@@ -996,20 +974,31 @@ class Node {
     }
   }
 
-  resolveBlockFork(){
-    axios.get('http://10.10.10.10:8001/getChainHeaders')
+  resolveBlockFork(address){
+    axios.get(address+'/getChainHeaders')
     .then((response)=>{
       let headers = response.data.chainHeaders
         let areValidHeaders = this.compareChainHeaders(headers)
         if(areValidHeaders){
           if(typeof areValidHeaders == 'number'){
+            var spliceIndex = areValidHeaders;
+            console.log('Index:', spliceIndex)
+            var numberOfForkingBlocks = this.chain.chain.length - spliceIndex;
+            console.log('Num. of forking blocks',numberOfForkingBlocks);
+            console.log('Chain length:', this.chain.chain.length)
+            for(var i=0;i<=numberOfForkingBlocks;i++ ){
+              let orphanBlocks = this.chain.chain.pop();
+              this.chain.orphanedBlocks.push(orphanBlocks);
+            }
+            console.log('Chain length:', this.chain.chain.length)
 
+          }else{
+            console.log('Headers are of at least the same length')
           }
         }else{
-
+          console.log('Peer headers are not valid')
         }
 
-      // console.log(headers);
     })
     .catch((e)=>{
       console.log(e)
