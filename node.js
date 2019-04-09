@@ -601,9 +601,9 @@ class Node {
     })
 
     socket.on('testHeader', (num)=>{
-      var head = this.chain.getBlockHeader(num)
-      console.log(head);
-      console.log(this.chain.validateBlockHeader(head))
+      var header = this.chain.getBlockHeader(num)
+      console.log(header);
+      console.log(this.chain.validateBlockHeader(header))
       console.log(sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce).toString())
       console.log(header.hash)
     })
