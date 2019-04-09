@@ -584,15 +584,7 @@ class Node {
       // })
       // console.log('Header chain is valid:', this.validateChainInfo(headers))
       // console.log('Chain headers are the same', this.compareChainHeaders(headers))
-      axios.get('http://10.10.10.10:8001/getChainHeaders')
-      .then((response)=>{
-        let headers = response.data.chainHeaders
-        console.log('Headers are the same:', this.compareChainHeaders(headers));
-        // console.log(headers);
-      })
-      .catch((e)=>{
-        console.log(e)
-      })
+
     })
 
     socket.on('disconnect', ()=>{
@@ -927,13 +919,17 @@ class Node {
 
           var header = headers.headers[i]
           var localBlockHeader = this.chain.getBlockHeader(i+1);
+
           try{
+            var peerChainIsLongerThanThisChain = (headers.headers.length > this.chain.chain.length);
+            
+            if(!peerChainIsLongerThanThisChain){
+              console.log('This chain is longer than peer chain')
+              return false;
+            }
 
             if(i > 1 && header){
 
-              console.log(headers.headers[i])
-              console.log('Local', localBlockHeader.hash);
-              console.log('Header', header.hash);
               let containsBlock = localBlockHeader.hash == header.hash;
               let isValid = this.chain.validateBlockHeader(header);
 
@@ -981,6 +977,26 @@ class Node {
 
       return sideChain;
     }
+  }
+
+  resolveBlockFork(){
+    axios.get('http://10.10.10.10:8001/getChainHeaders')
+    .then((response)=>{
+      let headers = response.data.chainHeaders
+        let areValidHeaders = this.compareChainHeaders(headers)
+        if(areValidHeaders){
+          if(typeof areValidHeaders == 'number'){
+
+          }
+        }else{
+
+        }
+
+      // console.log(headers);
+    })
+    .catch((e)=>{
+      console.log(e)
+    })
   }
 
 
