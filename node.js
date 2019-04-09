@@ -362,12 +362,14 @@ class Node {
 
     app.post('/chainLength', (req, res) =>{
       try{
-        const { length, peerAddress } = req.body.params;
+        const { length, peerAddress } = req.body;
         if(this.longestChain.length < length){
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
           console.log(peerAddress+' has sent its chain length: '+length)
           res.end()
+        }else if(this.longestChain.length >= length){
+          res.json({message:'this is the longest chain'}).end()
         }
       }catch(e){
         console.log(e)
