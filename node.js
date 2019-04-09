@@ -24,6 +24,7 @@ const save = require('./save');
 const crypto = require('crypto');
 const fs = require('fs');
 const axios = require('axios');
+const fetch = require('fetch');
 const chalk = require('chalk');
 
 // const RoutingTable = require('kademlia-routing-table')
@@ -690,14 +691,14 @@ class Node {
               
 
 
-            axios.post(originAddress+'/chainLength', {
-              length:this.chain.chain.length,
-              peerAddress:this.address
-            }).then((response)=>{
-              console.log(response);
-            }).catch((e)=>{
-              console.log(e)
-            })
+            // axios.post(originAddress+'/chainLength', {
+            //   length:this.chain.chain.length,
+            //   peerAddress:this.address
+            // }).then((response)=>{
+            //   console.log(response);
+            // }).catch((e)=>{
+            //   console.log(e)
+            // })
           }catch(e){
             console.log(e)
           }
