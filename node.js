@@ -584,7 +584,9 @@ class Node {
           if(areValidHeaders){
             if(typeof areValidHeaders == 'number'){
               var spliceIndex = areValidHeaders;
+              console.log('Index:', spliceIndex)
               var startAtIndex = this.chain.chain.length - spliceIndex;
+              console.log('Start at', startAtIndex);
               let orphanBlocks = this.chain.chain.slice(-1, startAtIndex);
               console.log(orphanBlocks);
             }
