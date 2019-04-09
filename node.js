@@ -54,6 +54,7 @@ class Node {
     this.chain = {};
     this.messageBuffer = {};
     this.isMining = false;
+    this.brokenChains = []
     this.longestChain = {
       length:0,
       peerAddress:''
@@ -402,6 +403,19 @@ class Node {
 
     })
 
+    app.get('/getChainHeaders', (req, res)=>{
+      try{
+
+          let chainHeaders = this.getChainInfo(this.chain.chain.length-1);
+          res.json({ chainHeaders:chainHeaders }).end()
+      
+      }catch(e){
+        console.log(e);
+      }
+
+
+    })
+
     app.get('/getNextBlock', (req, res)=>{
       try{
         var blockHash = req.query.hash;
@@ -429,8 +443,6 @@ class Node {
             console.log('Head prev hash',blockHeader.previousHash);
             console.log('Last block prev hash',lastBlock.previousHash);
 
-            
-
             if(blockHeader.previousHash == lastBlock.previousHash){
 
               if(blockHeader.blockNumber == lastBlock.blockNumber){
@@ -453,29 +465,6 @@ class Node {
 
               res.json({ error:'chain out of sync' })
             }
-            // if(blockHeight === lastBlock.blockNumber && blockHash !== lastBlock.hash){
-            //   if(blockTimestamp >= lastBlock.timestamp){
-            //
-            //     res.json( {
-            //       error:'block already mined',
-            //       hash:lastBlock.hash,
-            //       header:this.chain.getBlockHeader(lastBlock.blockNumber)
-            //     } ).end()
-            //
-            //   }else if(blockTimestamp < lastBlock.timestamp){
-            //     //Sending current last block to orphaned blocks
-            //     console.log('Peer has mined a block before: sending current last block to orphaned blocks')
-            //     let orphanedBlock = this.chain.chain.pop();
-            //     this.chain.orphanedBlocks.push(orphanedblock);
-            //     res.json({ error:'target peer chain is out of sync' }).end()
-            //
-            //   }
-            // }else if(blockHash === lastBlock.previousHash){
-            //   res.json( { error:'chain out of sync by 1 block' }).end()
-            // }else{
-            //   res.json( { error:'chain out of sync' }).end()
-            // }
-            //res.json( { error:'no block found' } ).end()
           }
         }
       }
@@ -940,6 +929,17 @@ class Node {
                       break;
                     case 'chain out of sync':
                       //fetch chain info and compare
+                      axios.get(address+'/getChainHeaders')
+                      .then((response)=>{
+                        let headers = response.data.chainHeaders
+                        let comparisonResult = this.compareChains(headers);
+                        if(comparisonResult === true) this.update();
+                        if(comparisonResult >= 1) this.rollBackBlocks(comparisonResult);
+                        if(comparisonResult !== false) console.log('Peer chain headers are invalid')
+                      })
+                      .catch((e)=>{
+                        console.log(e)
+                      })
                       break;
                     default:
                       break;
@@ -1002,7 +1002,29 @@ class Node {
 
   validateBlockchain(){
      console.log('Is blockchain valid?',this.chain.isChainValid())
-   }
+  }
+
+  compareChains(headers){
+    if(this.chain instanceof Blockchain){
+      if(headers){
+        for(var i=1; i < headers.length; i++){
+          let header = headers[i]
+          let localBlockHeader = this.chain.getBlockHeader(i);
+
+          let containsBlock = localBlockHeader.hash == header.hash;
+          let isValid = this.chain.validateBlockHeader(header);
+          let isLinked = headers[i-1].hash = header.previousHash;
+
+          if(!containsBlock) return i;
+          if(!isValid) return false;
+          if(!isLinked) return false;
+
+          return true;
+           
+        }
+      }
+    }
+  }
 
    /**
     @param {number} $number - Index of block from which to show block creation time
