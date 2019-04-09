@@ -692,17 +692,6 @@ class Node {
             //   .catch(err => console.log(err))
             //   .then(res => res.json())
             //   .then(json => console.log(json));
-              
-            axios.post('https://flaviocopes.com/todos', {
-              todo: 'Buy the milk'
-            })
-            .then((res) => {
-              
-              console.log(res)
-            })
-            .catch((error) => {
-              console.error(error)
-            })
 
             axios.post(originAddress+'/chainLength', {
               length:this.chain.chain.length,
