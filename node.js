@@ -29,7 +29,7 @@ const chalk = require('chalk');
 // const RoutingTable = require('kademlia-routing-table')
 // const { randomBytes } = require('crypto')
 process.env.END_MINING = false;
-let txgenCounter = 2000;
+let txgenCounter = 5000;
 let stopTxgen = false;
 /**
   Instanciates a blockchain node
@@ -413,7 +413,6 @@ class Node {
           const lastBlock = this.chain.getLatestBlock();
 
 
-
           if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
 
             var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
@@ -423,27 +422,34 @@ class Node {
             if(blockHash === lastBlock.hash){
 
               res.json( { error:'end of chain' } ).end()
-            }else{
-              console.log('Block fork')
             }
 
           }else{
 
-            console.log(blockHeader)
+            console.log('Head prev hash',blockHeader.previousHash);
+            console.log('Last block prev hash',lastBlock.previousHash);
+
+            
 
             if(blockHeader.previousHash == lastBlock.previousHash){
 
               if(blockHeader.blockNumber == lastBlock.blockNumber){
-                let lastBlockHeader = JSON.stringify(this.chain.getBlockHeader(lastBlock.blockNumber))
-                res.json({ error:"block conflict", header:lastBlockHeader }).end()
+                if(blockHeader.nonce <= lastBlock.nonce){
+                  let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber)
+                  res.json({ error:"block conflict", header:lastBlockHeader }).end()
+                }else{
+                  res.json({ error:"querying peer's block contains more work" }).end()
+                }
+
+
               }else if(blockHeader.blockNumber < lastBlock.blockNumber){
-                res.json({ error:'chain falling behind by '+lastBlock.blockNumber-blockHeader.blockNumber+' blocks' }).end()
+                let blockDifference = (lastBlock.blockNumber-blockHeader.blockNumber)
+                res.json({ error:'chain falling behind', byNumberOfBlocks:blockDifference }).end()
               }else{
                 res.json({ error:'target peer chain is falling behind' }).end()
               }
 
             }else{
-
 
               res.json({ error:'chain out of sync' })
             }
@@ -493,11 +499,11 @@ class Node {
     });
 
 
-    app.get('chainInfo', (req, res)=>{
-      if(this.chain instanceof Blockchain){
-        this.handleChainInfo();
-      }
-    });
+    // app.get('/chainInfo', (req, res)=>{
+    //   if(this.chain instanceof Blockchain){
+    //     this.handleChainInfo();
+    //   }
+    // });
 
     app.get('/chain', (req, res) => {
       try{
@@ -597,16 +603,11 @@ class Node {
     })
 
     socket.on('txgen', ()=>{
-      this.txgen(false);
-		// setInterval(()=>{
-    // 		  // this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
-    //       // "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
-    //
-    //     })
+      this.txgen();
     })
 
     socket.on('stoptxgen', ()=>{
-
+      stopTxgen = true;
     })
 
     socket.on('test', ()=>{
@@ -884,7 +885,7 @@ class Node {
     @param {function} $cb - Optional callback
   */
   fetchBlocks(address, cb){
-
+    let address = address
   //var updateAddress = (address ? address : longestChain.peerAddress)
   try{
     if(this.chain instanceof Blockchain){
@@ -913,9 +914,29 @@ class Node {
                   return true;
                 }else if(response.data.error){
                   //Fetch chain info of peer and compare. Orphan divergent blocks
+                  switch(response.data.error){
+                    case 'block conflict':
+                      console.log('Block conflict: last block is now orphaned')
+                      let orphanedBlock = this.chain.chain.pop();
+                      this.chain.orphanedBlocks.push(orphanedBlock);
+                      this.fetchBlocks(address);
+                      break;
+                    case 'chain falling behind':
+                      let byNumberOfBlocks = response.data.byNumberOfBlocks
+                      break;
+                    case "querying peer's block contains more work":
+                      break;
+                    case 'target peer chain is falling behind':
+                      break;
+                    default:
+                      break;
+                  }
+
+
                   console.log(chalk.red(response.data.error));
                   return false
                 }
+
 
                 // else if(response.data.error == 'chain out of sync by 1 block'){
                 //   console.log('Block already mined: sending current last block to orphaned blocks')
@@ -993,6 +1014,10 @@ class Node {
     if(typeof blockIndex == 'number' && this.chain instanceof Blockchain){
       var sideChain = [];
       sideChain = this.chain.chain.splice(blockIndex);
+      sideChain.forEach((block)=>{
+        this.chain.orphanedBlocks.push(block)
+      })
+      
       return sideChain;
     }
   }
@@ -1148,16 +1173,17 @@ class Node {
     }
   }
 
-  txgen(stopTxgen=false){
+  txgen(){
     if(!stopTxgen){
       let increaseThreshold = 0.5;
       setTimeout(()=>{
         this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
         "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
-        txgenCounter = txgenCounter * Math.random();
-        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 1000 : txgenCounter - 1000)
+        
+        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
+        this.txgen()
       },txgenCounter)
-      this.txgen(false)
+      
     }
   }
 
