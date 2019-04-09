@@ -576,11 +576,13 @@ class Node {
       stopTxgen = true;
     })
 
-    socket.on('test', ()=>{
-      console.log('Resolving fork!');
-      this.resolveBlockFork('http://10.10.10.10:8001');
-      this.update()
-
+    socket.on('resolveFork', ()=>{
+      if(this.longestChain.peerAddress){
+        console.log('Resolving fork!');
+        this.resolveBlockFork(this.longestChain.peerAddress);
+      }else{
+        socket.emit('message', 'ERROR: longest chain is unknown')
+      }
     })
 
     socket.on('disconnect', ()=>{
@@ -982,17 +984,17 @@ class Node {
         let areValidHeaders = this.compareChainHeaders(headers)
         if(areValidHeaders){
           if(typeof areValidHeaders == 'number'){
-            var spliceIndex = areValidHeaders;
-            console.log('Index:', spliceIndex)
-            var numberOfForkingBlocks = this.chain.chain.length - spliceIndex;
+            var conflictIndex = areValidHeaders;
+            console.log('Conflicting block at index:', conflictIndex)
+            var numberOfForkingBlocks = this.chain.chain.length - conflictIndex;
             console.log('Num. of forking blocks',numberOfForkingBlocks);
             console.log('Chain length:', this.chain.chain.length)
             for(var i=0;i<=numberOfForkingBlocks;i++ ){
               let orphanBlocks = this.chain.chain.pop();
               this.chain.orphanedBlocks.push(orphanBlocks);
             }
-            console.log('Chain length:', this.chain.chain.length)
 
+            this.update();
           }else{
             console.log('Headers are of at least the same length')
           }
