@@ -601,7 +601,8 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      let info = this.getChainInfo(this.chain.chain.length-1)
+      let info = this.getChainInfo(1)
+      console.log(info.length)
       console.log(this.compareChains(info));
     })
 
@@ -926,24 +927,25 @@ class Node {
                       console.log('target peer chain is falling behind')
                       break;
                     case 'chain out of sync':
+                      console.log('Chain out of sync')
                       //fetch chain info and compare
-                      axios.get(address+'/getChainHeaders')
-                      .then((response)=>{
-                        try{
-                          let headers = JSON.parse(response.data.chainHeaders)
+                      // axios.get(address+'/getChainHeaders')
+                      // .then((response)=>{
+                      //   try{
+                      //     let headers = JSON.parse(response.data.chainHeaders)
                           
-                          let comparisonResult = this.compareChains(headers);
-                          if(comparisonResult === true) this.update();
-                          if(comparisonResult >= 1) this.rollBackBlocks(comparisonResult);
-                          if(comparisonResult !== false) console.log('Peer chain headers are invalid')
-                        }catch(e){
-                          console.log(e)
-                        }
+                      //     let comparisonResult = this.compareChains(headers);
+                      //     if(comparisonResult === true) this.update();
+                      //     if(comparisonResult >= 1) this.rollBackBlocks(comparisonResult);
+                      //     if(comparisonResult !== false) console.log('Peer chain headers are invalid')
+                      //   }catch(e){
+                      //     console.log(e)
+                      //   }
                         
-                      })
-                      .catch((e)=>{
-                        console.log(e)
-                      })
+                      // })
+                      // .catch((e)=>{
+                      //   console.log(e)
+                      // })
                       break;
                     default:
                       break;
@@ -980,28 +982,38 @@ class Node {
      console.log('Is blockchain valid?',this.chain.isChainValid())
   }
 
-  compareChains(headers){
-    if(this.chain instanceof Blockchain){
-      if(headers){
-        for(var i=1; i < headers.length; i++){
-          let header = headers[i]
-          let localBlockHeader = this.chain.getBlockHeader(i);
-          console.log('Local', localBlockHeader);
-          console.log('Header', header);
-          let containsBlock = localBlockHeader.hash == header.hash;
-          let isValid = this.chain.validateBlockHeader(header);
-          let isLinked = headers[i-1].hash = header.previousHash;
-          if(i > 1){
-            if(!containsBlock) return i;
-            if(!isValid) return false;
-            if(!isLinked) return false;
-          }
+  // compareChains(headers){
+  //   // console.log(headers)
+  //   if(this.chain instanceof Blockchain){
+  //     if(headers){
+  //       for(var i=0; i < headers.headers.length; i++){
           
-        }
-        return true;
-      }
-    }
-  }
+  //         var header = headers.headers[i]
+          
+  //         try{
+          
+  //         if(i > 1){
+  //           var localBlockHeader = this.chain.getBlockHeader(i);
+  //           console.log(headers.headers[i])
+  //           console.log('Local', localBlockHeader.hash);
+  //           console.log('Header', header.hash);
+  //           let containsBlock = localBlockHeader.hash == header.hash;
+  //           let isValid = this.chain.validateBlockHeader(header);
+  //           let isLinked = headers.headers[i-1].hash = header.previousHash;
+  //           if(!containsBlock) return i;
+  //           if(!isValid) return false;
+  //           if(!isLinked) return false;
+  //         }
+  //         }catch(e){
+  //           console.log(e)
+  //         }
+          
+          
+  //       }
+  //       return true;
+  //     }
+  //   }
+  // }
 
    /**
     @param {number} $number - Index of block from which to show block creation time
@@ -1032,10 +1044,6 @@ class Node {
       
       return sideChain;
     }
-  }
-
-  resolveChainForking(){
-
   }
 
 
