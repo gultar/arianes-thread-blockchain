@@ -406,7 +406,7 @@ class Blockchain{
 
   validateBlockHeader(header){
     if(header){
-      if(header.hash == RecalculateHash(header)){
+      if(header.hash == sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce)){
         return true;
       }else{
         return false;
