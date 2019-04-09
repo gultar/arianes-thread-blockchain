@@ -1023,14 +1023,17 @@ class Node {
           let containsBlock = localBlockHeader.hash == header.hash;
           let isValid = this.chain.validateBlockHeader(header);
           let isLinked = headers[i-1].hash = header.previousHash;
+          if(i > 1){
+            if(!containsBlock) return i;
+            if(!isValid) return false;
+            if(!isLinked) return false;
+          }
+          
 
-          if(!containsBlock) return i;
-          if(!isValid) return false;
-          if(!isLinked) return false;
-
-          return true;
+          
            
         }
+        return true;
       }
     }
   }
