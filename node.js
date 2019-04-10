@@ -1159,7 +1159,7 @@ class Node {
   txgen(){
     if(!stopTxgen){
       let increaseThreshold = 0.5;
-      setInterval(()=>{
+      setTimeout(()=>{
         this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
         "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
 
