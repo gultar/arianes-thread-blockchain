@@ -68,6 +68,12 @@ program
       },3000)
 
     }
+
+    if(program.txgen){
+      setTimeout(()=>{
+        node.txgen();
+      },3000)
+    }
   });
 
 program.parse(process.argv)
