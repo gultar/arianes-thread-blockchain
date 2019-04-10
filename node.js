@@ -55,7 +55,7 @@ class Node {
     this.chain = {};
     this.messageBuffer = {};
     this.isMining = false;
-    this.brokenChains = []
+    this.verbose = true;
     this.longestChain = {
       length:0,
       peerAddress:''
@@ -1163,8 +1163,9 @@ class Node {
         this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
         "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
 
-        // txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
-        // this.txgen()
+        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
+        if(txgenCounter < 1000) txgenCounter = 2000
+        this.txgen()
       },txgenCounter)
 
     }
