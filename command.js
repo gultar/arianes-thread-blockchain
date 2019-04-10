@@ -15,6 +15,7 @@ program
   .option('-u, --update', 'Tries to update chain by querying for the longest chain in the network')
   .option('-s, --seed', 'Seed nodes to initiate p2p connections')
   .option('-t, --test', 'Test')
+  .option('-tx, --txgen', 'TEST ONLY - Transaction generator')
 
 
 program
