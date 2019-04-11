@@ -422,7 +422,7 @@ class Node {
       try{
         var blockHash = req.query.hash;
         var blockHeader = req.query.header;
-
+        console.log(blockHeader)
         if(this.chain instanceof Blockchain){
           const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
           const lastBlock = this.chain.getLatestBlock();
