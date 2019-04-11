@@ -440,8 +440,10 @@ class Node {
             console.log('Header block number:',blockHeader.blockNumber);
             console.log('Current block number:', lastBlock.blockNumber);
             let lastBlockHeader = this.chain.getBlockHeader(lastBlock);
+
+            console.log(lastBlockHeader);
             if(blockHeader.blockNumber == lastBlock.blockNumber){
-              res.json( { error:'block fork', header:lastBlockHeader } ).end()
+              res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
             }else{
               res.json( { error:'no block found' } ).end()
             }
