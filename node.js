@@ -156,7 +156,7 @@ class Node {
     try{
       if(this.knownPeers){
         this.knownPeers.forEach((peer)=>{
-          if(this.connectionAttempts[peer]){
+          if(this.connectionAttempts.hasOwnProperty(peer)){
             if(this.connectionAttempts[peer].attempts < 3){
               this.connectToPeer(peer);
             }else{
@@ -168,6 +168,7 @@ class Node {
               attempts:0,
               blackListed:false
             }
+            this.connectToPeer(peer);
           }
           
           
@@ -256,10 +257,10 @@ class Node {
 
           peer.on('disconnect', () =>{
             logger('connection with peer dropped');
+            console.log('Socket exists ',(this.connectionsToPeers[address]?true:false))
             delete this.connectionsToPeers[address];
             setTimeout(()=>{
               this.reconnectionAttempt();
-               peer.destroy()
 
             }, 2000)
             
