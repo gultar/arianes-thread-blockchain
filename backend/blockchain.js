@@ -181,12 +181,12 @@ class Blockchain{
 
           block.minedBy = ipAddress;
           this.chain.push(block);
-          logger(chalk.cyan('\n********************************************************************'))
-          logger(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
-          logger(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-          logger(chalk.cyan("* Challenge : "), block.challenge);
-          logger(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
-          logger(chalk.cyan('********************************************************************\n'))
+          console.log(chalk.cyan('\n********************************************************************'))
+          console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
+          console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+          console.log(chalk.cyan("* Challenge : "), block.challenge);
+          console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+          console.log(chalk.cyan('********************************************************************\n'))
           var miningReward = new Transaction(null, miningRewardAddress, this.miningReward, "", Date.now(), false, 'coinbase')
           this.pendingTransactions[miningReward.hash] = miningReward;
 
@@ -351,16 +351,16 @@ class Blockchain{
       const previousBlock = this.chain[i - 1];
 
       if(currentBlock.hash !== RecalculateHash(currentBlock)){
-        logger('*******************************************************************');
-        logger('currentblock hash does not match the recalculation ');
-        logger('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-        logger('*******************************************************************');
+        console.log('*******************************************************************');
+        console.log('currentblock hash does not match the recalculation ');
+        console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
+        console.log('*******************************************************************');
         return false;
       }else if(currentBlock.previousHash !== previousBlock.hash){
-        logger('*******************************************************************');
-        logger('* currentblock hash does not match previousblock hash *');
-        logger('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-        logger('*******************************************************************');
+        console.log('*******************************************************************');
+        console.log('* currentblock hash does not match previousblock hash *');
+        console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
+        console.log('*******************************************************************');
         return false;
       }
     }
