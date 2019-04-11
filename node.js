@@ -744,7 +744,7 @@ class Node {
           })
 
           var chainInfo = {
-            length: chainLength,
+            length: this.chain.chain.length,
             blockHashes:blockHashesFromIndex,
             headers:headers,
             address:this.address
