@@ -37,7 +37,7 @@ class Blockchain{
 
   createGenesisBlock(){
     //Initial Nonce Challenge is 100 000
-    let genesisBlock = new Block("01/01/2018", "Genesis block", "0");
+    let genesisBlock = new Block(Date.now(), ["Genesis block"], "Infinity");
     genesisBlock.challenge = 100000;
     genesisBlock.endMineTime = Date.now();
     genesisBlock.transactions.push(
@@ -73,7 +73,10 @@ class Blockchain{
         `, 1000, 'ICO transactions'
       )
 
-    )
+    );
+
+    genesisBlock.calculateHash();
+
     return genesisBlock;
   }
 
@@ -413,7 +416,7 @@ class Blockchain{
   */
 
   getBlockHeader(blockNumber){
-    if(blockNumber || blockNumber === 0){
+    if(blockNumber >= 0){
       var block = this.chain[blockNumber];
 
       if(block){
@@ -450,6 +453,11 @@ class Blockchain{
     }
   }
 
+
+  /***
+   * Deprecated
+   * 
+   */
   getBlocksFromHash(hash){
   	var blocks = [];
   	var index = this.getIndexOfBlockHash(hash);

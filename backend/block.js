@@ -7,7 +7,7 @@ const crypto = require('crypto');
 
 //////////////////Block/////////////////////
 class Block{
-  constructor(timestamp, transactions=[], previousHash='', blockNumber=0){ //, proof=0
+  constructor(timestamp, transactions=[], previousHash='', blockNumber=0){ 
     this.blockNumber = blockNumber;
     this.timestamp = timestamp;
     this.transactions = transactions;
