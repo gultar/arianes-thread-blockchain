@@ -441,9 +441,11 @@ class Node {
             console.log('Current block number:', lastBlock.blockNumber);
             if(blockHeader.blockNumber == lastBlock.blockNumber){
               res.json( { error:'block fork' } ).end()
+            }else{
+              res.json( { error:'no block found' } ).end()
             }
 
-            res.json( { error:'no block found' } ).end()
+            
           }
         }
       }catch(e){
