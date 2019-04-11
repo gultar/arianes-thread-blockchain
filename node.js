@@ -408,7 +408,7 @@ class Node {
     app.get('/getChainHeaders', (req, res)=>{
       try{
 
-          let chainHeaders = this.getChainInfo(1);
+          let chainHeaders = this.getAllHeaders();
           res.json({ chainHeaders:chainHeaders }).end()
 
       }catch(e){
@@ -721,6 +721,36 @@ class Node {
         console.log(e)
       }
     }
+
+
+  }
+
+  getAllHeaders(){
+    
+      try{
+        
+        var blockHashesFromIndex = [];
+        var headers = []
+
+
+          this.chain.chain.forEach((block)=>{
+            blockHashesFromIndex.push(block.hash);
+            headers.push(this.chain.getBlockHeader(block.blockNumber))
+          })
+
+          var chainInfo = {
+            length: chainLength,
+            blockHashes:blockHashesFromIndex,
+            headers:headers,
+            address:this.address
+          }
+
+          return chainInfo
+
+      }catch(e){
+        console.log(e)
+      }
+    
 
 
   }

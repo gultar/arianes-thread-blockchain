@@ -9,8 +9,6 @@ const { MINING_RATE } = require('./constants');
   @param {number} $startTime - Time of block creation expressed in milliseconds
   @param {number} $endTime - Time at the end of the block creation process in milliseconds
 */
-
-
 const setChallenge = (currentChallenge, startTime, endTime) =>{
 
   // if(!currentChallenge) console.log('Problem with challenge param');
@@ -21,7 +19,12 @@ const setChallenge = (currentChallenge, startTime, endTime) =>{
 
 }
 
-const adjustDifficulty = (currentDifficulty) =>{
+/**
+ * 
+ * 
+ */
+
+const adjustDifficulty = () =>{
 
 }
 
