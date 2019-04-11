@@ -257,9 +257,10 @@ class Node {
             this.log('connection with peer dropped');
             delete this.connectionsToPeers[address];
             setTimeout(()=>{
-              this.reconnectionAttempt()
+              this.reconnectionAttempt();
+               peer.destroy()
+
             }, 2000)
-            
             
           })
 
