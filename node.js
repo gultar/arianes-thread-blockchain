@@ -229,8 +229,11 @@ class Node {
           peer.on('disconnect', () =>{
             this.log('connection with peer dropped');
             delete this.connectionsToPeers[address];
-            this.joinPeers()
-            peer.destroy()
+            setTimeout(()=>{
+              this.joinPeers()
+            }, 2000)
+            
+            
           })
 
           if(callback){
