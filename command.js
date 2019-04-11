@@ -16,6 +16,7 @@ program
   .option('-s, --seed', 'Seed nodes to initiate p2p connections')
   .option('-t, --test', 'Test')
   .option('-tx, --txgen', 'TEST ONLY - Transaction generator')
+  .option('-v, --verbose', 'Enable transaction and network verbose')
 
 
 program
@@ -35,13 +36,13 @@ program
       },4000)
     }
 	
-	if(program.test){
-		setTimeout(()=>{
-			node.rollBackBlocks(program.test);
-			node.save();
-		},5000)
+    if(program.test){
+      setTimeout(()=>{
+        node.rollBackBlocks(program.test);
+        node.save();
+      },5000)
 
-	}
+    }
 
     if(program.seed){
 
@@ -73,6 +74,10 @@ program
       setTimeout(()=>{
         node.txgen();
       },3000)
+    }
+
+    if(program.verbose){
+      node.verbose = true;
     }
   });
 

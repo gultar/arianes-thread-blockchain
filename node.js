@@ -55,7 +55,7 @@ class Node {
     this.chain = {};
     this.messageBuffer = {};
     this.isMining = false;
-    this.verbose = true;
+    this.verbose = false;
     this.longestChain = {
       length:0,
       peerAddress:''
@@ -636,7 +636,7 @@ class Node {
                 if(valid){
                   this.chain.pendingTransactions[transaction.hash] = transaction;
                   this.log('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                  console.log(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) console.log(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
                 }
               });
 
@@ -1031,7 +1031,7 @@ class Node {
             if(valid){
               this.chain.createTransaction(transaction);
               this.log('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              console.log(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+              if(this.verbose) console.log(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
               this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
 
             }else{
