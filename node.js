@@ -363,12 +363,14 @@ class Node {
 
     app.post('/chainLength', (req, res) =>{
       try{
+        res.send('OK')
         const { length, peerAddress } = req.body;
         if(this.longestChain.length < length){
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
           console.log(peerAddress+' has sent its chain length: '+length)
-          res.end('OK')
+          console.log('Res status code', res.statusCode)
+          
         }
       }catch(e){
         console.log(e)
@@ -810,6 +812,9 @@ class Node {
   sendChainLength(address){
     if(address){
       try{
+   
+
+
         axios.post(peerAddress+'/chainLength', {
           chainLength:this.chain.chain.length,
           peerAddress:this.address
