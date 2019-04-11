@@ -879,7 +879,7 @@ class Node {
                   }
                   return true;
                 }else if(response.data.error == 'block fork'){
-                  let peerHeader = response.data.header;
+                  let peerHeader = JSON.parse(response.data.header);
 
                   let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
                   let isBlockConflit = (peerHeader.blockNumber == latestBlock.blockNumber) 
