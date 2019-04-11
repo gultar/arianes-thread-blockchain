@@ -880,7 +880,7 @@ class Node {
                 }else if(response.data.error == 'block fork'){
                   let orphanBlock = this.chain.chain.pop();
                   this.chain.orphanedBlocks.push(orphanBlock);
-                  this.fetch(address);
+                  this.fetchBlocks(address);
                 }else if(response.data.error == 'no block found'){
 
                   console.log(chalk.red(response.data.error));
