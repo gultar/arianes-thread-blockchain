@@ -156,16 +156,17 @@ class Node {
     try{
       if(this.knownPeers){
         this.knownPeers.forEach((peer)=>{
-          if(!this.connectionAttempts[peer]){
-            this.connectionAttempts[peer] = {
-              attempts:0,
-              blackListed:false
-            }
-          }else{
+          if(this.connectionAttempts[peer]){
             if(this.connectionAttempts[peer].attempts < 3){
               this.connectToPeer(peer);
             }else{
               logger('Could not reach '+peer)
+            }
+            
+          }else{
+            this.connectionAttempts[peer] = {
+              attempts:0,
+              blackListed:false
             }
           }
           
@@ -208,7 +209,7 @@ class Node {
         try{
           peer = ioClient(address, {
             'reconnection limit' : 1000,
-            'max reconnection attempts' : 20,
+            'max reconnection attempts' : 3,
             'query':{
               token: { 'address':this.address }
             }
@@ -219,7 +220,7 @@ class Node {
           this.UILog('Requesting connection to '+ address+ ' ...');
           peer.on('connect_timeout', (timeout)=>{
             if(connectionAttempts >= 3) { peer.destroy() }
-              logger('Connection attempt to address '+address+' timed out.\n'+(4-connectionAttempts)+' attempts left');
+              logger('Connection attempt to address '+address+' timed out.\n'+(connectionAttempts)+' attempts left');
               connectionAttempts++;
 
           })
