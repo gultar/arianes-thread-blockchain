@@ -50,7 +50,6 @@ class Node {
     this.userInterfaces = [];
     this.peersConnected = {};
     this.connectionsToPeers = {};
-    this.connectAttempts = {};
     this.knownPeers = [];
     this.token = {};
     this.chain = {};
@@ -152,35 +151,6 @@ class Node {
 
   }
 
-  reconnectionAttempt(){
-    try{
-      if(this.knownPeers){
-        this.knownPeers.forEach((peer)=>{
-          if(peer in this.connectionAttempts){
-            if(this.connectionAttempts[peer].attempts < 3){
-              this.connectToPeer(peer);
-            }else{
-              logger('Could not reach '+peer)
-            }
-            
-          }else{
-            this.connectionAttempts[peer] = {
-              attempts:0,
-              blackListed:false
-            }
-
-            this.connectToPeer(peer);
-            this.connectionAttempts[peer].attempts++;
-          }
-          
-          
-        })
-      }
-    }catch(e){
-      logger(e)
-    }
-  }
-
   //Only handles one wallet......
   /**
     Public (and optionally private) key loader
@@ -261,10 +231,14 @@ class Node {
             logger('connection with peer dropped');
             console.log('Socket exists ',(this.connectionsToPeers[address]?true:false))
             delete this.connectionsToPeers[address];
-            setTimeout(()=>{
-              this.reconnectionAttempt();
-
-            }, 2000)
+            if(connectionAttempts >= 3) { 
+              logger('Connection attempt to address '+address+' timed out.\n'+(connectionAttempts)+' attempts left');
+              peer.destroy() 
+            }else{
+              this.connectToPeer(address)
+              connectionAttempts++;
+            }
+              
             
           })
 
