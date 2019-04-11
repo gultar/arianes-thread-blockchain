@@ -11,10 +11,10 @@ const displayTime = () =>{
     return hrs+":"+min+":"+sec;
 }
 
-const blockchainLog = (message, arg) => {
+const logger = (message, arg) => {
   let date = new Date();
   let time = date.toLocaleTimeString();
-  let beautifulMessage = '[Blockchain]'+ time +'| ' + message;
+  let beautifulMessage = '['+ time +'] ' + message;
   if(arg){
     console.log(beautifulMessage, arg);
   }else{
@@ -24,4 +24,4 @@ const blockchainLog = (message, arg) => {
 
 
 
-module.exports = { displayTime, blockchainLog };
+module.exports = { displayTime, logger };

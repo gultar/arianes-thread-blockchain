@@ -18,7 +18,7 @@ const {
 const Wallet = require('./backend/walletHandler');
 const Blockchain = require('./backend/blockchain');
 const Transaction = require('./backend/transaction');
-const { displayTime } = require('./backend/utils');
+const { displayTime, logger } = require('./backend/utils');
 const sha256 = require('./backend/sha256');
 const save = require('./save');
 const crypto = require('crypto');
@@ -92,7 +92,7 @@ class Node {
 
 
     }catch(e){
-      this.log(e);
+      logger(e);
     }
 
     this.ioServer.on('connection', (socket) => {
@@ -103,7 +103,7 @@ class Node {
 
              try{
 
-               socket.on('message', (msg) => { this.log('Client:', msg); });
+               socket.on('message', (msg) => { logger('Client:', msg); });
 
                peerAddress = socket.handshake.query.token.address;
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
@@ -123,7 +123,7 @@ class Node {
                }
 
              }catch(e){
-               this.log(e)
+               logger(e)
              }
 
          }else{
@@ -134,9 +134,9 @@ class Node {
 
     });
 
-    this.ioServer.on('disconnect', ()=>{ this.log('a node has disconnected') })
+    this.ioServer.on('disconnect', ()=>{ logger('a node has disconnected') })
 
-    this.ioServer.on('error', (err) =>{ this.log(err);  })
+    this.ioServer.on('error', (err) =>{ logger(err);  })
   }
 
   joinPeers(){
@@ -147,7 +147,7 @@ class Node {
         })
       }
     }catch(e){
-      this.log(e)
+      logger(e)
     }
 
   }
@@ -165,7 +165,7 @@ class Node {
             if(this.connectionAttempts[peer].attempts < 3){
               this.connectToPeer(peer);
             }else{
-              this.log('Could not reach '+peer)
+              logger('Could not reach '+peer)
             }
           }
           
@@ -173,7 +173,7 @@ class Node {
         })
       }
     }catch(e){
-      this.log(e)
+      logger(e)
     }
   }
 
@@ -215,17 +215,17 @@ class Node {
           });
 
           peer.heartbeatTimeout = 120000;
-          this.log('Requesting connection to '+ address+ ' ...');
+          logger('Requesting connection to '+ address+ ' ...');
           this.UILog('Requesting connection to '+ address+ ' ...');
           peer.on('connect_timeout', (timeout)=>{
             if(connectionAttempts >= 3) { peer.destroy() }
-              this.log('Connection attempt to address '+address+' timed out.\n'+(4-connectionAttempts)+' attempts left');
+              logger('Connection attempt to address '+address+' timed out.\n'+(4-connectionAttempts)+' attempts left');
               connectionAttempts++;
 
           })
 
           peer.on('connect', () =>{
-              this.log(chalk.green('Connected to ', address))
+              logger(chalk.green('Connected to ', address))
               peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
               this.UILog('Peer connection established by '+ this.address+' at : '+ displayTime())
               if(this.knownPeers.indexOf(address) < 0)  {  this.knownPeers.push(address);  }
@@ -235,7 +235,7 @@ class Node {
           })
 
           peer.on('message', (message)=>{
-              this.log('Server: ' + message);
+              logger('Server: ' + message);
           })
 
           peer.on('address', (response)=>{
@@ -254,7 +254,7 @@ class Node {
           })
 
           peer.on('disconnect', () =>{
-            this.log('connection with peer dropped');
+            logger('connection with peer dropped');
             delete this.connectionsToPeers[address];
             setTimeout(()=>{
               this.reconnectionAttempt();
@@ -271,15 +271,15 @@ class Node {
 
 
         }catch(err){
-          this.log(err);
+          logger(err);
         }
 
       }else{
-        this.log('Peer already connected')
+        logger('Peer already connected')
       }
 
     }else{
-      this.log('Address in undefined');
+      logger('Address in undefined');
     }
   }
 
@@ -303,7 +303,7 @@ class Node {
           })
         }
     }catch(e){
-      this.log(e);
+      logger(e);
     }
 
   }
@@ -328,7 +328,7 @@ class Node {
     if(this.userInterfaces && message){
       for(var i=0; i < this.userInterfaces.length; i++){
         if(arg){
-          this.log('Number of UIs', this.userInterfaces.length);
+          logger('Number of UIs', this.userInterfaces.length);
           this.userInterfaces[i].emit('message', message+' '+arg);
         }else{
           this.userInterfaces[i].emit('message', message);
@@ -351,7 +351,7 @@ class Node {
       try{
         this.connectionsToPeers[address].emit(eventType, data);
       }catch(e){
-        this.log(e);
+        logger(e);
       }
     }
   }
@@ -399,11 +399,11 @@ class Node {
         if(this.longestChain.length < length){
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
-          this.log(peerAddress+' has sent its chain length: '+length)
+          logger(peerAddress+' has sent its chain length: '+length)
           
         }
       }catch(e){
-        this.log("Could not receive chainLength response", e.errno);
+        logger("Could not receive chainLength response", e.errno);
       }
     })
 
@@ -419,7 +419,7 @@ class Node {
     app.get('/getChainInfo', (req, res)=>{
       try{
         let index = parseInt(req.query.index)
-        this.log(index)
+        logger(index)
         if(index >=0){
           let chainInfo = this.getChainInfo(index);
           if(chainInfo){
@@ -431,7 +431,7 @@ class Node {
           res.json({ error:'index of current block required' }).end()
         }
       }catch(e){
-        this.log(e);
+        logger(e);
       }
 
 
@@ -444,7 +444,7 @@ class Node {
           res.json({ chainHeaders:chainHeaders }).end()
 
       }catch(e){
-        this.log(e);
+        logger(e);
       }
 
 
@@ -487,7 +487,7 @@ class Node {
           }
         }
       }catch(e){
-        this.log(e)
+        logger(e)
       }
 
     })
@@ -517,7 +517,7 @@ class Node {
       try{
         res.json(this.chain).end();
       }catch(e){
-        this.log(e)
+        logger(e)
       }
 
     });
@@ -532,7 +532,7 @@ class Node {
     if(socket){
 
      socket.on('error', (err)=>{
-       this.log(err);
+       logger(err);
      })
 
      socket.on('connectionRequest', (address)=>{
@@ -567,7 +567,7 @@ class Node {
     this.userInterfaces.push(socket)
 
     socket.on('error', (err)=>{
-      this.log(err);
+      logger(err);
     })
     socket.on('connectionRequest', (address)=>{
       this.connectToPeer(address, (peer)=>{});
@@ -586,7 +586,7 @@ class Node {
       try{
         socket.emit('message', JSON.stringify({ peers:this.knownPeers }, null, 2))
       }catch(e){
-        this.log(e)
+        logger(e)
       }
     })
 
@@ -620,7 +620,7 @@ class Node {
 
     socket.on('resolveFork', ()=>{
       if(this.longestChain.peerAddress){
-        this.log('Resolving fork!');
+        logger('Resolving fork!');
         this.resolveBlockFork(this.longestChain.peerAddress);
       }else{
         socket.emit('message', 'ERROR: longest chain is unknown')
@@ -651,7 +651,7 @@ class Node {
         this.broadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
 
       }catch(e){
-        this.log(e);
+        logger(e);
       }
 
     }
@@ -677,13 +677,13 @@ class Node {
                 if(valid){
                   this.chain.pendingTransactions[transaction.hash] = transaction;
                   this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                  if(this.verbose) this.log(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
                 }
               });
 
             }
           }catch(e){
-            this.log(e)
+            logger(e)
           }
           break;
         case 'endMining':
@@ -704,16 +704,16 @@ class Node {
               length:this.chain.chain.length,
               peerAddress:this.address
             }).then((response)=>{
-              this.log("Peer received chain's length",response.data);
+              logger("Peer received chain's length",response.data);
             }).catch((e)=>{
-              this.log(e)
+              logger(e)
             })
           }catch(e){
-            this.log(e)
+            logger(e)
           }
           break;
         case 'message':
-          this.log(chalk.green('['+originAddress+']')+' -> '+data)
+          logger(chalk.green('['+originAddress+']')+' -> '+data)
           break;
 
 
@@ -755,7 +755,7 @@ class Node {
 
 
       }catch(e){
-        this.log(e)
+        logger(e)
       }
     }
 
@@ -785,7 +785,7 @@ class Node {
           return chainInfo
 
       }catch(e){
-        this.log(e)
+        logger(e)
       }
     
 
@@ -811,14 +811,14 @@ class Node {
             isLinked = chainInfo.headers[i-1].hash == currentHeader.previousHash
 
             if(!isLinked && areHashesValid){
-              this.log("Block number "+i+" is not linked");
+              logger("Block number "+i+" is not linked");
               return false;
             }else if(!isLinked && !areHashesValid){
-              this.log("Block number "+i+" is not linked");
-              this.log('Header hashes are not valid at position '+i);
+              logger("Block number "+i+" is not linked");
+              logger('Header hashes are not valid at position '+i);
               return false;
             }else if(isLinked && !areHashesValid){
-              this.log('Header hashes are not valid at position '+i);
+              logger('Header hashes are not valid at position '+i);
               return false;
             }
           }
@@ -829,7 +829,7 @@ class Node {
 
       return isLinked;
     }catch(e){
-      this.log(e)
+      logger(e)
     }
 
   }
@@ -850,14 +850,14 @@ class Node {
           peerAddress:this.address
         })
         .then(function (response) {
-            this.log(response.data);
+            logger(response.data);
         })
         .catch((err)=>{
 
-          this.log('Could not send length of chain to peer', err.errno)
+          logger('Could not send length of chain to peer', err.errno)
         })
       }catch(e){
-        this.log(e);
+        logger(e);
       }
     }
   }
@@ -873,23 +873,23 @@ class Node {
         var isBlockSynced = this.chain.syncBlock(newBlock);
         if(isBlockSynced === true){
 
-          this.log(chalk.blue(' * Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
+          logger(chalk.blue(' * Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
           this.clearOutPendingTransactions(Object.keys(newBlock.transactions))
 
           return true;
         }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
           //Start syncing from the index returned by syncBlock;
           //this.fetchBlocks(minerOfLastBlock);
-          this.log('ERROR: Block already present in chain')
+          logger('ERROR: Block already present in chain')
           return false;
         }else if(isBlockSynced < 0){
-          this.log('ERROR: Could not sync new block')
+          logger('ERROR: Could not sync new block')
           return false;
         }else{
           return false;
         }
       }else{
-        this.log('ERROR: New block is undefined');
+        logger('ERROR: New block is undefined');
         return false;
       }
   }
@@ -915,7 +915,7 @@ class Node {
 
       })
       .catch(function (error) {
-        this.log(error);
+        logger(error);
       })
   }
 
@@ -943,7 +943,7 @@ class Node {
               var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
               if(!synced){
                 if(response.data.error == 'end of chain'){
-                  this.log(chalk.green('Blockchain successfully updated'));
+                  logger(chalk.green('Blockchain successfully updated'));
                   this.validateBlockchain();
                   saveBlockchain(this.chain)
                   if(cb){
@@ -958,9 +958,9 @@ class Node {
                                         && (peerHeader.hash !== latestBlock.hash);
                   let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
 
-                  this.log('Is Header Valid:', isHeaderValid);
-                  this.log('Is Block Conflict:', isBlockConflict);
-                  this.log('Peer block has more work:', peerBlockHasMoreWork);
+                  logger('Is Header Valid:', isHeaderValid);
+                  logger('Is Block Conflict:', isBlockConflict);
+                  logger('Peer block has more work:', peerBlockHasMoreWork);
 
                   if(isHeaderValid && isBlockConflict){
                     if(peerBlockHasMoreWork){
@@ -968,16 +968,16 @@ class Node {
                       this.chain.orphanedBlocks.push(orphanBlock);
                       this.resolveBlockFork(address);
                     }else{
-                      this.log("The current last block required more work than target peer's")
+                      logger("The current last block required more work than target peer's")
                     }
                   }else{
-                    this.log('Header is invalid');
+                    logger('Header is invalid');
                   }
 
                   
                 }else if(response.data.error == 'no block found'){
 
-                  this.log(chalk.red(response.data.error));
+                  logger(chalk.red(response.data.error));
                   return false
                 }
                 return false
@@ -990,13 +990,13 @@ class Node {
           }
         })
         .catch((error)=>{
-          this.log('Could not fetch block from http://'+ error.address+":"+error.port)
+          logger('Could not fetch block from http://'+ error.address+":"+error.port)
           
           return false;
         })
     }
   }catch(e){
-    this.log(e);
+    logger(e);
     return false;
   }
 
@@ -1005,11 +1005,11 @@ class Node {
 
 
   validateBlockchain(){
-     this.log('Is blockchain valid?',this.chain.isChainValid())
+     logger('Is blockchain valid?',this.chain.isChainValid())
   }
 
   compareChainHeaders(headers){
-    // this.log(headers)
+    // logger(headers)
     if(this.chain instanceof Blockchain){
       if(headers){
         for(var i=0; i < headers.headers.length; i++){
@@ -1021,7 +1021,7 @@ class Node {
             var peerChainIsLongerThanThisChain = (headers.headers.length +1 > this.chain.chain.length);
 
             if(!peerChainIsLongerThanThisChain){
-              this.log('This chain is longer than peer chain')
+              logger('This chain is longer than peer chain')
               return false;
             }
 
@@ -1035,7 +1035,7 @@ class Node {
             }
 
           }catch(e){
-            this.log(e)
+            logger(e)
           }
 
 
@@ -1058,7 +1058,7 @@ class Node {
          return ((latestBlock.timestamp - blockBeforeThat.timestamp)/1000)
        }
      }catch(e){
-       this.log(e)
+       logger(e)
      }
 
    }
@@ -1084,10 +1084,10 @@ class Node {
         if(areValidHeaders){
           if(typeof areValidHeaders == 'number'){
             var conflictIndex = areValidHeaders;
-            this.log('Conflicting block at index:', conflictIndex)
+            logger('Conflicting block at index:', conflictIndex)
             var numberOfForkingBlocks = this.chain.chain.length - conflictIndex;
-            this.log('Num. of forking blocks',numberOfForkingBlocks);
-            this.log('Chain length:', this.chain.chain.length)
+            logger('Num. of forking blocks',numberOfForkingBlocks);
+            logger('Chain length:', this.chain.chain.length)
             for(var i=0;i<=numberOfForkingBlocks;i++ ){
               let orphanBlocks = this.chain.chain.pop();
               this.chain.orphanedBlocks.push(orphanBlocks);
@@ -1095,33 +1095,33 @@ class Node {
 
             this.update();
           }else{
-            this.log('Headers are of at least the same length')
+            logger('Headers are of at least the same length')
           }
         }else{
-          this.log('Peer headers are not valid')
+          logger('Peer headers are not valid')
         }
 
     })
     .catch((error)=>{
-      // this.log(error)
-      this.log('Could not fetch block from ', error.address)
+      // logger(error)
+      logger('Could not fetch block from ', error.address)
         if (error.response) {
           // The request was made and the server responded with a status code
           // that falls out of the range of 2xx
-          // this.log(error.response.data);
-          // this.log(error.response.status);
-          // this.log(error.response.headers);
+          // logger(error.response.data);
+          // logger(error.response.status);
+          // logger(error.response.headers);
       } else if (error.request) {
           // The request was made but no response was received
           // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
           // http.ClientRequest in node.js
-          // this.log(error.request);
+          // logger(error.request);
           
       } else {
           // Something happened in setting up the request that triggered an Error
-          this.log('Error', error.message);
+          logger('Error', error.message);
       }
-      // this.log(error.config);
+      // logger(error.config);
     })
   }
 
@@ -1139,7 +1139,7 @@ class Node {
       let transactionValidated;
       transaction.sign((signature)=>{
         if(!signature){
-          this.log('Transaction signature failed. Check both public key addresses.')
+          logger('Transaction signature failed. Check both public key addresses.')
           return false
         }else{
           transaction.signature = signature;
@@ -1147,11 +1147,11 @@ class Node {
             if(valid){
               this.chain.createTransaction(transaction);
               this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) this.log(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+              if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
               this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
 
             }else{
-              this.log('Received an invalid transaction');
+              logger('Received an invalid transaction');
               return false;
             }
 
@@ -1161,18 +1161,18 @@ class Node {
       })
 
     }catch(e){
-      this.log(e);
+      logger(e);
     }
 
   }
 
   updateAndMine(){
     this.sendPeerMessage('whoisLongestChain');
-    this.log('Querying the network for the longest chain before starting the miner')
+    logger('Querying the network for the longest chain before starting the miner')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
         this.fetchBlocks(this.longestChain.peerAddress, ()=>{
-          this.log('Starting miner!')
+          logger('Starting miner!')
           this.outputToUI('Starting miner!')
           this.startMiner();
         })
@@ -1185,7 +1185,7 @@ class Node {
 
   update(){
     this.sendPeerMessage('whoisLongestChain');
-    this.log('Querying the network for the longest chain before starting the miner')
+    logger('Querying the network for the longest chain before starting the miner')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
           this.fetchBlocks(this.longestChain.peerAddress, ()=>{
@@ -1211,14 +1211,14 @@ class Node {
             if(success){
               if(blockHash){
                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-                this.log('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
+                logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
                 saveBlockchain(this.chain);
                 setTimeout(()=>{
                   var newBlockNumber = this.chain.getLatestBlock().blockNumber
                   // this.sendPeerMessage('validateBlock', this.chain.getBlockHeader(newBlockNumber))
                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
 
-                  this.log('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
+                  logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                   this.startMiner();
                 },2000)
               }
@@ -1229,7 +1229,7 @@ class Node {
 
             }
           }catch(e){
-            this.log(e)
+            logger(e)
           }
 
         });
@@ -1264,25 +1264,14 @@ class Node {
 
   UILog(message, arg){
     if(arg){
-      // this.log(message, arg);
+      // logger(message, arg);
       this.outputToUI(message, arg)
     }else{
-      // this.log(message);
+      // logger(message);
       this.outputToUI(message)
     }
   }
 
-  log(message, arg){
-    let ID = this.id.slice(0, 10);
-    let date = new Date();
-    let time = date.toLocaleTimeString();
-    let beautifulMessage = '['+ID+']'+ time +'| ' + message;
-    if(arg){
-      console.log(beautifulMessage, arg);
-    }else{
-      console.log(beautifulMessage);
-    }
-  }
 
   txgen(){
     if(!stopTxgen){

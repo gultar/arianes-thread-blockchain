@@ -6,7 +6,7 @@ const fs = require('fs');
 const merkle = require('merkle');
 const sha256 = require('./sha256');
 var crypto = require('crypto');
-const { blockchainLog } = require('./utils')
+const { logger } = require('./utils')
 
 var dataBuffer;
 
@@ -22,12 +22,12 @@ class BlockchainHandler{
 const initBlockchain = (token, tryOnceAgain=true, cb) => {
   //flag to avoid crashes if a transaction is sent while loading
   var { port, address } = token;
-   blockchainLog('Initiating blockchain');
+   logger('Initiating blockchain');
    let blockchain;
    loadBlockchainFromServer((data, err)=>{
 
      if(err){
-       blockchainLog(err);
+       logger(err);
        cb(false, err);
      }
       blockchain = instanciateBlockchain(data);
@@ -43,10 +43,10 @@ const loadBlockchainFromServer = (cb) => {
         var data = '';
         let blockchainDataFromFile;
         var rstream = fs.createReadStream('blockchain.json');
-        blockchainLog('Reading blockchain.json file...');
+        logger('Reading blockchain.json file...');
 
         rstream.on('error', (err) =>{
-                blockchainLog(err);
+                logger(err);
                 cb(false, err);
         })
 
@@ -60,7 +60,7 @@ const loadBlockchainFromServer = (cb) => {
           try{
             blockchainDataFromFile = JSON.parse(data);
             dataBuffer = instanciateBlockchain(blockchainDataFromFile);
-            blockchainLog('Blockchain successfully loaded from file and validated')
+            logger('Blockchain successfully loaded from file and validated')
           }catch(err){
             cb(false, err);
           }
@@ -74,7 +74,7 @@ const loadBlockchainFromServer = (cb) => {
       });
 
     }else {
-            blockchainLog('Generating new blockchain')
+            logger('Generating new blockchain')
             let newBlockchain = new Blockchain();
             // newBlockchain = seedNodeList(newBlockchain, thisNode);
             // seedNodeList(newBlockchain); //------------------------Have to find a better way to create nodes
@@ -102,7 +102,7 @@ const saveBlockchain = (blockchain) => {
 
                   let json = JSON.stringify(blockchain, null, 4);
               if(json != undefined){
-                  blockchainLog('Writing to blockchain file...');
+                  logger('Writing to blockchain file...');
 
                   var stream = fs.createWriteStream('blockchain.json');
 
@@ -110,13 +110,13 @@ const saveBlockchain = (blockchain) => {
                   
                   stream.on('finish', () => {
                     //'All writes are now complete.'
-                    blockchainLog('Saved blockchain file')
+                    logger('Saved blockchain file')
                     
                     
                   });
                   stream.end();
                   stream.on('error', (error) => {
-                    blockchainLog(error);
+                    logger(error);
                   });
 
               }
@@ -124,7 +124,7 @@ const saveBlockchain = (blockchain) => {
           }
 
       } else {
-        blockchainLog("Creating new Blockchain file and saving to it")
+        logger("Creating new Blockchain file and saving to it")
         let json = JSON.stringify(blockchain, null, 4);
         if(json != undefined){
 
