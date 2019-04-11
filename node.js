@@ -253,7 +253,6 @@ class Node {
         }
 
       }else{
-        logger('Peer already connected')
       }
 
     }else{
