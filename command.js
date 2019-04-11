@@ -56,7 +56,7 @@ program
 
     }
 
-    if(program.update){
+    if(program.update && !program.mine){
       setTimeout(()=>{
         node.update();
       },6000)
