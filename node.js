@@ -171,7 +171,7 @@ class Node {
 
   /**
     Basis for P2P connection
-*/
+  */
   connectToPeer(address, callback){
 
     if(address){
@@ -437,7 +437,8 @@ class Node {
             }
 
           }else{
-
+            console.log('Header block number:',blockHeader.blockNumber);
+            console.log('Current block number:', lastBlock.blockNumber);
             if(blockHeader.blockNumber == lastBlock.blockNumber){
               res.json( { error:'block fork' } ).end()
             }
