@@ -50,6 +50,7 @@ class Node {
     this.userInterfaces = [];
     this.peersConnected = {};
     this.connectionsToPeers = {};
+    this.connectAttempts = {};
     this.knownPeers = [];
     this.token = {};
     this.chain = {};
@@ -150,6 +151,32 @@ class Node {
     }
 
   }
+
+  reconnectionAttempt(){
+    try{
+      if(this.knownPeers){
+        this.knownPeers.forEach((peer)=>{
+          if(!this.connectionAttempts[peer]){
+            this.connectionAttempts[peer] = {
+              attempts:0,
+              blackListed:false
+            }
+          }else{
+            if(this.connectionAttempts[peer].attempts < 3){
+              this.connectToPeer(peer);
+            }else{
+              this.log('Could not reach '+peer)
+            }
+          }
+          
+          
+        })
+      }
+    }catch(e){
+      this.log(e)
+    }
+  }
+
   //Only handles one wallet......
   /**
     Public (and optionally private) key loader
@@ -230,7 +257,7 @@ class Node {
             this.log('connection with peer dropped');
             delete this.connectionsToPeers[address];
             setTimeout(()=>{
-              this.joinPeers()
+              this.reconnectionAttempt()
             }, 2000)
             
             
