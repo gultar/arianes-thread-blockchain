@@ -6,6 +6,7 @@ const fs = require('fs');
 const merkle = require('merkle');
 const sha256 = require('./sha256');
 var crypto = require('crypto');
+const { blockchainLog } = require('./utils')
 
 var dataBuffer;
 
@@ -21,12 +22,12 @@ class BlockchainHandler{
 const initBlockchain = (token, tryOnceAgain=true, cb) => {
   //flag to avoid crashes if a transaction is sent while loading
   var { port, address } = token;
-   console.log('Initiating blockchain');
+   blockchainLog('Initiating blockchain');
    let blockchain;
    loadBlockchainFromServer((data, err)=>{
 
      if(err){
-       console.log(err);
+       blockchainLog(err);
        cb(false, err);
      }
       blockchain = instanciateBlockchain(data);
@@ -42,10 +43,10 @@ const loadBlockchainFromServer = (cb) => {
         var data = '';
         let blockchainDataFromFile;
         var rstream = fs.createReadStream('blockchain.json');
-        console.log('Reading blockchain.json file...');
+        blockchainLog('Reading blockchain.json file...');
 
         rstream.on('error', (err) =>{
-                console.log(err);
+                blockchainLog(err);
                 cb(false, err);
         })
 
@@ -59,7 +60,7 @@ const loadBlockchainFromServer = (cb) => {
           try{
             blockchainDataFromFile = JSON.parse(data);
             dataBuffer = instanciateBlockchain(blockchainDataFromFile);
-            console.log('Blockchain successfully loaded from file and validated')
+            blockchainLog('Blockchain successfully loaded from file and validated')
           }catch(err){
             cb(false, err);
           }
@@ -73,7 +74,7 @@ const loadBlockchainFromServer = (cb) => {
       });
 
     }else {
-            console.log('Generating new blockchain')
+            blockchainLog('Generating new blockchain')
             let newBlockchain = new Blockchain();
             // newBlockchain = seedNodeList(newBlockchain, thisNode);
             // seedNodeList(newBlockchain); //------------------------Have to find a better way to create nodes
@@ -87,35 +88,44 @@ const loadBlockchainFromServer = (cb) => {
 
 }
 
-const saveBlockchain = (blockchainReceived) => {
+const saveBlockchain = (blockchain) => {
 
   fs.exists('blockchain.json', function(exists){
       if(exists){
-          var longestBlockchain;
 
-          if(blockchainReceived != undefined){
+          if(blockchain != undefined){
 
-              if(!(blockchainReceived instanceof Blockchain)){
-                      blockchainReceived = instanciateBlockchain(blockchainReceived);
+              if(!(blockchain instanceof Blockchain)){
+                      blockchain = instanciateBlockchain(blockchain);
               }
+              
 
-              let json = JSON.stringify(blockchainReceived, null, 4);
-
+                  let json = JSON.stringify(blockchain, null, 4);
               if(json != undefined){
-                  console.log('Writing to blockchain file...');
+                  blockchainLog('Writing to blockchain file...');
 
-                  var wstream = fs.createWriteStream('blockchain.json');
+                  var stream = fs.createWriteStream('blockchain.json');
 
-                  wstream.write(json);
-                  wstream.end();
+                  stream.write(json);
+                  
+                  stream.on('finish', () => {
+                    //'All writes are now complete.'
+                    blockchainLog('Saved blockchain file')
+                    
+                    
+                  });
+                  stream.end();
+                  stream.on('error', (error) => {
+                    blockchainLog(error);
+                  });
 
               }
 
           }
 
       } else {
-        console.log("Creating new Blockchain file and saving to it")
-        let json = JSON.stringify(blockchainReceived, null, 4);
+        blockchainLog("Creating new Blockchain file and saving to it")
+        let json = JSON.stringify(blockchain, null, 4);
         if(json != undefined){
 
           var wstream = fs.createWriteStream('blockchain.json');

@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 // const { exec } = require('child_process');
 const { MINING_RATE, END_MINING } = require('./constants');
-const { displayTime } = require('./utils');
+const { displayTime, blockchainLog } = require('./utils');
 const Transaction = require('./transaction');
 const Block = require('./block');
 const setChallenge = require('./challenge');
@@ -161,8 +161,8 @@ class Blockchain{
 
     if(isMining){
 
-      console.log('Mining next block...');
-      console.log('Number of pending transactions:', Object.keys(this.pendingTransactions).length);
+      blockchainLog('Mining next block...');
+      blockchainLog('Number of pending transactions:', Object.keys(this.pendingTransactions).length);
 
       let block = new Block(Date.now(), this.pendingTransactions);
       let lastBlock = this.getLatestBlock();
@@ -173,7 +173,7 @@ class Blockchain{
 
 
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
-      console.log('Current Challenge:', block.challenge)
+      blockchainLog('Current Challenge:', block.challenge)
       miningSuccessful = await block.mine(this.difficulty);
 
       if(miningSuccessful && process.env.END_MINING !== true){
@@ -181,23 +181,23 @@ class Blockchain{
 
           block.minedBy = ipAddress;
           this.chain.push(block);
-          console.log(chalk.cyan('\n********************************************************************'))
-          console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
-          console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-          console.log(chalk.cyan("* Challenge : "), block.challenge);
-          console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
-          console.log(chalk.cyan('********************************************************************\n'))
+          blockchainLog(chalk.cyan('\n********************************************************************'))
+          blockchainLog(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
+          blockchainLog(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+          blockchainLog(chalk.cyan("* Challenge : "), block.challenge);
+          blockchainLog(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+          blockchainLog(chalk.cyan('********************************************************************\n'))
           var miningReward = new Transaction(null, miningRewardAddress, this.miningReward, "", Date.now(), false, 'coinbase')
           this.pendingTransactions[miningReward.hash] = miningReward;
 
           callback(miningSuccessful, block.hash);
         }else{
           this.putbackPendingTransactions(block);
-          console.log('Block is not valid');
+          blockchainLog('Block is not valid');
           callback(false, false)
         }
       }else{
-        console.log('Mining aborted. Peer has mined a new block');
+        blockchainLog('Mining aborted. Peer has mined a new block');
         callback(false, false)
       }
 
@@ -287,11 +287,11 @@ class Blockchain{
       let balance = 0;
       var trans;
       if(!publicKey){
-        console.log("ERROR: Can't get balance of undefined publickey")
+        blockchainLog("ERROR: Can't get balance of undefined publickey")
         return false;
       }
         for(var block of this.chain){
-          // console.log(block);
+          // blockchainLog(block);
           for(var transHash of Object.keys(block.transactions)){
 
             trans = block.transactions[transHash]
@@ -320,7 +320,7 @@ class Blockchain{
   getBalanceFromBlockIndex(index, token){
     var address = token.id;
 
-    console.log('INDEX:', index);
+    blockchainLog('INDEX:', index);
     for(var i=0; i < index; i++){
       for(var transHash of Object.keys(this.chain[i].transactions)){
         trans = this.chain[i].transactions[transHash]
@@ -351,16 +351,16 @@ class Blockchain{
       const previousBlock = this.chain[i - 1];
 
       if(currentBlock.hash !== RecalculateHash(currentBlock)){
-        console.log('*******************************************************************');
-        console.log('currentblock hash does not match the recalculation ');
-        console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-        console.log('*******************************************************************');
+        blockchainLog('*******************************************************************');
+        blockchainLog('currentblock hash does not match the recalculation ');
+        blockchainLog('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
+        blockchainLog('*******************************************************************');
         return false;
       }else if(currentBlock.previousHash !== previousBlock.hash){
-        console.log('*******************************************************************');
-        console.log('* currentblock hash does not match previousblock hash *');
-        console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-        console.log('*******************************************************************');
+        blockchainLog('*******************************************************************');
+        blockchainLog('* currentblock hash does not match previousblock hash *');
+        blockchainLog('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
+        blockchainLog('*******************************************************************');
         return false;
       }
     }
@@ -390,7 +390,7 @@ class Blockchain{
           return false;
         }
 
-        console.log('Current mined block is not linked with previous block. Sending it to orphanedBlocks');
+        blockchainLog('Current mined block is not linked with previous block. Sending it to orphanedBlocks');
         return this.getIndexOfBlockHash(block.previousHash);
 
       }else{
@@ -398,12 +398,12 @@ class Blockchain{
         /*
           validate difficulty level
         */
-        // console.log('New block successfully validated. Will be appended to current blockchain.')
+        // blockchainLog('New block successfully validated. Will be appended to current blockchain.')
         return true;
       }
 
     }else if(containsCurrentBlock){
-      console.log('Chain already contains that block')
+      blockchainLog('Chain already contains that block')
       /*Chain already contains that block*/
       return false;
     }
@@ -424,7 +424,7 @@ class Blockchain{
         var mrootStructure = merkle('sha256').sync(transactionHashes);
         var mroot = mrootStructure.root()
         if(!mroot){
-          console.log('no mroot')
+          blockchainLog('no mroot')
           return false;
         }
         var header = {
@@ -473,7 +473,7 @@ class Blockchain{
           }
           return blocks;
       }else if(index == false){
-    		console.log('ERROR: Hash not found');
+    		blockchainLog('ERROR: Hash not found');
         return false;
     	}
   }
@@ -507,33 +507,33 @@ class Blockchain{
 
 
         var isChecksumValid = this.validateChecksum(transaction);
-        // console.log("Is transaction hash valid? :", isChecksumValid);
+        // blockchainLog("Is transaction hash valid? :", isChecksumValid);
 
         var isSignatureValid = this.validateSignature(transaction);
-        // console.log("Is transaction signature valid? :", isSignatureValid);
+        // blockchainLog("Is transaction signature valid? :", isSignatureValid);
 
         var isMiningReward = this.isMiningRewardTransaction(transaction);
-        // console.log('Is mining reward transaction? :', isMiningReward);
+        // blockchainLog('Is mining reward transaction? :', isMiningReward);
 
         var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
-        // console.log("Balance of sender is : ",balanceOfSendingAddr);
+        // blockchainLog("Balance of sender is : ",balanceOfSendingAddr);
 
           if(!balanceOfSendingAddr && balanceOfSendingAddr !== 0){
-              console.log('Cannot verify balance of undefined address token');
+              blockchainLog('Cannot verify balance of undefined address token');
               callback(false);
           }
 
           if(balanceOfSendingAddr >= transaction.amount){
-            // console.log('Transaction validated successfully');
+            // blockchainLog('Transaction validated successfully');
             callback(true)
           }else if(transaction.type === 'query'){
             //handle blockbase queries
           }else{
-            console.log('Address '+transaction.fromAddress+' does not have sufficient funds to complete transaction');
+            blockchainLog('Address '+transaction.fromAddress+' does not have sufficient funds to complete transaction');
             callback(false);
           }
       }catch(err){
-        console.log(err);
+        blockchainLog(err);
         callback(false);
       }
 
@@ -541,7 +541,7 @@ class Blockchain{
 
 
   	}else{
-  		console.log('ERROR: Transaction is undefined');
+  		blockchainLog('ERROR: Transaction is undefined');
   		callback(false)
   	}
 
@@ -571,7 +571,7 @@ class Blockchain{
         return verify.verify(transaction.fromAddress, transaction.signature, 'hex');
 
       }catch(err){
-        console.log(err);
+        blockchainLog(err);
         return false;
       }
   }
