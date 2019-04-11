@@ -209,7 +209,7 @@ class Node {
         try{
           peer = ioClient(address, {
             'reconnection limit' : 1000,
-            'max reconnection attempts' : 3,
+            'max reconnection attempts' : 20,
             'query':{
               token: { 'address':this.address }
             }
