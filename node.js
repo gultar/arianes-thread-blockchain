@@ -897,7 +897,7 @@ class Node {
                     if(peerBlockHasMoreWork){
                       let orphanBlock = this.chain.chain.pop();
                       this.chain.orphanedBlocks.push(orphanBlock);
-                      this.fetchBlocks(address);
+                      this.resolveBlockFork(address);
                     }else{
                       console.log("The current last block required more work than target peer's")
                     }
