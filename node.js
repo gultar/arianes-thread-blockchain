@@ -893,7 +893,7 @@ class Node {
     if(this.chain instanceof Blockchain){
       const latestBlock = this.chain.getLatestBlock();
       const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
-
+      console.log('Latest Block Header:', this.chain.getBlockHeader(latestBlock.blockNumber))
 
 
       axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })

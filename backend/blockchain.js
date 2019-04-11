@@ -40,6 +40,40 @@ class Blockchain{
     let genesisBlock = new Block("01/01/2018", "Genesis block", "0");
     genesisBlock.challenge = 100000;
     genesisBlock.endMineTime = Date.now();
+    genesisBlock.transactions.push(
+      //Setup initial coin distribution
+      new Transaction(
+        'coinbase', 
+        `-----BEGIN PUBLIC KEY-----
+        MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQD1aWbGj2PamizgVSfE2kmp8uzv
+        77yW1W/EiyClkPQfsO2Wdf0ipujSZ1yhMX6iBCnkExNFGe0Cg0NDTAK+vdtT7FIH
+        oMrbL/HnhTeBWXmG4kUDrjlyVxnB2eNWkgIzlz0xStfynNu6N3zJ0r+TRLYZETd2
+        R1WcAs7xApwiuQjamQIDAQAB
+        -----END PUBLIC KEY-----
+        `, 1000, 'ICO transactions'
+      ),
+      new Transaction(
+        'coinbase', 
+        `-----BEGIN PUBLIC KEY-----
+        MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDPhE227fWNoGvKSrddYwBZ+yN5
+        +spokmlido3STmhBeAJa8aMGS/daz3Vr2xuSmRUNRhUn6B7Mp54UMH553SqA7agB
+        d7hlllCVFKwXklpFfansRpVJYbJOVvxTRn1VpleSpOqa6mn1BHYARwVaUd4Tbqs2
+        3bHNyiJLBWmsrnZqFQIDAQAB
+        -----END PUBLIC KEY-----
+        `, 1000, 'ICO transactions'
+      ),
+      new Transaction(
+        'coinbase', 
+        `-----BEGIN PUBLIC KEY-----
+        MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDEqqReZ40WEZ9p7QZJ4Kkt0pUC
+        cIsbrADQyGCi4g+7oQJE84Han/DSWd9YvIa3stJkmOhqTPU4c47+4ug66LZ9L6Sj
+        Sg5JtvfLbDAs+eKTD6pcS71VS/Zs+FFkhKFO5vmzHW/hacfJZnC6s6/SV6uIeyzA
+        5Yj+2K+A22EY3LIWAwIDAQAB
+        -----END PUBLIC KEY-----        
+        `, 1000, 'ICO transactions'
+      )
+
+    )
     return genesisBlock;
   }
 
@@ -379,7 +413,7 @@ class Blockchain{
   */
 
   getBlockHeader(blockNumber){
-    if(blockNumber){
+    if(blockNumber || blockNumber === 0){
       var block = this.chain[blockNumber];
 
       if(block){
