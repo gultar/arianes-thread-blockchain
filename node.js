@@ -863,6 +863,9 @@ class Node {
     if(this.chain instanceof Blockchain){
       const latestBlock = this.chain.getLatestBlock();
       const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
+
+
+
       axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
         .then((response) =>{
           var block = response.data;
@@ -945,7 +948,7 @@ class Node {
           var localBlockHeader = this.chain.getBlockHeader(i+1);
 
           try{
-            var peerChainIsLongerThanThisChain = (headers.headers.length > this.chain.chain.length);
+            var peerChainIsLongerThanThisChain = (headers.headers.length +1 > this.chain.chain.length);
 
             if(!peerChainIsLongerThanThisChain){
               console.log('This chain is longer than peer chain')
