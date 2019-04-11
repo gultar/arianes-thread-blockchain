@@ -37,7 +37,7 @@ class Blockchain{
 
   createGenesisBlock(){
     //Initial Nonce Challenge is 100 000
-    let genesisBlock = new Block(Date.now(), ["Genesis block"], "Infinity");
+    let genesisBlock = new Block(1554987342039, ["Genesis block"], "Infinity");
     genesisBlock.challenge = 100000;
     genesisBlock.endMineTime = Date.now();
     genesisBlock.transactions.push(
