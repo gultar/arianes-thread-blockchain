@@ -369,11 +369,10 @@ class Node {
           this.longestChain.length = length;
           this.longestChain.peerAddress = peerAddress
           console.log(peerAddress+' has sent its chain length: '+length)
-          console.log('Res status code', res.statusCode)
           
         }
       }catch(e){
-        console.log(e)
+        console.log("Could not receive chainLength response", e.errno);
       }
     })
 
@@ -824,7 +823,7 @@ class Node {
         })
         .catch((err)=>{
 
-          console.log(err.status)
+          console.log('Could not send length of chain to peer', err.errno)
         })
       }catch(e){
         console.log(e);
@@ -960,7 +959,8 @@ class Node {
           }
         })
         .catch((error)=>{
-          console.log(error);
+          console.log('Could not fetch block from http://'+ error.address+":"+error.port)
+          
           return false;
         })
     }
@@ -1072,7 +1072,8 @@ class Node {
 
     })
     .catch((error)=>{
-      console.log(error)
+      // console.log(error)
+      console.log('Could not fetch block from ', error.address)
         if (error.response) {
           // The request was made and the server responded with a status code
           // that falls out of the range of 2xx
@@ -1083,12 +1084,13 @@ class Node {
           // The request was made but no response was received
           // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
           // http.ClientRequest in node.js
-          console.log(error.request);
+          // console.log(error.request);
+          
       } else {
           // Something happened in setting up the request that triggered an Error
           console.log('Error', error.message);
       }
-      console.log(error.config);
+      // console.log(error.config);
     })
   }
 
