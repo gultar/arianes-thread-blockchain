@@ -439,7 +439,7 @@ class Node {
           }else{
             console.log('Header block number:',blockHeader.blockNumber);
             console.log('Current block number:', lastBlock.blockNumber);
-            let lastBlockHeader = this.chain.getBlockHeader(lastBlock);
+            let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
 
             console.log(lastBlockHeader);
             if(blockHeader.blockNumber == lastBlock.blockNumber){
