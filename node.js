@@ -168,7 +168,9 @@ class Node {
               attempts:0,
               blackListed:false
             }
+
             this.connectToPeer(peer);
+            this.connectionAttempts[peer].attempts++;
           }
           
           

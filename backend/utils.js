@@ -12,9 +12,9 @@ const displayTime = () =>{
 }
 
 const logger = (message, arg) => {
-  let date = new Date();
-  let time = date.toLocaleTimeString();
-  let beautifulMessage = '['+ time +'] ' + message;
+  // let date = new Date();
+  // let time = date.toLocaleTimeString();
+  let beautifulMessage = '['+ displayTime() +'] ' + message;
   if(arg){
     console.log(beautifulMessage, arg);
   }else{
