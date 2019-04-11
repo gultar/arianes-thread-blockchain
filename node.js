@@ -439,8 +439,9 @@ class Node {
           }else{
             console.log('Header block number:',blockHeader.blockNumber);
             console.log('Current block number:', lastBlock.blockNumber);
+            let lastBlockHeader = this.chain.getBlockHeader(lastBlockHeader);
             if(blockHeader.blockNumber == lastBlock.blockNumber){
-              res.json( { error:'block fork' } ).end()
+              res.json( { error:'block fork', header:lastBlockHeader } ).end()
             }else{
               res.json( { error:'no block found' } ).end()
             }
@@ -878,9 +879,30 @@ class Node {
                   }
                   return true;
                 }else if(response.data.error == 'block fork'){
-                  let orphanBlock = this.chain.chain.pop();
-                  this.chain.orphanedBlocks.push(orphanBlock);
-                  this.fetchBlocks(address);
+                  let peerHeader = response.data.header;
+
+                  let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
+                  let isBlockConflit = (peerHeader.blockNumber == latestBlock.blockNumber) 
+                                        && (peerHeader.hash !== latestBlock.hash);
+                  let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
+
+                  console.log('Is Header Valid:', isHeaderValid);
+                  console.log('Is Block Conflict:', isBlockConflict);
+                  console.log('Peer block has more work:', peerBlockHasMoreWork);
+
+                  if(isHeaderValid && isBlockConflict){
+                    if(peerBlockHasMoreWork){
+                      let orphanBlock = this.chain.chain.pop();
+                      this.chain.orphanedBlocks.push(orphanBlock);
+                      this.fetchBlocks(address);
+                    }else{
+                      console.log("The current last block required more work than target peer's")
+                    }
+                  }else{
+                    console.log('Header is invalid');
+                  }
+
+                  
                 }else if(response.data.error == 'no block found'){
 
                   console.log(chalk.red(response.data.error));
