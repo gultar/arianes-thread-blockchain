@@ -422,7 +422,7 @@ class Node {
       try{
         var blockHash = req.query.hash;
         var blockHeader = JSON.parse(req.query.header);
-        console.log(blockHeader)
+
         if(this.chain instanceof Blockchain){
           const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
           const lastBlock = this.chain.getLatestBlock();
@@ -437,11 +437,9 @@ class Node {
             }
 
           }else{
-            console.log('Header block number:',blockHeader.blockNumber);
-            console.log('Current block number:', lastBlock.blockNumber);
+
             let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
 
-            console.log(lastBlockHeader);
             if(blockHeader.blockNumber == lastBlock.blockNumber){
               res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
             }else{
@@ -884,7 +882,7 @@ class Node {
                   let peerHeader = JSON.parse(response.data.header);
 
                   let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
-                  let isBlockConflit = (peerHeader.blockNumber == latestBlock.blockNumber) 
+                  let isBlockConflict = (peerHeader.blockNumber == latestBlock.blockNumber) 
                                         && (peerHeader.hash !== latestBlock.hash);
                   let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
 
