@@ -441,7 +441,12 @@ class Node {
             let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
 
             if(blockHeader.blockNumber == lastBlock.blockNumber){
-              res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
+              if(blockHeader.blockNumber !== 0){
+                res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
+              }else{
+                res.json( { error:'end of chain' } ).end()
+              }
+              
             }else{
               res.json( { error:'no block found' } ).end()
             }
