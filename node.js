@@ -156,7 +156,7 @@ class Node {
     try{
       if(this.knownPeers){
         this.knownPeers.forEach((peer)=>{
-          if(this.connectionAttempts.hasOwnProperty(peer)){
+          if(peer in this.connectionAttempts){
             if(this.connectionAttempts[peer].attempts < 3){
               this.connectToPeer(peer);
             }else{
