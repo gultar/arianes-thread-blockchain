@@ -108,7 +108,7 @@ class Node {
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
 
                  this.peersConnected[peerAddress] = socket;
-                 if(peerAddress){
+                 if(peerAddress && !this.knownPeers.includes(peerAddress)){
                    this.knownPeers.push(peerAddress);
                  }
 
