@@ -197,22 +197,34 @@ class Node {
           });
 
           peer.heartbeatTimeout = 120000;
+
           logger('Requesting connection to '+ address+ ' ...');
           this.UILog('Requesting connection to '+ address+ ' ...');
+
           peer.on('connect_timeout', (timeout)=>{
-            if(connectionAttempts >= 3) { peer.destroy() }
+            if(connectionAttempts >= 3) { 
+              peer.destroy()
+              delete this.connectionsToPeers[address];
+            }else{
               logger('Connection attempt to address '+address+' timed out.\n'+(connectionAttempts)+' attempts left');
               connectionAttempts++;
-
+            }
+              
           })
 
           peer.on('connect', () =>{
+            if(!this.connectionsToPeers.hasOwnProperty(address)){
+              this.connectionsToPeers[address] = peer;
               logger(chalk.green('Connected to ', address))
               peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
               this.UILog('Peer connection established by '+ this.address+' at : '+ displayTime())
-              if(this.knownPeers.indexOf(address) < 0)  {  this.knownPeers.push(address);  }
-              this.connectionsToPeers[address] = peer;
+              if(!this.knownPeers.includes(address))  {  this.knownPeers.push(address);  }
+              
               peer.emit('connectionRequest', this.address);
+            }else{
+              logger('Already connected to target node')
+            }
+              
 
           })
 
