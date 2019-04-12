@@ -102,22 +102,24 @@ const saveBlockchain = (blockchain) => {
 
                   let json = JSON.stringify(blockchain, null, 4);
               if(json != undefined){
-                  logger('Writing to blockchain file...');
 
-                  var stream = fs.createWriteStream('blockchain.json');
-
-                  stream.write(json);
-                  
-                  stream.on('finish', () => {
-                    //'All writes are now complete.'
-                    logger('Saved blockchain file')
                     
+                    logger('Writing to blockchain file...');
+      
+                    var stream = fs.createWriteStream('blockchain.json');
+  
+                    stream.write(json);
+                    stream.end();
+                    stream.on('finish', () => {
+                      //'All writes are now complete.'
+                      logger('Saved blockchain file')
+                      copyFile('blockchain.json', './config/blockchain.json');
+                      
+                    });
                     
-                  });
-                  stream.end();
-                  stream.on('error', (error) => {
-                    logger(error);
-                  });
+                    stream.on('error', (error) => {
+                      logger(error);
+                    });
 
               }
 
@@ -136,6 +138,21 @@ const saveBlockchain = (blockchain) => {
         }
 
       }
+  });
+}
+
+function copyFile(source, target) {
+  var rd = fs.createReadStream(source);
+  var wr = fs.createWriteStream(target);
+  return new Promise(function(resolve, reject) {
+    rd.on('error', reject);
+    wr.on('error', reject);
+    wr.on('finish', resolve);
+    rd.pipe(wr);
+  }).catch(function(error) {
+    rd.destroy();
+    wr.end();
+    throw error;
   });
 }
 

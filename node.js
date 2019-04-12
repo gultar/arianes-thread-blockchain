@@ -112,7 +112,6 @@ class Node {
                    this.knownPeers.push(peerAddress);
                  }
 
-                 this.save()
                  this.nodeEventHandlers(socket)
                }else{
                  socket.emit('message', 'Connected to local node');
@@ -182,7 +181,7 @@ class Node {
         try{
           peer = ioClient(address, {
             'reconnection limit' : 1000,
-            'max reconnection attempts' : 20,
+            'max reconnection attempts' : 3,
             'query':{
               token: { 'address':this.address }
             }
@@ -229,15 +228,14 @@ class Node {
 
           peer.on('disconnect', () =>{
             logger('connection with peer dropped');
-            console.log('Socket exists ',(this.connectionsToPeers[address]?true:false))
             delete this.connectionsToPeers[address];
-            if(connectionAttempts >= 3) { 
-              logger('Connection attempt to address '+address+' timed out.\n'+(connectionAttempts)+' attempts left');
-              peer.destroy() 
-            }else{
-              this.connectToPeer(address)
-              connectionAttempts++;
-            }
+            // if(connectionAttempts >= 3) { 
+            //   logger('Connection attempt to address '+address+' timed out.\n'+(connectionAttempts)+' attempts left');
+            //   peer.destroy() 
+            // }else{
+            //   this.connectToPeer(address)
+            //   connectionAttempts++;
+            // }
               
             
           })
@@ -591,6 +589,11 @@ class Node {
       this.txgen();
     })
 
+    socket.on('verbose', ()=>{
+      if(this.verbose) this.verbose = false;
+      else this.verbose = true;
+    })
+
     socket.on('stoptxgen', ()=>{
       stopTxgen = true;
     })
@@ -921,7 +924,7 @@ class Node {
               if(!synced){
                 if(response.data.error == 'end of chain'){
                   logger(chalk.green('Blockchain successfully updated'));
-                  this.validateBlockchain();
+                  logger('Chain is still valid: ', this.chain.isChainValid())
                   saveBlockchain(this.chain)
                   if(cb){
                     cb(true)
@@ -982,7 +985,7 @@ class Node {
 
 
   validateBlockchain(){
-     logger('Is blockchain valid?',this.chain.isChainValid())
+     logger('Chain is still valid:',this.chain.isChainValid())
   }
 
   compareChainHeaders(headers){
@@ -1228,6 +1231,7 @@ class Node {
   save(){
     this.chain.ipAddresses = this.knownPeers;
     saveBlockchain(this.chain);
+    
   }
   /**
     @desc Periodically clears out peer messages to avoid overflow
@@ -1236,6 +1240,8 @@ class Node {
     var that = this;
     setInterval(()=>{
       that.messageBuffer = {};
+      
+      
     }, 30000)
   }
 
