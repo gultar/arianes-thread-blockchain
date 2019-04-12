@@ -150,6 +150,15 @@ class Node {
 
   }
 
+  findPeers(){
+    if(this.knownPeers.length > 0){
+      logger('Requesting other peer addresses');
+      this.serverBroadcast('getPeers');
+    }else{
+      this.joinPeers();
+    }
+  }
+
   //Only handles one wallet......
   /**
     Public (and optionally private) key loader
@@ -212,30 +221,19 @@ class Node {
           })
 
           peer.on('address', (response)=>{
-            if(!response){
-              //change peer?
-            }else{
-              if(Array.isArray(response)){
-                for(let address in response){
-                  this.knownPeers.push(address);
+            if(response && Array.isArray(response)){
+              for(let address in response){
+                if(!this.knownPeers.includes(address)){
+                  // this.knownPeers.push(address);
+                  this.connectToPeer(address);
                 }
-              }else if(typeof response == 'string'){
-                this.knownPeers.push(response);
               }
             }
-
           })
 
           peer.on('disconnect', () =>{
             logger('connection with peer dropped');
             delete this.connectionsToPeers[address];
-            // if(connectionAttempts >= 3) { 
-            //   logger('Connection attempt to address '+address+' timed out.\n'+(connectionAttempts)+' attempts left');
-            //   peer.destroy() 
-            // }else{
-            //   this.connectToPeer(address)
-            //   connectionAttempts++;
-            // }
               
             
           })
@@ -521,6 +519,10 @@ class Node {
        this.handlePeerMessage(type, originAddress, messageId, data);
      })
 
+     socket.on('getPeers', ()=>{
+        socket.emit('address', this.knownPeers);
+     })
+
      socket.on('disconnect', ()=>{
        if(socket.handshake.headers.host){
          var disconnectedAddress = 'http://'+socket.handshake.headers.host
@@ -678,6 +680,11 @@ class Node {
         case 'newBlock':
           this.fetchBlocks(originAddress);
           break;
+        // case 'getPeers':
+        //   if(!this.knownPeers.includes(originAddress)){
+            
+        //   }
+        //   break
         case 'whoisLongestChain':
           try{
             axios.post(originAddress+'/chainLength', {
