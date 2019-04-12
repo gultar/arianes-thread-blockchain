@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const Node = require('./node');
 const Transaction = require('./backend/transaction');
+const { copyFile } = require('./backend/blockchainHandler');
 const program = require('commander');
 let port = 8000;
 let arg = '';
@@ -17,6 +18,7 @@ program
   .option('-t, --test', 'Test')
   .option('-tx, --txgen', 'TEST ONLY - Transaction generator')
   .option('-v, --verbose', 'Enable transaction and network verbose')
+  .option('.-b, --backup', 'Enable blockchain backup');
 
 
 program
@@ -76,6 +78,13 @@ program
       },3000)
     }
 
+    if(program.backup){
+      setInterval(()=>{
+
+      }, 20000)
+      copyFile('blockchain.json', './config/blockchain.json');
+    }
+
     if(program.verbose){
       node.verbose = true;
     }
@@ -84,11 +93,16 @@ program
 program.parse(process.argv)
 
 process.on('SIGINT', () => {
-  node.save();
   console.info('Shutting down node and saving blockchain');
-  setTimeout(()=>{
-    process.exit()
-  },3000)
+  node.save((saved)=>{
+    if(saved){
+      setTimeout(()=>{
+        process.exit()
+      },3000)
+    }
+  });
+  
+
 });
 
 //

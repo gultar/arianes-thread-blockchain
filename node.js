@@ -1239,9 +1239,16 @@ class Node {
     }
   }
 
-  save(){
+  save(callback){
     this.chain.ipAddresses = this.knownPeers;
-    saveBlockchain(this.chain);
+    if(callback){
+      saveBlockchain(this.chain, (saved)=>{
+        callback(saved);
+      });
+    }else{
+      saveBlockchain(this.chain);
+    }
+    
     
   }
   /**

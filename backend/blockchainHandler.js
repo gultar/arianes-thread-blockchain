@@ -88,7 +88,7 @@ const loadBlockchainFromServer = (cb) => {
 
 }
 
-const saveBlockchain = (blockchain) => {
+const saveBlockchain = (blockchain, callback) => {
 
   fs.exists('blockchain.json', function(exists){
       if(exists){
@@ -113,8 +113,7 @@ const saveBlockchain = (blockchain) => {
                     stream.on('finish', () => {
                       //'All writes are now complete.'
                       logger('Saved blockchain file')
-                      copyFile('blockchain.json', './config/blockchain.json');
-                      
+                      if(callback) callback(true);
                     });
                     
                     stream.on('error', (error) => {
