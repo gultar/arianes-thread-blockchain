@@ -83,6 +83,13 @@ program
 
 program.parse(process.argv)
 
+process.on('SIGINT', () => {
+  node.save();
+  console.info('Shutting down node and saving blockchain');
+  setTimeout(()=>{
+    process.exit()
+  },3000)
+});
 
 //
 // const spawnNodes = (number, callback)=>{

@@ -914,7 +914,7 @@ class Node {
     @param {function} $cb - Optional callback
   */
  fetchBlocks(address, cb){
-
+  process.END_MINING = true;
   //var updateAddress = (address ? address : longestChain.peerAddress)
   try{
     if(this.chain instanceof Blockchain){
@@ -933,9 +933,13 @@ class Node {
                   logger(chalk.green('Blockchain successfully updated'));
                   logger('Chain is still valid: ', this.chain.isChainValid())
                   saveBlockchain(this.chain)
+
+                  process.END_MINING = false;
                   if(cb){
                     cb(true)
                   }
+
+
                   return true;
                 }else if(response.data.error == 'block fork'){
                   let peerHeader = JSON.parse(response.data.header);
