@@ -12,7 +12,6 @@ class Block{
     this.timestamp = timestamp;
     this.transactions = transactions;
     this.previousHash = previousHash;
-    this.merkleRoot = this.createMerkleRoot(transactions);
     this.hash = this.calculateHash();
     this.nonce = 0;
     this.valid = true;
@@ -25,7 +24,7 @@ class Block{
     Will be called on every iteration of the mining method
   */
   calculateHash(){
-    this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce).toString();
+    this.hash = sha256(this.previousHash + this.timestamp + this.createMerkleRoot(transactions) + this.nonce).toString();
   }
 
 
