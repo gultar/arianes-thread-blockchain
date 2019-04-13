@@ -340,6 +340,23 @@ class Node {
       }
     }
   }
+  sendToRemoteNode(type, data){
+    if(type){
+      try{
+        // if(typeof data == 'object')
+        //   data = JSON.stringify(data);
+        // var shaInput = (Math.random() * Date.now()).toString()
+        // var messageId = sha256(shaInput);
+        // this.messageBuffer[messageId] = messageId;
+        // this.serverBroadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
+
+      }catch(e){
+        logger(e);
+      }
+
+    }
+  }
+  
 
 
   /**
