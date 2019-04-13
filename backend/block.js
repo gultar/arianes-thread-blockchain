@@ -24,7 +24,7 @@ class Block{
     Will be called on every iteration of the mining method
   */
   calculateHash(){
-    this.hash = sha256(this.previousHash + this.timestamp + this.createMerkleRoot(transactions) + this.nonce).toString();
+    this.hash = sha256(this.previousHash + this.timestamp + this.createMerkleRoot(this.transactions) + this.nonce).toString();
   }
 
 
