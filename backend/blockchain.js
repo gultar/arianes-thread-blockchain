@@ -175,7 +175,7 @@ class Blockchain{
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       logger('Current Challenge:', block.challenge)
       block.mine(this.difficulty, (miningSuccessful)=>{
-        if(miningSuccessful){
+        if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
   
             block.minedBy = ipAddress;

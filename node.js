@@ -1242,7 +1242,7 @@ class Node {
 
       if(this.chain instanceof Blockchain){
         this.isMining = true;
-        if(!process.env.END_MINING){
+        
           this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
             try{
               if(success){
@@ -1270,7 +1270,7 @@ class Node {
             }
   
           });
-        }
+        
 
       }
 
