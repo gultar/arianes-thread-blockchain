@@ -630,7 +630,16 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      process.MINER.stop()
+      let block = this.chain.getLatestBlock()
+      console.log(block.hash);
+      let merkleR = (tx)=>{
+        const merkle = require('merkle')
+        var hashes = Object.keys(tx);
+        let merkleRoot = merkle('sha256').sync(hashes);
+        return merkleRoot.root();
+      }
+      
+      console.log(sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce).toString())
     })
 
     socket.on('resolveFork', ()=>{
@@ -705,6 +714,7 @@ class Node {
           if(this.isMining){
             // process.env.END_MINING = true;
             if(process.MINER){
+              
               process.MINER.stop()
               // setTimeout(()=>{
               //   process.env.END_MINING = false;

@@ -174,7 +174,7 @@ class Blockchain{
 
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       logger('Current Challenge:', block.challenge)
-      block.mine(this.difficulty+2, (miningSuccessful)=>{
+      block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
   
@@ -583,7 +583,7 @@ class Blockchain{
 
 function RecalculateHash(block){
 
-  return sha256(block.previousHash + block.timestamp + merkleRoot(block.transactions) + block.nonce).toString();
+  return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce).toString();
 }
 
 
