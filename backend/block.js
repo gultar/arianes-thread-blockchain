@@ -3,7 +3,11 @@ const Transaction = require('./transaction');
 const sha256 = require('./sha256');
 const merkle = require('merkle');
 const crypto = require('crypto');
+const mineBlock = require('./proofofwork')
+const {logger} = require('./utils');
+const chalk = require('chalk')
 
+process.env.MINER = ()=>{}
 
 //////////////////Block/////////////////////
 class Block{
@@ -13,6 +17,7 @@ class Block{
     this.transactions = transactions;
     this.previousHash = previousHash;
     this.hash = this.calculateHash();
+    this.merkleRoot = this.createMerkleRoot(this.transactions);
     this.nonce = 0;
     this.valid = true;
     this.minedBy = '';
@@ -24,25 +29,17 @@ class Block{
     Will be called on every iteration of the mining method
   */
   calculateHash(){
-    /***
-     * By calculating the merkle root every time the function is called, it 
-     * slows down the process, to help adjust block time as well as avoid
-     * memory overload.
-     */
-    
-    this.hash = sha256(this.previousHash + this.timestamp + this.createMerkleRoot(this.transactions) + this.nonce).toString();
+    this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce).toString();
   }
 
 
   isProofValid(difficulty){
-    // const difference = currentProof - previousProof;
+    
     this.calculateHash()
-
-
 
     if (this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")) { //hexString.includes('000000', 0)
       if(this.nonce < this.challenge){
-        console.log('Nonce too small:', this.nonce);
+        logger(chalk.red('BLOCK INVALID: Nonce too small:'+ this.nonce));
         return false;
       }
       return true;
@@ -57,26 +54,28 @@ class Block{
     node finds the answer.
     @param $difficulty - Block mining difficulty set by network
   */
-  mine(difficulty){
+  async mine(difficulty, callback){
+    
+    process.MINER = await mineBlock(this, difficulty);
+    
+    process.MINER
+    .on('started', () => {})
+    .on('stopped', async () => {
+      if(this.isProofValid(difficulty)){
 
-    return new Promise((resolve) => {
-      setImmediate(async () => {
-        this.nonce++//Math.random() * 10000000001;
+        this.endMineTime = Date.now()
+        callback(true);
 
-        const dontMine = process.env.END_MINING;
-        if (this.isProofValid(difficulty) || dontMine === 'true') {
+      }else{
+        
+        callback(false);
+      }
+    })
+    .on('error', (err) => {
+      console.log(err)
+    })
+    .start()
 
-          if(dontMine === 'true'){
-            resolve(false)
-          }
-          this.endMineTime = Date.now();
-          resolve(true);
-        } else  {
-          resolve(await this.mine(difficulty));
-        }
-
-      });
-    });
 
   }
 

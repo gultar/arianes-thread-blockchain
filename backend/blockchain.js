@@ -174,32 +174,34 @@ class Blockchain{
 
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       logger('Current Challenge:', block.challenge)
-      miningSuccessful = await block.mine(this.difficulty);
-
-      if(miningSuccessful && process.env.END_MINING !== true){
-        if(this.validateBlock(block)){
-
-          block.minedBy = ipAddress;
-          this.chain.push(block);
-          console.log(chalk.cyan('\n********************************************************************'))
-          console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
-          console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-          console.log(chalk.cyan("* Challenge : "), block.challenge);
-          console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
-          console.log(chalk.cyan('********************************************************************\n'))
-          var miningReward = new Transaction(null, miningRewardAddress, this.miningReward, "", Date.now(), false, 'coinbase')
-          this.pendingTransactions[miningReward.hash] = miningReward;
-
-          callback(miningSuccessful, block.hash);
+      block.mine(this.difficulty+2, (miningSuccessful)=>{
+        if(miningSuccessful && process.env.END_MINING !== true){
+          if(this.validateBlock(block)){
+  
+            block.minedBy = ipAddress;
+            this.chain.push(block);
+            console.log(chalk.cyan('\n********************************************************************'))
+            console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
+            console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+            console.log(chalk.cyan("* Challenge : "), block.challenge);
+            console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+            console.log(chalk.cyan('********************************************************************\n'))
+            var miningReward = new Transaction(null, miningRewardAddress, this.miningReward, "", Date.now(), false, 'coinbase')
+            this.pendingTransactions[miningReward.hash] = miningReward;
+  
+            callback(miningSuccessful, block.hash);
+          }else{
+            this.putbackPendingTransactions(block);
+            logger('Block is not valid');
+            callback(false, false)
+          }
         }else{
-          this.putbackPendingTransactions(block);
-          logger('Block is not valid');
+          logger('Mining aborted. Peer has mined a new block');
           callback(false, false)
         }
-      }else{
-        logger('Mining aborted. Peer has mined a new block');
-        callback(false, false)
-      }
+      });
+
+
 
     }else{
 

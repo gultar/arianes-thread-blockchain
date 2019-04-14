@@ -26,7 +26,7 @@ const fs = require('fs');
 const axios = require('axios');
 const fetch = require('node-fetch');
 const chalk = require('chalk');
-
+let {miner} = require('./backend/constants');
 // const RoutingTable = require('kademlia-routing-table')
 // const { randomBytes } = require('crypto')
 process.env.END_MINING = false;
@@ -629,6 +629,10 @@ class Node {
       stopTxgen = true;
     })
 
+    socket.on('test', ()=>{
+      process.MINER.stop()
+    })
+
     socket.on('resolveFork', ()=>{
       if(this.longestChain.peerAddress){
         logger('Resolving fork!');
@@ -699,11 +703,14 @@ class Node {
           break;
         case 'endMining':
           if(this.isMining){
-            process.env.END_MINING = true;
-
-            setTimeout(()=>{
-              process.env.END_MINING = false;
-            },5000)
+            // process.env.END_MINING = true;
+            if(process.MINER){
+              process.MINER.stop()
+              // setTimeout(()=>{
+              //   process.env.END_MINING = false;
+              // },5000)
+            }
+            
           }
           break;
         case 'newBlock':
