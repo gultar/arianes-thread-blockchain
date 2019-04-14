@@ -5,7 +5,7 @@ const merkle = require('merkle');
 const crypto = require('crypto');
 const fs = require('fs');
 // const { exec } = require('child_process');
-const { MINING_RATE, END_MINING } = require('./constants');
+const { MINING_RATE, END_MINING } = require('./globals');
 const { displayTime, logger } = require('./utils');
 const Transaction = require('./transaction');
 const Block = require('./block');
@@ -38,7 +38,7 @@ class Blockchain{
   createGenesisBlock(){
     //Initial Nonce Challenge is 100 000
     let genesisBlock = new Block(1554987342039, ["Genesis block"], "Infinity");
-    genesisBlock.challenge = 100000;
+    genesisBlock.challenge = 1000000;
     genesisBlock.endMineTime = Date.now();
     genesisBlock.transactions.push(
       //Setup initial coin distribution

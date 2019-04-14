@@ -3,7 +3,7 @@ const Transaction = require('./transaction');
 const sha256 = require('./sha256');
 const merkle = require('merkle');
 const crypto = require('crypto');
-const mineBlock = require('./proofofwork')
+const mineBlock = require('./proof')
 const {logger} = require('./utils');
 const chalk = require('chalk')
 

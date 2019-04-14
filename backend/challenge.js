@@ -1,5 +1,5 @@
 
-const { MINING_RATE } = require('./constants');
+const { MINING_RATE } = require('./globals');
 
 /**
   WIP
@@ -14,7 +14,7 @@ const setChallenge = (currentChallenge, startTime, endTime) =>{
   // if(!currentChallenge) console.log('Problem with challenge param');
   // if(!startTime) console.log('Problem with start time');
   // if(!endTime) console.log('Problem with end time')
-  const modifier = Math.random() * 20000
+  const modifier = Math.random() * 50000
   return ( endTime - startTime > MINING_RATE ? currentChallenge-modifier : currentChallenge+modifier )
 
 }
