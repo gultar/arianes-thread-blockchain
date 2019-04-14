@@ -716,9 +716,9 @@ class Node {
             if(process.MINER){
               
               process.MINER.stop()
-              // setTimeout(()=>{
-              //   process.env.END_MINING = false;
-              // },5000)
+              setTimeout(()=>{
+                process.env.END_MINING = false;
+              },5000)
             }
             
           }
@@ -1242,7 +1242,7 @@ class Node {
 
       if(this.chain instanceof Blockchain){
         this.isMining = true;
-        if(!process.END_MINING){
+        if(!process.env.END_MINING){
           this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
             try{
               if(success){
