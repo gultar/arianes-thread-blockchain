@@ -716,9 +716,7 @@ class Node {
             if(process.MINER){
               
               process.MINER.stop()
-              setTimeout(()=>{
-                process.env.END_MINING = false;
-              },5000)
+              
             }
             
           }
@@ -727,6 +725,7 @@ class Node {
           this.fetchBlocks(originAddress, (updated)=>{
             if(updated){
               if(this.isMining){
+                process.env.END_MINING = false;
                 this.startMiner();
               }
             }
