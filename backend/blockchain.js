@@ -387,9 +387,12 @@ class Blockchain{
     var latestBlock = this.getLatestBlock();
     //Validate transactions using merkle root
     if(!containsCurrentBlock){
+      
       if(!isLinked){
+
         if(latestBlock.previousHash == block.previousHash){
-          /*New block received has been orphaned since latest block has been mined before.*/
+          /*.*/
+          console.log('New block received has been orphaned since latest block has been mined before')
           return false;
         }
 

@@ -960,7 +960,7 @@ class Node {
     @param {function} $cb - Optional callback
   */
  fetchBlocks(address, cb){
-  process.END_MINING = true;
+  process.env.END_MINING = true;
   //var updateAddress = (address ? address : longestChain.peerAddress)
   try{
     if(this.chain instanceof Blockchain){
@@ -980,7 +980,7 @@ class Node {
                   logger('Chain is still valid: ', this.chain.isChainValid())
                   saveBlockchain(this.chain)
 
-                  process.END_MINING = false;
+                  process.env.END_MINING = false;
                   if(cb){
                     cb(true)
                   }
@@ -1242,34 +1242,36 @@ class Node {
 
       if(this.chain instanceof Blockchain){
         this.isMining = true;
-
-        this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
-          try{
-            if(success){
-              if(blockHash){
-                this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-                logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
-                saveBlockchain(this.chain);
+        if(!process.END_MINING){
+          this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
+            try{
+              if(success){
+                if(blockHash){
+                  this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+                  logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
+                  saveBlockchain(this.chain);
+                  setTimeout(()=>{
+                    var newBlockNumber = this.chain.getLatestBlock().blockNumber
+                    // this.sendPeerMessage('validateBlock', this.chain.getBlockHeader(newBlockNumber))
+                    this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+  
+                    logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
+                    this.startMiner();
+                  },2000)
+                }
+              }else{
                 setTimeout(()=>{
-                  var newBlockNumber = this.chain.getLatestBlock().blockNumber
-                  // this.sendPeerMessage('validateBlock', this.chain.getBlockHeader(newBlockNumber))
-                  this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-
-                  logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                   this.startMiner();
-                },2000)
+                },1000)
+  
               }
-            }else{
-              setTimeout(()=>{
-                this.startMiner();
-              },1000)
-
+            }catch(e){
+              logger(e)
             }
-          }catch(e){
-            logger(e)
-          }
+  
+          });
+        }
 
-        });
       }
 
   }
