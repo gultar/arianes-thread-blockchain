@@ -24,6 +24,12 @@ class Block{
     Will be called on every iteration of the mining method
   */
   calculateHash(){
+    /***
+     * By calculating the merkle root every time the function is called, it 
+     * slows down the process, to help adjust block time as well as avoid
+     * memory overload.
+     */
+    
     this.hash = sha256(this.previousHash + this.timestamp + this.createMerkleRoot(this.transactions) + this.nonce).toString();
   }
 
@@ -52,7 +58,6 @@ class Block{
     @param $difficulty - Block mining difficulty set by network
   */
   mine(difficulty){
-    // let result = await this.generateProof(previousproof);
 
     return new Promise((resolve) => {
       setImmediate(async () => {
