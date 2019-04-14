@@ -712,7 +712,7 @@ class Node {
           break;
         case 'endMining':
           if(this.isMining){
-            // process.env.END_MINING = true;
+            process.env.END_MINING = true;
             if(process.MINER){
               
               process.MINER.stop()
