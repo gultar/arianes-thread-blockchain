@@ -724,7 +724,13 @@ class Node {
           }
           break;
         case 'newBlock':
-          this.fetchBlocks(originAddress);
+          this.fetchBlocks(originAddress, (updated)=>{
+            if(updated){
+              if(this.isMining){
+                this.startMiner();
+              }
+            }
+          });
           break;
         // case 'getPeers':
         //   if(!this.knownPeers.includes(originAddress)){
@@ -976,16 +982,16 @@ class Node {
               var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
               if(!synced){
                 if(response.data.error == 'end of chain'){
+                  process.env.END_MINING = false;
                   logger(chalk.green('Blockchain successfully updated'));
                   logger('Chain is still valid: ', this.chain.isChainValid())
                   saveBlockchain(this.chain)
 
-                  process.env.END_MINING = false;
+                 
+                  
                   if(cb){
                     cb(true)
                   }
-
-
                   return true;
                 }else if(response.data.error == 'block fork'){
                   let peerHeader = JSON.parse(response.data.header);
