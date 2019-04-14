@@ -207,7 +207,7 @@ class Node {
               peer.destroy()
               delete this.connectionsToPeers[address];
             }else{
-              logger('Connection attempt to address '+address+' timed out.\n'+(connectionAttempts)+' attempts left');
+              logger('Connection attempt to address '+address+' timed out.\n'+(4 - connectionAttempts)+' attempts left');
               connectionAttempts++;
             }
               
@@ -631,14 +631,10 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      if(this.minerPaused){
-        console.log('Miner on')
-        this.minerPaused = false;
-        this.startMiner()
-      }else{
-        console.log('Miner off')
-        this.minerPaused = true;
-      }
+      Object.keys(this.chain.pendingTransactions).forEach((tx)=>{
+        logger(chalk.red('Tx:', tx))
+      })
+      logger(chalk.yellow('Number of tx:', Object.keys(this.chain.pendingTransactions).length))
     })
 
     socket.on('resolveFork', ()=>{

@@ -4,6 +4,7 @@ const Node = require('./node');
 const Transaction = require('./backend/transaction');
 const { copyFile } = require('./backend/blockchainHandler');
 const program = require('commander');
+
 const { logger } = require('./backend/utils')
 let port = 8000;
 let arg = '';
@@ -95,6 +96,9 @@ program.parse(process.argv)
 
 process.on('SIGINT', () => {
   logger('Shutting down node and saving blockchain');
+  if(process.MINER){
+    process.MINER.stop()
+  }
   node.save((saved)=>{
     if(saved){
       setTimeout(()=>{

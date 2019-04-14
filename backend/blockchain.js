@@ -111,10 +111,14 @@ class Blockchain{
 
       if(blockStatus === true){
         for(var hash of newTransactHashes){
-          delete pending[hash];
+          
+          if(this.pendingTransactions[hash]){
+            delete this.pendingTransactions[hash]
+          }
+          // delete pending[hash];
         }
         this.chain.push(newBlock);
-        this.pendingTransactions = pending;
+        // this.pendingTransactions = pending;
         return true;
       }else if(blockStatus > 0){
         return blockStatus;
