@@ -25,7 +25,7 @@ class Blockchain{
 
   constructor(chain=false, pendingTransactions=false, nodeTokens={}, ipAddresses=[], publicKeys=[]){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
-    this.difficulty = 4;
+    this.difficulty = 6;
     this.pendingTransactions = (pendingTransactions? pendingTransactions: {});
     this.miningReward = 50;
     this.nodeTokens = nodeTokens; //Stores all the node addresses of the P2P network
@@ -38,7 +38,7 @@ class Blockchain{
   createGenesisBlock(){
     //Initial Nonce Challenge is 100 000
     let genesisBlock = new Block(1554987342039, ["Genesis block"], "Infinity");
-    genesisBlock.challenge = 1000000;
+    genesisBlock.challenge = 10000000;
     genesisBlock.endMineTime = Date.now();
     genesisBlock.transactions.push(
       //Setup initial coin distribution
