@@ -56,16 +56,29 @@ const generateProof = (previousProof) => new Promise((resolve) => {
   });
 });
 
-const isProofValid = (previousProof, currentProof) => {
-  const difference = currentProof - previousProof;
-  const proofString = `difference-${difference}`;
-  const hashFunction = crypto.createHash('sha256');
-  hashFunction.update(proofString);
-  const hexString = hashFunction.digest('hex');
-  if (hexString.substring(0, 5) === Array(6).join("0")) { //hexString.includes('000000', 0)
-    return hexString;
+const isProofValid = (difficulty) => {
+  var dontMine = process.env.END_MINING;
+
+  if(dontMine === true){
+    console.log('Cleared timer successfully')
+    clearImmediate(miner);
   }
-  return false;
+  // if(process.env.END_MINING === true) { resolve(false); }
+
+  if(block.hash.substring(0, difficulty) === Array(difficulty+1).join("0") || dontMine == true){
+
+    console.log("Block mined: " + this.hash);
+
+    resolve(true);
+  }else{
+
+
+    block.nonce++;
+    block.hash = block.calculateHash();
+
+    resolve(await block.mine(block, difficulty, process.env.END_MINING)) ;
+
+  }
 };
 var startTime = Date.now();
 console.log('Start: ', startTime)
@@ -81,6 +94,16 @@ const tryOut = async ()=>{
   console.log("Difference: ", (Date.now() - startTime)/1000)
 }
 
-tryOut()
+if (process.send) {
+  process.send("Hello");
+}
+
+process.on('message', message => {
+  console.log('message from parent:', message);
+});
+
+
+
+
 
 module.exports = { generateProof, isProofValid }

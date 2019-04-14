@@ -95,4 +95,25 @@ const instanciateBlockchain = (blockchain) =>{
 	return new Blockchain(blockchain.chain, blockchain.pendingTransactions, blockchain.nodeTokens, blockchain.ipAddresses, blockchain.orphanedBlocks);
 }
 
+
+const fork = require('child_process').fork;
+const parameters = [];
+const options = {
+	stdio: [ 'pipe', 'pipe', 'pipe', 'ipc' ],
+};
+
+const child = fork('proofofwork.js', parameters, options);
+child.stdout.on('data', function(data) {
+	console.log('stdout: ' + data);
+	//Here is where the output goes
+});
+child.send('start')
+setTimeout(()=>{
+	console.log('sending stop');
+	child.send('stop')
+},7000)
+child.on('message', message => {
+  console.log('message')
+});
+
 module.exports = { compareBlockchains };
