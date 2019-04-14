@@ -61,7 +61,7 @@ class Block{
     process.MINER
     .on('started', () => {})
     .on('stopped', async () => {
-      if(this.isProofValid(difficulty)){
+      if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
 
         this.endMineTime = Date.now()
         callback(true);

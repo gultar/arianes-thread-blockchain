@@ -25,7 +25,7 @@ class Blockchain{
 
   constructor(chain=false, pendingTransactions=false, nodeTokens={}, ipAddresses=[], publicKeys=[]){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
-    this.difficulty = 6;
+    this.difficulty = 5;
     this.pendingTransactions = (pendingTransactions? pendingTransactions: {});
     this.miningReward = 50;
     this.nodeTokens = nodeTokens; //Stores all the node addresses of the P2P network
@@ -197,6 +197,7 @@ class Blockchain{
           }
         }else{
           logger('Mining aborted. Peer has mined a new block');
+          this.putbackPendingTransactions(block);
           callback(false, false)
         }
       });

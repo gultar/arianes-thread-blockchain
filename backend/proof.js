@@ -23,8 +23,10 @@ const isProofValid = (block, difficulty) =>{
   if (block.hash.substring(0, difficulty) === Array(difficulty+1).join("0")) { //hexString.includes('000000', 0)
     if(block.nonce < block.challenge){
       return false
+    }else{
+      return true;
     }
-    return true;
+    
   }
 
   return false;
