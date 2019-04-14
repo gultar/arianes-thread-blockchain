@@ -159,7 +159,7 @@ class Blockchain{
     let miningSuccessful = false;
     let isMining = this.hasEnoughTransactionsToMine()
 
-    if(isMining){
+    if(isMining && process.env.END_MINING !== true){
 
       logger('Mining next block...');
       logger('Number of pending transactions:', Object.keys(this.pendingTransactions).length);
@@ -175,7 +175,7 @@ class Blockchain{
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       logger('Current Challenge:', block.challenge)
       block.mine(this.difficulty, (miningSuccessful)=>{
-        if(miningSuccessful && process.env.END_MINING !== true){
+        if(miningSuccessful){
           if(this.validateBlock(block)){
   
             block.minedBy = ipAddress;
