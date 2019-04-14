@@ -29,7 +29,7 @@ const chalk = require('chalk');
 let {miner} = require('./backend/globals');
 // const RoutingTable = require('kademlia-routing-table')
 // const { randomBytes } = require('crypto')
-process.env.END_MINING = false;
+//this.minerPaused = false;
 let txgenCounter = 5000;
 let stopTxgen = false;
 /**
@@ -54,7 +54,8 @@ class Node {
     this.token = {};
     this.chain = {};
     this.messageBuffer = {};
-    this.isMining = false;
+    this.minerStarted = false;
+    this.minerRunning
     this.verbose = false;
     this.longestChain = {
       length:0,
@@ -630,16 +631,14 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      let block = this.chain.getLatestBlock()
-      console.log(block.hash);
-      let merkleR = (tx)=>{
-        const merkle = require('merkle')
-        var hashes = Object.keys(tx);
-        let merkleRoot = merkle('sha256').sync(hashes);
-        return merkleRoot.root();
+      if(this.minerPaused){
+        console.log('Miner on')
+        this.minerPaused = false;
+        this.startMiner()
+      }else{
+        console.log('Miner off')
+        this.minerPaused = true;
       }
-      
-      console.log(sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce).toString())
     })
 
     socket.on('resolveFork', ()=>{
@@ -711,8 +710,8 @@ class Node {
           }
           break;
         case 'endMining':
-          if(this.isMining){
-            process.env.END_MINING = true;
+          if(this.minerStarted){
+            this.minerPaused = true;
             if(process.MINER){
               
               process.MINER.stop()
@@ -723,12 +722,13 @@ class Node {
           break;
         case 'newBlock':
           this.fetchBlocks(originAddress, (updated)=>{
-            if(updated){
-              if(this.isMining){
-                process.env.END_MINING = false;
-                this.startMiner();
-              }
+            if(this.minerStarted){
+              this.minerPaused = false;
+              this.startMiner();
             }
+            // if(updated){
+              
+            // }
           });
           break;
         // case 'getPeers':
@@ -965,7 +965,7 @@ class Node {
     @param {function} $cb - Optional callback
   */
  fetchBlocks(address, cb){
-  process.env.END_MINING = true;
+  this.minerPaused = true;
   //var updateAddress = (address ? address : longestChain.peerAddress)
   try{
     if(this.chain instanceof Blockchain){
@@ -981,12 +981,16 @@ class Node {
               var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
               if(!synced){
                 if(response.data.error == 'end of chain'){
-                  process.env.END_MINING = false;
+                  
                   logger(chalk.green('Blockchain successfully updated'));
                   logger('Chain is still valid: ', this.chain.isChainValid())
                   saveBlockchain(this.chain)
 
-                 
+                  
+                  if(this.minerStarted){
+                    this.minerPaused = false;
+                    this.startMiner()
+                  }
                   
                   if(cb){
                     cb(true)
@@ -1246,8 +1250,8 @@ class Node {
   startMiner(){
 
       if(this.chain instanceof Blockchain){
-        this.isMining = true;
-        
+        this.minerStarted = true;
+        if(!this.minerPaused){
           this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
             try{
               if(success){
@@ -1261,7 +1265,10 @@ class Node {
                     this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
   
                     logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
-                    this.startMiner();
+                    
+                    setTimeout(()=>{
+                      this.startMiner()
+                    }, 3000);
                   },2000)
                 }
               }else{
@@ -1275,6 +1282,8 @@ class Node {
             }
   
           });
+        }
+         
         
 
       }
