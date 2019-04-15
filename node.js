@@ -20,16 +20,10 @@ const Blockchain = require('./backend/blockchain');
 const Transaction = require('./backend/transaction');
 const { displayTime, logger } = require('./backend/utils');
 const sha256 = require('./backend/sha256');
-const save = require('./save');
-const crypto = require('crypto');
-const fs = require('fs');
 const axios = require('axios');
-const fetch = require('node-fetch');
 const chalk = require('chalk');
 let {miner} = require('./backend/globals');
 // const RoutingTable = require('kademlia-routing-table')
-// const { randomBytes } = require('crypto')
-//this.minerPaused = false;
 let txgenCounter = 5000;
 let stopTxgen = false;
 /**
@@ -84,7 +78,7 @@ class Node {
       this.loadWallet((wallet)=>{
         this.wallets[wallet.id] = wallet;
         initBlockchain(this.address, true, (loadedBlockchain)=>{
-          // blockchain = loadedBlockchain;
+          
           this.chain = loadedBlockchain;
           this.knownPeers=  loadedBlockchain.ipAddresses;
         });
@@ -104,19 +98,18 @@ class Node {
              try{
 
                socket.on('message', (msg) => { logger('Client:', msg); });
-
                peerAddress = socket.handshake.query.token.address;
+
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
 
                  this.peersConnected[peerAddress] = socket;
                  if(peerAddress && !this.knownPeers.includes(peerAddress)){
                    this.knownPeers.push(peerAddress);
                  }
-
                  this.nodeEventHandlers(socket)
+
                }else{
                  socket.emit('message', 'Connected to local node');
-
                  this.externalEventHandlers(socket);
 
                }
@@ -509,21 +502,14 @@ class Node {
 
     });
 
-
-    // app.get('/chainInfo', (req, res)=>{
-    //   if(this.chain instanceof Blockchain){
-    //     this.handleChainInfo();
+    // app.get('/chain', (req, res) => {
+    //   try{
+    //     res.json(this.chain).end();
+    //   }catch(e){
+    //     logger(e)
     //   }
+
     // });
-
-    app.get('/chain', (req, res) => {
-      try{
-        res.json(this.chain).end();
-      }catch(e){
-        logger(e)
-      }
-
-    });
   }
 
 
@@ -631,10 +617,17 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      Object.keys(this.chain.pendingTransactions).forEach((tx)=>{
-        logger(chalk.red('Tx:', tx))
-      })
-      logger(chalk.yellow('Number of tx:', Object.keys(this.chain.pendingTransactions).length))
+      let headers = this.getAllHeaders();
+      let headers2 = this.getAllHeaders();
+      let compare = this.compareHeaders(headers);
+      console.log('Headers 1', compare)
+      console.log('Chain length', this.chain.chain.length)
+      console.log('Nb of headers', headers.headers.length)
+      headers2.headers.pop()
+      let compare2 = this.compareHeaders(headers2);
+      console.log('Headers 2', compare2);
+      console.log('Chain length', this.chain.chain.length)
+      console.log('Nb of headers', headers2.headers.length)
     })
 
     socket.on('resolveFork', ()=>{
@@ -722,23 +715,15 @@ class Node {
               this.minerPaused = false;
               this.startMiner();
             }
-            // if(updated){
-              
-            // }
           });
           break;
-        // case 'getPeers':
-        //   if(!this.knownPeers.includes(originAddress)){
-            
-        //   }
-        //   break
         case 'whoisLongestChain':
           try{
             axios.post(originAddress+'/chainLength', {
               length:this.chain.chain.length,
               peerAddress:this.address
             }).then((response)=>{
-              // logger("Peer received chain's length",response.data);
+
             }).catch((e)=>{
               logger(e)
             })
@@ -1087,6 +1072,59 @@ class Node {
     }
   }
 
+  compareHeaders(headers){
+    // logger(headers)
+    if(this.chain instanceof Blockchain){
+      if(headers){
+        for(var i=0; i < headers.headers.length; i++){
+
+          var header = headers.headers[i]
+          var localBlockHeader = this.chain.getBlockHeader(i);
+
+          try{
+            
+
+            if(headers.headers.length < this.chain.chain.length){
+              logger('This chain is longer than peer chain')
+              return false;
+            }
+
+            if(i > 1 && header){
+
+              let containsBlock = localBlockHeader.hash == header.hash;
+              let isValid = this.chain.validateBlockHeader(header);
+
+              if(!containsBlock) {
+                console.log('Does not contain block ',i)
+                return i
+              };
+              if(!isValid){
+                console.log('Is not valid ', i);
+                console.log(sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce))
+                let block = this.chain.chain[17];
+                console.log('Block Hash:', block.hash);
+                console.log('Header Hash',header.hash);
+                console.log(sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce))
+                
+                console.log('Previous hash', header.previousHash);
+                console.log('Timestamp', header.timestamp);
+                console.log('Merkle', header.merkleRoot);
+                console.log('Nonce', header.nonce)
+                return false;
+              } 
+            }
+
+          }catch(e){
+            logger(e)
+          }
+
+
+        }
+        return true;
+      }
+    }
+  }
+
    /**
     @param {number} $number - Index of block from which to show block creation time
    */
@@ -1121,15 +1159,20 @@ class Node {
   resolveBlockFork(address){
     axios.get(address+'/getChainHeaders')
     .then((response)=>{
+
       let headers = response.data.chainHeaders
-        let areValidHeaders = this.compareChainHeaders(headers)
+      let areValidHeaders = this.compareHeaders(headers)
+
         if(areValidHeaders){
           if(typeof areValidHeaders == 'number'){
+
             var conflictIndex = areValidHeaders;
-            logger('Conflicting block at index:', conflictIndex)
             var numberOfForkingBlocks = this.chain.chain.length - conflictIndex;
+
+            logger('Conflicting block at index:', conflictIndex)
             logger('Num. of forking blocks',numberOfForkingBlocks);
             logger('Chain length:', this.chain.chain.length)
+
             for(var i=0;i<=numberOfForkingBlocks;i++ ){
               let orphanBlocks = this.chain.chain.pop();
               this.chain.orphanedBlocks.push(orphanBlocks);
@@ -1225,9 +1268,10 @@ class Node {
     },8000)
   }
 
+
   update(){
     this.sendPeerMessage('whoisLongestChain');
-    logger('Querying the network for the longest chain before starting the miner')
+    logger('Querying the network for the longest chain')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
           this.fetchBlocks(this.longestChain.peerAddress, ()=>{
@@ -1252,14 +1296,14 @@ class Node {
             try{
               if(success){
                 if(blockHash){
+
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                   logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
                   saveBlockchain(this.chain);
+
                   setTimeout(()=>{
-                    var newBlockNumber = this.chain.getLatestBlock().blockNumber
-                    // this.sendPeerMessage('validateBlock', this.chain.getBlockHeader(newBlockNumber))
+
                     this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-  
                     logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                     
                     setTimeout(()=>{
@@ -1276,7 +1320,6 @@ class Node {
             }catch(e){
               logger(e)
             }
-  
           });
         }
          

@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 // const { exec } = require('child_process');
 const { MINING_RATE, END_MINING } = require('./globals');
-const { displayTime, logger } = require('./utils');
+const { displayTime, logger, RecalculateHash, merkleRoot } = require('./utils');
 const Transaction = require('./transaction');
 const Block = require('./block');
 const setChallenge = require('./challenge');
@@ -189,6 +189,8 @@ class Blockchain{
             console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
             console.log(chalk.cyan("* Challenge : "), block.challenge);
             console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+            console.log(chalk.cyan("* Nonce : "), block.nonce)
+            console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
             var miningReward = new Transaction(null, miningRewardAddress, this.miningReward, "", Date.now(), false, 'coinbase')
             this.pendingTransactions[miningReward.hash] = miningReward;
@@ -427,23 +429,18 @@ class Blockchain{
 
   getBlockHeader(blockNumber){
     if(blockNumber >= 0){
+      
       var block = this.chain[blockNumber];
 
       if(block){
-        var transactionHashes = Object.keys(block.transactions);
-        var mrootStructure = merkle('sha256').sync(transactionHashes);
-        var mroot = mrootStructure.root()
-        if(!mroot){
-          logger('no mroot')
-          return false;
-        }
+        
         var header = {
           blockNumber:block.blockNumber,
           timestamp:block.timestamp,
           previousHash:block.previousHash,
           hash:block.hash,
           nonce:block.nonce,
-          merkleRoot:mroot
+          merkleRoot:block.merkleRoot
         }
 
         return header
@@ -455,7 +452,8 @@ class Blockchain{
 
   validateBlockHeader(header){
     if(header){
-      if(header.hash == sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce)){
+      
+      if(header.hash == RecalculateHash(header)){
         return true;
       }else{
         return false;
@@ -584,26 +582,6 @@ class Blockchain{
         logger(err);
         return false;
       }
-  }
-
-}
-
-
-function RecalculateHash(block){
-
-  return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce).toString();
-}
-
-
-
-function merkleRoot(dataSets){
-
-  if(dataSets != undefined){
-    var hashes = Object.keys(dataSets);
-
-
-    let merkleRoot = merkle('sha256').sync(hashes);
-    return merkleRoot.root();
   }
 
 }

@@ -1,3 +1,6 @@
+const sha256 = require('./sha256');
+const merkle = require('merkle');
+
 const displayTime = () =>{
   // var d = new Date(),   // Convert the passed timestamp to milliseconds
   //   year = d.getFullYear(),
@@ -26,5 +29,23 @@ const logger = (message, arg) => {
 }
 
 
+function RecalculateHash(block){
 
-module.exports = { displayTime, logger };
+  return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce).toString();
+}
+
+function merkleRoot(dataSets){
+
+  if(dataSets != undefined){
+    var hashes = Object.keys(dataSets);
+
+
+    let merkleRoot = merkle('sha256').sync(hashes);
+    return merkleRoot.root();
+  }
+
+}
+
+
+
+module.exports = { displayTime, logger, RecalculateHash, merkleRoot };

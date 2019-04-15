@@ -96,8 +96,11 @@ program.parse(process.argv)
 
 process.on('SIGINT', () => {
   logger('Shutting down node and saving blockchain');
+  node.minerStarted = false;
+  node.minerPaused = true;
   if(process.MINER){
-    process.MINER.stop()
+    process.MINER.stop();
+    
   }
   node.save((saved)=>{
     if(saved){
