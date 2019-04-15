@@ -121,7 +121,7 @@ class Wallet{
               
                         rstream.on('error', (err) =>{
                           logger(err);
-                          reject(err)
+                          resolve(err)
                         })
               
                         rstream.on('data', (chunk) => {
@@ -137,11 +137,12 @@ class Wallet{
                               this.id = wallet.id;
                               resolve(wallet);
                           }else{
-                            reject(false);
+                            resolve(false);
                           }
                         });
                     }catch(e){
                         logger(e);
+                        resolve(false)
                     }
                 }
             })
