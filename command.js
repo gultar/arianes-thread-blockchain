@@ -60,12 +60,6 @@ program
 
     }
 
-    if(program.update && !program.mine){
-      setTimeout(()=>{
-        node.update();
-      },6000)
-    }
-
     if(program.mine){
       //Update then mine
         setTimeout(()=>{
@@ -73,6 +67,14 @@ program
       },3000)
 
     }
+
+    if(program.update && !program.mine){
+      setTimeout(()=>{
+        node.update();
+      },6000)
+    }
+
+    
 
     if(program.txgen){
       setTimeout(()=>{

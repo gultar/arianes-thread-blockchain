@@ -1418,10 +1418,11 @@ class Node {
         if(!this.minerStarted){
           this.minerStarted = true;
           setInterval(()=>{
-            if(this.minerPaused !== true){
+            if(!process.MINER){
              this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
                if(success && blockHash){
                 this.minerPaused = true;
+                process.MINER = false;
                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                 logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
                 saveBlockchain(this.chain);
@@ -1431,16 +1432,14 @@ class Node {
                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                   this.minerPaused = false;
-                  setTimeout(()=>{
-                    this.startMiner()
-                  }, 3000);
-                },2000)
+                  
+                },3000)
                }else{
-                  //Keeps looking for transactions
+                  //Not enough transactions
                }
              })
            }else{
-              //Miner paused
+             //Already mining a block
            }
           }, 1000)
         }else{
@@ -1465,6 +1464,8 @@ class Node {
 
   save(callback){
     this.chain.ipAddresses = this.knownPeers;
+    logger('Saving known nodes to blockchain file');
+    logger('Number of known nodes:', this.knownPeers.length)
     if(callback){
       saveBlockchain(this.chain, (saved)=>{
         callback(saved);

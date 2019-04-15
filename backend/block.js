@@ -55,26 +55,30 @@ class Block{
     @param $difficulty - Block mining difficulty set by network
   */
   async mine(difficulty, callback){
-    
-    process.MINER = await mineBlock(this, difficulty);
-    
-    process.MINER
-    .on('started', () => {})
-    .on('stopped', async () => {
-      if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
+    if(!process.MINER){
+      process.MINER = await mineBlock(this, difficulty);
+      
+      process.MINER
+      .on('started', () => {})
+      .on('stopped', async () => {
+        if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
 
-        this.endMineTime = Date.now()
-        callback(true);
+          this.endMineTime = Date.now()
+          callback(true);
 
+        }else{
+          
+          callback(false);
+        }
+      })
+      .on('error', (err) => {
+        console.log(err)
+      })
+      .start()
       }else{
-        
-        callback(false);
+        console.log('Already mining block')
       }
-    })
-    .on('error', (err) => {
-      console.log(err)
-    })
-    .start()
+    
 
 
   }
