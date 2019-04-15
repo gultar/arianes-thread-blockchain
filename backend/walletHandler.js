@@ -2,37 +2,34 @@ const readline = require('readline');
 const sha256 = require('./sha256');
 const { encrypt, decrypt, getPublicKey } = require('./keysHandler')
 
-class Wallet{
-  /**
-    @param {String} Passphrase: for encrypting privatekey for storage
-  */
+class WalletConnector{
   constructor(){
-    this._publicKey = '';
-    this._id = '';
+    this.wallets = {};
+    this.connectors = {};
   }
 
-
-  get publicKey(){
-    return this._publicKey;
+  getWalletByID(id){
+    if(id && this.wallets){
+      return this.wallets[id]
+    }else{
+      logger('Connector does not contain wallets')
+    }
   }
 
-  set publicKey(key){
-    this._publicKey = key;
-  }
-
-  async initWalletID(callback){
-
-      this._publicKey = await getPublicKey();
-      if(this._publicKey){
-        this._id = sha256(this._publicKey);
-        callback(this._id);
-      }else{
-        console.log('ERROR: Could not init wallet id')
+  getWalletByPublicAddress(publicAddress){
+    if(publicAddress & this.wallets){
+      let ids = Object.keys(this.wallets);
+      for(var id in ids){
+        if(this.wallets[id].publicKey == publicKey){
+          return publicKey;
+        }
       }
 
+      return false;
+    }
   }
 
 
 }
 
-module.exports = Wallet
+module.exports = WalletConnector

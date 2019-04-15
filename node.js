@@ -49,7 +49,6 @@ class Node {
     this.messageBuffer = {};
     this.minerStarted = false;
     this.minerPaused = false;
-    this.miner = ''
     this.verbose = false;
     this.longestChain = {
       length:0,
@@ -785,7 +784,9 @@ class Node {
             if(process.MINER){
               
               process.MINER.stop()
-              
+              setTimeout(()=>{
+                this.minerPaused = false;
+              }, 3000)
             }
             
           }
