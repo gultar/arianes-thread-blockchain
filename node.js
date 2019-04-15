@@ -177,8 +177,9 @@ class Node {
           if(exists){
             
               let myWallet = new Wallet2();
-              let loaded = myWallet.loadWalletFromFile(filename);
+              let loaded = await myWallet.loadWalletFromFile(filename);
               if(loaded){
+                this.publicKey = myWallet.publicKey
                 this.wallets[this.publicKey] = myWallet;
                 resolve(true)
               }else{
@@ -1471,8 +1472,8 @@ class Node {
     if(!stopTxgen){
       let increaseThreshold = 0.5;
       setTimeout(()=>{
-        this.emitNewTransaction(this.publicKey, "-----BEGIN PUBLIC KEY-----"+
-        "MCAwDQYJKoZIhvcNAQEBBQADDwAwDAIFAIF3Sr0CAwEAAQ==-----END PUBLIC KEY-----", 0, '')
+        
+        this.broadcastNewTransaction(this.publicKey, "A+Co6v7yqFO1RqZf3P+m5gzdkvSTjdSlheaY50e9XUmp", 0, '')
 
         txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
         if(txgenCounter < 1000) txgenCounter = 2000
