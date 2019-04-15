@@ -1472,12 +1472,14 @@ class Node {
     if(!stopTxgen){
       let increaseThreshold = 0.5;
       setTimeout(()=>{
-        
-        this.broadcastNewTransaction(this.publicKey, "A+Co6v7yqFO1RqZf3P+m5gzdkvSTjdSlheaY50e9XUmp", 0, '')
+        if(this.publicKey){
+          this.broadcastNewTransaction(this.publicKey, "A+Co6v7yqFO1RqZf3P+m5gzdkvSTjdSlheaY50e9XUmp", 0, '')
 
-        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
-        if(txgenCounter < 1000) txgenCounter = 2000
-        this.txgen()
+          txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
+          if(txgenCounter < 1000) txgenCounter = 2000
+          this.txgen()
+        }
+        
       },txgenCounter)
 
     }
