@@ -784,7 +784,8 @@ class Node {
             this.minerPaused = true;
             if(process.MINER){
               
-              process.MINER.stop()
+              process.MINER.stop();
+              process.MINER = false;
               setTimeout(()=>{
                 this.minerPaused = false;
               }, 3000)
@@ -796,6 +797,7 @@ class Node {
           this.fetchBlocks(originAddress, (updated)=>{
             if(this.minerStarted){
               this.minerPaused = false;
+              process.MINER = false;
               this.startMiner();
             }
           });
