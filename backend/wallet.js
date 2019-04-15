@@ -47,10 +47,13 @@ class Wallet{
         return wallet;
     }
 
-    async init(){
+    async init(seed){
+        
+        let secretSeed = (seed ? seed : this.generateEntropy())
+        
         return new Promise(async (resolve, reject)=>{
             try{
-                this.privateKey = await ECDSA.generateKey(this.generateEntropy());
+                this.privateKey = await ECDSA.generateKey(secretSeed);
                 this.publicKey = await this.privateKey.toCompressedPublicKey();
                 this.id = await sha1(this.publicKey);
                 if(this.privateKey && this.publicKey && this.id){
@@ -65,13 +68,6 @@ class Wallet{
             
             
         })
-        
-        // this.generatePrivateKey().then(()=>{
-        //     this.generateAddress();
-        //     this.generateID();
-            
-        // });
-
         
     }
 
@@ -151,38 +147,5 @@ class Wallet{
     }
   
   }
-
-  
-  
-
-  const checkOutWallet = async ()=>{
-    let myWallet = new Wallet();
-    myWallet.init().then(async ()=>{
-        console.log(myWallet);
-        let message = { test:'hello world' };
-        let message2 = 'hello world';
-        let signature = await myWallet.sign(message);
-        let signature2 = await myWallet.sign(message2);
-        console.log(signature);
-        console.log(signature2);
-        setTimeout(()=>{
-            myWallet.saveWallet();
-        },3000)
-    });
-  }
-
-  const load = (file) =>{
-    let myWallet = new Wallet();
-    myWallet.loadWalletFromFile(file)
-    .then((wallet)=>{
-        if(wallet){
-            console.log(wallet)
-            console.log(myWallet)
-        }
-    })
-  }
- 
-  //checkOutWallet();
-  //load()
 
   module.exports = Wallet

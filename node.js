@@ -11,8 +11,7 @@ const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const bodyParser = require('body-parser');
 const { initBlockchain, saveBlockchain,  } = require('./backend/blockchainHandler.js');
-const Wallet = require('./backend/walletHandler');
-const Wallet2 = require('./backend/wallet')
+const Wallet = require('./backend/wallet')
 const Blockchain = require('./backend/blockchain');
 const Transaction = require('./backend/transaction');
 const { displayTime, logger } = require('./backend/utils');
@@ -88,7 +87,7 @@ class Node {
           })
         this.chain = loadedBlockchain;
         this.knownPeers = this.chain.ipAddresses;
-        console.log(loadedBlockchain.ipAddresses);
+        
       });
       
 
@@ -173,7 +172,7 @@ class Node {
         fs.exists(filename, async (exists)=>{
           if(exists){
             
-              let myWallet = new Wallet2();
+              let myWallet = new Wallet();
               let loaded = await myWallet.loadWalletFromFile(filename);
               
               if(loaded){
@@ -206,7 +205,7 @@ class Node {
   createWallet(){
     return new Promise((resolve, reject)=>{
       
-      let myWallet = new Wallet2();
+      let myWallet = new Wallet();
       myWallet.init()
         .then((resolved, rejected)=>{
           if(rejected){
@@ -1430,7 +1429,8 @@ class Node {
                 saveBlockchain(this.chain);
                 
                 setTimeout(()=>{
-
+                  //Leave enough time for the nodes to receive the two messages
+                  //and for this node to not mine the previous, already mined block
                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                   this.minerPaused = false;
@@ -1471,7 +1471,10 @@ class Node {
   }
 
   save(callback){
-    this.chain.ipAddresses = this.knownPeers;
+    if(this.knownPeers.length > this.chain.ipAddresses){
+      this.chain.ipAddresses = this.knownPeers;
+    }
+    
     logger('Saving known nodes to blockchain file');
     logger('Number of known nodes:', this.knownPeers.length)
     if(callback){
@@ -1523,28 +1526,6 @@ class Node {
 
     }
   }
-
-  // setupBlockbase(){
-  //   const table = new RoutingTable(randomBytes(32))
-  //
-  //   // Add a node to the routing table
-  //   table.add({
-  //     id: randomBytes(32), // this field is required
-  //     nodeAddress:this.address
-  //   })
-  //
-  //   table.on('row', function (row) {
-  //     // A new row has been added to the routing table
-  //     // This row represents row.index similar bits to the table.id
-  //
-  //     row.on('full', function (node) {
-  //       // The row is full and cannot be split, so node cannot be added.
-  //       // If any of the nodes in the row are "worse", based on
-  //       // some application specific metric then we should remove
-  //       // the worst node from the row and re-add the node.
-  //     })
-  //   })
-  // }
 
 
 }

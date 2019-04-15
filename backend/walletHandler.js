@@ -1,11 +1,19 @@
 const readline = require('readline');
 const sha256 = require('./sha256');
-const { encrypt, decrypt, getPublicKey } = require('./keysHandler')
+const { logger } = require('./utils')
+const { encrypt, decrypt, getPublicKey } = require('./keysHandler');
+const Wallet = require('./wallet');
 
 class WalletConnector{
   constructor(){
     this.wallets = {};
     this.connectors = {};
+  }
+
+  async createWallet(seed){
+    let wallet = new Wallet();
+    let created = await wallet.init(seed);
+    
   }
 
   getWalletByID(id){
@@ -31,5 +39,8 @@ class WalletConnector{
 
 
 }
+
+let myWalletConnector = new WalletConnector();
+myWalletConnector.createWallet('1234');
 
 module.exports = WalletConnector
