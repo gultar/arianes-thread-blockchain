@@ -77,6 +77,7 @@ class Node {
           
         this.chain = loadedBlockchain;
         this.knownPeers = loadedBlockchain.ipAddresses;
+
         this.loadWallet('./wallets/'+this.id+'.json')
           .then((walletLoaded)=>{
             if(walletLoaded){
@@ -1419,7 +1420,7 @@ class Node {
         if(!this.minerStarted){
           this.minerStarted = true;
           setInterval(()=>{
-            if(!process.MINER){
+            //if(!process.MINER){
              this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
                if(success && blockHash){
                 this.minerPaused = true;
@@ -1439,9 +1440,9 @@ class Node {
                   //Not enough transactions
                }
              })
-           }else{
-             //Already mining a block
-           }
+          //  }else{
+          //    //Already mining a block
+          //  }
           }, 1000)
         }else{
           logger('WARNING: miner already started')
@@ -1461,6 +1462,12 @@ class Node {
         delete this.chain.pendingTransactions[transact];
       }
     }
+  }
+
+  maintenance(){
+    setInterval(()=>{
+      this.chain.ipAddresses = this.knownPeers
+    },30000)
   }
 
   save(callback){
