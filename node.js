@@ -75,9 +75,8 @@ class Node {
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
       initBlockchain(this.address, true, async (loadedBlockchain)=>{
           
-        this.chain = loadedBlockchain;
-        this.knownPeers = loadedBlockchain.ipAddresses;
-
+        
+        
         this.loadWallet('./wallets/'+this.id+'.json')
           .then((walletLoaded)=>{
             if(walletLoaded){
@@ -87,8 +86,9 @@ class Node {
           .catch((e)=>{
             logger(e)
           })
-
-        
+        this.chain = loadedBlockchain;
+        this.knownPeers = this.chain.ipAddresses;
+        console.log(loadedBlockchain.ipAddresses);
       });
       
 
@@ -1036,11 +1036,11 @@ class Node {
       const latestBlock = this.chain.getLatestBlock();
       const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
 
-
+      
       axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
         .then((response) =>{
           var block = response.data;
-          this.minerPaused = true;
+          
           if(block){
             
               var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
@@ -1420,7 +1420,7 @@ class Node {
         if(!this.minerStarted){
           this.minerStarted = true;
           setInterval(()=>{
-            if(!process.MINER){
+            if(!process.MINER && !this.minerPaused){
              this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
                if(success && blockHash){
                 this.minerPaused = true;
