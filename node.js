@@ -786,9 +786,7 @@ class Node {
               
               process.MINER.stop();
               process.MINER = false;
-              setTimeout(()=>{
-                this.minerPaused = false;
-              }, 3000)
+              
             }
             
           }
