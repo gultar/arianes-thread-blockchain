@@ -10,11 +10,7 @@ const http = require('http');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const bodyParser = require('body-parser');
-const {
-  initBlockchain,
-  loadBlockchainFromServer,
-  saveBlockchain,
-  instanciateBlockchain  } = require('./backend/blockchainHandler.js');
+const { initBlockchain, saveBlockchain,  } = require('./backend/blockchainHandler.js');
 const Wallet = require('./backend/walletHandler');
 const Wallet2 = require('./backend/wallet')
 const Blockchain = require('./backend/blockchain');
@@ -26,7 +22,7 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs')
 let {miner} = require('./backend/globals');
-// const RoutingTable = require('kademlia-routing-table')
+let LoopyLoop = require('loopyloop')
 let txgenCounter = 5000;
 let stopTxgen = false;
 /**
@@ -52,7 +48,8 @@ class Node {
     this.chain = {};
     this.messageBuffer = {};
     this.minerStarted = false;
-    this.minerRunning
+    this.minerPaused = false;
+    this.miner = ''
     this.verbose = false;
     this.longestChain = {
       length:0,
@@ -664,6 +661,12 @@ class Node {
       this.updateAndMine();
     })
 
+    socket.on('stopMining', ()=>{
+      if(this.minerStarted){
+        this.miner.stop();
+      }
+    })
+
     socket.on('isChainValid', ()=>{
       this.validateBlockchain();
     })
@@ -1024,7 +1027,7 @@ class Node {
     @param {function} $cb - Optional callback
   */
  fetchBlocks(address, cb){
-  this.minerPaused = true;
+  
   //var updateAddress = (address ? address : longestChain.peerAddress)
   try{
     if(this.chain instanceof Blockchain){
@@ -1035,8 +1038,9 @@ class Node {
       axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
         .then((response) =>{
           var block = response.data;
+          this.minerPaused = true;
           if(block){
-
+            
               var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
               if(!synced){
                 if(response.data.error == 'end of chain'){
@@ -1045,12 +1049,7 @@ class Node {
                   logger('Chain is still valid: ', this.chain.isChainValid())
                   saveBlockchain(this.chain)
 
-                  
-                  if(this.minerStarted){
-                    this.minerPaused = false;
-                    this.startMiner()
-                  }
-                  
+                  this.minerPaused = false;
                   if(cb){
                     cb(true)
                   }
@@ -1092,10 +1091,12 @@ class Node {
 
                 },500)
               }
+          }else{
+            logger('No block received from '+address)
           }
         })
         .catch((error)=>{
-          logger('Could not fetch block from http://'+ error.address+":"+error.port)
+          logger('Could not fetch block from '+address)
           
           return false;
         })
@@ -1365,47 +1366,91 @@ class Node {
   /**
     @desc Miner loop can be launched via the web UI or upon Node creation
   */
-  startMiner(){
+  // startMiner(){
+  //   console.log('called function')
+  //     if(this.chain instanceof Blockchain){
+  //       console.log('is blockchain')
+  //       this.minerStarted = true;
+  //       console.log(this.minerStarted)
+  //       if(!this.minerPaused){
+  //         console.log('Is not paused')
+  //         this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
+  //           try{
+  //             if(success){
+  //               if(blockHash){
 
-      if(this.chain instanceof Blockchain){
-        this.minerStarted = true;
-        if(!this.minerPaused){
-          this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
-            try{
-              if(success){
-                if(blockHash){
+  //                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+  //                 logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
+  //                 saveBlockchain(this.chain);
 
-                  this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-                  logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
-                  saveBlockchain(this.chain);
+  //                 setTimeout(()=>{
 
-                  setTimeout(()=>{
-
-                    this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-                    logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
+  //                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+  //                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                     
-                    setTimeout(()=>{
-                      this.startMiner()
-                    }, 3000);
-                  },2000)
-                }
-              }else{
-                setTimeout(()=>{
-                  this.startMiner();
-                },1000)
+  //                   setTimeout(()=>{
+  //                     this.startMiner()
+  //                   }, 3000);
+  //                 },2000)
+  //               }
+  //             }else{
+  //               console.log('Mining not successful')
+  //               setTimeout(()=>{
+  //                 console.log('Starting miner again')
+  //                 this.startMiner();
+  //               },1000)
   
-              }
-            }catch(e){
-              logger(e)
-            }
-          });
-        }
+  //             }
+  //           }catch(e){
+  //             logger(e)
+  //           }
+  //         });
+  //       }
          
         
 
-      }
+  //     }
 
+  // }
+
+  startMiner(){
+    if(this.chain instanceof Blockchain){
+        if(!this.minerStarted){
+          this.minerStarted = true;
+          setInterval(()=>{
+            if(this.minerPaused !== true){
+             this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
+               if(success && blockHash){
+                this.minerPaused = true;
+                this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+                logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
+                saveBlockchain(this.chain);
+                
+                setTimeout(()=>{
+
+                  this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+                  logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
+                  this.minerPaused = false;
+                  setTimeout(()=>{
+                    this.startMiner()
+                  }, 3000);
+                },2000)
+               }else{
+                  //Keeps looking for transactions
+               }
+             })
+           }else{
+              //Miner paused
+           }
+          }, 1000)
+        }else{
+          logger('WARNING: miner already started')
+        }
+        
+      
+    }
   }
+
   /**
     @desc Fires upon sync block to avoid transaction doubles
     @param {array} $hashesOfTransactions - List of block transactions to delete from pending transactions
