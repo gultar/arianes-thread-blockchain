@@ -181,7 +181,6 @@ class Node {
               
               if(loaded){
                 this.publicKey = myWallet.publicKey;
-                console.log(this.publicKey)
                 this.wallets[this.publicKey] = myWallet;
                 resolve(true)
               }else{
@@ -211,48 +210,32 @@ class Node {
     return new Promise((resolve, reject)=>{
       
       let myWallet = new Wallet2();
-      myWallet.init().then((resolved, rejected)=>{
-      if(rejected){
+      myWallet.init()
+        .then((resolved, rejected)=>{
+          if(rejected){
 
-        logger(err);
-        resolve(false)
+            logger(err);
+            resolve(false)
 
-      }else{
-        if(resolved){
+          }else{
+            if(resolved){
 
-          this.publicKey = myWallet.publicKey;
-          this.wallets[myWallet.publicKey] = myWallet;
-          let filename = './wallets/'+this.id+'.json';
-          myWallet.saveWallet(filename);
-          logger('Created new wallet: ', this.id)
-          resolve(true);
+              this.publicKey = myWallet.publicKey;
+              this.wallets[myWallet.publicKey] = myWallet;
+              let filename = './wallets/'+this.id+'.json';
+              myWallet.saveWallet(filename);
+              logger('Created new wallet: ', this.id)
+              resolve(true);
 
-        }else{
-          
-          logger('Could not load wallet')
-          resolve(false);
-          
-        }
-      }
+            }else{
+              
+              logger('Could not load wallet')
+              resolve(false);
+              
+            }
+          }
+        })
     })
-      
-      
-
-      
-    })
-    // let myWallet = new Wallet2();
-    // myWallet.loadWalletFromFile(this.id+'.json')
-    // .then((wallet, err)=>{
-    //   if(err) console.log(err)
-    //   if(wallet){
-    //     
-    //     callback(myWallet)
-    //   }else{
-    //     console.log('Could not load wallet')
-    //   }
-      
-    // });
-    
     
   }
 
