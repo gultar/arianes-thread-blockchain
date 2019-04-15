@@ -270,6 +270,9 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           runUpdate(args, cmd);
           break;
+        case 'info':
+          getInfo()
+          break;
         case 'clear': runClear(args, cmd);
           break;
         case 'date': output( new Date() );
@@ -452,7 +455,8 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
 
           if(args.length > 2){
 
-            sendTransaction(null, args[0], args[1], args[2]);
+            //sendTransaction(null, args[0], args[1], args[2]);
+            sendTx(args[0], args[1], args[2], args[3])
           }else{
             output('Please enter an <b>address to send to</b>, the <b>amount</b> and some <b>optional data</b>');
             output('All values are delimited by semi-colons like so: ')
@@ -462,6 +466,41 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
 
       }
 
+      function sendTx(fromAddress, toAddress, amount, data=''){
+
+        // console.log('Client token issued', endpointToken);
+    
+    
+      var transactToSend = {
+        'sender' : fromAddress,
+        'receiver' : toAddress,
+        'amount' : amount,
+        'data' : data
+      }
+
+      var txL = JSON.stringify(transactToSend);
+    
+        $.ajax({
+            type: "POST",
+            url: localAddress+"transaction",
+        
+            data: txL,
+            processData: true,
+            // tried all those content/dataTypes without any luck
+            //contentType: "text/plain",
+            //dataType: "text",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+        
+            error: function (xhr, status, error) {
+                console.log(xhr.responseText);
+            },
+        
+            success: function (msg) {
+                console.log(msg);
+            }
+        });
+    }
 
       function runIching(args, cmd){
         if(args[0]){

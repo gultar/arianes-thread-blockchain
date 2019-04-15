@@ -11,6 +11,7 @@ const Transaction = require('./transaction');
 const Block = require('./block');
 const setChallenge = require('./challenge');
 const chalk = require('chalk');
+const ECDSA = require('ecdsa-secp256r1');
 
 /**
   * @desc Basic blockchain class.
@@ -23,16 +24,15 @@ const chalk = require('chalk');
 */
 class Blockchain{
 
-  constructor(chain=false, pendingTransactions=false, nodeTokens={}, ipAddresses=[], publicKeys=[]){
+  constructor(chain=false, pendingTransactions=false, ipAddresses=[], publicKeys=[], nodeID=''){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
+    this.sideChain = [];
     this.difficulty = 5;
     this.pendingTransactions = (pendingTransactions? pendingTransactions: {});
     this.miningReward = 50;
-    this.nodeTokens = nodeTokens; //Stores all the node addresses of the P2P network
     this.ipAddresses = ipAddresses;
     this.blockSize = 20; //Minimum Number of transactions per block
     this.orphanedBlocks = [];
-
   }
 
   createGenesisBlock(){
@@ -429,7 +429,7 @@ class Blockchain{
 
   getBlockHeader(blockNumber){
     if(blockNumber >= 0){
-      
+
       var block = this.chain[blockNumber];
 
       if(block){
@@ -572,16 +572,25 @@ class Blockchain{
     Necessary to allow transaction to be added in pool
   */
   validateSignature(transaction){
-      try{
+    let transactionBody = {
+      fromAddress:transaction.fromAddress,
+      toAddress:transaction.toAddress,
+      amount:transaction.amount,
+      data:transaction.data
+    }
+    let publicKey = ECDSA.fromCompressedPublicKey(transaction.fromAddress);
+    return publicKey.verify(JSON.stringify(transactionBody), transaction.signature);
+  
+  }
 
-        var verify = crypto.createVerify('RSA-SHA256');
-        verify.update(transaction.hash);
-        return verify.verify(transaction.fromAddress, transaction.signature, 'hex');
-
-      }catch(err){
-        logger(err);
-        return false;
-      }
+  validateTxSignature(transaction){
+    if(transaction){
+      const publicKey = ECDSA.fromCompressedPublicKey(transaction.publicKey);
+      return publicKey.verify(message, signature);
+    }else{
+      return false;
+    }
+    
   }
 
 }
