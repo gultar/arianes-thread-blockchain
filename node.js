@@ -178,6 +178,8 @@ class Node {
             
               let myWallet = new Wallet2();
               let loaded = await myWallet.loadWalletFromFile(filename);
+              console.log(loaded)
+              console.log(myWallet)
               if(loaded){
                 this.publicKey = myWallet.publicKey
                 this.wallets[this.publicKey] = myWallet;
