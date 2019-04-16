@@ -128,7 +128,6 @@ class Node {
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
 
                  this.peersConnected[peerAddress] = socket;
-                 console.log('In server ', peerAddress)
                  this.nodeList.addNewAddress(peerAddress)
                  this.nodeEventHandlers(socket)
 
@@ -299,7 +298,6 @@ class Node {
               this.sendPeerMessage('addressBroadcast');
               //Handling of socket and peer address
               this.connectionsToPeers[address] = peer;
-              console.log('In peer ', address)
               this.nodeList.addNewAddress(address)
               
             }else{
@@ -392,7 +390,7 @@ class Node {
     if(this.userInterfaces && message){
       for(var i=0; i < this.userInterfaces.length; i++){
         if(arg){
-          logger('Number of UIs', this.userInterfaces.length);
+          //logger('Number of UIs', this.userInterfaces.length);
           this.userInterfaces[i].emit('message', message+' '+arg);
         }else{
           this.userInterfaces[i].emit('message', message);
