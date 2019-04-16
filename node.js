@@ -1062,7 +1062,7 @@ class Node {
                   
                   logger(chalk.green('Blockchain successfully updated'));
                   logger('Chain is still valid: ', this.chain.isChainValid())
-                  saveBlockchain(this.chain)
+                  this.chain.saveBlockchain(this.chain)
 
                   this.minerPaused = false;
                   if(cb){
