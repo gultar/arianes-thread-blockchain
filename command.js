@@ -96,10 +96,10 @@ program
 program.parse(process.argv)
 
 process.on('SIGINT', () => {
-  logger('Shutting down node and saving blockchain');
+  logger('Shutting down node and saving state');
   node.minerStarted = false;
   node.minerPaused = true;
-  node.chain.mempool.saveMempool();
+  
   if(process.MINER){
     process.MINER.stop();
     

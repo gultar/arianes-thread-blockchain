@@ -111,7 +111,7 @@ const writeToFile = (data, filename) =>{
           }
   
       }else{
-        logger('WARNING: File inexistant. Creating it right now')
+        
         resolve(await createFile(data, filename))
       }
     });

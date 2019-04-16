@@ -14,6 +14,7 @@ const { initBlockchain } = require('./backend/blockchainHandler.js');
 const Wallet = require('./backend/wallet')
 const Blockchain = require('./backend/blockchain');
 const Transaction = require('./backend/transaction');
+const NodeList = require('./backend/nodelist')
 const { displayTime, logger } = require('./backend/utils');
 const sha256 = require('./backend/sha256');
 const sha1 = require('sha1')
@@ -41,6 +42,7 @@ class Node {
     this.peersConnected = {};
     this.connectionsToPeers = {};
     this.knownPeers = [];
+    this.nodeList = new NodeList();
     this.token = {};
     this.chain = {};
     this.messageBuffer = {};
@@ -77,7 +79,7 @@ class Node {
           logger('Blockchain successfully loaded')
             
           this.chain = blockchain;
-          this.knownPeers = this.chain.ipAddresses;
+          
         }else{
           logger('ERROR: Could not init blockchain')
         }
@@ -91,6 +93,17 @@ class Node {
         }
       })
       .catch((e)=>{
+        logger(e)
+      })
+
+      this.nodeList.loadNodeList().then(loaded =>{
+        if(loaded){
+          logger('Loaded list of known nodes')
+        }else{
+          logger('Could not load list of nodes')
+        }
+      })
+      .catch(e=>{
         logger(e)
       })
       
@@ -114,9 +127,7 @@ class Node {
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
 
                  this.peersConnected[peerAddress] = socket;
-                 if(peerAddress && !this.knownPeers.includes(peerAddress)){
-                   this.knownPeers.push(peerAddress);
-                 }
+                 this.nodeList.addNewAddress(peerAddress)
                  this.nodeEventHandlers(socket)
 
                }else{
@@ -144,8 +155,8 @@ class Node {
 
   joinPeers(){
     try{
-      if(this.knownPeers){
-        this.knownPeers.forEach((peer)=>{
+      if(this.nodeList.addresses){
+        this.nodeList.addresses.forEach((peer)=>{
           this.connectToPeer(peer);
         })
       }
@@ -156,7 +167,7 @@ class Node {
   }
 
   findPeers(){
-    if(this.knownPeers.length > 0){
+    if(Object.keys(this.connectionsToPeers).length > 0){
       logger('Requesting other peer addresses');
       this.serverBroadcast('getPeers');
     }else{
@@ -285,7 +296,7 @@ class Node {
               this.sendPeerMessage('addressBroadcast');
               //Handling of socket and peer address
               this.connectionsToPeers[address] = peer;
-              if(!this.knownPeers.includes(address))  {  this.knownPeers.push(address);  }
+              this.nodeList.addNewAddress(address)
               
             }else{
               logger('Already connected to target node')
@@ -296,16 +307,16 @@ class Node {
               logger('Server: ' + message);
           })
 
-          peer.on('address', (response)=>{
-            if(response && Array.isArray(response)){
-              for(let address in response){
-                if(!this.knownPeers.includes(address)){
-                  // this.knownPeers.push(address);
-                  this.connectToPeer(address);
-                }
-              }
-            }
-          })
+          // peer.on('address', (response)=>{
+          //   if(response && Array.isArray(response)){
+          //     for(let address in response){
+          //       if(!this.knownPeers.includes(address)){
+          //         // this.knownPeers.push(address);
+          //         this.connectToPeer(address);
+          //       }
+          //     }
+          //   }
+          // })
 
           peer.on('disconnect', () =>{
             logger('connection with peer dropped');
@@ -464,7 +475,7 @@ class Node {
     });
 
     app.get('/getAddress', (req, res)=>{
-      res.json({ nodes: this.knownPeers }).end();
+      res.json({ nodes: this.nodeList.addresses }).end();
     })
 
     app.post('/chainLength', (req, res) =>{
@@ -615,7 +626,7 @@ class Node {
      })
 
      socket.on('getPeers', ()=>{
-        socket.emit('address', this.knownPeers);
+        socket.emit('address', this.nodeList.addresses);
      })
 
      socket.on('disconnect', ()=>{
@@ -656,7 +667,7 @@ class Node {
 
     socket.on('knownPeers', ()=>{
       try{
-        socket.emit('message', JSON.stringify({ peers:this.knownPeers }, null, 2))
+        socket.emit('message', JSON.stringify({ peers:this.nodeList.addresses }, null, 2))
       }catch(e){
         logger(e)
       }
@@ -1012,9 +1023,7 @@ class Node {
 
         for(var i=0; i <peerKnownNodes.length; i++){
           var peer = peerKnownNodes[i];
-          if(!this.knownPeers.includes(peer)){
-            this.knownPeers.push(peer);
-          }
+          this.nodeList.addNewAddress(peer)
         }
 
       })
@@ -1432,29 +1441,28 @@ class Node {
   }
 
   save(callback){
-    if(this.knownPeers.length > this.chain.ipAddresses.length){
-      this.chain.ipAddresses = this.knownPeers;
-    }
     
     logger('Saving known nodes to blockchain file');
-    logger('Number of known nodes:', this.knownPeers.length)
-   
-      this.chain.saveBlockchain()
-        .then((saved)=>{
-          if(saved == true){
-            logger('Successfully saved blockchain file')
-            if(callback) callback(true);
-            return true;
-          }else{
-            logger('ERROR: could not write blockchain file');
-            if(callback) callback(false);
-            return false;
-          }
-          
-        })
-        .catch((e)=>{
-          logger(e)
-        })
+    logger('Number of known nodes:', this.nodeList.addresses.length)
+    this.nodeList.saveNodeList();
+    this.chain.saveBlockchain()
+      .then((saved)=>{
+        
+
+        if(saved == true){
+          logger('Successfully saved blockchain file')
+          if(callback) callback(true);
+          return true;
+        }else{
+          logger('ERROR: could not write blockchain file');
+          if(callback) callback(false);
+          return false;
+        }
+        
+      })
+      .catch((e)=>{
+        logger(e)
+      })
 
     
     

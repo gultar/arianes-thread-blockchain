@@ -35,7 +35,7 @@ class Blockchain{
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
     this.difficulty = 5;
-    this.mempool = new Mempool().loadMempool();
+    this.mempool = new Mempool();
     this.pendingTransactions = (pendingTransactions? pendingTransactions: {});
     this.miningReward = 50;
     this.ipAddresses = ipAddresses;

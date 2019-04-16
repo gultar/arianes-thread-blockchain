@@ -52,7 +52,7 @@ class NodeList{
                             resolve(false);
                         }
                     }else{
-                        logger('WARNING: file does not exist');
+                        
                         let saved = writeToFile(this, 'nodes.json');
                         if(saved){
                             logger('Created new list of known nodes')
