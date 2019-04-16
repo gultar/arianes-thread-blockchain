@@ -1,4 +1,6 @@
 {
-  "addresses": [],
+  "addresses": [
+    "http://10.10.10.11:8000"
+  ],
   "blackListed": []
 }

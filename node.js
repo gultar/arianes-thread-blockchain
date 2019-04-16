@@ -122,11 +122,13 @@ class Node {
              try{
 
                socket.on('message', (msg) => { logger('Client:', msg); });
-               peerAddress = socket.handshake.query.token.address;
-
+               peerToken = JSON.parse(socket.handshake.query.token);
+               
+               peerAddress = peerToken.address
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
 
                  this.peersConnected[peerAddress] = socket;
+                 console.log('In server ', peerAddress)
                  this.nodeList.addNewAddress(peerAddress)
                  this.nodeEventHandlers(socket)
 
@@ -264,8 +266,9 @@ class Node {
           peer = ioClient(address, {
             'reconnection limit' : 1000,
             'max reconnection attempts' : 3,
-            'query':{
-              token: { 'address':this.address }
+            'query':
+            {
+              token: JSON.stringify({ 'address':this.address })
             }
           });
 
@@ -296,6 +299,7 @@ class Node {
               this.sendPeerMessage('addressBroadcast');
               //Handling of socket and peer address
               this.connectionsToPeers[address] = peer;
+              console.log('In peer ', address)
               this.nodeList.addNewAddress(address)
               
             }else{
