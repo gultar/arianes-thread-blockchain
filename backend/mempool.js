@@ -1,17 +1,32 @@
 const fs = require('fs')
-const { readFile } = require('./utils')
+const { readFile, writeToFile, createFile } = require('./utils')
 class Mempool{
     constructor(){
         this.pendingTransactions = {};
         this.rejectedTransaction = {};
     }
 
+    /***
+     * In case of block rollback, add back all the transactions contained in the block
+     * @param {object} $block - Block to deconstruct
+    */
+    putbackPendingTransactions(block){
+        for(var txHash in Object.keys(block.transactions)){
+            this.pendingTransactions[txHash] = block.transactions[txHash];
+            delete block.transactions[txHash];
+        }
+    }
+
     async saveMempool(){
         let mempoolFile = await readFile('mempool.json');
         if(mempoolFile){
             try{
-                let mempool = JSON.parse(mempoolFile);
-                console.log(mempool)
+                let oldMempool = JSON.parse(mempoolFile);
+                let newMempool = { ...this, ...oldMempool };
+                var wstream = fs.createWriteStream('mempool.json');
+                wstream.write(JSON.stringify(newMempool));
+                wstream.end();
+                console.log('Saved mempool')
             }catch(e){
                 console.log(e);
             }
@@ -39,10 +54,5 @@ class Mempool{
     }
 }
 
-myMempool = new Mempool();
-myMempool.pendingTransactions['hello'] = 'boo'
-myMempool.saveMempool();
-myMempool.pendingTransactions['Poubelle'] = 'ce cours'
-myMempool.saveMempool();
 
 module.exports = Mempool;

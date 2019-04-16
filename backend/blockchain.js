@@ -6,12 +6,19 @@ const crypto = require('crypto');
 const fs = require('fs');
 // const { exec } = require('child_process');
 const { MINING_RATE, END_MINING } = require('./globals');
-const { displayTime, logger, RecalculateHash, merkleRoot } = require('./utils');
+const { 
+  displayTime, 
+  logger, 
+  RecalculateHash, 
+  merkleRoot, 
+  readFile, 
+  writeToFile } = require('./utils');
 const Transaction = require('./transaction');
 const Block = require('./block');
 const setChallenge = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
+const Mempool = require('./mempool')
 
 /**
   * @desc Basic blockchain class.
@@ -28,6 +35,7 @@ class Blockchain{
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
     this.difficulty = 5;
+    this.mempool = new Mempool();
     this.pendingTransactions = (pendingTransactions? pendingTransactions: {});
     this.miningReward = 50;
     this.ipAddresses = ipAddresses;
@@ -42,35 +50,17 @@ class Blockchain{
     genesisBlock.endMineTime = Date.now();
     genesisBlock.transactions.push(
       //Setup initial coin distribution
-      new Transaction(
-        'coinbase', 
-        `-----BEGIN PUBLIC KEY-----
-        MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQD1aWbGj2PamizgVSfE2kmp8uzv
-        77yW1W/EiyClkPQfsO2Wdf0ipujSZ1yhMX6iBCnkExNFGe0Cg0NDTAK+vdtT7FIH
-        oMrbL/HnhTeBWXmG4kUDrjlyVxnB2eNWkgIzlz0xStfynNu6N3zJ0r+TRLYZETd2
-        R1WcAs7xApwiuQjamQIDAQAB
-        -----END PUBLIC KEY-----
-        `, 1000, 'ICO transactions'
+      new Transaction( //Blockchain node
+        'coinbase', "AoXgtIsWAAC56EKd2LXtNc5NaR1Eu5Jt8FM5J7EJXzLc", 1000, 'ICO transactions'
       ),
-      new Transaction(
-        'coinbase', 
-        `-----BEGIN PUBLIC KEY-----
-        MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDPhE227fWNoGvKSrddYwBZ+yN5
-        +spokmlido3STmhBeAJa8aMGS/daz3Vr2xuSmRUNRhUn6B7Mp54UMH553SqA7agB
-        d7hlllCVFKwXklpFfansRpVJYbJOVvxTRn1VpleSpOqa6mn1BHYARwVaUd4Tbqs2
-        3bHNyiJLBWmsrnZqFQIDAQAB
-        -----END PUBLIC KEY-----
-        `, 1000, 'ICO transactions'
+      new Transaction( //first node
+        'coinbase',"A0LCplPB/lJ6uCBpvUzMAYZIfhcZeFVWk+ycexlA6AH2", 1000, 'ICO transactions'
       ),
-      new Transaction(
-        'coinbase', 
-        `-----BEGIN PUBLIC KEY-----
-        MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDEqqReZ40WEZ9p7QZJ4Kkt0pUC
-        cIsbrADQyGCi4g+7oQJE84Han/DSWd9YvIa3stJkmOhqTPU4c47+4ug66LZ9L6Sj
-        Sg5JtvfLbDAs+eKTD6pcS71VS/Zs+FFkhKFO5vmzHW/hacfJZnC6s6/SV6uIeyzA
-        5Yj+2K+A22EY3LIWAwIDAQAB
-        -----END PUBLIC KEY-----        
-        `, 1000, 'ICO transactions'
+      new Transaction( //second node
+        'coinbase', "A1ro4i/2GALdz9UjyycVNTveAkutttMLClFjCv6P+hEI", 1000, 'ICO transactions'
+      ),
+      new Transaction( //third node
+        'coinbase', "A0LwcQG6XUkGikwn0aJ/jvv7irysO+z1MWaEh25ci4O/", 1000, 'ICO transactions'
       )
 
     );
@@ -507,7 +497,7 @@ class Blockchain{
   * @param {Object} $transaction - transaction to be validated
   * @param {function} $callback - Sends back the validity of the transaction
   */
-  validateTransaction(transaction, callback){
+  async validateTransaction(transaction, callback){
 
     if(transaction){
 
@@ -517,9 +507,10 @@ class Blockchain{
         var isChecksumValid = this.validateChecksum(transaction);
         // logger("Is transaction hash valid? :", isChecksumValid);
 
-        var isSignatureValid = this.validateSignature(transaction);
-        // logger("Is transaction signature valid? :", isSignatureValid);
-
+        let isSignatureValid = await this.validateSignature(transaction)
+         // logger('Is valid signature? :',isSignatureValid)
+         
+         
         var isMiningReward = this.isMiningRewardTransaction(transaction);
         // logger('Is mining reward transaction? :', isMiningReward);
 
@@ -568,28 +559,37 @@ class Blockchain{
     }
     return false;
   }
-  /**
-    Necessary to allow transaction to be added in pool
-  */
+
   validateSignature(transaction){
-    let transactionBody = {
-      fromAddress:transaction.fromAddress,
-      toAddress:transaction.toAddress,
-      amount:transaction.amount,
-      data:transaction.data
-    }
-    let publicKey = ECDSA.fromCompressedPublicKey(transaction.fromAddress);
-    return publicKey.verify(JSON.stringify(transactionBody), transaction.signature);
-  
+    return new Promise((resolve, reject)=>{
+      if(transaction){
+        
+        const publicKey = ECDSA.fromCompressedPublicKey(transaction.fromAddress);
+        resolve(publicKey.verify(transaction.hash, transaction.signature))
+
+      }else{
+        resolve(false);
+      }
+    })
+    
+    
   }
 
-  validateTxSignature(transaction){
-    if(transaction){
-      const publicKey = ECDSA.fromCompressedPublicKey(transaction.publicKey);
-      return publicKey.verify(message, signature);
-    }else{
-      return false;
-    }
+  async saveBlockchain(){
+    return new Promise(async (resolve, reject)=>{
+      try{
+        let blockchainFile = JSON.stringify(this, null, 2);
+        let success = await writeToFile(blockchainFile, 'blockchain.json');
+        if(success){
+          resolve(true)
+        }else{
+          resolve(false);
+        }
+      }catch(e){
+        reject(e);
+      }
+      
+    })
     
   }
 

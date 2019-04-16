@@ -17,6 +17,7 @@
     "express": "^4.16.4",
     "express-ws": "^4.0.0",
     "fetch": "^1.1.0",
+    "json-size": "^1.0.0",
     "loopyloop": "^1.1.2",
     "merkle": "^0.6.0",
     "net": "^1.0.2",

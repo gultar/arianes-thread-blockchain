@@ -11,7 +11,7 @@ const displayTime = () =>{
 const logger = (message, arg) => {
   let date = new Date();
   let time = date.toLocaleTimeString();
-  let beautifulMessage = '['+ time +'] ' + message;
+  let beautifulMessage = `[${time}] ${message}`//'['+ time +'] ' + message;
   if(arg){
     console.log(beautifulMessage, arg);
   }else{
@@ -84,6 +84,93 @@ const readFile = async (filename) =>{
   
 }
 
+const writeToFile = (data, filename) =>{
+  return new Promise((resolve, reject)=>{
+    fs.exists(filename, async (exists)=>{
+      
+      if(exists){       
+        let file = parseToString(data);
+          if(file != undefined){
+
+            var stream = fs.createWriteStream(filename);
+
+            stream.write(file);
+            stream.end();
+            stream.on('finish', () => {
+              resolve(true)
+            });
+            
+            stream.on('error', (error) => {
+              logger(error);
+              resolve(false)
+            });
+
+          }else{
+            resolve(false)
+          }
+  
+      }else{
+        logger('WARNING: File inexistant. Creating it right now')
+        resolve(await createFile(data, filename))
+      }
+    });
+  })
+
+}
+
+const parseToString = (data)=>{
+  let typeOfData = typeof data;
+  let file = data;
+
+  switch(typeOfData){
+    case 'string':
+      break;
+    case 'function':
+    case 'object':
+      try{
+        file = JSON.stringify(data, null, 2);
+      }catch(e){
+        logger(e);
+      }
+      break;
+    case 'number':
+      file = data.toString();
+      break;
+    default:
+      logger('ERROR: could not write this data type');
+      break;
+
+  }
+
+  return file
+}
+
+const createFile = (data, filename) =>{
+  return new Promise((resolve, reject)=>{
+    let file = parseToString(data);
+    fs.exists(filename, async (exists)=>{
+      if(!exists){
+        var stream = fs.createWriteStream(filename);
+        stream.write(file);
+        stream.end()
+        stream.on('finish', () => {
+          resolve(true)
+        });
+        
+        stream.on('error', (error) => {
+          logger(error);
+          resolve(false)
+        });
+      }else{
+        logger('WARNING: file already exists');
+        resolve(await writeToFile(data, filename))
+        
+      }
+    })
+  })
+  
+}
+
 
 
 module.exports = { 
@@ -93,4 +180,6 @@ module.exports = {
   merkleRoot, 
   encrypt, 
   decrypt,
-  readFile };
+  readFile,
+  writeToFile,
+  createFile };

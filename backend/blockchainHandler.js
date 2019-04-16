@@ -6,7 +6,7 @@ const fs = require('fs');
 const merkle = require('merkle');
 const sha256 = require('./sha256');
 var crypto = require('crypto');
-const { logger } = require('./utils')
+const { logger, readFile } = require('./utils')
 
 var dataBuffer;
 
@@ -19,20 +19,44 @@ class BlockchainHandler{
 }
 
 
-const initBlockchain = (token, tryOnceAgain=true, cb) => {
-  //flag to avoid crashes if a transaction is sent while loading
-  var { port, address } = token;
-   logger('Initiating blockchain');
-   let blockchain;
-   loadBlockchainFromServer((data, err)=>{
+const initBlockchain = async () => {
+  return new Promise(async (resolve, reject)=>{
+    let blockchain = {};
+    let blockchainObject = {};
+    logger('Initiating blockchain');
+    fs.exists('blockchain.json', async (exists)=>{
+      
+      if(exists){
 
-     if(err){
-       logger(err);
-       cb(false, err);
-     }
-      blockchain = instanciateBlockchain(data);
-      cb(blockchain)
+        let blockchainFile = await readFile('blockchain.json');
+
+        if(blockchainFile){
+          try{
+            blockchainObject = JSON.parse(blockchainFile);
+            blockchain = instanciateBlockchain(blockchainObject);
+            resolve(blockchain);
+          }catch(e){
+            logger(e);
+            resolve(false);
+          }
+        }else{
+          logger('ERROR: Could not read blockchain file')
+          resolve(false)
+        }
+        
+
+      }else{
+
+        logger('Blockchain file does not exist')
+        logger('Generating new blockchain')
+        let newBlockchain = new Blockchain();
+        newBlockchain.saveBlockchain();
+        resolve(newBlockchain);
+      }
     })
+   
+  })
+
 
 };
 
@@ -74,8 +98,7 @@ const loadBlockchainFromServer = (cb) => {
       });
 
     }else {
-            logger('Generating new blockchain')
-            let newBlockchain = new Blockchain();
+            
             // newBlockchain = seedNodeList(newBlockchain, thisNode);
             // seedNodeList(newBlockchain); //------------------------Have to find a better way to create nodes
             blockchain = newBlockchain;

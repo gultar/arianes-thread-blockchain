@@ -3,6 +3,7 @@
 const sha256 = require('./sha256');
 const crypto = require('crypto');
 const fs = require('fs');
+const jsonSize = require('json-size');
 
 class Transaction{
   constructor(fromAddress, toAddress, amount, data='', hash='', type=''){
@@ -60,9 +61,19 @@ class Transaction{
 
   }
 
-  byteCount(s) {
-    return encodeURI(s).split(/%..|./).length - 1;
+  static getTransactionSize(transaction){
+    try{
+      if(transaction){
+        return jsonSize(transaction)
+      }
+    }catch(e){
+      logger(e)
+    }
   }
+
+  // static byteCount(transaction) {
+  //   return encodeURI(transaction).split(/%..|./).length - 1;
+  // }
 
 }
 

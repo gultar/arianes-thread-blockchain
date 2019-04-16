@@ -4,7 +4,6 @@ const Node = require('./node');
 const Transaction = require('./backend/transaction');
 const { copyFile } = require('./backend/blockchainHandler');
 const program = require('commander');
-
 const { logger } = require('./backend/utils')
 let port = 8000;
 let arg = '';

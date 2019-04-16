@@ -20,8 +20,6 @@ const sha1 = require('sha1')
 const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs')
-let {miner} = require('./backend/globals');
-let LoopyLoop = require('loopyloop')
 let txgenCounter = 5000;
 let stopTxgen = false;
 /**
@@ -72,23 +70,29 @@ class Node {
       this.initHTTPAPI(app);
       this.cleanMessageBuffer();
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
-      initBlockchain(this.address, true, async (loadedBlockchain)=>{
-          
+      
+      initBlockchain()
+      .then(blockchain => {
+        if(blockchain){
+          logger('Blockchain successfully loaded')
+            
+          this.chain = blockchain;
+          this.knownPeers = this.chain.ipAddresses;
+        }else{
+          logger('ERROR: Could not init blockchain')
+        }
         
-        
-        this.loadWallet('./wallets/'+this.id+'.json')
-          .then((walletLoaded)=>{
-            if(walletLoaded){
-              logger('Wallet loaded:', this.id)
-            }
-          })
-          .catch((e)=>{
-            logger(e)
-          })
-        this.chain = loadedBlockchain;
-        this.knownPeers = this.chain.ipAddresses;
-        
-      });
+      })
+
+      this.loadWallet('./wallets/'+this.id+'.json')
+      .then((walletLoaded)=>{
+        if(walletLoaded){
+          logger('Wallet loaded:', this.id)
+        }
+      })
+      .catch((e)=>{
+        logger(e)
+      })
       
 
 
@@ -694,18 +698,7 @@ class Node {
     })
 
     socket.on('test', ()=>{
-      // let headers = this.getAllHeaders();
-      // let headers2 = this.getAllHeaders();
-      // let compare = this.compareHeaders(headers);
-      // console.log('Headers 1', compare)
-      // console.log('Chain length', this.chain.chain.length)
-      // console.log('Nb of headers', headers.headers.length)
-      // headers2.headers.pop()
-      // let compare2 = this.compareHeaders(headers2);
-      // console.log('Headers 2', compare2);
-      // console.log('Chain length', this.chain.chain.length)
-      // console.log('Nb of headers', headers2.headers.length)
-      console.log(this.chain.nodeID)
+      
     })
 
     socket.on('resolveFork', ()=>{
@@ -1035,7 +1028,7 @@ class Node {
   */
  fetchBlocks(address, cb){
   
-  //var updateAddress = (address ? address : longestChain.peerAddress)
+  
   try{
     if(this.chain instanceof Blockchain){
       const latestBlock = this.chain.getLatestBlock();
@@ -1279,6 +1272,7 @@ class Node {
           transaction.signature = signature;
           this.chain.validateTransaction(transaction, (valid)=>{
             if(valid){
+
               this.chain.createTransaction(transaction);
               this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
               if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
@@ -1307,23 +1301,29 @@ class Node {
         let transactionValidated;
         let wallet = this.wallets[this.publicKey];
   
-        let signature = await wallet.sign(transaction);
+        let signature = await wallet.sign(transaction.hash);
         
         if(!signature){
           logger('Transaction signature failed. Check both public key addresses.')
           reject(false)
         }else{
+
           transaction.signature = signature;
+
           this.chain.validateTransaction(transaction, (valid)=>{
             if(valid){
+
               this.chain.createTransaction(transaction);
               this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
               if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
               this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
               resolve(true)
+
             }else{
+
               logger('Received an invalid transaction');
               resolve(false);
+
             }
   
           })
@@ -1363,7 +1363,7 @@ class Node {
           this.fetchBlocks(this.longestChain.peerAddress, ()=>{
         })
       }else{
-        // this.startMiner()
+        
         return this.update();
       }
 
@@ -1424,7 +1424,7 @@ class Node {
   }
 
   maintenance(){
-    
+
   }
 
   save(callback){
@@ -1434,13 +1434,24 @@ class Node {
     
     logger('Saving known nodes to blockchain file');
     logger('Number of known nodes:', this.knownPeers.length)
-    if(callback){
-      saveBlockchain(this.chain, (saved)=>{
-        callback(saved);
-      });
-    }else{
-      saveBlockchain(this.chain);
-    }
+   
+      this.chain.saveBlockchain()
+        .then((saved)=>{
+          if(saved == true){
+            logger('Successfully saved blockchain file')
+            if(callback) callback(true);
+            return true;
+          }else{
+            logger('ERROR: could not write blockchain file');
+            if(callback) callback(false);
+            return false;
+          }
+          
+        })
+        .catch((e)=>{
+          logger(e)
+        })
+
     
     
   }
@@ -1458,10 +1469,8 @@ class Node {
 
   UILog(message, arg){
     if(arg){
-      // logger(message, arg);
       this.outputToUI(message, arg)
     }else{
-      // logger(message);
       this.outputToUI(message)
     }
   }
