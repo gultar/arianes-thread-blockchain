@@ -1111,6 +1111,7 @@ class Node {
           }
         })
         .catch((error)=>{
+          console.log(error)
           logger('Could not fetch block from '+address)
           
           return false;
@@ -1400,7 +1401,7 @@ class Node {
                 process.MINER = false;
                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                 logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
-                saveBlockchain(this.chain);
+                this.chain.saveBlockchain()
                 
                 setTimeout(()=>{
                   //Leave enough time for the nodes to receive the two messages
