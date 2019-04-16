@@ -72,6 +72,26 @@ class Wallet{
         
     }
 
+    async initFromJSON(json){
+        return new Promise(async (resolve, reject)=>{
+            if(json){
+                try{
+                    this.id = json.id;
+                    this.publicKey = json.publicKey;
+                    this.transactions = json.transactions;
+                    this.privateKey = ECDSA.fromJWK(json.privateKey);
+
+                    resolve(true)
+                }catch(e){
+                    logger(e);
+                    reject(e);
+                }
+                
+            }
+        })
+        
+    }
+
     async sign(data){
         if(data && this.privateKey){
             let signature = ''

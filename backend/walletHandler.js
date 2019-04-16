@@ -1,8 +1,9 @@
 const readline = require('readline');
 const sha256 = require('./sha256');
-const { logger } = require('./utils')
+const { logger, readFile } = require('./utils')
 const { encrypt, decrypt, getPublicKey } = require('./keysHandler');
 const Wallet = require('./wallet');
+const ECDSA = require('ecdsa-secp256r1');
 
 class WalletConnector{
   constructor(){
@@ -40,7 +41,20 @@ class WalletConnector{
 
 }
 
-let myWalletConnector = new WalletConnector();
-myWalletConnector.createWallet('1234');
+const tryOut = async () =>{
+  let walletFile = await readFile('./wallets/8ab1b499f17855b0f1db5bd65a73875723325f85.json');
+  let wallet = new Wallet()
+  wallet.initFromJSON(JSON.parse(walletFile))
+  
+  let myWalletConnector = new WalletConnector();
+  myWalletConnector.wallets[wallet.id] = wallet;
+  let sign = myWalletConnector.wallets[wallet.id].privateKey.sign('hello');
+  let pubKey = ECDSA.fromCompressedPublicKey(myWalletConnector.wallets[wallet.id].publicKey)
+  console.log(pubKey.verify('hello', sign))
+
+
+}
+
+// tryOut()
 
 module.exports = WalletConnector

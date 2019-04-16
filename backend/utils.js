@@ -60,7 +60,7 @@ const readFile = async (filename) =>{
     
         rstream.on('error', (err) =>{
           logger(err);
-          resolve(err)
+          reject(err)
         })
     
         rstream.on('data', (chunk) => {
@@ -76,6 +76,7 @@ const readFile = async (filename) =>{
           }
         });
       }else{
+        logger('ERROR: file does not exist')
         resolve(false);
       }
     })
@@ -102,7 +103,7 @@ const writeToFile = (data, filename) =>{
             
             stream.on('error', (error) => {
               logger(error);
-              resolve(false)
+              reject(error)
             });
 
           }else{
@@ -116,6 +117,32 @@ const writeToFile = (data, filename) =>{
     });
   })
 
+}
+
+const createFile = (data, filename) =>{
+  return new Promise((resolve, reject)=>{
+    let file = parseToString(data);
+    fs.exists(filename, async (exists)=>{
+      if(!exists){
+        var stream = fs.createWriteStream(filename);
+        stream.write(file);
+        stream.end()
+        stream.on('finish', () => {
+          resolve(true)
+        });
+        
+        stream.on('error', (error) => {
+          logger(error);
+          reject(error)
+        });
+      }else{
+        logger('WARNING: file already exists');
+        resolve(await writeToFile(data, filename))
+        
+      }
+    })
+  })
+  
 }
 
 const parseToString = (data)=>{
@@ -145,29 +172,19 @@ const parseToString = (data)=>{
   return file
 }
 
-const createFile = (data, filename) =>{
-  return new Promise((resolve, reject)=>{
-    let file = parseToString(data);
-    fs.exists(filename, async (exists)=>{
-      if(!exists){
-        var stream = fs.createWriteStream(filename);
-        stream.write(file);
-        stream.end()
-        stream.on('finish', () => {
-          resolve(true)
-        });
-        
-        stream.on('error', (error) => {
-          logger(error);
-          resolve(false)
-        });
-      }else{
-        logger('WARNING: file already exists');
-        resolve(await writeToFile(data, filename))
-        
-      }
-    })
-  })
+const merge = (obj1 ,obj2 )=>{
+  
+    try{
+      var obj3 = {};
+      for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+      for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+      
+      return obj3;
+    }catch(e){
+      logger(e);
+    }
+    
+  
   
 }
 
@@ -182,4 +199,5 @@ module.exports = {
   decrypt,
   readFile,
   writeToFile,
-  createFile };
+  createFile,
+  merge };
