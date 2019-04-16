@@ -179,7 +179,5 @@ const instanciateBlockchain = (blockchain) =>{
 
 module.exports = {
   initBlockchain,
-  loadBlockchainFromServer,
-  saveBlockchain,
   instanciateBlockchain,
 }

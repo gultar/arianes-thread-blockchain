@@ -10,7 +10,7 @@ const http = require('http');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const bodyParser = require('body-parser');
-const { initBlockchain, saveBlockchain,  } = require('./backend/blockchainHandler.js');
+const { initBlockchain } = require('./backend/blockchainHandler.js');
 const Wallet = require('./backend/wallet')
 const Blockchain = require('./backend/blockchain');
 const Transaction = require('./backend/transaction');
@@ -276,13 +276,17 @@ class Node {
 
           peer.on('connect', () =>{
             if(!this.connectionsToPeers.hasOwnProperty(address)){
-              this.connectionsToPeers[address] = peer;
+              //Console output
               logger(chalk.green('Connected to ', address))
+              this.UILog('Connected to ', address+' at : '+ displayTime())
+              //Messages emitted to peer
               peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
-              this.UILog('Peer connection established by '+ this.address+' at : '+ displayTime())
-              if(!this.knownPeers.includes(address))  {  this.knownPeers.push(address);  }
               peer.emit('connectionRequest', this.address);
               this.sendPeerMessage('addressBroadcast');
+              //Handling of socket and peer address
+              this.connectionsToPeers[address] = peer;
+              if(!this.knownPeers.includes(address))  {  this.knownPeers.push(address);  }
+              
             }else{
               logger('Already connected to target node')
             }
