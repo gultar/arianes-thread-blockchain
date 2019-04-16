@@ -277,13 +277,11 @@ class Node {
               peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
               this.UILog('Peer connection established by '+ this.address+' at : '+ displayTime())
               if(!this.knownPeers.includes(address))  {  this.knownPeers.push(address);  }
-              
               peer.emit('connectionRequest', this.address);
+              this.sendPeerMessage('addressBroadcast');
             }else{
               logger('Already connected to target node')
             }
-              
-
           })
 
           peer.on('message', (message)=>{
@@ -811,6 +809,14 @@ class Node {
             })
           }catch(e){
             logger(e)
+          }
+          break;
+        case 'addressBroadcast':
+          if(originAddress && typeof originAddress == 'string'){
+            if(!this.chain.ipAddresses.includes(originAddress)){
+              logger('Added '+originAddress+' to known node addresses')
+              this.chain.ipAddresses.push(originAddress);
+            } 
           }
           break;
         case 'message':
@@ -1365,55 +1371,8 @@ class Node {
   }
 
   /**
-    @desc Miner loop can be launched via the web UI or upon Node creation
+    @desc Miner loop can be launched via the web UI or upon Node boot up
   */
-  // startMiner(){
-  //   console.log('called function')
-  //     if(this.chain instanceof Blockchain){
-  //       console.log('is blockchain')
-  //       this.minerStarted = true;
-  //       console.log(this.minerStarted)
-  //       if(!this.minerPaused){
-  //         console.log('Is not paused')
-  //         this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
-  //           try{
-  //             if(success){
-  //               if(blockHash){
-
-  //                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-  //                 logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
-  //                 saveBlockchain(this.chain);
-
-  //                 setTimeout(()=>{
-
-  //                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-  //                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
-                    
-  //                   setTimeout(()=>{
-  //                     this.startMiner()
-  //                   }, 3000);
-  //                 },2000)
-  //               }
-  //             }else{
-  //               console.log('Mining not successful')
-  //               setTimeout(()=>{
-  //                 console.log('Starting miner again')
-  //                 this.startMiner();
-  //               },1000)
-  
-  //             }
-  //           }catch(e){
-  //             logger(e)
-  //           }
-  //         });
-  //       }
-         
-        
-
-  //     }
-
-  // }
-
   startMiner(){
     if(this.chain instanceof Blockchain){
         if(!this.minerStarted){
@@ -1465,13 +1424,11 @@ class Node {
   }
 
   maintenance(){
-    setInterval(()=>{
-      this.chain.ipAddresses = this.knownPeers
-    },30000)
+    
   }
 
   save(callback){
-    if(this.knownPeers.length > this.chain.ipAddresses){
+    if(this.knownPeers.length > this.chain.ipAddresses.length){
       this.chain.ipAddresses = this.knownPeers;
     }
     

@@ -1,17 +1,8 @@
 const sha256 = require('./sha256');
 const merkle = require('merkle');
+const fs = require('fs')
 
 const displayTime = () =>{
-  // var d = new Date(),   // Convert the passed timestamp to milliseconds
-  //   year = d.getFullYear(),
-  //   mnth = d.getMonth(),        // Months are zero based. Add leading 0.
-  //   day = d.getDay(),                   // Add leading 0.
-  //   hrs = d.getHours(),
-  //   min = d.getMinutes(),
-  //   sec = d.getSeconds(),               // Add leading 0.
-  //   ampm = 'AM';
-
-  //   return hrs+":"+min+":"+sec;
   let date = new Date();
   let time = date.toLocaleTimeString();
   return time;
@@ -60,6 +51,46 @@ const decrypt = (text, password) =>{
   return dec;
 }
 
+const readFile = async (filename) =>{
+  return new Promise((resolve, reject)=>{
+    fs.exists(filename,(exists)=>{
+      if(exists){
+        var data = '';
+        var rstream = fs.createReadStream(filename);
+    
+        rstream.on('error', (err) =>{
+          logger(err);
+          resolve(err)
+        })
+    
+        rstream.on('data', (chunk) => {
+          data += chunk;
+        });
+    
+    
+        rstream.on('close', () =>{  // done
+          if(data != undefined){
+              resolve(data);
+          }else{
+            resolve(false);
+          }
+        });
+      }else{
+        resolve(false);
+      }
+    })
+
+  })
+  
+}
 
 
-module.exports = { displayTime, logger, RecalculateHash, merkleRoot, encrypt, decrypt };
+
+module.exports = { 
+  displayTime, 
+  logger, 
+  RecalculateHash, 
+  merkleRoot, 
+  encrypt, 
+  decrypt,
+  readFile };

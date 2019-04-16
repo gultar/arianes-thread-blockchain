@@ -11,6 +11,7 @@ class Wallet{
         this.id = '';
         this.privateKey = '';
         this.publicKey = '';
+        this.transactions = {}
     }
 
     generateEntropy(){
