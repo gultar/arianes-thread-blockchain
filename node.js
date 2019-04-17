@@ -1026,7 +1026,7 @@ class Node {
         if(isBlockSynced === true){
 
           logger(chalk.blue('* Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
-          Mempool.deleteTransactionsFromMinedBlock(Object.keys(newBlock.transactions))
+          Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
           return true;
         }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
           //Start syncing from the index returned by syncBlock;
