@@ -26,24 +26,6 @@ class Wallet{
         return randomGen;
     }
 
-    // async generatePrivateKey(){
-    //     if(!_(this).privateKey){
-            
-    //     }
-    // }
-  
-    // generateAddress(){
-    //     if(!this.publicKey){
-            
-    //     }
-    // }
-
-    // generateID(){
-    //     if(!this.id && this.publicKey){
-    //         this.id = sha1(this.publicKey);
-    //     }
-    // }
-
     async createCompressedPublicKey(){
         return await _(this).privateKey.toCompressedPublicKey()
     }

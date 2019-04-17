@@ -181,7 +181,7 @@ class Blockchain{
           }
         }else{
           logger('Mining aborted. Peer has mined a new block');
-          this.putbackPendingTransactions(block);
+          Mempool.putbackPendingTransactions(block);
           callback(false, false)
         }
       });
