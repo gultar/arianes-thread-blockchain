@@ -66,7 +66,7 @@ class NodeList{
                 })
                 
             }catch(e){
-                logger(e);
+                console.log(e);
                 reject(e)
             }
         })
@@ -78,10 +78,10 @@ class NodeList{
         try{
             let saved = writeToFile(this, 'nodes.json');
             if(saved){
-                logger('Saved list of know nodes');
+                logger('Saved list of known nodes');
             }
         }catch(e){
-            logger(e)
+            console.log(e)
         }
     }
 }

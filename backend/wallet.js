@@ -63,7 +63,7 @@ class Wallet{
                     resolve(false);
                 }
             }catch(e){
-                logger(e);
+                console.log(e);
                 resolve(false);
             }
             
@@ -83,7 +83,7 @@ class Wallet{
 
                     resolve(true)
                 }catch(e){
-                    logger(e);
+                    console.log(e);
                     reject(e);
                 }
                 
@@ -107,7 +107,7 @@ class Wallet{
                 return signature;
 
             }catch(e){
-                logger(e)
+                console.log(e)
             }
         }
     }
@@ -158,7 +158,7 @@ class Wallet{
                           }
                         });
                     }catch(e){
-                        logger(e);
+                        console.log(e);
                         resolve(false)
                     }
                 }

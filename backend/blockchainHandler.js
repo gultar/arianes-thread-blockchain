@@ -26,10 +26,9 @@ const initBlockchain = async () => {
           try{
             blockchainObject = JSON.parse(blockchainFile);
             blockchain = instanciateBlockchain(blockchainObject);
-            await blockchain.mempool.loadMempool()
             resolve(blockchain);
           }catch(e){
-            logger(e);
+            console.log(e);
             resolve(false);
           }
         }else{

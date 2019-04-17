@@ -1,9 +1,45 @@
 const fs = require('fs')
 const { logger, readFile, writeToFile, createFile, merge } = require('./utils')
+
 class Mempool{
     constructor(){
         this.pendingTransactions = {};
         this.rejectedTransactions = {};
+    }
+
+    addTransaction(transaction){
+        try{
+            if(transaction && transaction.hasOwnProperty('hash')){
+                if(!this.pendingTransactions[transaction.hash]){
+                    this.pendingTransactions[transaction.hash] = transaction;
+                    Object.freeze(this.pendingTransactions[transaction.hash]);
+                }else{
+                    logger('Cannot overwrite transaction in pool');
+                }
+            }
+            
+        }catch(e){
+            console.log(e);
+        }
+        
+    }
+
+    gatherTransactionsForBlock(){
+
+    }
+
+    deleteTransactionFromHash(hash){
+        if(this.pendingTransactions[hash]){
+            delete this.pendingTransactions[hash];
+        }
+    }
+
+    deleteTransactionsFromMinedBlock(transactions){
+        let txHashes = Object.keys(transactions);
+        
+        txHashes.forEach( hash =>{
+            this.deleteTransactionFromHash(hash);
+        })
     }
 
     putbackPendingTransactions(block){
@@ -17,10 +53,10 @@ class Mempool{
         return new Promise((resolve, reject)=>{
             fs.exists('mempool.json', async (exists)=>{
                 if(!exists){
-                    resolve(await this.createMempool().catch(e =>{ { logger(e) } }))
+                    resolve(await this.createMempool().catch(e =>{ { console.log(e) } }))
                 }
 
-                let mempoolFile = await readFile('mempool.json').catch(e =>{ { logger(e) } })
+                let mempoolFile = await readFile('mempool.json').catch(e =>{ { console.log(e) } })
                 if(mempoolFile){
                     try{
                         let oldMempool = JSON.parse(mempoolFile);
@@ -34,7 +70,7 @@ class Mempool{
                         this.rejectedTransactions = newRejectedTransactions;
                         resolve(true)
                     }catch(e){
-                        logger(e)
+                        console.log(e)
                         resolve(false)
                     }
                     
@@ -45,8 +81,27 @@ class Mempool{
         
     }
 
+    mergePools(oldPool, currentPool){
+        try{
+            
+            let oldPoolHashes = Object.keys(oldPool);
+            let currentPoolHashes = Object.keys(currentPool);
+
+            oldPoolHashes.forEach( hash =>{
+                
+                if(!currentPool[hash]){
+                    currentPool[hash] = oldPool[hash];
+                }
+            })
+        }catch(e){
+            console.log(e)
+        }
+        
+        
+    }
+
     async saveMempool(){
-        let mempoolFile = await readFile('mempool.json').catch(e =>{ { logger(e) } })
+        let mempoolFile = await readFile('mempool.json').catch(e =>{ { console.log(e) } })
         if(mempoolFile){
             try{
                 let oldMempool = JSON.parse(mempoolFile);
@@ -76,7 +131,7 @@ class Mempool{
 
     async createMempool(){
         return new Promise(async (resolve, reject)=>{
-            let created = await createFile(this, 'mempool.json').catch(e =>{ { logger(e) } })
+            let created = await createFile(this, 'mempool.json').catch(e =>{ { console.log(e) } })
             if(created){
                 logger('Created mempool file');
                 resolve(true)
@@ -90,10 +145,23 @@ class Mempool{
 }
 const tryOut = async ()=>{
     let m = new Mempool();
-    m.pendingTransactions['poubelle'] = 'hector';
-    m.loadMempool().then(()=>{
-        console.log(m)
-    })
+    m.pendingTransactions['hello'] = 'world';
+    m.pendingTransactions['booga'] = 'booga';
+    let myTx = new Transaction('hello', 'bitch', 0, '');
+    
+    m.addTransaction(myTx);
+    m.pendingTransactions[myTx.hash].amount = 10;
+    console.log(m.pendingTransactions[myTx.hash])
+
+    
+    
+    
+
+    let tx = {
+        'bingo':'solo',
+        'hello':'world',
+        'booga':'booga'
+    }
     
 }
 

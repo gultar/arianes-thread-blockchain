@@ -18,7 +18,6 @@ const Block = require('./block');
 const setChallenge = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
-const Mempool = require('./mempool')
 
 /**
   * @desc Basic blockchain class.
@@ -35,7 +34,6 @@ class Blockchain{
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
     this.difficulty = 5;
-    this.mempool = new Mempool();
     this.pendingTransactions = (pendingTransactions? pendingTransactions: {});
     this.miningReward = 50;
     this.ipAddresses = ipAddresses;

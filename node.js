@@ -14,13 +14,16 @@ const { initBlockchain } = require('./backend/blockchainHandler.js');
 const Wallet = require('./backend/wallet')
 const Blockchain = require('./backend/blockchain');
 const Transaction = require('./backend/transaction');
-const NodeList = require('./backend/nodelist')
+const NodeList = require('./backend/nodelist');
+const Mempool = require('./backend/mempool')
 const { displayTime, logger } = require('./backend/utils');
 const sha256 = require('./backend/sha256');
 const sha1 = require('sha1')
 const axios = require('axios');
 const chalk = require('chalk');
-const fs = require('fs')
+const fs = require('fs');
+// var _ = require('private-parts').createKey();
+
 let txgenCounter = 5000;
 let stopTxgen = false;
 /**
@@ -35,6 +38,8 @@ class Node {
     this.address = 'http://'+address+':'+port,
     this.port = port
     this.id = sha1(this.address);
+    this.chain = {};
+    this.mempool = new Mempool()
     this.ioServer = {};
     this.wallets = {};
     this.publicKey = '';
@@ -43,8 +48,6 @@ class Node {
     this.connectionsToPeers = {};
     this.knownPeers = [];
     this.nodeList = new NodeList();
-    this.token = {};
-    this.chain = {};
     this.messageBuffer = {};
     this.minerStarted = false;
     this.minerPaused = false;
@@ -69,48 +72,52 @@ class Node {
       const expressWs = require('express-ws')(app);
       app.use(express.static(__dirname+'/views'));
       const server = http.createServer(app).listen(this.port);
+
       this.initHTTPAPI(app);
       this.cleanMessageBuffer();
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
       
+      //Loading blockchain from file
       initBlockchain()
-      .then(blockchain => {
-        if(blockchain){
-          logger('Blockchain successfully loaded')
-            
-          this.chain = blockchain;
-          
-        }else{
-          logger('ERROR: Could not init blockchain')
-        }
-        
-      })
+        .then(blockchain => {
+          if(blockchain){
+            logger('Blockchain successfully loaded')
+            this.chain = blockchain;
+          }else{
+            logger('ERROR: Could not init blockchain')
+          }
+        })
 
-      this.loadWallet('./wallets/'+this.id+'.json')
-      .then((walletLoaded)=>{
-        if(walletLoaded){
-          logger('Wallet loaded:', this.id)
-        }
-      })
-      .catch((e)=>{
-        logger(e)
-      })
-
-      this.nodeList.loadNodeList().then(loaded =>{
-        if(loaded){
-          logger('Loaded list of known nodes')
-        }else{
-          logger('Could not load list of nodes')
-        }
-      })
-      .catch(e=>{
-        logger(e)
-      })
+      //Loading transaction mempool
+      this.mempool.loadMempool()
+        .then((mempoolLoaded)=>{
+          if(mempoolLoaded){
+            logger('Loaded transaction mempool');
+          }else{
+            logger('ERROR: Could not load mempool')
+          }
+        })
       
+      //Loading this node's wallet
+      this.loadWallet('./wallets/'+this.id+'.json')
+        .then((walletLoaded)=>{
+          if(walletLoaded){
+            logger('Wallet loaded:', this.id)
+          }
+        })
 
-
+      //Loading list of known peer addresses
+      this.nodeList.loadNodeList()
+        .then(loaded =>{
+          if(loaded){
+            logger('Loaded list of known nodes')
+          }else{
+            logger('Could not load list of nodes')
+          }
+        })
+      
     }catch(e){
-      logger(e);
+      console.log(e);
     }
 
     this.ioServer.on('connection', (socket) => {
@@ -118,13 +125,12 @@ class Node {
         let peerAddress;
         let peerToken;
          if(socket.handshake.query.token !== undefined){
-
              try{
-
                socket.on('message', (msg) => { logger('Client:', msg); });
+
                peerToken = JSON.parse(socket.handshake.query.token);
-               
                peerAddress = peerToken.address
+
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
 
                  this.peersConnected[peerAddress] = socket;
@@ -134,17 +140,18 @@ class Node {
                }else{
                  socket.emit('message', 'Connected to local node');
                  this.externalEventHandlers(socket);
-
                }
 
              }catch(e){
-               logger(e)
+               console.log(e)
              }
 
          }else{
            socket.emit('message', 'Connected to local node')
            this.externalEventHandlers(socket);
          }
+      }else{
+        console.log('ERROR: Could not create socket')
       }
 
     });
@@ -162,7 +169,7 @@ class Node {
         })
       }
     }catch(e){
-      logger(e)
+      console.log(e)
     }
 
   }
@@ -213,7 +220,7 @@ class Node {
       })
 
     }catch(e){
-      logger(e);
+      console.log(e);
     }
     
   }
@@ -365,7 +372,7 @@ class Node {
           })
         }
     }catch(e){
-      logger(e);
+      console.log(e);
     }
 
   }
@@ -413,7 +420,7 @@ class Node {
       try{
         this.connectionsToPeers[address].emit(eventType, data);
       }catch(e){
-        logger(e);
+        console.log(e);
       }
     }
   }
@@ -428,7 +435,7 @@ class Node {
         // this.serverBroadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
 
       }catch(e){
-        logger(e);
+        console.log(e);
       }
 
     }
@@ -467,11 +474,11 @@ class Node {
           }
         })
         .catch((e)=>{
-          logger(e);
+          console.log(e);
         })
         
       }catch(e){
-        logger(e)
+        console.log(e)
       }
       
     });
@@ -519,7 +526,7 @@ class Node {
           res.json({ error:'index of current block required' }).end()
         }
       }catch(e){
-        logger(e);
+        console.log(e);
       }
 
 
@@ -532,7 +539,7 @@ class Node {
           res.json({ chainHeaders:chainHeaders }).end()
 
       }catch(e){
-        logger(e);
+        console.log(e);
       }
 
 
@@ -575,7 +582,7 @@ class Node {
           }
         }
       }catch(e){
-        logger(e)
+        console.log(e)
       }
 
     })
@@ -598,7 +605,7 @@ class Node {
       try{
         res.json(this.chain).end();
       }catch(e){
-        logger(e)
+        console.log(e)
       }
 
     });
@@ -671,7 +678,7 @@ class Node {
       try{
         socket.emit('message', JSON.stringify({ peers:this.nodeList.addresses }, null, 2))
       }catch(e){
-        logger(e)
+        console.log(e)
       }
     })
 
@@ -751,7 +758,7 @@ class Node {
         this.broadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
 
       }catch(e){
-        logger(e);
+        console.log(e);
       }
 
     }
@@ -783,9 +790,27 @@ class Node {
 
             }
           }catch(e){
-            logger(e)
+            console.log(e)
           }
           break;
+        // case 'transaction':
+        //   try{
+        //     var transaction = JSON.parse(data);
+        //     if(transaction){
+
+        //       this.chain.validateTransaction(transaction, (valid)=>{
+        //         if(valid){
+        //           this.chain.mempool.addTransaction(transaction);
+        //           this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+        //           if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+        //         }
+        //       });
+
+        //     }
+        //   }catch(e){
+        //     console.log(e)
+        //   }
+        //   break;
         case 'endMining':
           if(this.minerStarted){
             this.minerPaused = true;
@@ -815,10 +840,10 @@ class Node {
             }).then((response)=>{
 
             }).catch((e)=>{
-              logger(e)
+              console.log(e)
             })
           }catch(e){
-            logger(e)
+            console.log(e)
           }
           break;
         case 'addressBroadcast':
@@ -872,7 +897,7 @@ class Node {
 
 
       }catch(e){
-        logger(e)
+        console.log(e)
       }
     }
 
@@ -902,7 +927,7 @@ class Node {
           return chainInfo
 
       }catch(e){
-        logger(e)
+        console.log(e)
       }
     
 
@@ -946,7 +971,7 @@ class Node {
 
       return isLinked;
     }catch(e){
-      logger(e)
+      console.log(e)
     }
 
   }
@@ -974,7 +999,7 @@ class Node {
           logger('Could not send length of chain to peer', err.errno)
         })
       }catch(e){
-        logger(e);
+        console.log(e);
       }
     }
   }
@@ -1118,7 +1143,7 @@ class Node {
         })
     }
   }catch(e){
-    logger(e);
+    console.log(e);
     return false;
   }
 
@@ -1173,7 +1198,7 @@ class Node {
             }
 
           }catch(e){
-            logger(e)
+            console.log(e)
           }
 
 
@@ -1196,7 +1221,7 @@ class Node {
          return ((latestBlock.timestamp - blockBeforeThat.timestamp)/1000)
        }
      }catch(e){
-       logger(e)
+       console.log(e)
      }
 
    }
@@ -1305,7 +1330,7 @@ class Node {
       })
 
     }catch(e){
-      logger(e);
+      console.log(e);
     }
 
   }
@@ -1346,7 +1371,7 @@ class Node {
         }
         
       }catch(e){
-        logger(e);
+        console.log(e);
       }
     })
     
@@ -1464,7 +1489,7 @@ class Node {
         
       })
       .catch((e)=>{
-        logger(e)
+        console.log(e)
       })
 
     

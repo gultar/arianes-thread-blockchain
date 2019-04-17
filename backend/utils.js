@@ -157,7 +157,7 @@ const parseToString = (data)=>{
       try{
         file = JSON.stringify(data, null, 2);
       }catch(e){
-        logger(e);
+        console.log(e);
       }
       break;
     case 'number':
@@ -181,7 +181,7 @@ const merge = (obj1 ,obj2 )=>{
       
       return obj3;
     }catch(e){
-      logger(e);
+      console.log(e);
     }
     
   

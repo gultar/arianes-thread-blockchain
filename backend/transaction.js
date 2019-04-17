@@ -67,7 +67,7 @@ class Transaction{
         return jsonSize(transaction)
       }
     }catch(e){
-      logger(e)
+      console.log(e)
     }
   }
 
