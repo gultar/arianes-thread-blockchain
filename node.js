@@ -100,7 +100,7 @@ class Node {
         })
       
       //Loading this node's wallet
-      this.loadWallet('./wallets/'+this.id+'.json')
+      this.loadNodeWallet('./wallets/'+this.id+'.json')
         .then((walletLoaded)=>{
           if(walletLoaded){
             logger('Wallet loaded:', this.id)
@@ -184,12 +184,12 @@ class Node {
     }
   }
 
-  //Only handles one wallet......
+  
   /**
     Public (and optionally private) key loader
     @param {string} $callback - callback that hands out the loaded wallet
   */
-  loadWallet(filename){
+  loadNodeWallet(filename){
     try{
       return new Promise(async (resolve, reject)=>{
         
@@ -212,7 +212,7 @@ class Node {
             
           }else{
             
-              let created = await this.createWallet();
+              let created = await this.createNodeWallet();
               resolve(created);
     
           }
@@ -226,7 +226,7 @@ class Node {
     
   }
 
-  createWallet(){
+  createNodeWallet(){
     return new Promise((resolve, reject)=>{
       
       let myWallet = new Wallet();
@@ -327,6 +327,9 @@ class Node {
           //     }
           //   }
           // })
+          peer.on('getAddr', ()=>{
+            peer.emit('addr', this.nodeList.addresses);
+          })
 
           peer.on('disconnect', () =>{
             logger('connection with peer dropped');
@@ -425,23 +428,6 @@ class Node {
       }
     }
   }
-  // sendToRemoteNode(type, data){
-  //   if(type){
-  //     try{
-  //       // if(typeof data == 'object')
-  //       //   data = JSON.stringify(data);
-  //       // var shaInput = (Math.random() * Date.now()).toString()
-  //       // var messageId = sha256(shaInput);
-  //       // this.messageBuffer[messageId] = messageId;
-  //       // this.serverBroadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
-
-  //     }catch(e){
-  //       console.log(e);
-  //     }
-
-  //   }
-  // }
-  
 
 
   /**
@@ -454,7 +440,6 @@ class Node {
 
     app.post('/node', (req, res) => {
       const { host, port } = req.body;
-      const { callback } = req.query;
       const node = `http://${host}:${port}`;
 
       this.connectToPeer(node);
@@ -471,7 +456,14 @@ class Node {
           if(!success){
             res.send('FAILED')
           }else{
-            res.send('SUCCESS');
+            res.send(`
+              Transaction receipt:
+              Sender: ${sender}
+              Receiver: ${receiver}
+              Amount: ${amount}
+              Data: ${data}
+              Sent at: ${Date.now()}
+            `);
           }
         })
         .catch((e)=>{

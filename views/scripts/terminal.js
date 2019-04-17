@@ -332,7 +332,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           $('#element').jsonView(blockchain);
           break;
-        case 'show-pending':
+        case 'show-transact':
           if(!isConnected){
             connectError(cmd);
             break;
@@ -399,7 +399,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
       }
 
       function joinNetwork(args, cmd){
-        socket.emit('joinNetwork', endpointToken);
+        socket.emit('joinNetwork');
       }
 
       function disconnect(args, cmd){
@@ -446,16 +446,13 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         if(args.indexOf(';') > -1){
 
           args = args.split(';');
-          console.log(args[0]);
-          console.log(args[1]);
-          console.log(args[2]);
+
           for(var i=0; i<args.length; i++){
             args[i] = args[i].trim()
           }
 
           if(args.length > 2){
 
-            //sendTransaction(null, args[0], args[1], args[2]);
             sendTx(args[0], args[1], args[2], args[3])
           }else{
             output('Please enter an <b>address to send to</b>, the <b>amount</b> and some <b>optional data</b>');
@@ -467,9 +464,6 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
       }
 
       function sendTx(fromAddress, toAddress, amount, data=''){
-
-        // console.log('Client token issued', endpointToken);
-    
     
       var transactToSend = {
         'sender' : fromAddress,
@@ -486,9 +480,6 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         
             data: txL,
             processData: true,
-            // tried all those content/dataTypes without any luck
-            //contentType: "text/plain",
-            //dataType: "text",
             contentType: "application/json; charset=utf-8",
             dataType: "json",
         
@@ -541,34 +532,24 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
 
     function runShowTransact(){
       var transIndex = 0;
-
-
-      output('----------Pending Transactions----------')
-      for(transactionKey of Object.keys(blockchain.pendingTransactions)){
-        var transaction = blockchain.pendingTransactions[transactionKey];
-        var keys = Object.keys(transaction);
-        // var transactionOutput = loopThroughBlockTransactions(transactionKeys, transaction);
-        var transactionOutput = loopThroughBlockTransactions(keys,transaction);
-        output('<div class="block-data">' + transactionOutput + '</div>');
-        transIndex++;
-      }
-
-
+      var transactionOutput = loopThroughBlockTransactions(keys,transaction);
+      output('<div class="block-data">' + transactionOutput + '</div>');
     }
 
-    function runShowPublicKeys(){
-      var allTokens = blockchain.nodeTokens;
-      var token;
-      for(var tokenID of Object.keys(allTokens)){
-        token = allTokens[tokenID];
-        console.log(allTokens[tokenID]);
+    // function runShowPublicKeys(){
+    //   var allTokens = blockchain.nodeTokens;
+    //   var token;
+    //   for(var tokenID of Object.keys(allTokens)){
+    //     token = allTokens[tokenID];
+    //     console.log(allTokens[tokenID]);
 
-        output("Node Ip Address : "+ token.address);
-        output("Public Address ID : "+ token.id);
-        output("Full Public Address : "+ token.publicKey);
-        output("*********************************************")
-      }
-    }
+    //     output("Node Ip Address : "+ token.address);
+    //     output("Public Address ID : "+ token.id);
+    //     output("Full Public Address : "+ token.publicKey);
+    //     output("*********************************************")
+    //   }
+    // }
+
     }
   }
 
@@ -658,7 +639,7 @@ setTimeout(function(){
 
     socket  = io(nodeAddress ); //{'query':{  token: JSON.stringify(endpointToken)  }}
     socket.heartbeatTimeout = 30000;
-    console.log(socket)
+    //console.log(socket)
 
       socket.on('disconnect', function(){
         console.log('Node went offline');
@@ -676,7 +657,7 @@ setTimeout(function(){
       })
 
       socket.on('message', function(message){
-        console.log('NODE->', message);
+        //console.log('NODE->', message);
         outputDebug('NODE-> '+message)
       })
 
@@ -684,10 +665,10 @@ setTimeout(function(){
         var message = data.message;
         var arg = data.arg;
         if(arg) {
-          console.log('NODE->'+message+" "+arg);
+          //console.log('NODE->'+message+" "+arg);
           outputDebug('NODE-> '+message+" "+arg);
         }else{
-          console.log('NODE->', message);
+          //console.log('NODE->', message);
           outputDebug('NODE-> '+message);
         }
 
@@ -757,27 +738,27 @@ window.onload = function() {
     setInterval(function(){ $('#myULContainer').html('<div id="element"></div>'); },60000)
 }
 
-function longestChain(localBlockchain=false, distantBlockchain=false){
-  var longestBlockchain;
+// function longestChain(localBlockchain=false, distantBlockchain=false){
+//   var longestBlockchain;
 
-  if(distantBlockchain){
-    if(localBlockchain){
-      if(localBlockchain.chain.length >= distantBlockchain.chain.length){
-        longestBlockchain = localBlockchain;
-      }
-      else{
-        longestBlockchain = distantBlockchain;
-      }
-      return longestBlockchain;
-    }else{
-      //no localblockchain, revert to distant node's version
-      return distantBlockchain
-    }
-  }else{
-    //no distant blockchain, revert to local version
-    return localBlockchain;
-  }
-}
+//   if(distantBlockchain){
+//     if(localBlockchain){
+//       if(localBlockchain.chain.length >= distantBlockchain.chain.length){
+//         longestBlockchain = localBlockchain;
+//       }
+//       else{
+//         longestBlockchain = distantBlockchain;
+//       }
+//       return longestBlockchain;
+//     }else{
+//       //no localblockchain, revert to distant node's version
+//       return distantBlockchain
+//     }
+//   }else{
+//     //no distant blockchain, revert to local version
+//     return localBlockchain;
+//   }
+// }
 
 function getLatestBlock(blockchain){
   var lengthChain = blockchain.chain.length;

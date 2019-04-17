@@ -41,7 +41,8 @@ class Wallet{
         
         return new Promise(async (resolve, reject)=>{
             try{
-                _(this).privateKey = await ECDSA.generateKey(secretSeed);
+               
+                _(this).privateKey = ECDSA.generateKey(secretSeed);
                 this.publicKey = await this.createCompressedPublicKey();
                 this.id = await sha1(this.publicKey);
                 if(_(this).privateKey && this.publicKey && this.id){
@@ -80,7 +81,7 @@ class Wallet{
     }
 
     getSignature(data){
-        if(data){
+        if(_(this).privateKey && data){
             return _(this).privateKey.sign(data)
         }else{
             logger('ERROR: could not sign data')
@@ -90,6 +91,7 @@ class Wallet{
     async sign(data){
         if(data && _(this).privateKey){
             let signature = ''
+
             try{
                 if(typeof data == 'object'){
                     let message = JSON.stringify(data);
@@ -113,13 +115,13 @@ class Wallet{
         if(this.publicKey && _(this).privateKey && filename){
             
             const formatToJWK = () =>{
-                 return _(this).privateKey.toJWK();
+                let key = _(this).privateKey
+                 return key.toJWK();
             }
 
-            _(this).privateKey = formatToJWK()
             let walletToSave = {
                 publicKey:this.publicKey,
-                privateKey:_(this).privateKey,
+                privateKey:formatToJWK(),
                 id:this.id,
                 transaction:this.transactions
             }
