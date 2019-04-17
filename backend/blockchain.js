@@ -18,6 +18,7 @@ const Block = require('./block');
 const setChallenge = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
+const Mempool = require('./mempool')
 
 /**
   * @desc Basic blockchain class.
@@ -34,7 +35,6 @@ class Blockchain{
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
     this.difficulty = 5;
-    this.pendingTransactions = (pendingTransactions? pendingTransactions: {});
     this.miningReward = 50;
     this.ipAddresses = ipAddresses;
     this.blockSize = 20; //Minimum Number of transactions per block
@@ -85,28 +85,14 @@ class Blockchain{
     @param {object} $newBlock - New block to be added
   */
   syncBlock(newBlock){
-
-      var blockStatus;
-      var pending = this.pendingTransactions;
-      if(newBlock.transactions != undefined){
-        var newTransactHashes = Object.keys(newBlock.transactions);
-      }else{
-        return false
-      }
-
+      if(newBlock && newBlock.transactions){
+        var blockStatus;
 
       blockStatus = this.validateBlock(newBlock);
 
       if(blockStatus === true){
-        for(var hash of newTransactHashes){
-          
-          if(this.pendingTransactions[hash]){
-            delete this.pendingTransactions[hash]
-          }
-          // delete pending[hash];
-        }
+        Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
         this.chain.push(newBlock);
-        // this.pendingTransactions = pending;
         return true;
       }else if(blockStatus > 0){
         return blockStatus;
@@ -114,12 +100,16 @@ class Blockchain{
         return false;
       }else{
         return false;
+      }s
+      }else{
+        return false;
       }
+      
 
   }
 
   hasEnoughTransactionsToMine(){
-    if(Object.keys(this.pendingTransactions).length >= this.blockSize){
+    if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
       return true
     }else{
       return false;
@@ -131,7 +121,7 @@ class Blockchain{
   */
   putbackPendingTransactions(block){
     for(var txHash in Object.keys(block.transactions)){
-      this.pendingTransactions[txHash] = block.transactions[txHash];
+      Mempool.pendingTransactions[txHash] = block.transactions[txHash];
       delete block.transactions[txHash];
     }
   }
@@ -154,11 +144,11 @@ class Blockchain{
     if(isMining && process.env.END_MINING !== true){
 
       logger('Mining next block...');
-      logger('Number of pending transactions:', Object.keys(this.pendingTransactions).length);
+      logger('Number of pending transactions:', Object.keys(Mempool.pendingTransactions).length);
 
-      let block = new Block(Date.now(), this.pendingTransactions);
+      let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock());
       let lastBlock = this.getLatestBlock();
-      this.pendingTransactions = {};
+      
 
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
@@ -181,7 +171,7 @@ class Blockchain{
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
             var miningReward = new Transaction(null, miningRewardAddress, this.miningReward, "", Date.now(), false, 'coinbase')
-            this.pendingTransactions[miningReward.hash] = miningReward;
+            Mempool.pendingTransactions[miningReward.hash] = miningReward;
   
             callback(miningSuccessful, block.hash);
           }else{
@@ -207,9 +197,19 @@ class Blockchain{
 
 
   createTransaction(transaction){
-    this.validateTransaction(transaction, (valid)=>{
-        this.pendingTransactions[transaction.hash] = transaction;
+    return new Promise((resolve, reject)=>{
+      try{
+        this.validateTransaction(transaction)
+        .then(valid =>{
+          resolve(valid)
+        })
+      }catch(e){
+        console.log(e)
+        reject(e)
+      }
+      
     })
+    
   }
   /**
     Follows the account balance of a given wallet through current unvalidated transactions
@@ -222,8 +222,8 @@ class Blockchain{
     if(publicKey){
       var address = publicKey;
 
-      for(var transHash of Object.keys(this.pendingTransactions)){
-        trans = this.pendingTransactions[transHash];
+      for(var transHash of Object.keys(Mempool.pendingTransactions)){
+        trans = Mempool.pendingTransactions[transHash];
         if(trans){
           if(trans.fromAddress == address){
 
@@ -495,53 +495,55 @@ class Blockchain{
   * @param {Object} $transaction - transaction to be validated
   * @param {function} $callback - Sends back the validity of the transaction
   */
-  async validateTransaction(transaction, callback){
 
-    if(transaction){
+  async validateTransaction(transaction){
+    return new Promise(async (resolve, reject)=>{
+      if(transaction){
 
-      try{
-
-
-        var isChecksumValid = this.validateChecksum(transaction);
-        // logger("Is transaction hash valid? :", isChecksumValid);
-
-        let isSignatureValid = await this.validateSignature(transaction)
-         // logger('Is valid signature? :',isSignatureValid)
-         
-         
-        var isMiningReward = this.isMiningRewardTransaction(transaction);
-        // logger('Is mining reward transaction? :', isMiningReward);
-
-        var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
-        // logger("Balance of sender is : ",balanceOfSendingAddr);
-
-          if(!balanceOfSendingAddr && balanceOfSendingAddr !== 0){
-              logger('Cannot verify balance of undefined address token');
-              callback(false);
-          }
-
-          if(balanceOfSendingAddr >= transaction.amount){
-            // logger('Transaction validated successfully');
-            callback(true)
-          }else if(transaction.type === 'query'){
-            //handle blockbase queries
-          }else{
-            logger('Address '+transaction.fromAddress+' does not have sufficient funds to complete transaction');
-            callback(false);
-          }
-      }catch(err){
-        logger(err);
-        callback(false);
+        try{
+  
+          var isChecksumValid = this.validateChecksum(transaction);
+          // logger("Is transaction hash valid? :", isChecksumValid);
+  
+          let isSignatureValid = await this.validateSignature(transaction)
+           // logger('Is valid signature? :',isSignatureValid)
+           
+          var isMiningReward = this.isMiningRewardTransaction(transaction);
+          // logger('Is mining reward transaction? :', isMiningReward);
+  
+          var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+          // logger("Balance of sender is : ",balanceOfSendingAddr);
+  
+            if(!balanceOfSendingAddr && balanceOfSendingAddr !== 0){
+                logger('Cannot verify balance of undefined address token');
+                resolve(false)
+            }
+  
+            if(balanceOfSendingAddr >= transaction.amount){
+              // logger('Transaction validated successfully');
+              resolve(true)
+            }else if(transaction.type === 'query'){
+              //handle blockbase queries
+            }else{
+              logger('Address '+transaction.fromAddress+' does not have sufficient funds to complete transaction');
+              resolve(false)
+            }
+  
+        }catch(err){
+          console.log(err);
+          reject(err)
+        }
+  
+  
+  
+  
+      }else{
+        logger('ERROR: Transaction is undefined');
+        resolve(false)
       }
-
-
-
-
-  	}else{
-  		logger('ERROR: Transaction is undefined');
-  		callback(false)
-  	}
-
+  
+    })
+    
 
   }
   /**

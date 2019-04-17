@@ -4,12 +4,13 @@ const sha256 = require('./sha256');
 const sha1 = require('sha1');
 const { encrypt, decrypt } = require('./utils')
 const fs = require('fs')
+let _ = require('private-parts').createKey();
 
 class Wallet{
     
     constructor(){
         this.id = '';
-        this.privateKey = '';
+        _(this).privateKey = '';
         this.publicKey = '';
         this.transactions = {}
     }
@@ -25,22 +26,26 @@ class Wallet{
         return randomGen;
     }
 
-    async generatePrivateKey(){
-        if(!this.privateKey){
+    // async generatePrivateKey(){
+    //     if(!_(this).privateKey){
             
-        }
-    }
+    //     }
+    // }
   
-    generateAddress(){
-        if(!this.publicKey){
+    // generateAddress(){
+    //     if(!this.publicKey){
             
-        }
-    }
+    //     }
+    // }
 
-    generateID(){
-        if(!this.id && this.publicKey){
-            this.id = sha1(this.publicKey);
-        }
+    // generateID(){
+    //     if(!this.id && this.publicKey){
+    //         this.id = sha1(this.publicKey);
+    //     }
+    // }
+
+    async createCompressedPublicKey(){
+        return await _(this).privateKey.toCompressedPublicKey()
     }
 
     async getWallet(){
@@ -54,10 +59,10 @@ class Wallet{
         
         return new Promise(async (resolve, reject)=>{
             try{
-                this.privateKey = await ECDSA.generateKey(secretSeed);
-                this.publicKey = await this.privateKey.toCompressedPublicKey();
+                _(this).privateKey = await ECDSA.generateKey(secretSeed);
+                this.publicKey = await this.createCompressedPublicKey();
                 this.id = await sha1(this.publicKey);
-                if(this.privateKey && this.publicKey && this.id){
+                if(_(this).privateKey && this.publicKey && this.id){
                     resolve(this);
                 }else{
                     resolve(false);
@@ -79,7 +84,7 @@ class Wallet{
                     this.id = json.id;
                     this.publicKey = json.publicKey;
                     this.transactions = json.transactions;
-                    this.privateKey = ECDSA.fromJWK(json.privateKey);
+                    _(this).privateKey = ECDSA.fromJWK(json.privateKey);
 
                     resolve(true)
                 }catch(e){
@@ -92,16 +97,24 @@ class Wallet{
         
     }
 
+    getSignature(data){
+        if(data){
+            return _(this).privateKey.sign(data)
+        }else{
+            logger('ERROR: could not sign data')
+        }
+    }
+
     async sign(data){
-        if(data && this.privateKey){
+        if(data && _(this).privateKey){
             let signature = ''
             try{
                 if(typeof data == 'object'){
                     let message = JSON.stringify(data);
-                    signature = this.privateKey.sign(message)
+                    signature = this.getSignature(message)
 
                 }else if(typeof data == 'string'){
-                    signature = this.privateKey.sign(data)
+                    signature = this.getSignature(data)
                 }
                 
                 return signature;
@@ -112,12 +125,23 @@ class Wallet{
         }
     }
 
+    
+
     saveWallet(filename){
-        if(this.publicKey && this.privateKey && filename){
+        if(this.publicKey && _(this).privateKey && filename){
             
-            this.privateKey = this.privateKey.toJWK();
-            
-            let walletString = JSON.stringify(this, null, 2);
+            const formatToJWK = () =>{
+                 return _(this).privateKey.toJWK();
+            }
+
+            _(this).privateKey = formatToJWK()
+            let walletToSave = {
+                publicKey:this.publicKey,
+                privateKey:_(this).privateKey,
+                id:this.id,
+                transaction:this.transactions
+            }
+            let walletString = JSON.stringify(walletToSave, null, 2);
             var wstream = fs.createWriteStream(filename);
 
             wstream.write(walletString);
@@ -150,7 +174,7 @@ class Wallet{
                           if(data != undefined){
                               let wallet = JSON.parse(data);
                               this.publicKey = wallet.publicKey;
-                              this.privateKey = ECDSA.fromJWK(wallet.privateKey);
+                              _(this).privateKey = ECDSA.fromJWK(wallet.privateKey);
                               this.id = wallet.id;
                               resolve(wallet);
                           }else{

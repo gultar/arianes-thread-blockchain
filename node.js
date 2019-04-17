@@ -39,7 +39,7 @@ class Node {
     this.port = port
     this.id = sha1(this.address);
     this.chain = {};
-    this.mempool = new Mempool()
+    //Mempool = new Mempool()
     this.ioServer = {};
     this.wallets = {};
     this.publicKey = '';
@@ -89,10 +89,11 @@ class Node {
         })
 
       //Loading transaction mempool
-      this.mempool.loadMempool()
+      Mempool.loadMempool()
         .then((mempoolLoaded)=>{
           if(mempoolLoaded){
             logger('Loaded transaction mempool');
+            logger('Number of transactions in pool: '+Mempool.sizeOfPool());
           }else{
             logger('ERROR: Could not load mempool')
           }
@@ -424,22 +425,22 @@ class Node {
       }
     }
   }
-  sendToRemoteNode(type, data){
-    if(type){
-      try{
-        // if(typeof data == 'object')
-        //   data = JSON.stringify(data);
-        // var shaInput = (Math.random() * Date.now()).toString()
-        // var messageId = sha256(shaInput);
-        // this.messageBuffer[messageId] = messageId;
-        // this.serverBroadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
+  // sendToRemoteNode(type, data){
+  //   if(type){
+  //     try{
+  //       // if(typeof data == 'object')
+  //       //   data = JSON.stringify(data);
+  //       // var shaInput = (Math.random() * Date.now()).toString()
+  //       // var messageId = sha256(shaInput);
+  //       // this.messageBuffer[messageId] = messageId;
+  //       // this.serverBroadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
 
-      }catch(e){
-        console.log(e);
-      }
+  //     }catch(e){
+  //       console.log(e);
+  //     }
 
-    }
-  }
+  //   }
+  // }
   
 
 
@@ -721,6 +722,10 @@ class Node {
       stopTxgen = true;
     })
 
+    socket.on('mempool', ()=>{
+      socket.emit('mempool', Mempool);
+    })
+
     socket.on('test', ()=>{
       
     })
@@ -775,32 +780,14 @@ class Node {
 
     if(!this.messageBuffer[messageId]){
       switch(type){
-        case 'transaction':
-          try{
-            var transaction = JSON.parse(data);
-            if(transaction && !this.chain.pendingTransactions[transaction.hash]){
-
-              this.chain.validateTransaction(transaction, (valid)=>{
-                if(valid){
-                  this.chain.pendingTransactions[transaction.hash] = transaction;
-                  this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                  if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                }
-              });
-
-            }
-          }catch(e){
-            console.log(e)
-          }
-          break;
         // case 'transaction':
         //   try{
         //     var transaction = JSON.parse(data);
-        //     if(transaction){
+        //     if(transaction && !this.chain.pendingTransactions[transaction.hash]){
 
         //       this.chain.validateTransaction(transaction, (valid)=>{
         //         if(valid){
-        //           this.chain.mempool.addTransaction(transaction);
+        //           this.chain.pendingTransactions[transaction.hash] = transaction;
         //           this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
         //           if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
         //         }
@@ -811,6 +798,29 @@ class Node {
         //     console.log(e)
         //   }
         //   break;
+        case 'transaction':
+          try{
+            var transaction = JSON.parse(data);
+            if(transaction){
+
+              this.chain.validateTransaction(transaction)
+              .then(valid => {
+                if(valid){
+                  Mempool.addTransaction(transaction);
+                  this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                }else{
+                  this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                  Mempool.rejectedTransactions[transaction.hash] = transaction;
+                }
+              })
+
+            }
+          }catch(e){
+            console.log(e)
+          }
+          break;
         case 'endMining':
           if(this.minerStarted){
             this.minerPaused = true;
@@ -1015,9 +1025,8 @@ class Node {
         var isBlockSynced = this.chain.syncBlock(newBlock);
         if(isBlockSynced === true){
 
-          logger(chalk.blue(' * Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
-          this.clearOutPendingTransactions(Object.keys(newBlock.transactions))
-
+          logger(chalk.blue('* Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
+          Mempool.deleteTransactionsFromMinedBlock(Object.keys(newBlock.transactions))
           return true;
         }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
           //Start syncing from the index returned by syncBlock;
@@ -1086,7 +1095,7 @@ class Node {
                 if(response.data.error == 'end of chain'){
                   
                   logger(chalk.green('Blockchain successfully updated'));
-                  logger('Chain is still valid: ', this.chain.isChainValid())
+                  this.chain.isChainValid()
                   this.chain.saveBlockchain()
 
                   this.minerPaused = false;
@@ -1150,9 +1159,8 @@ class Node {
 
  }
 
-
   validateBlockchain(){
-     logger('Chain is still valid:',this.chain.isChainValid())
+    this.chain.isChainValid()
   }
 
   compareHeaders(headers){
@@ -1215,9 +1223,8 @@ class Node {
      try{
        if(this.chain instanceof Blockchain){
          var latestBlock = this.chain.chain[number];
-         var ind1 = latestBlock.blockNumber;
-         var ind2 = ind1-1;
-         var blockBeforeThat = this.chain.chain[ind2];
+         var indexBeforeThat = latestBlock.blockNumber-1;
+         var blockBeforeThat = this.chain.chain[indexBeforeThat];
          return ((latestBlock.timestamp - blockBeforeThat.timestamp)/1000)
        }
      }catch(e){
@@ -1272,7 +1279,7 @@ class Node {
     })
     .catch((error)=>{
       // logger(error)
-      logger('Could not fetch block from ', error.address)
+      logger('Could not fetch chain headers ', error.address)
         if (error.response) {
           // The request was made and the server responded with a status code
           // that falls out of the range of 2xx
@@ -1301,45 +1308,11 @@ class Node {
     @param {number} $amount - Amount of coins to send. Optional IF blockbase query
     @param {object} $data - data to send along with transaction
   */
-  emitNewTransaction(sender, receiver, amount, data){
-    try{
-      let transaction = new Transaction(sender, receiver, amount, data);
-      let transactionValidated;
-      transaction.sign((signature)=>{
-        if(!signature){
-          logger('Transaction signature failed. Check both public key addresses.')
-          return false
-        }else{
-          transaction.signature = signature;
-          this.chain.validateTransaction(transaction, (valid)=>{
-            if(valid){
-
-              this.chain.createTransaction(transaction);
-              this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
-
-            }else{
-              logger('Received an invalid transaction');
-              return false;
-            }
-
-          })
-        }
-
-      })
-
-    }catch(e){
-      console.log(e);
-    }
-
-  }
-
   async broadcastNewTransaction(sender, receiver, amount, data){
     return new Promise( async (resolve, reject)=>{
       try{
         let transaction = new Transaction(sender, receiver, amount, data);
-        let transactionValidated;
+        
         let wallet = this.wallets[this.publicKey];
   
         let signature = await wallet.sign(transaction.hash);
@@ -1351,23 +1324,25 @@ class Node {
 
           transaction.signature = signature;
 
-          this.chain.validateTransaction(transaction, (valid)=>{
-            if(valid){
+          this.chain.createTransaction(transaction)
+            .then( valid =>{
+              if(valid){
 
-              this.chain.createTransaction(transaction);
-              this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
-              resolve(true)
+                Mempool.addTransaction(transaction);
+                this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
+                resolve(true)
 
-            }else{
+              }else{
 
-              logger('Received an invalid transaction');
-              resolve(false);
+                this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                Mempool.rejectedTransactions[transaction.hash] = transaction;
+                resolve(false);
 
-            }
-  
-          })
+              }
+            })
         }
         
       }catch(e){
@@ -1425,7 +1400,7 @@ class Node {
                 this.minerPaused = true;
                 process.MINER = false;
                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-                logger('Chain is still valid: ', this.chain.isChainValid()) //If not valid, will output conflicting block
+                this.chain.isChainValid()
                 this.chain.saveBlockchain()
                 
                 setTimeout(()=>{
@@ -1449,18 +1424,6 @@ class Node {
         }
         
       
-    }
-  }
-
-  /**
-    @desc Fires upon sync block to avoid transaction doubles
-    @param {array} $hashesOfTransactions - List of block transactions to delete from pending transactions
-  */
-  clearOutPendingTransactions(hashesOfTransactions){
-    for(var transact of Object.keys(hashesOfTransactions)){
-      if(this.chain.pendingTransactions[transact]){
-        delete this.chain.pendingTransactions[transact];
-      }
     }
   }
 

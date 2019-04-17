@@ -4,7 +4,8 @@ const Node = require('./node');
 const Transaction = require('./backend/transaction');
 const { copyFile } = require('./backend/blockchainHandler');
 const program = require('commander');
-const { logger } = require('./backend/utils')
+const { logger } = require('./backend/utils');
+const mempool = require('./backend/mempool');
 let port = 8000;
 let arg = '';
 let node;
@@ -99,7 +100,8 @@ process.on('SIGINT', () => {
   logger('Shutting down node and saving state');
   node.minerStarted = false;
   node.minerPaused = true;
-  
+  mempool.saveMempool();
+
   if(process.MINER){
     process.MINER.stop();
     

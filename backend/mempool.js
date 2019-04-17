@@ -24,8 +24,14 @@ class Mempool{
         
     }
 
-    gatherTransactionsForBlock(){
+    sizeOfPool(){
+        return Object.keys(this.pendingTransactions).length;
+    }
 
+    gatherTransactionsForBlock(){
+        let transactions = this.pendingTransactions;
+        this.pendingTransactions = {};
+        return transactions;
     }
 
     deleteTransactionFromHash(hash){
@@ -81,51 +87,12 @@ class Mempool{
         
     }
 
-    mergePools(oldPool, currentPool){
-        try{
-            
-            let oldPoolHashes = Object.keys(oldPool);
-            let currentPoolHashes = Object.keys(currentPool);
-
-            oldPoolHashes.forEach( hash =>{
-                
-                if(!currentPool[hash]){
-                    currentPool[hash] = oldPool[hash];
-                }
-            })
-        }catch(e){
-            console.log(e)
-        }
-        
-        
-    }
-
     async saveMempool(){
-        let mempoolFile = await readFile('mempool.json').catch(e =>{ { console.log(e) } })
-        if(mempoolFile){
-            try{
-                let oldMempool = JSON.parse(mempoolFile);
-                let newMempool = {}
-                let oldTransactionPool = oldMempool.pendingTransactions;
-                let oldRejectedTransactions = oldMempool.rejectedTransactions
-                let newTransactionPool = merge(oldTransactionPool, this.pendingTransactions);
-                let newRejectedTransactions = merge(oldRejectedTransactions,this.rejectedTransactions);
-
-                newMempool.pendingTransactions = newTransactionPool;
-                newMempool.rejectedTransactions = newRejectedTransactions;
-
-                let saved = await writeToFile(newMempool, 'mempool.json');
-                if(saved){
-                  logger('Saved mempool');
-                }else{
-                  logger('ERROR: Could not save mempool')
-                }
-                
-            }catch(e){
-                console.log(e);
-            }
+        let saved = await writeToFile(this, 'mempool.json');
+        if(saved){
+            logger('Saved mempool');
         }else{
-            this.createMempool();
+            logger('ERROR: Could not save mempool')
         }
     }
 
@@ -143,28 +110,6 @@ class Mempool{
         
     }
 }
-const tryOut = async ()=>{
-    let m = new Mempool();
-    m.pendingTransactions['hello'] = 'world';
-    m.pendingTransactions['booga'] = 'booga';
-    let myTx = new Transaction('hello', 'bitch', 0, '');
-    
-    m.addTransaction(myTx);
-    m.pendingTransactions[myTx.hash].amount = 10;
-    console.log(m.pendingTransactions[myTx.hash])
 
-    
-    
-    
 
-    let tx = {
-        'bingo':'solo',
-        'hello':'world',
-        'booga':'booga'
-    }
-    
-}
-
-// tryOut()
-
-module.exports = Mempool;
+module.exports = new Mempool();
