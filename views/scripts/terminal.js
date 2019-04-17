@@ -97,11 +97,30 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
     "<span class'help-line'><b class='help-cmd'>connect</b> -------- Connects to local blockchain node. Required for all blockchain related commands</span>",
     "<span class'help-line'><b class='help-cmd'>joinnet</b> -------- Local node join the network by connecting to known nodes</span>",
     "<span class'help-line'><b class='help-cmd'>findpeers</b> ------ Broadcast a 'findpeer' event across network</span>",
-    "<span class'help-line'><b class='help-cmd'>background</b> ----- Changes the background image. Usage: background URL. Ex: background http://www.nafpaktia.com/data/wallpapers/40/860159.jpg</span>",
+    "<span class'help-line'><b class='help-cmd'>tx</b> ------------- Send transaction to another wallt. Usage tx fromAddr;toAddr;amount;optionalData </span>",
+    "<span class'help-line'><b class='help-cmd'>background</b> ----- Changes the background image. Usage: background http://url.url</span>",
     "<span class'help-line'><b class='help-cmd'>show-blocks</b> ---- Displays all current blocks on the blockchain. Options: <b>-e or expand</b></span>",
     "<span class'help-line'><b class='help-cmd'>show-pending</b> --- Displays all pending transactions on blockchain. </span>",
     "<span class'help-line'><b class='help-cmd'>show-chain</b> ----- Displays a complete view of the blockchain object in the side panel. </span>"
   ];
+
+  const cmds = {
+    'clear':`<span class'help-line'><b class='help-cmd'>clear</b>: Clears the console</span><br/>
+    <span class'help-line'><b class='help-cmd'>Option:</b>: --hard, -h to refresh the page and reset connect to node</span><br/>
+    <span class'help-line'><b class='help-cmd'>Option:</b>: --debug, -d to refresh side panel</span><br/>`,
+    'data':"<span class'help-line'><b class='help-cmd'>date</b>: Displays the current date</span>",
+    'echo':"<span class'help-line'><b class='help-cmd'>echo</b>: Outputs a string into the console. Usage: echo string. Ex: echo Hello World</span>",
+    'help':"<span class'help-line'><b class='help-cmd'>help</b>: Displays this message or usage instructions for a specific command. Usage: help someCommand</span>",
+    'background':"<span class'help-line'><b class='help-cmd'>background</b>: Changes the background image. Usage: background http://url.url.</span>",
+    'iching':"<span class'help-line'><b class='help-cmd'>iching</b>: Casts a random hexagram and text. Usage: iching HxNb. Ex: iching 40</span>",
+    //Nodes & Network commands
+    'connect':"<span class'help-line'><b class='help-cmd'>connect</b>: Connects to local blockchain node. Required for all blockchain related commands</span>",
+    'joinnet':"<span class'help-line'><b class='help-cmd'>joinnet</b>: Local node join the network by connecting to known nodes</span>",
+    'findpeers':"<span class'help-line'><b class='help-cmd'>findpeers</b> ------ Broadcast a 'findpeer' event across network</span>",
+    'tx':"<span class'help-line'><b class='help-cmd'>tx</b> ------------- Send transaction to another wallt. Usage tx fromAddr;toAddr;amount;optionalData </span>",
+    'show-blocks':"<span class'help-line'><b class='help-cmd'>show-blocks</b> ---- Displays all current blocks on the blockchain. Options: <b>-e or expand</b></span>",
+    'show-chain':"<span class'help-line'><b class='help-cmd'>show-chain</b> ----- Displays a complete view of the blockchain object in the side panel. </span>"
+  }
 
 
 
@@ -164,22 +183,22 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
   }
 
 
-  function doCORSRequest(options, printResult, noJSON=false, callback=false) {
-    var cors_api_url = 'https://cors-anywhere.herokuapp.com/';
-    var x = new XMLHttpRequest();
-    x.open(options.method, cors_api_url + options.url);
-    x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    x.onload = x.onerror = function() {
-      printResult((noJSON? x.responseText: JSON.parse(x.responseText)));
-    }
-    if (/^POST/i.test(options.method)) {
-      x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    }
-    x.send(options.data);
-    if(callback){
-      callback(x.responseText)
-    }
-  }
+  // function doCORSRequest(options, printResult, noJSON=false, callback=false) {
+  //   var cors_api_url = 'https://cors-anywhere.herokuapp.com/';
+  //   var x = new XMLHttpRequest();
+  //   x.open(options.method, cors_api_url + options.url);
+  //   x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  //   x.onload = x.onerror = function() {
+  //     printResult((noJSON? x.responseText: JSON.parse(x.responseText)));
+  //   }
+  //   if (/^POST/i.test(options.method)) {
+  //     x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  //   }
+  //   x.send(options.data);
+  //   if(callback){
+  //     callback(x.responseText)
+  //   }
+  // }
 
 
 
@@ -278,7 +297,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         case 'date': output( new Date() );
           break;
         case 'ls':
-        case 'help': output('<div class="ls-files">' + '<p>' +CMDS_.join('<br>')+ '</p>'+ '</div>');
+        case 'help': runHelp(args, cmd);
           break;
         case 'tx':
           if(!isConnected){
@@ -302,7 +321,6 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           break;
         case 'background': $('body').css("background-image", "url("+args[0]+")")
           break;
-        /* Weather and Forecast Commands */
         case 'f':
         case 'find':
           if(!isConnected){
@@ -330,7 +348,8 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
-          $('#element').jsonView(blockchain);
+          //$('#element').jsonView(blockchain);
+          $('#element').html("<pre>"+JSON.stringify(blockchain, null, 1)+"</pre>")
           break;
         case 'show-transact':
           if(!isConnected){
@@ -346,15 +365,6 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           runShowPublicKeys();
           break;
-
-        case 'msg':
-          if(!isConnected){
-            connectError(cmd);
-            break;
-          }
-          var message = args.join(' ');
-          socket.emit('broadcastMessage', message);
-          break
 
         default:
           if (cmd) {
@@ -424,6 +434,20 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             socket.emit('connectionRequest', args[0]);
           }
         }
+      }
+
+      function runHelp(args, cmd){
+        if(args.length == 0){
+          output('<div class="ls-files">' + '<p>' +CMDS_.join('<br>')+ '</p>'+ '</div>');
+        }else{
+          if(cmds[args[0]]){
+            output(cmds[args[0]]);
+          }else{
+            output("<span class'help-line'>Could not find help for command: "+args[0]+"</span>")
+          }
+          
+        }
+        
       }
 
       function runUpdate(args, cmd){
@@ -536,19 +560,6 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
       output('<div class="block-data">' + transactionOutput + '</div>');
     }
 
-    // function runShowPublicKeys(){
-    //   var allTokens = blockchain.nodeTokens;
-    //   var token;
-    //   for(var tokenID of Object.keys(allTokens)){
-    //     token = allTokens[tokenID];
-    //     console.log(allTokens[tokenID]);
-
-    //     output("Node Ip Address : "+ token.address);
-    //     output("Public Address ID : "+ token.id);
-    //     output("Full Public Address : "+ token.publicKey);
-    //     output("*********************************************")
-    //   }
-    // }
 
     }
   }
@@ -610,24 +621,19 @@ function outputDebug(html) {
 }
 
 
-function sendTransaction(fromAddress, toAddress, amount, data=''){
+// function sendTransaction(fromAddress, toAddress, amount, data=''){
 
-    // console.log('Client token issued', endpointToken);
+//   var transactToSend = {
+//     fromAddress : fromAddress,
+//     toAddress : toAddress,
+//     amount : amount,
+//     data : data
+//   }
 
+//   socket.emit('transactionGenerated', transactToSend, endpointToken)
+//   outputDebug(loopTransaction(transactToSend))
 
-  var transactToSend = {
-    fromAddress : fromAddress,
-    toAddress : toAddress,
-    amount : amount,
-    data : data
-  }
-
-  //Need to create socket event for consoles only
-  socket.emit('transactionGenerated', transactToSend, endpointToken)
-  outputDebug(loopTransaction(transactToSend))
-
-
-}
+// }
 
 
 function initSocketConnection(nodeAddress){

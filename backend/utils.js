@@ -21,7 +21,6 @@ const logger = (message, arg) => {
 
 
 function RecalculateHash(block){
-
   return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce).toString();
 }
 
@@ -164,7 +163,7 @@ const parseToString = (data)=>{
       file = data.toString();
       break;
     default:
-      logger('ERROR: could not write this data type');
+      logger('ERROR: could not stringify this data type');
       break;
 
   }
