@@ -13,6 +13,7 @@ const bodyParser = require('body-parser');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
+// const rateLimiterMiddleware = require('./backend/netutils');
 //Classes
 const { initBlockchain } = require('./backend/blockchainHandler.js');
 const Wallet = require('./backend/wallet')
@@ -48,7 +49,7 @@ class Node {
     this.ioServer = {};
     this.rateLimiter = new RateLimiterMemory(
       {
-        points: 20, // 20 points
+        points: 100, // 100 points
         duration: 1, // per second
       });
     this.wallets = {};
@@ -56,16 +57,15 @@ class Node {
     this.userInterfaces = [];
     this.peersConnected = {};
     this.connectionsToPeers = {};
-    this.knownPeers = [];
     this.nodeList = new NodeList();
-    this.messageBuffer = {};
+    this.messageBuffer = {}; //Serves to store messages from other nodes to avoid infinite feedback
     this.minerStarted = false;
     this.minerPaused = false;
     this.verbose = false;
     this.longestChain = {
       length:0,
       peerAddress:''
-    }  //Serves to store messages from other nodes to avoid infinite feedback
+    }  
   }
 
 
@@ -137,13 +137,15 @@ class Node {
         let peerToken;
          if(socket.handshake.query.token !== undefined){
              try{
+
               await this.rateLimiter.consume(socket.handshake.address);
+
                socket.on('message', async (msg) => { 
                  try{
                   await this.rateLimiter.consume(socket.handshake.address);
                   logger('Client:', msg); 
                  }catch(errReject){
-                  socket.emit('message', 'you are blocked')
+                  socket.destroy()
                  }
                });
 
@@ -163,7 +165,7 @@ class Node {
 
              }catch(e){
                console.log(e)
-               
+               socket.destroy()
              }
 
          }else{
@@ -460,6 +462,7 @@ class Node {
   */
   initHTTPAPI(app){
     app.use(bodyParser.json());
+    //app.use(rateLimiterMiddleware)
     app.set('json spaces', 2)
 
     app.post('/node', (req, res) => {

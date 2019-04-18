@@ -379,6 +379,13 @@ class Blockchain{
     var containsCurrentBlock = this.checkIfChainHasHash(block.hash);
     var isLinked = this.isBlockIsLinked(block.previousHash);
     var latestBlock = this.getLatestBlock();
+    var hasEnoughTransactions = Object.keys(block.transactions).length >= this.blockSize;
+
+    if(!hasEnoughTransactions){
+      return false;
+    }
+
+
     //Validate transactions using merkle root
     if(!containsCurrentBlock){
       
