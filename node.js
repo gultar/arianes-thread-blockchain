@@ -47,11 +47,11 @@ class Node {
     this.chain = {};
     //Mempool = new Mempool()
     this.ioServer = {};
-    this.rateLimiter = new RateLimiterMemory(
-      {
-        points: 100, // 100 points
-        duration: 1, // per second
-      });
+    // this.rateLimiter = new RateLimiterMemory(
+    //   {
+    //     points: 100, // 100 points
+    //     duration: 1, // per second
+    //   });
     this.wallets = {};
     this.publicKey = '';
     this.userInterfaces = [];
@@ -138,15 +138,15 @@ class Node {
          if(socket.handshake.query.token !== undefined){
              try{
 
-              await this.rateLimiter.consume(socket.handshake.address);
+              //await this.rateLimiter.consume(socket.handshake.address);
 
                socket.on('message', async (msg) => { 
-                 try{
-                  await this.rateLimiter.consume(socket.handshake.address);
+                //  try{
+                //   await this.rateLimiter.consume(socket.handshake.address);
                   logger('Client:', msg); 
-                 }catch(errReject){
-                  socket.destroy()
-                 }
+                //  }catch(errReject){
+                //   socket.destroy()
+                //  }
                });
 
                peerToken = JSON.parse(socket.handshake.query.token);
@@ -165,7 +165,7 @@ class Node {
 
              }catch(e){
                console.log(e)
-               socket.destroy()
+              //  socket.destroy()
              }
 
          }else{
@@ -319,8 +319,8 @@ class Node {
           })
 
           peer.on('connect', async () =>{
-            try{
-              await this.rateLimiter.consume(address);
+            // try{
+            //   await this.rateLimiter.consume(address);
               if(!this.connectionsToPeers.hasOwnProperty(address)){
                 //Console output
                 logger(chalk.green('Connected to ', address))
@@ -336,29 +336,29 @@ class Node {
               }else{
                 logger('Already connected to target node')
               }
-            }catch(rejection){
-              peer.destroy();
-            }
+            // }catch(rejection){
+            //   peer.destroy();
+            // }
             
           })
 
           peer.on('message', async (message)=>{
-            try{
-              await this.rateLimiter.consume(address);
+            // try{
+            //   await this.rateLimiter.consume(address);
               logger('Server: ' + message);
-            }catch(rejection){
-              peer.destroy();
-            }
+            // }catch(rejection){
+            //   peer.destroy();
+            // }
               
           })
 
           peer.on('getAddr', async ()=>{
-            try{
-              await this.rateLimiter.consume(address);
+            // try{
+            //   await this.rateLimiter.consume(address);
               peer.emit('addr', this.nodeList.addresses);
-            }catch(rejection){
-              peer.destroy();
-            }
+            // }catch(rejection){
+            //   peer.destroy();
+            // }
           })
 
           peer.on('disconnect', async () =>{
@@ -636,11 +636,11 @@ class Node {
     @param {object} $socket - Client socket connection to this node's server
   */
   nodeEventHandlers(socket){
-    try{
+    // try{
 
-      const handlePeerMessageRejectionError = (rejection, socket)=>{
-        socket.emit('message', 'Rejected: too many peer messages per second '+JSON.stringify(rejection))
-      }
+      // const handlePeerMessageRejectionError = (rejection, socket)=>{
+      //   socket.emit('message', 'Rejected: too many peer messages per second '+JSON.stringify(rejection))
+      // }
 
       if(socket){
 
@@ -649,18 +649,18 @@ class Node {
         })
 
         socket.on('connectionRequest', async (address)=>{
-          try{
-            await this.rateLimiter.consume(socket.handshake.address);
+          // try{
+          //   await this.rateLimiter.consume(socket.handshake.address);
             this.connectToPeer(address);
-          }catch(rejection){
-            socket.destroy();
-          }
+          // }catch(rejection){
+          //   socket.destroy();
+          // }
         });
 
       // Basis for gossip protocol on network
         socket.on('peerMessage', async (data)=>{
-          try{
-            await this.rateLimiter.consume(socket.handshake.address);
+          // try{
+          //   await this.rateLimiter.consume(socket.handshake.address);
             if(data 
               && data.hasOwnProperty('type') 
               && data.hasOwnProperty('originAddress') 
@@ -669,18 +669,18 @@ class Node {
                   var { type, originAddress, messageId, data } = data
                   this.handlePeerMessage(type, originAddress, messageId, data);
               }
-          }catch(rejection){
-            handlePeerMessageRejectionError(rejection, socket)
-          }
+          // }catch(rejection){
+          //   handlePeerMessageRejectionError(rejection, socket)
+          // }
         })
 
         socket.on('getPeers', async ()=>{
-          try{
-            await this.rateLimiter.consume(socket.handshake.address);
+          // try{
+          //   await this.rateLimiter.consume(socket.handshake.address);
             socket.emit('address', this.nodeList.addresses);
-          }catch(rejection){
-            socket.destroy();
-          }
+          // }catch(rejection){
+          //   socket.destroy();
+          // }
             
         })
 
@@ -694,9 +694,9 @@ class Node {
         })
 
       }
-    }catch(e){
-      console.log(e);
-    }
+    // }catch(e){
+    //   console.log(e);
+    // }
     
   }
 
@@ -852,7 +852,7 @@ class Node {
         case 'transaction':
           try{
             var transaction = JSON.parse(data);
-            if(transaction){
+            if(transaction && this.chain instanceof Blockchain){
 
               this.chain.validateTransaction(transaction)
               .then(valid => {
