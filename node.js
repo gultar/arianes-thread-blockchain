@@ -5,23 +5,17 @@
 */
 
 'use strict'
-//HTTP
 const express = require('express');
 const http = require('http');
-const bodyParser = require('body-parser');
-//Websocket
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
-const { RateLimiterMemory } = require('rate-limiter-flexible');
-// const rateLimiterMiddleware = require('./backend/netutils');
-//Classes
+const bodyParser = require('body-parser');
 const { initBlockchain } = require('./backend/blockchainHandler.js');
 const Wallet = require('./backend/wallet')
 const Blockchain = require('./backend/blockchain');
 const Transaction = require('./backend/transaction');
 const NodeList = require('./backend/nodelist');
 const Mempool = require('./backend/mempool')
-//Utils
 const { displayTime, logger } = require('./backend/utils');
 const sha256 = require('./backend/sha256');
 const sha1 = require('sha1')
@@ -47,25 +41,21 @@ class Node {
     this.chain = {};
     //Mempool = new Mempool()
     this.ioServer = {};
-    // this.rateLimiter = new RateLimiterMemory(
-    //   {
-    //     points: 100, // 100 points
-    //     duration: 1, // per second
-    //   });
     this.wallets = {};
     this.publicKey = '';
     this.userInterfaces = [];
     this.peersConnected = {};
     this.connectionsToPeers = {};
+    this.knownPeers = [];
     this.nodeList = new NodeList();
-    this.messageBuffer = {}; //Serves to store messages from other nodes to avoid infinite feedback
+    this.messageBuffer = {};
     this.minerStarted = false;
     this.minerPaused = false;
     this.verbose = false;
     this.longestChain = {
       length:0,
       peerAddress:''
-    }  
+    }  //Serves to store messages from other nodes to avoid infinite feedback
   }
 
 
@@ -131,23 +121,13 @@ class Node {
       console.log(e);
     }
 
-    this.ioServer.on('connection', async (socket) => {
+    this.ioServer.on('connection', (socket) => {
       if(socket){
         let peerAddress;
         let peerToken;
          if(socket.handshake.query.token !== undefined){
              try{
-
-              //await this.rateLimiter.consume(socket.handshake.address);
-
-               socket.on('message', async (msg) => { 
-                //  try{
-                //   await this.rateLimiter.consume(socket.handshake.address);
-                  logger('Client:', msg); 
-                //  }catch(errReject){
-                //   socket.destroy()
-                //  }
-               });
+               socket.on('message', (msg) => { logger('Client:', msg); });
 
                peerToken = JSON.parse(socket.handshake.query.token);
                peerAddress = peerToken.address
@@ -165,7 +145,6 @@ class Node {
 
              }catch(e){
                console.log(e)
-              //  socket.destroy()
              }
 
          }else{
@@ -287,11 +266,9 @@ class Node {
   connectToPeer(address, callback){
 
     if(address){
-
       if(this.connectionsToPeers[address] == undefined){
         let connectionAttempts = 0;
         let peer;
-
         try{
           peer = ioClient(address, {
             'reconnection limit' : 1000,
@@ -318,57 +295,54 @@ class Node {
               
           })
 
-          peer.on('connect', async () =>{
-            // try{
-            //   await this.rateLimiter.consume(address);
-              if(!this.connectionsToPeers.hasOwnProperty(address)){
-                //Console output
-                logger(chalk.green('Connected to ', address))
-                this.UILog('Connected to ', address+' at : '+ displayTime())
-                //Messages emitted to peer
-                peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
-                peer.emit('connectionRequest', this.address);
-                this.sendPeerMessage('addressBroadcast');
-                //Handling of socket and peer address
-                this.connectionsToPeers[address] = peer;
-                this.nodeList.addNewAddress(address)
-                
-              }else{
-                logger('Already connected to target node')
-              }
-            // }catch(rejection){
-            //   peer.destroy();
-            // }
-            
-          })
-
-          peer.on('message', async (message)=>{
-            // try{
-            //   await this.rateLimiter.consume(address);
-              logger('Server: ' + message);
-            // }catch(rejection){
-            //   peer.destroy();
-            // }
+          peer.on('connect', () =>{
+            if(!this.connectionsToPeers.hasOwnProperty(address)){
+              //Console output
+              logger(chalk.green('Connected to ', address))
+              this.UILog('Connected to ', address+' at : '+ displayTime())
+              //Messages emitted to peer
+              peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
+              peer.emit('connectionRequest', this.address);
+              this.sendPeerMessage('addressBroadcast');
+              //Handling of socket and peer address
+              this.connectionsToPeers[address] = peer;
+              this.nodeList.addNewAddress(address)
               
+            }else{
+              logger('Already connected to target node')
+            }
           })
 
-          peer.on('getAddr', async ()=>{
-            // try{
-            //   await this.rateLimiter.consume(address);
-              peer.emit('addr', this.nodeList.addresses);
-            // }catch(rejection){
-            //   peer.destroy();
-            // }
+          peer.on('message', (message)=>{
+              logger('Server: ' + message);
           })
 
-          peer.on('disconnect', async () =>{
+          // peer.on('address', (response)=>{
+          //   if(response && Array.isArray(response)){
+          //     for(let address in response){
+          //       if(!this.knownPeers.includes(address)){
+          //         // this.knownPeers.push(address);
+          //         this.connectToPeer(address);
+          //       }
+          //     }
+          //   }
+          // })
+          peer.on('getAddr', ()=>{
+            peer.emit('addr', this.nodeList.addresses);
+          })
+
+          peer.on('disconnect', () =>{
             logger('connection with peer dropped');
-            delete this.connectionsToPeers[address];  
+            delete this.connectionsToPeers[address];
+              
+            
           })
 
           if(callback){
             callback(peer)
           }
+
+
 
         }catch(err){
           logger(err);
@@ -462,7 +436,6 @@ class Node {
   */
   initHTTPAPI(app){
     app.use(bodyParser.json());
-    //app.use(rateLimiterMiddleware)
     app.set('json spaces', 2)
 
     app.post('/node', (req, res) => {
@@ -489,7 +462,7 @@ class Node {
               Receiver: ${receiver}
               Amount: ${amount}
               Data: ${data}
-              Sent at: ${displayTime()}
+              Sent at: ${Date.now()}
             `);
           }
         })
@@ -631,73 +604,42 @@ class Node {
     });
   }
 
+
   /**
     Socket listeners only usable by server nodes
     @param {object} $socket - Client socket connection to this node's server
   */
   nodeEventHandlers(socket){
-    // try{
+    if(socket){
 
-      // const handlePeerMessageRejectionError = (rejection, socket)=>{
-      //   socket.emit('message', 'Rejected: too many peer messages per second '+JSON.stringify(rejection))
-      // }
+     socket.on('error', (err)=>{
+       logger(err);
+     })
 
-      if(socket){
+     socket.on('connectionRequest', (address)=>{
+       this.connectToPeer(address, (peer)=>{
+       });
+     });
 
-        socket.on('error', (err)=>{
-          logger(err);
-        })
+     // Basis for gossip protocol on network
+     socket.on('peerMessage', (data)=>{
+       var { type, originAddress, messageId, data } = data
+       this.handlePeerMessage(type, originAddress, messageId, data);
+     })
 
-        socket.on('connectionRequest', async (address)=>{
-          // try{
-          //   await this.rateLimiter.consume(socket.handshake.address);
-            this.connectToPeer(address);
-          // }catch(rejection){
-          //   socket.destroy();
-          // }
-        });
+     socket.on('getPeers', ()=>{
+        socket.emit('address', this.nodeList.addresses);
+     })
 
-      // Basis for gossip protocol on network
-        socket.on('peerMessage', async (data)=>{
-          // try{
-          //   await this.rateLimiter.consume(socket.handshake.address);
-            if(data 
-              && data.hasOwnProperty('type') 
-              && data.hasOwnProperty('originAddress') 
-              && data.hasOwnProperty('messageId'))
-              {
-                  var { type, originAddress, messageId, data } = data
-                  this.handlePeerMessage(type, originAddress, messageId, data);
-              }
-          // }catch(rejection){
-          //   handlePeerMessageRejectionError(rejection, socket)
-          // }
-        })
+     socket.on('disconnect', ()=>{
+       if(socket.handshake.headers.host){
+         var disconnectedAddress = 'http://'+socket.handshake.headers.host
+         delete this.peersConnected[disconnectedAddress]
+       }
 
-        socket.on('getPeers', async ()=>{
-          // try{
-          //   await this.rateLimiter.consume(socket.handshake.address);
-            socket.emit('address', this.nodeList.addresses);
-          // }catch(rejection){
-          //   socket.destroy();
-          // }
-            
-        })
+     })
 
-        socket.on('disconnect', async()=>{
-          
-          if(socket.handshake.headers.host){
-            var disconnectedAddress = 'http://'+socket.handshake.headers.host
-            delete this.peersConnected[disconnectedAddress]
-          }
-
-        })
-
-      }
-    // }catch(e){
-    //   console.log(e);
-    // }
-    
+   }
   }
 
 
@@ -826,8 +768,7 @@ class Node {
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
   handlePeerMessage(type, originAddress, messageId, data){
-    try{
-      let peerMessage = { 'type':type, 'originAddress':originAddress, 'messageId':messageId, 'data':data }
+    let peerMessage = { 'type':type, 'originAddress':originAddress, 'messageId':messageId, 'data':data }
 
     if(!this.messageBuffer[messageId]){
       switch(type){
@@ -852,7 +793,7 @@ class Node {
         case 'transaction':
           try{
             var transaction = JSON.parse(data);
-            if(transaction && this.chain instanceof Blockchain){
+            if(transaction){
 
               this.chain.validateTransaction(transaction)
               .then(valid => {
@@ -925,10 +866,6 @@ class Node {
       this.messageBuffer[messageId] = peerMessage;
       this.broadcast('peerMessage', peerMessage)
     }
-    }catch(e){
-      console.log(e);
-    }
-    
   }
 
 
@@ -1201,8 +1138,8 @@ class Node {
           }
         })
         .catch((error)=>{
-          logger(chalk.red('ERROR Type: ',error.errno))
-          logger(chalk.red('Could not fetch block from '+address))
+          console.log(error)
+          logger('Could not fetch block from '+address)
           
           return false;
         })

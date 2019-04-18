@@ -17,7 +17,8 @@ program
   .option('-m, --mine', 'Starts the node as a miner')
   .option('-u, --update', 'Tries to update chain by querying for the longest chain in the network')
   .option('-s, --seed', 'Seed nodes to initiate p2p connections')
-  .option('-t, --txgen', 'TEST ONLY - Transaction generator')
+  .option('-t, --test', 'Test')
+  .option('-tx, --txgen', 'TEST ONLY - Transaction generator')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('.-b, --backup', 'Enable blockchain backup');
 
@@ -51,6 +52,10 @@ program
 
       setTimeout(()=>{
         node.connectToPeer(program.seed)
+        setTimeout(()=>{
+          node.update();
+          console.log(node.knownPeers)
+        },6000)
       },3000)
 
     }
@@ -69,6 +74,8 @@ program
       },6000)
     }
 
+    
+
     if(program.txgen){
       setTimeout(()=>{
         node.txgen();
@@ -76,13 +83,15 @@ program
     }
 
     if(program.backup){
+      setInterval(()=>{
+
+      }, 20000)
       copyFile('blockchain.json', './config/blockchain.json');
     }
 
     if(program.verbose){
       node.verbose = true;
     }
-
   });
 
 program.parse(process.argv)
