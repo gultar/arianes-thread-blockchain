@@ -1,8 +1,8 @@
 const ECDSA = require('ecdsa-secp256r1');
-const { logger } = require('./utils');
-const sha256 = require('./sha256');
+const { logger } = require('../tools/utils');
+const sha256 = require('../tools/sha256');
 const sha1 = require('sha1');
-const { encrypt, decrypt } = require('./utils')
+const { encrypt, decrypt } = require('../tools/utils')
 const fs = require('fs')
 let _ = require('private-parts').createKey();
 

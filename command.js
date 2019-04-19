@@ -1,11 +1,11 @@
 const express = require('express');
 const http = require('http');
 const Node = require('./node');
-const Transaction = require('./backend/transaction');
-const { copyFile } = require('./backend/blockchainHandler');
+const Transaction = require('./backend/classes/transaction');
+const { copyFile } = require('./backend/tools/blockchainHandler');
 const program = require('commander');
-const { logger } = require('./backend/utils');
-const mempool = require('./backend/mempool');
+const { logger } = require('./backend/tools/utils');
+const mempool = require('./backend/classes/mempool');
 let port = 8000;
 let arg = '';
 let node;

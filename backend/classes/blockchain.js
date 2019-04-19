@@ -1,6 +1,6 @@
 
 /////////////////////Blockchain///////////////////////
-const sha256 = require('./sha256');
+const sha256 = require('../tools/sha256');
 const merkle = require('merkle');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -12,7 +12,7 @@ const {
   RecalculateHash, 
   merkleRoot, 
   readFile, 
-  writeToFile } = require('./utils');
+  writeToFile } = require('../tools/utils');
 const Transaction = require('./transaction');
 const Block = require('./block');
 const setChallenge = require('./challenge');

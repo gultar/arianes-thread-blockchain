@@ -1,12 +1,13 @@
 const Transaction = require('./transaction');
 // const globalEvents = require('./constants');
-const sha256 = require('./sha256');
+const sha256 = require('../tools/sha256');
 const merkle = require('merkle');
 const crypto = require('crypto');
-const mineBlock = require('./proof')
-const {logger} = require('./utils');
+const mineBlock = require('../tools/proof')
+const {logger} = require('../tools/utils');
 const chalk = require('chalk')
 
+//Miner has to be instantiated 
 process.env.MINER = ()=>{}
 
 //////////////////Block/////////////////////
@@ -23,13 +24,23 @@ class Block{
     this.minedBy = '';
     this.challenge = 0;
     this.startMineTime = Date.now();
-    this.endMineTime = 0
+    this.endMineTime = 0;
+    this.totalSumTransited = 0;
   }
   /**
     Will be called on every iteration of the mining method
   */
   calculateHash(){
     this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce).toString();
+  }
+
+  calculateSumOfCoins(transactions){
+    let transactionHashes = Object.keys(transactions);
+    transactionHashes.forEach((hash)=>{
+      if(transactions[hash]){
+        this.totalSumTransited += transactions[hash].amount;
+      }
+    })
   }
 
 
@@ -62,7 +73,7 @@ class Block{
       .on('started', () => {})
       .on('stopped', async () => {
         if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
-
+          this.calculateSumOfCoins(this.transactions);
           this.endMineTime = Date.now()
           callback(true);
 

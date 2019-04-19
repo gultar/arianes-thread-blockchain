@@ -1,4 +1,4 @@
-const { logger, readFile } = require('./utils')
+const { logger, readFile } = require('../tools/utils')
 const Wallet = require('./wallet');
 const sha1 = require('sha1');
 const ECDSA = require('ecdsa-secp256r1');

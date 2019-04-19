@@ -1,5 +1,5 @@
 const fs = require('fs')
-const { logger, readFile, writeToFile, createFile, merge } = require('./utils')
+const { logger, readFile, writeToFile, createFile, merge } = require('../tools/utils')
 
 class Mempool{
     constructor(){

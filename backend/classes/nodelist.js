@@ -1,4 +1,4 @@
-const { logger, readFile, writeToFile } = require('./utils')
+const { logger, readFile, writeToFile } = require('../tools/utils')
 const fs = require('fs')
 
 class NodeList{

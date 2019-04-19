@@ -11,20 +11,19 @@ const RateLimit = require('express-rate-limit');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const bodyParser = require('body-parser');
-const { initBlockchain } = require('./backend/blockchainHandler.js');
-const Wallet = require('./backend/wallet')
-const Blockchain = require('./backend/blockchain');
-const Transaction = require('./backend/transaction');
-const NodeList = require('./backend/nodelist');
-const Mempool = require('./backend/mempool'); //Instance not class
-const WalletConnector = require('./backend/walletConnector'); //Instance not class
-const { displayTime, logger } = require('./backend/utils');
-const sha256 = require('./backend/sha256');
+const { initBlockchain } = require('./backend/tools/blockchainHandler.js');
+const Wallet = require('./backend/classes/wallet')
+const Blockchain = require('./backend/classes/blockchain');
+const Transaction = require('./backend/classes/transaction');
+const NodeList = require('./backend/classes/nodelist');
+const Mempool = require('./backend/classes/mempool'); //Instance not class
+const WalletConnector = require('./backend/classes/walletConnector'); //Instance not class
+const { displayTime, logger } = require('./backend/tools/utils');
+const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
 const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
-// var _ = require('private-parts').createKey();
 
 let txgenCounter = 5000;
 let stopTxgen = false;
@@ -41,7 +40,6 @@ class Node {
     this.port = port
     this.id = sha1(this.address);
     this.chain = {};
-    //Mempool = new Mempool()
     this.ioServer = {};
     this.publicKey = '';
     this.userInterfaces = [];
@@ -860,10 +858,13 @@ class Node {
           break;
         case 'addressBroadcast':
           if(originAddress && typeof originAddress == 'string'){
-            if(!this.chain.ipAddresses.includes(originAddress)){
-              logger('Added '+originAddress+' to known node addresses')
-              this.chain.ipAddresses.push(originAddress);
-            } 
+            if(this.chain instanceof Blockchain){
+              if(!this.chain.ipAddresses.includes(originAddress)){
+                logger('Added '+originAddress+' to known node addresses')
+                this.chain.ipAddresses.push(originAddress);
+              } 
+            }
+            
           }
           break;
         case 'message':
