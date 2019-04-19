@@ -1,6 +1,9 @@
 const sha256 = require('./sha256');
 const merkle = require('merkle');
 const fs = require('fs')
+const crypto = require('crypto');
+const algorithm = 'aes-256-ctr';
+
 
 const displayTime = () =>{
   let date = new Date();
@@ -183,9 +186,22 @@ const merge = (obj1 ,obj2 )=>{
     }catch(e){
       console.log(e);
     }
-    
   
-  
+}
+
+function copyFile(source, target) {
+  var rd = fs.createReadStream(source);
+  var wr = fs.createWriteStream(target);
+  return new Promise(function(resolve, reject) {
+    rd.on('error', reject);
+    wr.on('error', reject);
+    wr.on('finish', resolve);
+    rd.pipe(wr);
+  }).catch(function(error) {
+    rd.destroy();
+    wr.end();
+    throw error;
+  });
 }
 
 

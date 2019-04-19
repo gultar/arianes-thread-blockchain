@@ -97,12 +97,19 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
     "<span class'help-line'><b class='help-cmd'>connect</b> -------- Connects to local blockchain node. Required for all blockchain related commands</span>",
     "<span class'help-line'><b class='help-cmd'>joinnet</b> -------- Local node join the network by connecting to known nodes</span>",
     "<span class'help-line'><b class='help-cmd'>findpeers</b> ------ Broadcast a 'findpeer' event across network</span>",
-    "<span class'help-line'><b class='help-cmd'>background</b> ----- Changes the background image. Usage: background URL. Ex: background http://www.nafpaktia.com/data/wallpapers/40/860159.jpg</span>",
+    "<span class'help-line'><b class='help-cmd'>tx</b> ------------- Send transaction to another wallt. Usage tx fromAddr;toAddr;amount;optionalData </span>",
+    "<span class'help-line'><b class='help-cmd'>background</b> ----- Changes the background image. Usage: background http://url.url</span>",
     "<span class'help-line'><b class='help-cmd'>show-blocks</b> ---- Displays all current blocks on the blockchain. Options: <b>-e or expand</b></span>",
     "<span class'help-line'><b class='help-cmd'>show-pending</b> --- Displays all pending transactions on blockchain. </span>",
-    "<span class'help-line'><b class='help-cmd'>show-chain</b> ----- Displays a complete view of the blockchain object in the side panel. </span>"
+    "<span class'help-line'><b class='help-cmd'>show-chain</b> ----- Displays a complete view of the blockchain object in the side panel. </span>",
+    "<span class'help-line'><b class='help-cmd'>resolvefork</b> ---- Attempts to resolve a fork in blockchain. </span>",
+    "<span class'help-line'><b class='help-cmd'>getpeers</b> ------- Queries connected node for its list of known peers. </span>",
+    "<span class'help-line'><b class='help-cmd'>stopmine</b> ------- Stops current mining process. </span>",
+    "<span class'help-line'><b class='help-cmd'>verbose</b> -------- Toggles verbose mode on and off. </span>",
+    "<span class'help-line'><b class='help-cmd'>getmempool</b> ----- Queries connected node for its list of pending transactions. </span>"
   ];
 
+  
 
 
   //Refocuses on input line
@@ -164,22 +171,22 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
   }
 
 
-  function doCORSRequest(options, printResult, noJSON=false, callback=false) {
-    var cors_api_url = 'https://cors-anywhere.herokuapp.com/';
-    var x = new XMLHttpRequest();
-    x.open(options.method, cors_api_url + options.url);
-    x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    x.onload = x.onerror = function() {
-      printResult((noJSON? x.responseText: JSON.parse(x.responseText)));
-    }
-    if (/^POST/i.test(options.method)) {
-      x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    }
-    x.send(options.data);
-    if(callback){
-      callback(x.responseText)
-    }
-  }
+  // function doCORSRequest(options, printResult, noJSON=false, callback=false) {
+  //   var cors_api_url = 'https://cors-anywhere.herokuapp.com/';
+  //   var x = new XMLHttpRequest();
+  //   x.open(options.method, cors_api_url + options.url);
+  //   x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  //   x.onload = x.onerror = function() {
+  //     printResult((noJSON? x.responseText: JSON.parse(x.responseText)));
+  //   }
+  //   if (/^POST/i.test(options.method)) {
+  //     x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  //   }
+  //   x.send(options.data);
+  //   if(callback){
+  //     callback(x.responseText)
+  //   }
+  // }
 
 
 
@@ -268,6 +275,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
+          output('Updating blockchain')
           runUpdate(args, cmd);
           break;
         case 'info':
@@ -278,7 +286,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         case 'date': output( new Date() );
           break;
         case 'ls':
-        case 'help': output('<div class="ls-files">' + '<p>' +CMDS_.join('<br>')+ '</p>'+ '</div>');
+        case 'help': runHelp(args, cmd);
           break;
         case 'tx':
           if(!isConnected){
@@ -302,7 +310,6 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           break;
         case 'background': $('body').css("background-image", "url("+args[0]+")")
           break;
-        /* Weather and Forecast Commands */
         case 'f':
         case 'find':
           if(!isConnected){
@@ -317,7 +324,42 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             break;
           }
           runMine(args, cmd);
-        break;
+          break;
+        case 'stopmine':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('stopMining');
+          break;
+        case 'getpeers':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          fetchKnownPeers();
+          break;
+        case 'getmempool':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          fetchMempool();
+          break;
+        case 'verbose':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          runVerbose();
+          break;
+        case 'resolvefork':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          resolveFork();
+          break;
         case 'show-blocks':
           if(!isConnected){
             connectError(cmd);
@@ -330,7 +372,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
-          $('#element').jsonView(blockchain);
+          $('#element').html("<pre>"+JSON.stringify(blockchain, null, 1)+"</pre>")
           break;
         case 'show-transact':
           if(!isConnected){
@@ -346,16 +388,13 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           runShowPublicKeys();
           break;
-
-        case 'msg':
+        case 'createwallet':
           if(!isConnected){
             connectError(cmd);
             break;
           }
-          var message = args.join(' ');
-          socket.emit('broadcastMessage', message);
-          break
-
+          runCreateWallet(cmd, args);
+          break;
         default:
           if (cmd) {
             output(cmd + ': command not found');
@@ -426,6 +465,20 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         }
       }
 
+      function runHelp(args, cmd){
+        if(args.length == 0){
+          output('<div class="ls-files">' + '<p>' +CMDS_.join('<br>')+ '</p>'+ '</div>');
+        }else{
+          if(cmds[args[0]]){
+            output(cmds[args[0]]);
+          }else{
+            output("<span class'help-line'>Could not find help for command: "+args[0]+"</span>")
+          }
+          
+        }
+        
+      }
+
       function runUpdate(args, cmd){
         if(args){
           socket.emit('update', args[0])
@@ -463,17 +516,36 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
 
       }
 
-      function sendTx(fromAddress, toAddress, amount, data=''){
-    
-      var transactToSend = {
-        'sender' : fromAddress,
-        'receiver' : toAddress,
-        'amount' : amount,
-        'data' : data
+      function runVerbose(){
+        
+        socket.emit('verbose');
+        socket.on('verboseToggled', (state)=>{
+          if(state) output('Verbose ON');
+          else output('Verbose OFF')
+          socket.off('verboseToggled');
+        })
+        
       }
 
-      var txL = JSON.stringify(transactToSend);
-    
+      function runCreateWallet(cmd, args){
+        if(args[0]){
+          output(`Creating wallet with name ${args[0]}`)
+          socket.emit('createWallet', args[0])
+          socket.on('walletCreated', (wallet)=>{
+            console.log(wallet)
+            socket.off('verboseToggled');
+          })
+        }
+      }
+
+      function sendTx(fromAddress, toAddress, amount, data=''){
+        var transactToSend = {
+          'sender' : fromAddress,
+          'receiver' : toAddress,
+          'amount' : amount,
+          'data' : data
+        }
+        var txL = JSON.stringify(transactToSend);
         $.ajax({
             type: "POST",
             url: localAddress+"transaction",
@@ -485,10 +557,12 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         
             error: function (xhr, status, error) {
                 console.log(xhr.responseText);
+                output("<pre>"+xhr.responseText+"</pre>")
             },
         
             success: function (msg) {
                 console.log(msg);
+                output(msg);
             }
         });
     }
@@ -536,19 +610,6 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
       output('<div class="block-data">' + transactionOutput + '</div>');
     }
 
-    // function runShowPublicKeys(){
-    //   var allTokens = blockchain.nodeTokens;
-    //   var token;
-    //   for(var tokenID of Object.keys(allTokens)){
-    //     token = allTokens[tokenID];
-    //     console.log(allTokens[tokenID]);
-
-    //     output("Node Ip Address : "+ token.address);
-    //     output("Public Address ID : "+ token.id);
-    //     output("Full Public Address : "+ token.publicKey);
-    //     output("*********************************************")
-    //   }
-    // }
 
     }
   }
@@ -610,75 +671,78 @@ function outputDebug(html) {
 }
 
 
-function sendTransaction(fromAddress, toAddress, amount, data=''){
-
-    // console.log('Client token issued', endpointToken);
-
-
-  var transactToSend = {
-    fromAddress : fromAddress,
-    toAddress : toAddress,
-    amount : amount,
-    data : data
-  }
-
-  //Need to create socket event for consoles only
-  socket.emit('transactionGenerated', transactToSend, endpointToken)
-  outputDebug(loopTransaction(transactToSend))
-
-
-}
-
-
 function initSocketConnection(nodeAddress){
-setTimeout(function(){
+  setTimeout(function(){
 
-  if(!nodeAddress){
-    nodeAddress = localAddress;
-  }
+    if(!nodeAddress){
+      nodeAddress = localAddress;
+    }
 
-    socket  = io(nodeAddress ); //{'query':{  token: JSON.stringify(endpointToken)  }}
-    socket.heartbeatTimeout = 30000;
-    //console.log(socket)
+      socket  = io(nodeAddress ); //{'query':{  token: JSON.stringify(endpointToken)  }}
+      socket.heartbeatTimeout = 30000;
+      //console.log(socket)
 
-      socket.on('disconnect', function(){
-        console.log('Node went offline');
-        outputDebug('Node went offline');
-        isConnected = false;
+        socket.on('disconnect', function(){
+          console.log('Node went offline');
+          outputDebug('Node went offline');
+          isConnected = false;
 
-      })
+        })
 
-      socket.on('connect', function(){
-        console.log('Connected to node ', nodeAddress);
-        setTimeout(()=>{
-          fetchBlockchainFromServer();
-          isConnected = true;
-        }, 2000)
-      })
+        socket.on('connect', function(){
+          console.log('Connected to node ', nodeAddress);
+          setTimeout(()=>{
+            fetchBlockchainFromServer();
+            isConnected = true;
+          }, 2000)
+        })
 
-      socket.on('message', function(message){
-        //console.log('NODE->', message);
-        outputDebug('NODE-> '+message)
-      })
-
-      socket.on('nodeMessage', function(data){
-        var message = data.message;
-        var arg = data.arg;
-        if(arg) {
-          //console.log('NODE->'+message+" "+arg);
-          outputDebug('NODE-> '+message+" "+arg);
-        }else{
+        socket.on('message', function(message){
           //console.log('NODE->', message);
-          outputDebug('NODE-> '+message);
-        }
+          outputDebug('NODE-> '+message)
+        })
 
-      })
+        socket.on('nodeMessage', function(data){
+          var message = data.message;
+          var arg = data.arg;
+          if(arg) {
+            //console.log('NODE->'+message+" "+arg);
+            outputDebug('NODE-> '+message+" "+arg);
+          }else{
+            //console.log('NODE->', message);
+            outputDebug('NODE-> '+message);
+          }
 
-}, 2000)
+        })
 
-
+  }, 2000)
 }
 
+function fetchKnownPeers(){
+  socket.emit('getKnownPeers');
+  console.log('Fetch list of known peers');
+  output('Fetch list of known peers')
+  socket.on('knownPeers', (peers)=>{
+    var list = JSON.stringify(peers, null, 2);
+    outputToDebug('<pre>'+list+'</pre>');
+  })
+}
+
+function fetchMempool(){
+  socket.emit('getMempool');
+  console.log('Fetching transaction mempool');
+  output('Fetching transaction mempool');
+  
+  socket.on('mempool', (pool)=>{
+    console.log(pool)
+    outputToDebug('<pre>'+JSON.stringify(pool, null, 2)+'</pre>')
+  })
+}
+
+function resolveFork(){
+  socket.emit('resolveFork');
+  output('Attempting to resolving blochain fork');
+}
 
 
 function fetchBlockchainFromServer(){

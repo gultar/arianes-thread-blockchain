@@ -30,10 +30,10 @@ class Wallet{
         return await _(this).privateKey.toCompressedPublicKey()
     }
 
-    async getWallet(){
-        let wallet = this;
-        return wallet;
-    }
+    // async getWallet(){
+    //     let wallet = this;
+    //     return wallet;
+    // }
 
     async init(seed){
         
@@ -44,7 +44,7 @@ class Wallet{
                
                 _(this).privateKey = ECDSA.generateKey(secretSeed);
                 this.publicKey = await this.createCompressedPublicKey();
-                this.id = await sha1(this.publicKey);
+                this.id = await sha1((seed? seed:this.publicKey));
                 if(_(this).privateKey && this.publicKey && this.id){
                     resolve(this);
                 }else{
@@ -123,7 +123,7 @@ class Wallet{
                 publicKey:this.publicKey,
                 privateKey:formatToJWK(),
                 id:this.id,
-                transaction:this.transactions
+                transaction:this.transactions,
             }
             let walletString = JSON.stringify(walletToSave, null, 2);
             var wstream = fs.createWriteStream(filename);
