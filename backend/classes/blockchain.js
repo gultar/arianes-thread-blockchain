@@ -145,7 +145,7 @@ class Blockchain{
     if(isMining && process.env.END_MINING !== true){
 
       logger('Mining next block...');
-      logger('Number of pending transactions:', Object.keys(Mempool.pendingTransactions).length);
+      logger('Number of pending transactions:', Mempool.sizeOfPool());
 
       let transactionsToMine = Mempool.gatherTransactionsForBlock();
       let block = new Block(Date.now(), transactionsToMine);
@@ -161,7 +161,8 @@ class Blockchain{
       block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
-
+            
+            Mempool.deleteTransactionsFromMinedBlock(block.transactions)
             block.minedBy = ipAddress;
             this.chain.push(block);
             
@@ -174,8 +175,8 @@ class Blockchain{
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
             var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
-            let blockTransactions = block.transactions;
-            Mempool.deleteTransactionFromHash(blockTransactions)
+            
+            
             Mempool.addTransaction(miningReward);
            
             callback(miningSuccessful, block.hash);
