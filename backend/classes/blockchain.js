@@ -149,8 +149,6 @@ class Blockchain{
       let transactionsToMine = Mempool.gatherTransactionsForBlock();
       let block = new Block(Date.now(), transactionsToMine);
       Mempool.pendingTransactions = {};
-      logger('Transactions about to be mined:', Object.keys(transactionsToMine).length)
-      logger('Difference between variable and block transactions?', Object.keys(block.transactions).length)
       let lastBlock = this.getLatestBlock();
       
       block.blockNumber = this.chain.length;
@@ -179,13 +177,13 @@ class Blockchain{
            
             callback(miningSuccessful, block.hash);
           }else{
-            Mempool.putbackPendingTransactions(block);
+            Mempool.putbackPendingTransactions(block.transactions);
             logger('Block is not valid');
             callback(false, false)
           }
         }else{
           logger('Mining aborted. Peer has mined a new block');
-          Mempool.putbackPendingTransactions(block);
+          Mempool.putbackPendingTransactions(block.transactions);
           callback(false, false)
         }
       });
