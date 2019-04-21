@@ -145,10 +145,12 @@ class Blockchain{
 
       logger('Mining next block...');
       logger('Number of pending transactions:', Object.keys(Mempool.pendingTransactions).length);
+
       let transactionsToMine = Mempool.gatherTransactionsForBlock();
-      logger('Transactions about to be mined:', Object.keys(transactionsToMine).length)
+      Mempool.deleteTransactionsFromMinedBlock(transasctionsToMine);
       
       let block = new Block(Date.now(), transactionsToMine);
+      logger('Transactions about to be mined:', Object.keys(transactionsToMine).length)
       logger('Difference between variable and block transactions?', Object.keys(block.transactions).length)
       let lastBlock = this.getLatestBlock();
       
@@ -157,14 +159,14 @@ class Blockchain{
 
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       logger('Current Challenge:', block.challenge)
+
       block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
 
-            
             block.minedBy = ipAddress;
             this.chain.push(block);
-            Mempool.deleteTransactionsFromMinedBlock(block.transactions)
+            
             console.log(chalk.cyan('\n********************************************************************'))
             console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
             console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");

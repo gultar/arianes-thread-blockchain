@@ -12,7 +12,7 @@ class Mempool{
             if(transaction && transaction.hasOwnProperty('hash')){
                 if(!this.pendingTransactions[transaction.hash]){
                     this.pendingTransactions[transaction.hash] = transaction;
-                    Object.freeze(this.pendingTransactions[transaction.hash]);
+                    // Object.freeze(this.pendingTransactions[transaction.hash]);
                 }
             }
             
