@@ -5,7 +5,8 @@ const Transaction = require('./backend/classes/transaction');
 const { copyFile } = require('./backend/tools/blockchainHandler');
 const program = require('commander');
 const { logger } = require('./backend/tools/utils');
-const mempool = require('./backend/classes/mempool');
+const Mempool = require('./backend/classes/mempool');
+const NodeList = require('./backend/classes/nodelist')
 let port = 8000;
 let arg = '';
 let node;
@@ -107,12 +108,15 @@ process.on('SIGINT', () => {
     process.MINER.stop();
     
   }
-  mempool.saveMempool();
+  
   node.save((saved)=>{
     if(saved){
+      Mempool.saveMempool();
+      node.nodeList.saveNodeList()
+
       setTimeout(()=>{
         process.exit()
-      },3000)
+      },5000)
     }
   });
   
