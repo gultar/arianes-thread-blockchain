@@ -145,8 +145,11 @@ class Blockchain{
 
       logger('Mining next block...');
       logger('Number of pending transactions:', Object.keys(Mempool.pendingTransactions).length);
-
-      let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock());
+      let transactionsToMine = Mempool.gatherTransactionsForBlock();
+      logger('Transactions about to be mined:', Object.keys(transactionsToMine).length)
+      logger('Difference between variable and block transactions?', Object.keys(block.tansactions).length)
+      let block = new Block(Date.now(), transactionsToMine);
+      
       let lastBlock = this.getLatestBlock();
       
       block.blockNumber = this.chain.length;
@@ -157,9 +160,11 @@ class Blockchain{
       block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
-  
+
+            
             block.minedBy = ipAddress;
             this.chain.push(block);
+            Mempool.deleteTransactionsFromMinedBlock(block.transactions)
             console.log(chalk.cyan('\n********************************************************************'))
             console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
             console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
@@ -170,7 +175,7 @@ class Blockchain{
             console.log(chalk.cyan('********************************************************************\n'))
             var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
             Mempool.addTransaction(miningReward);
-  
+           
             callback(miningSuccessful, block.hash);
           }else{
             Mempool.putbackPendingTransactions(block);

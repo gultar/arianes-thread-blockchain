@@ -28,8 +28,6 @@ class Mempool{
 
     gatherTransactionsForBlock(){
         let transactions = this.pendingTransactions;
-        console.log('About to mine '+Object.keys(transactions).length+' transactions');
-        this.deleteTransactionsFromMinedBlock(transactions);
         return transactions;
     }
 
