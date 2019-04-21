@@ -177,13 +177,13 @@ class Blockchain{
            
             callback(miningSuccessful, block.hash);
           }else{
-            Mempool.putbackPendingTransactions(block.transactions);
+            Mempool.putbackPendingTransactions(transactionsToMine);
             logger('Block is not valid');
             callback(false, false)
           }
         }else{
           logger('Mining aborted. Peer has mined a new block');
-          Mempool.putbackPendingTransactions(block.transactions);
+          Mempool.putbackPendingTransactions(transactionsToMine);
           callback(false, false)
         }
       });
