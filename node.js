@@ -1439,6 +1439,7 @@ class Node {
                if(success && blockHash){
                 this.minerPaused = true;
                 process.MINER = false;
+                
                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                 this.chain.isChainValid()
                 this.chain.saveBlockchain()
@@ -1449,7 +1450,8 @@ class Node {
                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                   this.minerPaused = false;
-                  
+                  let newBlockTransactions = this.chain.getLatestBlock().transactions;
+                  Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
                 },3000)
                }else{
                   //Not enough transactions
