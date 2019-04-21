@@ -1044,7 +1044,7 @@ class Node {
         
         var isBlockSynced = this.chain.syncBlock(newBlock);
         if(isBlockSynced === true){
-
+          Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
           logger(chalk.blue('* Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
           logger(chalk.blue('* Number of transactions: ', Object.keys(newBlock.transactions).length))
           

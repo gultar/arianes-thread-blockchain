@@ -91,7 +91,8 @@ class Blockchain{
       blockStatus = this.validateBlock(newBlock);
 
       if(blockStatus === true){
-        Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+        
+        logger('Removing transactions contained in block from pool')
         this.chain.push(newBlock);
         return true;
       }else if(blockStatus > 0){
@@ -148,7 +149,7 @@ class Blockchain{
 
       let transactionsToMine = Mempool.gatherTransactionsForBlock();
       let block = new Block(Date.now(), transactionsToMine);
-      Mempool.pendingTransactions = {};
+      Mempool.deleteTransactionsFromMinedBlock(transactionsToMine);
       let lastBlock = this.getLatestBlock();
       
       block.blockNumber = this.chain.length;

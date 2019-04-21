@@ -48,7 +48,7 @@ class Mempool{
     putbackPendingTransactions(transactions){
         logger('Number of transactions putback '+Object.keys(transactions).length)
         for(var txHash of Object.keys(transactions)){
-            console.log(transactions[txHash])
+            
             this.pendingTransactions[txHash] = transactions[txHash];
         }
     }
