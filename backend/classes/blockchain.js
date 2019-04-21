@@ -174,6 +174,8 @@ class Blockchain{
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
             var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
+            let blockTransactions = block.transactions;
+            Mempool.deleteTransactionFromHash(blockTransactions)
             Mempool.addTransaction(miningReward);
            
             callback(miningSuccessful, block.hash);
