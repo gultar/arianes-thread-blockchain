@@ -149,7 +149,7 @@ class Blockchain{
       logger('Transactions about to be mined:', Object.keys(transactionsToMine).length)
       
       let block = new Block(Date.now(), transactionsToMine);
-      logger('Difference between variable and block transactions?', Object.keys(block.tansactions).length)
+      logger('Difference between variable and block transactions?', Object.keys(block.transactions).length)
       let lastBlock = this.getLatestBlock();
       
       block.blockNumber = this.chain.length;
