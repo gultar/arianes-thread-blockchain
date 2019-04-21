@@ -146,8 +146,6 @@ class Blockchain{
       logger('Mining next block...');
       logger('Number of pending transactions:', Object.keys(Mempool.pendingTransactions).length);
 
-      
-      
       let transactionsToMine = Mempool.gatherTransactionsForBlock();
       let block = new Block(Date.now(), transactionsToMine);
       Mempool.pendingTransactions = {};

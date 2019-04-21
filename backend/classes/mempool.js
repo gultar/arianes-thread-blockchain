@@ -45,10 +45,9 @@ class Mempool{
         })
     }
 
-    putbackPendingTransactions(block){
-        for(var txHash in Object.keys(block.transactions)){
-            this.pendingTransactions[txHash] = block.transactions[txHash];
-            delete block.transactions[txHash];
+    putbackPendingTransactions(transactions){
+        for(var txHash in Object.keys(transactions)){
+            this.pendingTransactions[txHash] = transactions[txHash];
         }
     }
 
