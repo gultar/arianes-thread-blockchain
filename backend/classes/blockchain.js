@@ -149,7 +149,7 @@ class Blockchain{
 
       let transactionsToMine = Mempool.gatherTransactionsForBlock();
       let block = new Block(Date.now(), transactionsToMine);
-      Mempool.deleteTransactionsFromMinedBlock(transactionsToMine);
+      
       let lastBlock = this.getLatestBlock();
       
       block.blockNumber = this.chain.length;

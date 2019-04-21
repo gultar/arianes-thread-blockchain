@@ -105,6 +105,7 @@ process.on('SIGINT', () => {
   
 
   if(process.MINER){
+    logger('Stopping miner');
     process.MINER.stop();
     
   }
