@@ -73,7 +73,8 @@ class Block{
       .on('started', () => {})
       .on('stopped', async () => {
         if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
-          this.calculateSumOfCoins(this.transactions);
+          
+          console.log('Number of transactons added:', Object.keys(this.transactions).length)
           this.endMineTime = Date.now()
           callback(true);
 
