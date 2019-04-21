@@ -568,24 +568,29 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
     }
 
       function runIching(args, cmd){
+		let hexNumber = 0;
+		var myHex = new Hexagram();
         if(args[0]){
           if(args[0] == '-c' || args[0] == 'chart'){
             output('<img src="./images/trigramchart-clear.gif" alt="chart">');
-          }else{
-            var myHex = new Hexagram();
-            fetchHexFromFireBase(args[0]);
-            myHex.setTextAndTitle();
-            //blockchain.createTransaction(new Transaction('blockchain', '192.168.1.69', 0, myHex));
-            drawIchingLines(myHex);
+			return;
           }
-
-          return;
-        }
-        var myHex = new Hexagram();
-        myHex.castSixLines();
-        fetchHexFromFireBase(myHex.getHexagramNumber());
-        myHex.setTextAndTitle();
-        drawIchingLines(myHex);
+			hexNumber = args[0];
+        }else{
+			
+			myHex.castSixLines();
+			hexNumber = myHex.getHexagramNumber();
+		}
+		myHex.fetchHexFromJSON(hexNumber, (fetched)=>{
+				if(fetched){
+					drawIchingLines(myHex);
+					$('output').append(myHex.title);
+					$('output').append(myHex.text);
+				}
+		});
+		
+        
+        
       }
 
 
@@ -725,6 +730,7 @@ function fetchKnownPeers(){
   socket.on('knownPeers', (peers)=>{
     var list = JSON.stringify(peers, null, 2);
     outputToDebug('<pre>'+list+'</pre>');
+    socket.off('knownPeers')
   })
 }
 
@@ -735,7 +741,8 @@ function fetchMempool(){
   
   socket.on('mempool', (pool)=>{
     console.log(pool)
-    outputToDebug('<pre>'+JSON.stringify(pool, null, 2)+'</pre>')
+    outputToDebug('<pre>'+JSON.stringify(pool, null, 2)+'</pre>');
+    socket.off('mempool')
   })
 }
 
@@ -768,6 +775,7 @@ function fetchBlockchainFromServer(){
             fetchTrials = 0;
         }
 
+        socket.off('blockchain')
 
       });
 

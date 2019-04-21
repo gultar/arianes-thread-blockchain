@@ -8,6 +8,7 @@
 const express = require('express');
 const http = require('http');
 const RateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const bodyParser = require('body-parser');
@@ -66,10 +67,12 @@ class Node {
     try{
 
       console.log(chalk.cyan('\n******************************************'))
-      console.log(chalk.cyan('*')+' Starting node at '+this.address+chalk.cyan(" *"));
+      console.log(chalk.cyan('*')+' Starting node at '+this.address);
       console.log(chalk.cyan('******************************************\n'))
       const expressWs = require('express-ws')(app);
       app.use(express.static(__dirname+'/views'));
+      express.json({ limit: '300kb' })
+      app.use(helmet())
       const server = http.createServer(app).listen(this.port);
 
       this.initHTTPAPI(app);
@@ -684,6 +687,14 @@ class Node {
       socket.emit('knownPeers', this.nodeList.addresses);
     })
 
+    socket.on('getBlockSize', (number)=>{
+      socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
+    })
+
+    socket.on('getBlockTxHashes', (number)=>{
+      socket.emit('txHashes', Object.keys(this.chain.chain[number-1].transactions))
+    })
+
     socket.on('startMiner', ()=>{
       this.minerPaused = false;
       this.updateAndMine();
@@ -744,7 +755,18 @@ class Node {
       socket.emit('mempool', Mempool);
     })
 
-    socket.on('test', ()=>{
+    socket.on('test', (number)=>{
+      let block = this.chain.chain[number];
+      let size = 0;
+      let amount = 0;
+      Object.keys(block.transactions).forEach((txHash)=>{
+        console.log(block.transactions[txHash])
+        amount = amount + block.transactions[txHash].amount;
+      })
+      setTimeout(()=>{
+        console.log(amount);
+        console.log('Size:'+ (Transaction.getTransactionSize(block) / 1024) + 'Kb');
+      }, 2000)
       
     })
 
@@ -801,7 +823,7 @@ class Node {
         case 'transaction':
           try{
             var transaction = JSON.parse(data);
-            if(transaction){
+            if(transaction && this.chain instanceof Blockchain){
 
               this.chain.validateTransaction(transaction)
               .then(valid => {
@@ -844,14 +866,17 @@ class Node {
           break;
         case 'whoisLongestChain':
           try{
-            axios.post(originAddress+'/chainLength', {
-              length:this.chain.chain.length,
-              peerAddress:this.address
-            }).then((response)=>{
-
-            }).catch((e)=>{
-              console.log(chalk.red(e))
-            })
+            if(this.chain instanceof Blockchain){
+              axios.post(originAddress+'/chainLength', {
+                length:this.chain.chain.length,
+                peerAddress:this.address
+              }).then((response)=>{
+  
+              }).catch((e)=>{
+                console.log(chalk.red(e))
+              })
+            }
+            
           }catch(e){
             console.log(chalk.red(e))
           }
@@ -1070,87 +1095,87 @@ class Node {
     @param {string} $address - Peer address to sync with
     @param {function} $cb - Optional callback
   */
- fetchBlocks(address, cb){
-  try{
-    if(this.chain instanceof Blockchain){
-      const latestBlock = this.chain.getLatestBlock();
-      const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
+  fetchBlocks(address, cb){
+    try{
+      if(this.chain instanceof Blockchain){
+        const latestBlock = this.chain.getLatestBlock();
+        const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
 
-      
-      axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
-        .then((response) =>{
-          var block = response.data;
-          
-          if(block){
+        
+        axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
+          .then((response) =>{
+            var block = response.data;
             
-              var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
-              if(!synced){
-                if(response.data.error == 'end of chain'){
-                  
-                  logger(chalk.green('Blockchain successfully updated'));
-                  this.chain.isChainValid()
-                  this.chain.saveBlockchain()
+            if(block){
+              
+                var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
+                if(!synced){
+                  if(response.data.error == 'end of chain'){
+                    
+                    logger(chalk.green('Blockchain successfully updated'));
+                    this.chain.isChainValid()
+                    this.chain.saveBlockchain()
 
-                  this.minerPaused = false;
-                  if(cb){
-                    cb(true)
-                  }
-                  return true;
-                }else if(response.data.error == 'block fork'){
-                  let peerHeader = JSON.parse(response.data.header);
-
-                  let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
-                  let isBlockConflict = (peerHeader.blockNumber == latestBlock.blockNumber) 
-                                        && (peerHeader.hash !== latestBlock.hash);
-                  let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
-
-                  logger('Is Header Valid:', isHeaderValid);
-                  logger('Is Block Conflict:', isBlockConflict);
-                  logger('Peer block has more work:', peerBlockHasMoreWork);
-
-                  if(isHeaderValid && isBlockConflict){
-                    if(peerBlockHasMoreWork){
-                      let orphanBlock = this.chain.chain.pop();
-                      this.chain.orphanedBlocks.push(orphanBlock);
-                      this.resolveBlockFork(address);
-                    }else{
-                      logger("The current last block required more work than target peer's")
+                    this.minerPaused = false;
+                    if(cb){
+                      cb(true)
                     }
-                  }else{
-                    logger('Header is invalid');
+                    return true;
+                  }else if(response.data.error == 'block fork'){
+                    let peerHeader = JSON.parse(response.data.header);
+
+                    let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
+                    let isBlockConflict = (peerHeader.blockNumber == latestBlock.blockNumber) 
+                                          && (peerHeader.hash !== latestBlock.hash);
+                    let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
+
+                    logger('Is Header Valid:', isHeaderValid);
+                    logger('Is Block Conflict:', isBlockConflict);
+                    logger('Peer block has more work:', peerBlockHasMoreWork);
+
+                    if(isHeaderValid && isBlockConflict){
+                      if(peerBlockHasMoreWork){
+                        let orphanBlock = this.chain.chain.pop();
+                        this.chain.orphanedBlocks.push(orphanBlock);
+                        this.resolveBlockFork(address);
+                      }else{
+                        logger("The current last block required more work than target peer's")
+                      }
+                    }else{
+                      logger('Header is invalid');
+                    }
+
+                    
+                  }else if(response.data.error == 'no block found'){
+
+                    logger(chalk.red(response.data.error));
+                    return false
                   }
-
-                  
-                }else if(response.data.error == 'no block found'){
-
-                  logger(chalk.red(response.data.error));
                   return false
+                }else{
+                  setTimeout(()=>{
+                    this.fetchBlocks(address)
+
+                  },500)
                 }
-                return false
-              }else{
-                setTimeout(()=>{
-                  this.fetchBlocks(address)
-
-                },500)
-              }
-          }else{
-            logger('No block received from '+address)
-          }
-        })
-        .catch((error)=>{
-          //logger(error.errno)
-          logger(chalk.red('Could not fetch block from '+address))
-          
-          return false;
-        })
+            }else{
+              logger('No block received from '+address)
+            }
+          })
+          .catch((error)=>{
+            //logger(error.errno)
+            logger(chalk.red('Could not fetch block from '+address))
+            
+            return false;
+          })
+      }
+    }catch(e){
+      console.log(chalk.red(e));
+      return false;
     }
-  }catch(e){
-    console.log(chalk.red(e));
-    return false;
+
+
   }
-
-
- }
 
   validateBlockchain(){
     this.chain.isChainValid()
@@ -1224,7 +1249,7 @@ class Node {
        console.log(chalk.red(e))
      }
 
-   }
+  }
 
 
   rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon

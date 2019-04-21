@@ -25,7 +25,7 @@ const setChallenge = (currentChallenge, startTime, endTime) =>{
  */
 
 const adjustDifficulty = () =>{
-
+  //
 }
 
 module.exports = setChallenge;

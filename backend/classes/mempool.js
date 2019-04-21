@@ -13,8 +13,6 @@ class Mempool{
                 if(!this.pendingTransactions[transaction.hash]){
                     this.pendingTransactions[transaction.hash] = transaction;
                     Object.freeze(this.pendingTransactions[transaction.hash]);
-                }else{
-                    logger('Cannot overwrite transaction in pool');
                 }
             }
             
@@ -30,7 +28,8 @@ class Mempool{
 
     gatherTransactionsForBlock(){
         let transactions = this.pendingTransactions;
-        this.pendingTransactions = {};
+        console.log('About to mine '+Object.keys(transactions).length+' transactions');
+        this.deleteTransactionsFromMinedBlock(transactions);
         return transactions;
     }
 

@@ -1,4 +1,4 @@
-
+const fs = require('fs'); //Comment out in case of use in browser
 let lines = [];
 
 let hexText = '';
@@ -14,6 +14,10 @@ class Hexagram{
     this.title = '';
     this.text = '';
     this.changingLines = [];
+  }
+
+  cast(){
+
   }
 
   //Flips a coin
@@ -158,85 +162,56 @@ class Hexagram{
     return ichingHexagramTable[bottomTrigramNb][topTrigramNb];
   }
 
-  fetchHexFromJSON(hexNumber, cb){
-  
-	  try{
-		  
-		var iChing = ichingFile;
-
-		var hexNumberIndex = hexNumber - 1;
-		
-		this.text = iChing.posts[hexNumberIndex].text;
-		this.title = iChing.posts[hexNumberIndex].title;
-		cb(true)
-	  }catch(e){
-		console.log(e);
-	  }
 
 
+  setTextAndTitle(){
+    this.hexagramNumber = this.getHexagramNumber(this.hexagramNumber)
+    fetchHexFromJSON(this.hexagramNumber, (hex) =>{
+      this.title = hex.title;
+      this.text = hex.text;
+      console.log(this.title)
+      console.log(this.text)
+    })
 
   }
-  
-  
 }
 
 function fetchHexFromJSON(hexNumber, cb){
   var hex = {
-	  text:'',
-	  title:''
-  }
-	  try{
-		  
-		var iChing = ichingFile;
-
-		var hexNumberIndex = hexNumber - 1;
-		
-		hex.text = iChing.posts[hexNumberIndex].text;
-		hex.title = iChing.posts[hexNumberIndex].title;
-		cb(hex)
-	  }catch(e){
-		console.log(e);
-	  }
-
-
-
+    hexTitle : '',
+    hexText : ''
   }
 
+    fs.readFile('./iching.json', function(errRead, data){
+
+
+
+      if(errRead){
+        console.log(errRead);
+      }
+
+      try{
+        iChing = JSON.parse(data);
+
+        var hexNumberIndex = hexNumber - 1;
+
+        hex.hexText = iChing.posts[hexNumberIndex].text;
+        hex.hexTitle = iChing.posts[hexNumberIndex].title;
+        cb(hex);
+      }catch(e){
+        console.log(e);
+      }
 
 
 
 
-//Configures the firebase DB and fetches the corresponding hexagram text
-/* function fetchHexFromFireBase(hexNumber){
-    var appName = ('app-'+hexNumber).toString();
-    var config = {
-    apiKey: "AIzaSyDvHcao89Mne4IttxjNop6phnaqTo-jxcA",
-    authDomain: "iching-1f68d.firebaseapp.com",
-    databaseURL: "https://iching-1f68d.firebaseio.com",
-    projectId: "iching-1f68d",
-    storageBucket: "iching-1f68d.appspot.com",
-    messagingSenderId: "711518649160"
-  };
+  });
 
-  if(firstTime){
-    appName = '[DEFAULT]';
-    firstTime = false;
-  }
-  firebase.initializeApp(config, appName);
+}
 
-
-    var hexNumberIndex = hexNumber - 1;
-
-    const database = firebase.database().ref();
-    console.log(database.child('posts').child(hexNumberIndex));
-
-    const posts = database.child('posts').child(hexNumberIndex).once('value', function(snap){
-
-      hexTitle = snap.val().title;
-      hexText = snap.val().text;
-
-      $('output').append(hexTitle);
-      $('output').append(hexText);
-    });
-  }
- */
+var myHex = new Hexagram();
+myHex.castSixLines();
+var num = myHex.getHexagramNumber(myHex.hexagramNumber);
+fetchHexFromJSON(num, (hex)=>{
+  console.log(hex);
+});

@@ -149,10 +149,8 @@ class Blockchain{
       let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock());
       let lastBlock = this.getLatestBlock();
       
-
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
-
 
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       logger('Current Challenge:', block.challenge)
@@ -170,12 +168,12 @@ class Blockchain{
             console.log(chalk.cyan("* Nonce : "), block.nonce)
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
-            var miningReward = new Transaction(null, miningRewardAddress, this.miningReward, "", Date.now(), false, 'coinbase')
-            Mempool.pendingTransactions[miningReward.hash] = miningReward;
+            var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
+            Mempool.addTransaction(miningReward);
   
             callback(miningSuccessful, block.hash);
           }else{
-            this.putbackPendingTransactions(block);
+            Mempool.putbackPendingTransactions(block);
             logger('Block is not valid');
             callback(false, false)
           }
