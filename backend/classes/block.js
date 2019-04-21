@@ -34,15 +34,6 @@ class Block{
     this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce).toString();
   }
 
-  calculateSumOfCoins(transactions){
-    let transactionHashes = Object.keys(transactions);
-    transactionHashes.forEach((hash)=>{
-      if(transactions[hash]){
-        this.totalSumTransited += transactions[hash].amount;
-      }
-    })
-  }
-
 
   isProofValid(difficulty){
     
@@ -74,7 +65,6 @@ class Block{
       .on('stopped', async () => {
         if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
           
-          console.log('Number of transactons added:', Object.keys(this.transactions).length)
           this.endMineTime = Date.now()
           callback(true);
 
