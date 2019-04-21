@@ -39,7 +39,7 @@ class Mempool{
 
     deleteTransactionsFromMinedBlock(transactions){
         let txHashes = Object.keys(transactions);
-        
+        logger('Deleting '+txHashes.length+' transactions from pool');
         txHashes.forEach( hash =>{
             this.deleteTransactionFromHash(hash);
         })
@@ -48,7 +48,6 @@ class Mempool{
     putbackPendingTransactions(transactions){
         logger('Number of transactions putback '+Object.keys(transactions).length)
         for(var txHash of Object.keys(transactions)){
-            
             this.pendingTransactions[txHash] = transactions[txHash];
         }
     }
