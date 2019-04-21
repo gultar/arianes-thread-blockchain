@@ -146,10 +146,11 @@ class Blockchain{
       logger('Mining next block...');
       logger('Number of pending transactions:', Object.keys(Mempool.pendingTransactions).length);
 
-      let transactionsToMine = Mempool.gatherTransactionsForBlock();
-      Mempool.deleteTransactionsFromMinedBlock(transactionsToMine);
       
+      
+      let transactionsToMine = Mempool.gatherTransactionsForBlock();
       let block = new Block(Date.now(), transactionsToMine);
+      Mempool.pendingTransactions = {};
       logger('Transactions about to be mined:', Object.keys(transactionsToMine).length)
       logger('Difference between variable and block transactions?', Object.keys(block.transactions).length)
       let lastBlock = this.getLatestBlock();
