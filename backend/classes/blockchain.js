@@ -161,8 +161,8 @@ class Blockchain{
       block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
-            
-            Mempool.deleteTransactionsFromMinedBlock(block.transactions)
+            let transactionsToDelete = block.transactions;
+            Mempool.deleteTransactionsFromMinedBlock(transactionsToDelete)
             block.minedBy = ipAddress;
             this.chain.push(block);
             
