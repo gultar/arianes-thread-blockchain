@@ -112,7 +112,7 @@ process.on('SIGINT', () => {
   
   node.save((saved)=>{
     if(saved){
-      Mempool.saveMempool();
+      node.chain.mempool.saveMempool();
       node.nodeList.saveNodeList()
 
       setTimeout(()=>{

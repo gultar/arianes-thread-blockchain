@@ -109,4 +109,4 @@ class Mempool{
 }
 
 
-module.exports = new Mempool();
+module.exports = Mempool;

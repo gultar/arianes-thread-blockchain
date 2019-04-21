@@ -33,6 +33,7 @@ class Blockchain{
 
   constructor(chain=false, pendingTransactions=false, ipAddresses=[], publicKeys=[], nodeID=''){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
+    this.mempool = new Mempool;
     this.sideChain = [];
     this.difficulty = 5;
     this.miningReward = 50;
@@ -110,7 +111,7 @@ class Blockchain{
   }
 
   hasEnoughTransactionsToMine(){
-    if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
+    if(Object.keys(this.mempool.pendingTransactions).length >= this.blockSize){
       return true
     }else{
       return false;
@@ -122,7 +123,7 @@ class Blockchain{
   */
   putbackPendingTransactions(block){
     for(var txHash in Object.keys(block.transactions)){
-      Mempool.pendingTransactions[txHash] = block.transactions[txHash];
+      this.mempool.pendingTransactions[txHash] = block.transactions[txHash];
       delete block.transactions[txHash];
     }
   }
@@ -145,9 +146,9 @@ class Blockchain{
     if(isMining && process.env.END_MINING !== true){
 
       logger('Mining next block...');
-      logger('Number of pending transactions:', Mempool.sizeOfPool());
+      logger('Number of pending transactions:', this.mempool.sizeOfPool());
 
-      let transactionsToMine = Mempool.gatherTransactionsForBlock();
+      let transactionsToMine = this.mempool.pendingTransactions;
       let block = new Block(Date.now(), transactionsToMine);
       
       let lastBlock = this.getLatestBlock();
@@ -175,18 +176,17 @@ class Blockchain{
             console.log(chalk.cyan('********************************************************************\n'))
             var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
             
-            
-            Mempool.addTransaction(miningReward);
-           
+            this.mempool.addTransaction(miningReward);
             callback(miningSuccessful, block.hash);
+
           }else{
-            Mempool.putbackPendingTransactions(transactionsToMine);
+            this.mempool.putbackPendingTransactions(transactionsToMine);
             logger('Block is not valid');
             callback(false, false)
           }
         }else{
           logger('Mining aborted. Peer has mined a new block');
-          Mempool.putbackPendingTransactions(transactionsToMine);
+          this.mempool.putbackPendingTransactions(transactionsToMine);
           callback(false, false)
         }
       });
@@ -227,8 +227,8 @@ class Blockchain{
     if(publicKey){
       var address = publicKey;
 
-      for(var transHash of Object.keys(Mempool.pendingTransactions)){
-        trans = Mempool.pendingTransactions[transHash];
+      for(var transHash of Object.keys(this.mempool.pendingTransactions)){
+        trans = this.mempool.pendingTransactions[transHash];
         if(trans){
           if(trans.fromAddress == address){
 

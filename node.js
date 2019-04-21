@@ -17,7 +17,7 @@ const Wallet = require('./backend/classes/wallet')
 const Blockchain = require('./backend/classes/blockchain');
 const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
-const Mempool = require('./backend/classes/mempool'); //Instance not class
+//const Mempool = require('./backend/classes/mempool'); //Instance not class
 const WalletConnector = require('./backend/classes/walletConnector'); //Instance not class
 const { displayTime, logger } = require('./backend/tools/utils');
 const sha256 = require('./backend/tools/sha256');
@@ -85,21 +85,24 @@ class Node {
           if(blockchain){
             logger('Blockchain successfully loaded')
             this.chain = blockchain;
+
+            this.chain.mempool.loadMempool()
+            .then((mempoolLoaded)=>{
+              if(mempoolLoaded){
+                logger('Loaded transaction mempool');
+                logger('Number of transactions in pool: '+this.chain.mempool.sizeOfPool());
+              }else{
+                logger(chalk.red('ERROR: Could not load mempool'))
+              }
+            })
+
           }else{
             logger(chalk.red('ERROR: Could not init blockchain'))
           }
         })
 
-      //Loading transaction mempool
-      Mempool.loadMempool()
-        .then((mempoolLoaded)=>{
-          if(mempoolLoaded){
-            logger('Loaded transaction mempool');
-            logger('Number of transactions in pool: '+Mempool.sizeOfPool());
-          }else{
-            logger(chalk.red('ERROR: Could not load mempool'))
-          }
-        })
+      //Loading transaction this.chain.mempool
+      
       
       //Loading this node's wallet
       this.loadNodeWallet('./wallets/'+this.id+'.json')
@@ -752,7 +755,7 @@ class Node {
     })
 
     socket.on('getMempool', ()=>{
-      socket.emit('mempool', Mempool);
+      socket.emit('mempool', this.chain.mempool);
     })
 
     socket.on('test', (number)=>{
@@ -828,13 +831,13 @@ class Node {
               this.chain.validateTransaction(transaction)
               .then(valid => {
                 if(valid){
-                  Mempool.addTransaction(transaction);
+                  this.chain.mempool.addTransaction(transaction);
                   this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
                 }else{
                   this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                  Mempool.rejectedTransactions[transaction.hash] = transaction;
+                  this.chain.mempool.rejectedTransactions[transaction.hash] = transaction;
                 }
               })
 
@@ -1044,7 +1047,7 @@ class Node {
         
         var isBlockSynced = this.chain.syncBlock(newBlock);
         if(isBlockSynced === true){
-          Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+          this.chain.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
           logger(chalk.blue('* Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
           logger(chalk.blue('* Number of transactions: ', Object.keys(newBlock.transactions).length))
           
@@ -1351,7 +1354,7 @@ class Node {
               .then( valid =>{
                 if(valid){
 
-                  Mempool.addTransaction(transaction);
+                  this.chain.mempool.addTransaction(transaction);
                   this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                   this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
@@ -1363,7 +1366,7 @@ class Node {
 
                   this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                  Mempool.rejectedTransactions[transaction.hash] = transaction;
+                  this.chain.mempool.rejectedTransactions[transaction.hash] = transaction;
                   resolve(false);
 
                 }
@@ -1451,7 +1454,7 @@ class Node {
                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
                   this.minerPaused = false;
                   let newBlockTransactions = this.chain.getLatestBlock().transactions;
-                  Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                  this.chain.mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
                 },3000)
                }else{
                   //Not enough transactions
