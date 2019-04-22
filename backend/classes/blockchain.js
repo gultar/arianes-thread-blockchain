@@ -93,7 +93,6 @@ class Blockchain{
 
       if(blockStatus === true){
         
-        logger('Removing transactions contained in block from pool')
         this.chain.push(newBlock);
         return true;
       }else if(blockStatus > 0){
