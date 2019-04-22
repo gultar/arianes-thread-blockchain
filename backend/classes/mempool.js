@@ -31,18 +31,16 @@ class Mempool{
         return transactions;
     }
 
-    deleteTransactionFromHash(hash){
-        if(this.pendingTransactions[hash]){
-            delete this.pendingTransactions[hash];
-        }
-    }
+    
 
     deleteTransactionsFromMinedBlock(transactions){
         let txHashes = Object.keys(transactions);
         logger('Deleting '+txHashes.length+' transactions from pool');
-        txHashes.forEach( hash =>{
-            this.deleteTransactionFromHash(hash);
-        })
+        for(var hash of txHashes){
+            if(this.pendingTransactions.hasOwnProperty(hash)){
+                delete this.pendingTransactions[hash];
+            }
+        }
     }
 
     putbackPendingTransactions(transactions){

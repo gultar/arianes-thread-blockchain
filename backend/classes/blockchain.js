@@ -136,28 +136,25 @@ class Blockchain{
     @param {string} $miningRewardAddress - Public key of mining node
     @param {function} $callback - Sends result of mining operation
   */
-  async minePendingTransactions(ip, miningRewardAddress, callback){
+  async minePendingTransactions(ip, block , miningRewardAddress, callback){
     let ipAddress = ip
-
-
+    
+    
     let miningSuccessful = false;
     let isMining = this.hasEnoughTransactionsToMine()
 
-    if(isMining && process.env.END_MINING !== true){
+    // if(isMining && process.env.END_MINING !== true){
 
-      logger('Mining next block...');
-      logger('Number of pending transactions:', this.mempool.sizeOfPool());
 
-      let transactionsToMine = this.mempool.pendingTransactions;
-      let block = new Block(Date.now(), transactionsToMine);
+
       
       let lastBlock = this.getLatestBlock();
-      
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
-
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
+      
       logger('Current Challenge:', block.challenge)
+      
 
       block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
@@ -180,23 +177,21 @@ class Blockchain{
             callback(miningSuccessful, block.hash);
 
           }else{
-            this.mempool.putbackPendingTransactions(transactionsToMine);
             logger('Block is not valid');
             callback(false, false)
           }
         }else{
           logger('Mining aborted. Peer has mined a new block');
-          this.mempool.putbackPendingTransactions(transactionsToMine);
           callback(false, false)
         }
       });
 
 
 
-    }else{
+    // }else{
 
-      callback(false, isMining);
-    }
+    //   callback(false, isMining);
+    // }
 
   }
 

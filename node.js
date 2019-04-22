@@ -13,7 +13,8 @@ const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const bodyParser = require('body-parser');
 const { initBlockchain } = require('./backend/tools/blockchainHandler.js');
-const Wallet = require('./backend/classes/wallet')
+const Wallet = require('./backend/classes/wallet');
+const Block = require('./backend/classes/block');
 const Blockchain = require('./backend/classes/blockchain');
 const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
@@ -1438,28 +1439,42 @@ class Node {
           this.minerStarted = true;
           setInterval(()=>{
             if(!process.MINER && !this.minerPaused){
-             this.chain.minePendingTransactions(this.address, this.publicKey, (success, blockHash)=>{
-               if(success && blockHash){
-                this.minerPaused = true;
-                process.MINER = false;
-                
-                this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-                this.chain.isChainValid()
-                this.chain.saveBlockchain()
-                
-                setTimeout(()=>{
-                  //Leave enough time for the nodes to receive the two messages
-                  //and for this node to not mine the previous, already mined block
-                  this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-                  logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
-                  this.minerPaused = false;
-                  let newBlockTransactions = this.chain.getLatestBlock().transactions;
-                  this.chain.mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-                },3000)
-               }else{
-                  //Not enough transactions
-               }
-             })
+             let isMining = this.chain.hasEnoughTransactionsToMine();
+             let block = false;
+             if(isMining && !block){
+
+              let block = new Block(Date.now(), this.chain.mempool.gatherTransactionsForBlock());
+              logger('Mining next block...');
+              logger('Number of pending transactions:', this.chain.mempool.sizeOfPool());
+              this.chain.mempool.pendingTransactions = {};
+              
+
+              this.chain.minePendingTransactions(this.address, block, this.publicKey, (success, blockHash)=>{
+                if(success && blockHash){
+                 this.minerPaused = true;
+                 process.MINER = false;
+                 
+                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+                 this.chain.isChainValid()
+                 this.chain.saveBlockchain()
+                 
+                 setTimeout(()=>{
+                   //Leave enough time for the nodes to receive the two messages
+                   //and for this node to not mine the previous, already mined block
+                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
+                   this.minerPaused = false;
+                   let newBlockTransactions = this.chain.getLatestBlock().transactions;
+                   this.chain.mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                 },3000)
+                }else{
+                   let transactionOfCancelledBlock = block.transactions;
+                   this.chain.mempool.putbackPendingTransactions(transactionOfCancelledBlock);
+                }
+              })
+             }
+
+  
            }else{
              //Already mining a block
            }
