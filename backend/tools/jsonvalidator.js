@@ -109,6 +109,7 @@ const isValidGetNextBlockJSON = (blockRequest) =>{
     if(blockRequest){
         v.addSchema(headerSchema, "/getNextBlock")
         let valid = v.validate(blockRequest, blockRequestSchema);
+        console.log(valid)
         if(valid.errors.length == 0){
             return true
         }else{

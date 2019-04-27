@@ -645,7 +645,7 @@ class Node {
       })
   
       app.get('/getNextBlock', (req, res)=>{
-        console.log(req.query)
+        
         if(isValidGetNextBlockJSON(req.query)){
           try{
             var blockHash = req.query.hash;
@@ -1187,7 +1187,7 @@ class Node {
                     return false
                   }
                   return false
-                  
+
                 }else{
                   setTimeout(()=>{
                     this.fetchBlocks(address)
