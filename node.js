@@ -27,6 +27,7 @@ const {
   isValidChainLengthJSON,
   isValidWalletRequestJSON,
   isValidGetNextBlockJSON,
+  isValidHeaderJSON,
 } = require('./backend/tools/jsonvalidator')
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
@@ -651,7 +652,7 @@ class Node {
             var blockHash = req.query.hash;
             var blockHeader = JSON.parse(req.query.header);
     
-            if(this.chain instanceof Blockchain && blockHash && blockHeader){
+            if(this.chain instanceof Blockchain && isValidHeaderJSON(blockHeader)){
               const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
               const lastBlock = this.chain.getLatestBlock();
               if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
@@ -695,7 +696,8 @@ class Node {
       })
   
     }catch(e){
-      logger(e);
+      logger("ERROR: getNextBlock request could not be completed: An error occured");
+      logger(e)
     }
     
   }
