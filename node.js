@@ -25,7 +25,8 @@ const { displayTime, logger } = require('./backend/tools/utils');
 const {
   isValidTransactionJSON,
   isValidChainLengthJSON,
-  isValidCreateWalletJSON,
+  isValidWalletRequestJSON,
+  isValidGetNextBlockJSON,
 } = require('./backend/tools/jsonvalidator')
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
@@ -512,7 +513,7 @@ class Node {
       })
   
       app.post('/createWallet', (req, res)=>{
-        if(isValidCreateWalletJSON(req.body)){
+        if(isValidWalletRequestJSON(req.body)){
           const { name } = req.body;
           if(name){
             
@@ -533,80 +534,99 @@ class Node {
             res.send('ERROR: No wallet name provided')
           }
         }else{
-          res.send('ERROR: invalid wallet creation format')
+          res.send('ERROR: invalid JSON wallet creation format')
         }
           
       })
   
       app.get('/getWalletPublicInfo', async (req, res)=>{
-        try{
-          let walletName = req.query.name;
-          
-          if(walletName){
-            let wallet = await WalletConnector.getWalletByName(walletName);
-            if(wallet){
-              res.json(wallet).end();
-            }else{
-              res.json({error:`wallet ${walletName} not found`}).end()
-            }
+        if(isValidWalletRequestJSON(req.query)){
+          try{
+            let walletName = req.query.name;
             
-          }else{
-            res.json({error:'no wallet name provided'}).end();
+            if(walletName){
+              let wallet = await WalletConnector.getWalletByName(walletName);
+              if(wallet){
+                res.json(wallet).end();
+              }else{
+                res.json({error:`wallet ${walletName} not found`}).end()
+              }
+              
+            }else{
+              res.json({error:'no wallet name provided'}).end();
+            }
+          }catch(e){
+            console.log(e);
           }
-        }catch(e){
-          console.log(e);
+        }else{
+          res.json({ error:'invalid JSON wallet creation format' }).end()
         }
+       
   
       })
   
       app.get('/loadWallet', async (req, res)=>{
-        try{
-          let walletName = req.query.name;
-          
-          if(walletName){
-            let wallet = await WalletConnector.loadWallet(walletName);
-            logger(`Loaded wallet ${walletName}`)
-            res.json(wallet).end();
+        if(isValidWalletRequestJSON(req.query)){
+          try{
+            let walletName = req.query.name;
+            
+            if(walletName){
+              let wallet = await WalletConnector.loadWallet(walletName);
+              logger(`Loaded wallet ${walletName}`)
+              res.json(wallet).end();
+            }
+          }catch(e){
+            console.log(e);
           }
-        }catch(e){
-          console.log(e);
+        }else{
+          res.json({ error:'invalid JSON wallet creation format' }).end()
         }
+        
       })
 
       app.get('/getWalletBalance', async(req, res)=>{
-        let walletName = req.query.name;
-        if(walletName){
-          let publicKey = await WalletConnector.getPublicKeyOfWallet(walletName);
-          if(publicKey){
-            res.json({ 
-              balance: 
-              this.chain.getBalanceOfAddress(publicKey) 
-              + this.chain.checkFundsThroughPendingTransactions(publicKey)
-            }).end()
-          }else{
-            res.json({ error:'could not find balance of unknown wallet' })
-          }
+        if(isValidWalletRequestJSON(req.query)){
+          let walletName = req.query.name;
+          if(walletName){
+            let publicKey = await WalletConnector.getPublicKeyOfWallet(walletName);
+            if(publicKey){
+              res.json({ 
+                balance: 
+                this.chain.getBalanceOfAddress(publicKey) 
+                + this.chain.checkFundsThroughPendingTransactions(publicKey)
+              }).end()
+            }else{
+              res.json({ error:'could not find balance of unknown wallet' })
+            }
 
-          
+            
+          }else{
+            res.json({ error:'must provide wallet name' })
+          }
         }else{
-          res.json({ error:'must provide wallet name' })
+          res.json({ error:'invalid JSON wallet creation format' }).end()
         }
       })
 
       app.get('/getWalletHistory', async(req, res)=>{
-        let walletName = req.query.name;
-        if(walletName){
-          let publicKey = await WalletConnector.getPublicKeyOfWallet(walletName);
-          if(publicKey){
-            res.json({ history:this.chain.getTransactionHistory(publicKey) }).end()
-          }else{
-            res.json({ error:'could not find balance of unknown wallet' })
-          }
+        if(isValidWalletRequestJSON(req.query)){
+          let walletName = req.query.name;
+          if(walletName){
+            let publicKey = await WalletConnector.getPublicKeyOfWallet(walletName);
+            if(publicKey){
+              res.json({ history:this.chain.getTransactionHistory(publicKey) }).end()
+            }else{
+              res.json({ error:'could not find balance of unknown wallet' })
+            }
 
-          
+            
+          }else{
+            res.json({ error:'must provide wallet name' })
+          }
         }else{
-          res.json({ error:'must provide wallet name' })
+          res.json({ error:'invalid JSON wallet creation format' }).end()
         }
+        
         
       })
 
@@ -625,46 +645,51 @@ class Node {
       })
   
       app.get('/getNextBlock', (req, res)=>{
-        try{
-          var blockHash = req.query.hash;
-          var blockHeader = JSON.parse(req.query.header);
-  
-          if(this.chain instanceof Blockchain && blockHash && blockHeader){
-            const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
-            const lastBlock = this.chain.getLatestBlock();
-            if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
-  
-              var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
-              if(nextBlock){
-                res.json(nextBlock).end()
-              }
-              if(blockHash === lastBlock.hash){
-                res.json( { error:'end of chain' } ).end()
-              }
-  
-            }else{
-  
-              let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
-  
-              if(blockHeader.blockNumber == lastBlock.blockNumber){
-                if(blockHeader.blockNumber !== 0){
-                  res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
-                }else{
+        if(isValidGetNextBlockJSON(req.query)){
+          try{
+            var blockHash = req.query.hash;
+            var blockHeader = JSON.parse(req.query.header);
+    
+            if(this.chain instanceof Blockchain && blockHash && blockHeader){
+              const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
+              const lastBlock = this.chain.getLatestBlock();
+              if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
+    
+                var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
+                if(nextBlock){
+                  res.json(nextBlock).end()
+                }
+                if(blockHash === lastBlock.hash){
                   res.json( { error:'end of chain' } ).end()
                 }
-                
+    
               }else{
-                res.json( { error:'no block found' } ).end()
+    
+                let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
+    
+                if(blockHeader.blockNumber == lastBlock.blockNumber){
+                  if(blockHeader.blockNumber !== 0){
+                    res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
+                  }else{
+                    res.json( { error:'end of chain' } ).end()
+                  }
+                  
+                }else{
+                  res.json( { error:'no block found' } ).end()
+                }
+    
+                
               }
-  
-              
+            }else{
+              res.json( { error:'invalid request parameters' } ).end()
             }
-          }else{
-            res.json( { error:'invalid request parameters' } ).end()
+          }catch(e){
+            console.log(chalk.red(e))
           }
-        }catch(e){
-          console.log(chalk.red(e))
+        }else{
+          res.json({ error: 'invalid block request JSON format' })
         }
+        
   
       })
   

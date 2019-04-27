@@ -50,7 +50,7 @@ const isValidChainLengthJSON = (transaction)=>{
     }
 }
 
-const isValidCreateWalletJSON = (transaction)=>{
+const isValidWalletRequestJSON = (transaction)=>{
     var v = new Validator();
     var schema = {
         "id":"/chainLength",
@@ -73,4 +73,54 @@ const isValidCreateWalletJSON = (transaction)=>{
     }
 }
 
-module.exports = { isValidTransactionJSON, isValidChainLengthJSON, isValidCreateWalletJSON };
+
+
+const isValidGetNextBlockJSON = (blockRequest) =>{
+    var v = new Validator();
+
+    var headerSchema = {
+        "id":"/blockHeader",
+        "type":"object",
+        "header":{"type":"object"},
+            "properties":{
+                "blockNumber":{"type":"number"},
+                "timestamp":{"type":"number"},
+                "previousHash":{"type":"string"},
+                "hash":{"type":"string"},
+                "nonce":{"type":"number"},
+                "merkleRoot":{"type":"string"}
+            },
+        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot"]
+    }
+
+    var blockRequestSchema = {
+        "id":"/getNextBlock",
+        "type": "object",
+        "properties": {
+            "hash": {"type": "string"},
+            "header":{"$ref":"/blockHeader"}
+
+        },
+        "required": ["hash", "header"]
+    };
+
+    
+
+    if(blockRequest){
+        v.addSchema(headerSchema, "/getNextBlock")
+        let valid = v.validate(blockRequest, blockRequestSchema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
+module.exports = { 
+    isValidTransactionJSON, 
+    isValidChainLengthJSON, 
+    isValidWalletRequestJSON, 
+    isValidGetNextBlockJSON
+ };
