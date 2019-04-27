@@ -25,7 +25,7 @@ program
   .description('Starts blockchain node')
   .action((address, port, cmd)=>{
     //node = new Node(address, port);
-    node.address = address;
+    node.address = 'http://'+address+':'+port;
     node.port = port;
     node.startServer()
 
