@@ -645,6 +645,7 @@ class Node {
       })
   
       app.get('/getNextBlock', (req, res)=>{
+        console.log(req.query)
         if(isValidGetNextBlockJSON(req.query)){
           try{
             var blockHash = req.query.hash;
@@ -687,7 +688,7 @@ class Node {
             console.log(chalk.red(e))
           }
         }else{
-          res.json({ error: 'invalid block request JSON format' })
+          res.json({ error: 'invalid block request JSON format' }) 
         }
         
   
@@ -1176,11 +1177,17 @@ class Node {
 
                     
                   }else if(response.data.error == 'no block found'){
-
                     logger(chalk.red(response.data.error));
+                    return false
+                  }else if(response.data.error == 'invalid request parameters'){
+                    logger(chalk.red(response.data.error))
+                    return false
+                  }else if(response.data.error == 'invalid block request JSON format'){
+                    logger(chalk.red(response.data.error))
                     return false
                   }
                   return false
+                  
                 }else{
                   setTimeout(()=>{
                     this.fetchBlocks(address)
@@ -1414,7 +1421,7 @@ class Node {
 
   updateAndMine(){
     this.sendPeerMessage('whoisLongestChain');
-    //logger('Querying the network for the longest chain before starting the miner')
+    logger('Querying the network for the longest chain before starting the miner')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
         this.fetchBlocks(this.longestChain.peerAddress, ()=>{
@@ -1432,7 +1439,7 @@ class Node {
 
   update(){
     this.sendPeerMessage('whoisLongestChain');
-    //logger('Querying the network for the longest chain')
+    logger('Querying the network for the longest chain')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
           this.fetchBlocks(this.longestChain.peerAddress, ()=>{
