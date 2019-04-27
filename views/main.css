@@ -257,35 +257,57 @@ select#soflow option{
 @media screen and (min-width : 320px) and (max-width : 800px) {
   body{
     font-size:15px !important;
+    background-size:100% 100%;
   }
 
   body::before{
     top: 10px;
     bottom: 10px;
-    left: 10px;
+    left: 8px;
     right: 10px;
   }
 
   .panel{
-    top: 12px;
-    bottom: 12px;
+    top: 0px;
     left: 12px;
     right: 12px;
-    width:90%;
-    height:40%;
+    width:95%;
+    height:50%;
     font-size:12px !important;
   }
 
   .console-panel{
-    margin-top:35%;
-    margin-bottom:10%;
-  
-    height:40%;
-  
-    width:90%;
+    margin-top:43%;
+    width:95%;
+    height:35%;
     margin-left:2%;
     margin-right:5%;
 }
+
+  #mobile-enter{
+    visibility: visible;
+  }
+}
+
+@media only screen and (max-device-width: 480px), only screen and (min-device-width: 560px) and (max-device-width: 1136px) and (-webkit-min-device-pixel-ratio: 2) {
+  .panel{
+    top: 0px;
+    left: 12px;
+    right: 12px;
+    width:95%;
+    height:50%;
+    font-size:12px !important;
+    margin-top:2%;
+  }
+
+  .console-panel{
+    margin-top:92%;
+    width:95%;
+    height:32%;
+    margin-left:2%;
+    margin-right:5%;
+    font-size:12px !important;
+  }
 
   #mobile-enter{
     visibility: visible;

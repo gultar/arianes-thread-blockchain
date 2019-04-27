@@ -2,6 +2,9 @@ const { logger, readFile } = require('../tools/utils')
 const Wallet = require('./wallet');
 const sha1 = require('sha1');
 const ECDSA = require('ecdsa-secp256r1');
+const fs = require('fs');
+const Node = require('../../Node.js')
+
 
 class WalletConnector{
   constructor(){
@@ -11,46 +14,75 @@ class WalletConnector{
 
   async createWallet(name, password=''){
 
-    if(!name){
-      logger(chalk.red('ERROR: Need to provide a wallet name'));
-      return false;
-    }
+    
+    return new Promise(async (resolve, reject) =>{
+      try{
+        if(!name){
+          logger(chalk.red('ERROR: Need to provide a wallet name'));
+          resolve(false);
+        }else{
+          
+        }
 
-    return new Promise(async(resolve, reject)=>{
-      let wallet = new Wallet();
-      let created = await wallet.init(name);
-      if(created){
-        wallet.saveWallet(`./wallets/${name}-${wallet.id}.json`);
-        this.wallets[wallet.publicKey] = wallet;
-        logger('Completed')
-        console.log(`Created wallet!`);
-        console.log(`Name: ${name}`);
-        console.log(`Public key: ${wallet.publicKey}`);
-        console.log(`Wallet id: ${wallet.id}`);
-        resolve(wallet);
-      }else{
-        resolve(false)
+          fs.exists(`./wallets/${name}-${sha1(name)}.json`, async (alreadyExists)=>{
+            if(!alreadyExists){
+              let wallet = new Wallet();
+              let created = await wallet.init(name);
+              if(created){
+                wallet.saveWallet(`./wallets/${name}-${wallet.id}.json`);
+                this.wallets[wallet.publicKey] = wallet;
+                logger(`Created wallet!`);
+                logger(`Name: ${name}`);
+                logger(`Public key: ${wallet.publicKey}`);
+                logger(`Wallet id: ${wallet.id}`);
+                resolve(wallet);
+              }else{
+                logger('ERROR: Could not create wallet')
+                resolve(false)
+              }
+            }else{
+              logger('ERROR: Wallet already exists')
+              resolve(false);
+            }
+         })
+        
+      }catch(e){
+        console.log(e);
       }
-     
     })
+
   }
 
   loadWallet(name){
-    let wallet = new Wallet();
-    wallet.loadWalletFromFile(name+'-'+sha1(name)+'.json')
-    .then((loaded)=>{
-      if(loaded){
-
-      }
+    return new Promise((resolve, reject)=>{
+      let wallet = new Wallet();
+      wallet.importWalletFromFile(`./wallets/${name}-${sha1(name)}.json`)
+      .then((wallet)=>{
+        this.wallets[wallet.publicKey] = wallet;
+        resolve(wallet);
+      })
+      .catch((e)=>{
+        console.log(e);
+      })
     })
   }
 
-  getWalletByID(id){
-    if(id && this.wallets){
-      return this.wallets[id]
-    }else{
-      logger('Connector does not contain wallets')
-    }
+  getWalletByName(name){
+    return new Promise((resolve, reject)=>{
+      if(name && this.wallets){
+        let id = sha1(name);
+        Object.keys(this.wallets).forEach((pubKey)=>{
+          let wallet = this.wallets[pubKey];
+
+          if(wallet.id == id){
+            resolve(wallet)
+          }
+
+        })
+        resolve(false);
+      }
+    })
+    
   }
 
   getWalletByPublicAddress(publicAddress){
@@ -59,6 +91,23 @@ class WalletConnector{
     }else{
       logger('Connector does not contain wallets')
     }
+  }
+
+  getPublicKeyOfWallet(name){
+    return new Promise((resolve, reject)=>{
+      if(name && this.wallets){
+
+        Object.keys(this.wallets).forEach((pubKey)=>{
+          let wallet = this.wallets[pubKey];
+
+          if(wallet.name == name){
+            resolve(wallet.publicKey)
+          }
+
+        })
+        resolve(false);
+      }
+    })
   }
 
   sign(walletName, data){
@@ -75,28 +124,18 @@ class WalletConnector{
     }
   }
 
-
-}
-
-const tryOut = async () =>{
-  // let walletFile = await readFile('./wallets/8ab1b499f17855b0f1db5bd65a73875723325f85.json');
-  // let wallet = new Wallet()
-  // wallet.initFromJSON(JSON.parse(walletFile))
-  
-
-  let myWalletConnector = new WalletConnector();
-  myWalletConnector.createWallet('hector').then(async (created)=>{
-    console.log(await myWalletConnector.sign('hector', 'hello world'))
-  })
-  
-  // myWalletConnector.wallets[wallet.id] = wallet;
-  // let sign = myWalletConnector.wallets[wallet.id].privateKey.sign('hello');
-  // let pubKey = ECDSA.fromCompressedPublicKey(myWalletConnector.wallets[wallet.id].publicKey)
-  // console.log(pubKey.verify('hello', sign))
+  saveState(){
+    logger('Saving wallet states')
+    Object.keys(this.wallets).forEach(pubKey =>{
+      let wallet = this.wallets[pubKey];
+      if(wallet){
+        wallet.saveWallet(`./wallets/${wallet.name}-${sha1(wallet.name)}.json`)
+      }
+    })
+  }
 
 
 }
 
- //tryOut()
 
 module.exports = new WalletConnector()

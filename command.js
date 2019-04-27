@@ -1,15 +1,10 @@
-const express = require('express');
-const http = require('http');
-const Node = require('./node');
-const Transaction = require('./backend/classes/transaction');
+#!/usr/bin/env node
+
+const node = require('./node');
 const { copyFile } = require('./backend/tools/blockchainHandler');
 const program = require('commander');
 const { logger } = require('./backend/tools/utils');
-const Mempool = require('./backend/classes/mempool');
-const NodeList = require('./backend/classes/nodelist')
-let port = 8000;
-let arg = '';
-let node;
+//let node;
 
 
 program
@@ -29,7 +24,9 @@ program
   .usage('<address> <port>')
   .description('Starts blockchain node')
   .action((address, port, cmd)=>{
-    node = new Node(address, port);
+    //node = new Node(address, port);
+    node.address = address;
+    node.port = port;
     node.startServer()
 
     if(program.join){
@@ -75,8 +72,6 @@ program
       },6000)
     }
 
-    
-
     if(program.txgen){
       setTimeout(()=>{
         node.txgen();
@@ -112,39 +107,12 @@ process.on('SIGINT', () => {
   
   node.save((saved)=>{
     if(saved){
-      node.chain.mempool.saveMempool();
-      node.nodeList.saveNodeList()
-
       setTimeout(()=>{
         process.exit()
-      },5000)
+      },3000)
     }
   });
   
 
 });
 
-//
-// const spawnNodes = (number, callback)=>{
-//   var nodes = []
-//   for(var i=0; i<number; i++){
-//     nodes.push(new Node('127.0.0.1', portCounter));
-//     nodes[i].startServer();
-//     portCounter++;
-//   }
-//   callback(nodes);
-// }
-//
-//
-// const connectNodes = (nodes) =>{
-//   for(var i=0; i<nodes.length; i++){
-//     if(i>0){
-//       if(i == nodes.length-1){
-//         nodes[i].connectToPeer(nodes[0].address, (peer)=>{})
-//       }else{
-//         nodes[i].connectToPeer(nodes[i-1].address, (peer)=>{})
-//       }
-//
-//     }
-//   }
-// }

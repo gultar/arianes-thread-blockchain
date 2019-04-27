@@ -1,11 +1,5 @@
 const Blockchain = require('../classes/blockchain');
-const Block = require('../classes/block')
-const Transaction = require('../classes/transaction');
-const Node = require('../../node.js')
 const fs = require('fs');
-const merkle = require('merkle');
-const sha256 = require('./sha256');
-var crypto = require('crypto');
 const { logger, readFile } = require('./utils')
 
 var dataBuffer;

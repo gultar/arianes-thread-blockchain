@@ -11,25 +11,32 @@ Aside from some fine tuning, here are some possible future implementations:
 - A proof of stake version of the same project.
 - TCP NAT traversal to do a live test
 
-## Getting Started
-
-```
-git clone https://github.com/gultar/blockchain-simulation
-cd ./blockchain-simulation
-
-```
-
 ### Prerequisites
 
 - Node.js (latest version)
 
-### Installing
+## Getting Started
+
+You need to clone the repo in a folder
+
+```
+git clone https://github.com/gultar/blockchain-simulation
+cd ./blockchain-simulation
+```
+Then you need to install Node.js
+
+```
+$ curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+$ sudo apt-get install -y nodejs
+```
 
 To get the blockchain up and running you first need to get all the dependencies
 
 ```
 npm install
 ```
+
+### Connecting to the blockchain
 
 Then you can either instantiate the class by using
 

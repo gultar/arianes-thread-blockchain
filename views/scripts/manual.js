@@ -52,6 +52,7 @@ const cmds = {
     'stopmine':`<span class'help-line'><b class='help-cmd'>stopmine</b>: Stops current mining process.</span>`,
     'verbose':`<span class'help-line'><b class='help-cmd'>verbose</b>: Toggles verbose mode on and off.</span>`,
     'getmempool':`<span class'help-line'><b class='help-cmd'>getmempool</b>: Queries connected node for its list of pending transactions.</span>`,
-
+    'createwallet':`<span class'help-line'><b class='help-cmd'>createwallet</b>: Generates a new wallet to send and receive transactions. </span><br/>
+    <span class'help-line'><br/>Usage: createwallet [walletname]</span><br/><br/>`,
   
   }

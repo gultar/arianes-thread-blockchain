@@ -106,7 +106,8 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
     "<span class'help-line'><b class='help-cmd'>getpeers</b> ------- Queries connected node for its list of known peers. </span>",
     "<span class'help-line'><b class='help-cmd'>stopmine</b> ------- Stops current mining process. </span>",
     "<span class'help-line'><b class='help-cmd'>verbose</b> -------- Toggles verbose mode on and off. </span>",
-    "<span class'help-line'><b class='help-cmd'>getmempool</b> ----- Queries connected node for its list of pending transactions. </span>"
+    "<span class'help-line'><b class='help-cmd'>getmempool</b> ----- Queries connected node for its list of pending transactions. </span>",
+    "<span class'help-line'><b class='help-cmd'>createwallet</b> --- Generates a new wallet to send and receive transactions. </span>"
   ];
 
   
@@ -395,6 +396,27 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           runCreateWallet(cmd, args);
           break;
+        case 'walletcreate':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          createWalletWithRESTApi(cmd, args);
+          break;
+        case 'getwallet':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          getWalletByName(cmd, args);
+          break;
+        case 'loadwallet':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          loadWallet(cmd, args);
+          break;
         default:
           if (cmd) {
             output(cmd + ': command not found');
@@ -532,25 +554,29 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           output(`Creating wallet with name ${args[0]}`)
           socket.emit('createWallet', args[0])
           socket.on('walletCreated', (wallet)=>{
-            console.log(wallet)
-            socket.off('verboseToggled');
+            if(wallet){
+              output(`<pre>${JSON.stringify(wallet, null, 2)}</pre>`)
+            }else{
+              output('ERROR: Could not create wallet')
+              console.log(wallet)
+            }
+            socket.off('walletCreated');
           })
+
+          
+        }else{
+          output('ERROR: Wallet creation failed. No wallet name provided')
         }
       }
 
-      function sendTx(fromAddress, toAddress, amount, data=''){
-        var transactToSend = {
-          'sender' : fromAddress,
-          'receiver' : toAddress,
-          'amount' : amount,
-          'data' : data
-        }
-        var txL = JSON.stringify(transactToSend);
-        $.ajax({
+      function createWalletWithRESTApi(cmd, args){
+        if(args[0]){
+          $.ajax({
             type: "POST",
-            url: localAddress+"transaction",
+            url: localAddress+"createWallet",
         
-            data: txL,
+            data: JSON.stringify({ 
+              name: args[0] }),
             processData: true,
             contentType: "application/json; charset=utf-8",
             dataType: "json",
@@ -565,6 +591,83 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
                 output(msg);
             }
         });
+        }else{
+          output('ERROR: Wallet creation failed. No wallet name provided')
+        }
+      }
+
+      function getWalletByName(cmd, args){
+        if(args[0]){
+          $.get(localAddress+"getWalletPublicInfo", { name: args[0]} ,(response, status)=>{
+            if(response){
+              output(`Wallet:\n <pre>${JSON.stringify(response, null, 2)}</pre>`)
+              console.log(response);
+            }
+
+            if(status !== 'success'){
+              console.log('ERROR');
+              console.log(error)
+            }
+          })
+        }else{
+          output('ERROR: Need to provide wallet name')
+        }
+      }
+
+      function loadWallet(cmd, args){
+        if(args[0]){
+          $.get(localAddress+"loadWallet", { name: args[0]} ,(response, status)=>{
+            if(response){
+              output(`<pre>Wallet ${args[0]} loaded</pre>`)
+              console.log(response);
+            }
+
+            if(status !== 'success'){
+              console.log('ERROR');
+              console.log(error)
+            }
+          })
+        }else{
+          output('ERROR: Need to provide wallet name')
+        }
+      }
+
+      function sendTx(fromAddress, toAddress, amount, data=''){
+        try{
+          var transactToSend = {
+            'sender' : fromAddress,
+            'receiver' : toAddress,
+            'amount' : amount,
+            'data' : data
+          }
+  
+          if(typeof transactToSend.amount == 'string'){
+            transactToSend.amount = parseInt(transactToSend.amount);
+          }
+          var txL = JSON.stringify(transactToSend);
+          $.ajax({
+              type: "POST",
+              url: localAddress+"transaction",
+          
+              data: txL,
+              processData: true,
+              contentType: "application/json; charset=utf-8",
+              dataType: "json",
+          
+              error: function (xhr, status, error) {
+                  console.log(xhr.responseText);
+                  output("<pre>"+xhr.responseText+"</pre>")
+              },
+          
+              success: function (msg) {
+                  console.log(msg);
+                  output(msg);
+              }
+          });
+        }catch(e){
+          console.log(e)
+        }
+        
     }
 
       function runIching(args, cmd){
@@ -807,7 +910,12 @@ window.onload = function() {
 
     $('#myCanvas').css('visibility', 'hidden');
     $('body').css("background-image", localStorage.getItem('savedBackground'));
-    setInterval(function(){ $('#myULContainer').html('<div id="element"></div>'); },60000)
+    setInterval(function(){
+      if($('#myULContainer').length >=30){
+        $('#myULContainer').html('<div id="element"></div>'); 
+      }
+    },60000)
+    
 }
 
 // function longestChain(localBlockchain=false, distantBlockchain=false){

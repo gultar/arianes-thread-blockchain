@@ -44,7 +44,6 @@ class Mempool{
     }
 
     putbackPendingTransactions(transactions){
-        logger('Number of transactions putback '+Object.keys(transactions).length)
         for(var txHash of Object.keys(transactions)){
             this.pendingTransactions[txHash] = transactions[txHash];
         }
@@ -107,4 +106,4 @@ class Mempool{
 }
 
 
-module.exports = Mempool;
+module.exports = new Mempool();

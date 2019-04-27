@@ -20,6 +20,7 @@
     "fetch": "^1.1.0",
     "helmet": "^3.16.0",
     "json-size": "^1.0.0",
+    "jsonschema": "^1.2.4",
     "loopyloop": "^1.1.2",
     "merkle": "^0.6.0",
     "net": "^1.0.2",
@@ -31,6 +32,10 @@
     "utf8": "^3.0.0"
   },
   "devDependencies": {},
+  "bin": {
+    "blockchain": "command.js",
+    "wallet":"walletCLI.js"
+  },
   "scripts": {
     "test": "node test.js",
     "push": "git add * && git commit -m '$MSG' && git push origin master",

@@ -1,18 +1,16 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger } = require('../tools/utils');
-const sha256 = require('../tools/sha256');
 const sha1 = require('sha1');
-const { encrypt, decrypt } = require('../tools/utils')
 const fs = require('fs')
 let _ = require('private-parts').createKey();
 
 class Wallet{
     
     constructor(){
+        this.name = ''
         this.id = '';
         _(this).privateKey = '';
         this.publicKey = '';
-        this.transactions = {}
     }
 
     generateEntropy(){
@@ -30,11 +28,6 @@ class Wallet{
         return await _(this).privateKey.toCompressedPublicKey()
     }
 
-    // async getWallet(){
-    //     let wallet = this;
-    //     return wallet;
-    // }
-
     async init(seed){
         
         let secretSeed = (seed ? seed : this.generateEntropy())
@@ -44,6 +37,7 @@ class Wallet{
                
                 _(this).privateKey = ECDSA.generateKey(secretSeed);
                 this.publicKey = await this.createCompressedPublicKey();
+                this.name = ( seed ? seed : sha1(secretSeed));
                 this.id = await sha1((seed? seed:this.publicKey));
                 if(_(this).privateKey && this.publicKey && this.id){
                     resolve(this);
@@ -66,7 +60,7 @@ class Wallet{
                 try{
                     this.id = json.id;
                     this.publicKey = json.publicKey;
-                    this.transactions = json.transactions;
+                    this.name = json.name;
                     _(this).privateKey = ECDSA.fromJWK(json.privateKey);
 
                     resolve(true)
@@ -109,7 +103,6 @@ class Wallet{
         }
     }
 
-    
 
     saveWallet(filename){
         if(this.publicKey && _(this).privateKey && filename){
@@ -123,7 +116,7 @@ class Wallet{
                 publicKey:this.publicKey,
                 privateKey:formatToJWK(),
                 id:this.id,
-                transaction:this.transactions,
+                name:this.name,
             }
             let walletString = JSON.stringify(walletToSave, null, 2);
             var wstream = fs.createWriteStream(filename);
@@ -136,7 +129,7 @@ class Wallet{
         }
     }
 
-    async loadWalletFromFile(pathAndFilename){
+    async importWalletFromFile(pathAndFilename){
         return new Promise((resolve, reject)=>{
             fs.exists(pathAndFilename, (exists)=>{
                 if(exists){
@@ -157,10 +150,12 @@ class Wallet{
                         rstream.on('close', () =>{  // done
                           if(data != undefined){
                               let wallet = JSON.parse(data);
+
                               this.publicKey = wallet.publicKey;
                               _(this).privateKey = ECDSA.fromJWK(wallet.privateKey);
                               this.id = wallet.id;
-                              resolve(wallet);
+                              this.name = wallet.name;
+                              resolve(this);
                           }else{
                             resolve(false);
                           }
