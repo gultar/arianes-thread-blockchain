@@ -54,7 +54,7 @@ class Blockchain{
         'coinbase', "AiJP8Hsy0f4SoQPoYYIubw87zv6rfjYzWNOxXn2+wgHb", 10000, 'ICO transactions'
       ),
       new Transaction( //first node
-        'coinbase',"A0LCplPB/lJ6uCBpvUzMAYZIfhcZeFVWk+ycexlA6AH2", 10000, 'ICO transactions'
+        'coinbase',"AyJ6X7hDO0Irwxn/d5r2Ux1srsSsbC3TchWF5hBoK2Op", 10000, 'ICO transactions'
       ),
       new Transaction( //second node
         'coinbase', "A1ro4i/2GALdz9UjyycVNTveAkutttMLClFjCv6P+hEI", 10000, 'ICO transactions'
@@ -543,10 +543,10 @@ class Blockchain{
           //implement mining fee
   
 
-              if(!balanceOfSendingAddr || balanceOfSendingAddr === 0){
-                logger('REJECTED: Balance of sending address is 0');
-                resolve(false);
-              }
+              // if(!balanceOfSendingAddr || balanceOfSendingAddr === 0){
+              //   logger('REJECTED: Balance of sending address is 0');
+              //   resolve(false);
+              // }
                 
               if(!isChecksumValid){
                 logger('REJECTED: Transaction checksum is invalid');
