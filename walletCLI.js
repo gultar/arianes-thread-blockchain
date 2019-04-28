@@ -2,7 +2,11 @@
 
 const program = require('commander');
 const chalk = require('chalk');
-const axios = require('axios')
+const axios = require('axios');
+const fs = require('fs');
+const { readFile, writeToFile } = require('./backend/tools/utils')
+const WalletManager = require('./backend/classes/walletManager');
+let manager = new WalletManager();
 
 program
 .version('0.0.1')
@@ -11,166 +15,112 @@ program
   .option('-l, --load <name>', 'Activates a wallet')
   .option('-g, --get <name>', 'Gets an active wallet')
 
-program
-.command('create <address> <walletName>')
-.description('Creates a new wallet and broadcasts its public key to the network')
-.action((address, walletName, cmd)=>{
-  axios.post(address+'/createWallet', {
-    name:walletName
-  }).then((response)=>{
-    console.log(response.data)
-  }).catch((e)=>{
-    console.log(chalk.red(e))
-  })
-})
+ 
 
-program
-.command('load <address> <walletName>')
-.description('Loads and activates a wallet file')
-.action((address, walletName, cmd)=>{
-  axios.get(address+'/loadWallet', {params:{
-    name:walletName
-  }}).then((response)=>{
-    let walletInfo = response.data;
-    if(walletInfo){
-      if(typeof walletInfo == 'string'){
-        console.log(walletInfo)
-      }else{
-        walletInfo = JSON.stringify(walletInfo, null, 2);
-        console.log(walletInfo)
-      }
-      
-    }
-    
-  }).catch((e)=>{
-    console.log(chalk.red(e))
-  })
-})
-
-// program
-// .command('import <address> <pathToWalletFile>')
-// .description('Imports a wallet file')
-// .action((path, cmd)=>{
-
-// })
-
-program
-.command('get <address> <walletName>')
-.description('Gets wallet data')
-.action((address, walletName, cmd)=>{
-  axios.get(address+'/getWalletPublicInfo', {params:{
-    name:walletName
-  }}).then((response)=>{
-    let walletInfo = response.data;
-    if(walletInfo){
-      if(typeof walletInfo == 'string'){
-        console.log(walletInfo)
-      }else{
-        walletInfo = JSON.stringify(walletInfo, null, 2);
-        console.log(walletInfo)
-      }
-      
-    }
-    
-  }).catch((e)=>{
-    console.log(chalk.red(e))
-  })
-})
-
-program
-.command('balance <address> <walletName>')
-.description('Display balance of a wallet')
-.action((address, walletName, cmd)=>{
-  axios.get(address+'/getWalletBalance', {params:{
-    name:walletName
-  }})
-  .then((response)=>{
-    let walletInfo = response.data;
-    if(walletInfo){
-      if(typeof walletInfo == 'string'){
-        console.log(walletInfo)
-      }else{
-        walletInfo = JSON.stringify(walletInfo, null, 2);
-        console.log(walletInfo)
-      }
-      
-    }
-    
-  }).catch((e)=>{
-    console.log(chalk.red(e))
-  })
-})
-
-program
-.command('history <address> <walletName>')
-.description('Display balance of a wallet')
-.action((address, walletName, cmd)=>{
-  axios.get(address+'/getWalletHistory', {params:{
-    name:walletName
-  }})
-  .then((response)=>{
-    let walletInfo = response.data;
-    if(walletInfo){
-      if(typeof walletInfo == 'string'){
-        console.log(walletInfo)
-      }else{
-        walletInfo = JSON.stringify(walletInfo, null, 2);
-        console.log(walletInfo)
-      }
-      
-    }
-    
-  }).catch((e)=>{
-    console.log(chalk.red(e))
-  })
-})
-
-program
-.command('list <address>')
-.description('List all active wallets')
-.action((address)=>{
-  axios.get(address+'/listWallets')
-  .then((response)=>{
-    let walletInfo = response.data;
-    if(walletInfo){
-      if(typeof walletInfo == 'string'){
-        console.log(walletInfo)
-      }else{
-        walletInfo = JSON.stringify(walletInfo, null, 2);
-        console.log(walletInfo)
-      }
-      
-    }
-    
-  }).catch((e)=>{
-    console.log(chalk.red(e))
-  })
-})
-
-program
-.command('txget <address> <txhash>')
-.description('get a transaction from either the mempool or the chain')
-.action((address, txHash)=>{
+const runWalletCLI = async () =>{
   
-  axios.get(address+'/transaction', {
-    params:{
-      hash:txHash
-    }
-  })
-  .then((response)=>{
-    let txInfo = response.data;
-    if(txInfo){
-      if(typeof txInfo == 'string'){
-        console.log(txInfo)
-      }else{
-        txInfo = JSON.stringify(txInfo, null, 2);
-        console.log(txInfo)
-      }
-      
-    }
+      const address = await readFile('./backend/cli/target');
+      if(address){
+        program
+          .command('create <walletName>')
+          .description('Creates a new wallet and broadcasts its public key to the network')
+          .action(( walletName)=>{
+            manager.createWallet(address, walletName);
+          })
+
+        program
+          .command('changetarget')
+          .description('deletes target address file')
+          .action(()=>{
+            createTargetFile()
+          })
+
     
-  }).catch((e)=>{
-    console.log(chalk.red(e))
+        program
+          .command('load <walletName>')
+          .description('Loads and activates a wallet file')
+          .action(( walletName)=>{
+              manager.loadWallet(address, walletName)
+          })
+      
+          // program
+          // .command('import  <pathToWalletFile>')
+          // .description('Imports a wallet file')
+          // .action((path, cmd)=>{
+      
+          // })
+      
+        program
+          .command('get <walletName>')
+          .description('Gets wallet data')
+          .action(( walletName)=>{
+              manager.getWallet(address, walletName)
+          })
+      
+        program
+          .command('balance <walletName>')
+          .description('Display balance of a wallet')
+          .action(( walletName, cmd)=>{
+            manager.getWalletBalance(address, walletName);
+          })
+      
+        program
+          .command('history <walletName>')
+          .description('Display balance of a wallet')
+          .action(( walletName, cmd)=>{
+            manager.getWalletHistory(address, walletName);
+          })
+      
+        program
+          .command('list')
+          .description('List all active wallets')
+          .action(()=>{
+            manager.listWallets(address);
+          })
+      
+        program
+          .command('txget <txhash>')
+          .description('get a transaction from either the mempool or the chain')
+          .action(( txHash)=>{
+            manager.getTransaction(address, txHash);
+          })
+          program.parse(process.argv)
+      }else{
+
+      }
+  
+  
+}
+
+const createTargetFile = ()=>{
+  const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
   })
+  
+  readline.question(`Enter node ip address: `, async (address) => {
+    if(address && typeof address == 'string'){
+      let success = await writeToFile(address, './backend/cli/target');
+      if(success){
+        console.log('Set target ip address to :', address);
+        runWalletCLI();
+      }
+    }
+    readline.close();
+    process.exit();
+  })
+}
+
+fs.exists('./backend/cli/target',async (exists)=>{
+  if(exists){
+    runWalletCLI();
+  }else{
+    createTargetFile();
+    
+  }
 })
-program.parse(process.argv)
+
+
+
+
+

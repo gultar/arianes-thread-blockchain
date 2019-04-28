@@ -1604,13 +1604,14 @@ class Node {
   coinbaseTxIsReadyToCashIn(){
     if(Mempool.pendingCoinbaseTransactions){
       let hashes = Object.keys(Mempool.pendingCoinbaseTransactions);
-      console.log(hashes);
+      
       hashes.forEach( async(hash) =>{
         let transaction = Mempool.pendingCoinbaseTransactions[hash];
         if(transaction.signatures){
-          console.log(transaction)
+          
           let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
           if(readyToMove){
+            console.log('Ready to move:', readyToMove)
             Mempool.moveCoinbaseTransactionToPool(transaction);
           }
         }else{

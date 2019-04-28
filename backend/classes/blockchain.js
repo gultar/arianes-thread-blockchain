@@ -198,7 +198,7 @@ class Blockchain{
         })
       }catch(e){
         console.log(e)
-        reject(e)
+        reject(false)
       }
       
     })
@@ -206,22 +206,26 @@ class Blockchain{
   }
 
   createCoinbaseTransaction(publicKey){
+    
     return new Promise((resolve, reject)=>{
-      try{
+      if(publicKey){
+        try{
           var miningReward = new Transaction('coinbase', publicKey, this.miningReward)
           
           Mempool.addCoinbaseTransaction(miningReward);
           logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash)
           resolve(miningReward)
 
-      }catch(e){
-        console.log(e);
+        }catch(e){
+          console.log(e);
+          resolve(false);
+        }
+      }else{
+        logger('ERROR: Could not create coinbase transaction. Missing public key');
+        resolve(false);
       }
+      
     })
-  }
-
-  cashInCoinbaseTransaction(transaction){
-
   }
 
 
@@ -616,8 +620,8 @@ class Blockchain{
 
           let hasEnoughSignatures = false;
           
-          if(typeof areSignaturesValid == 'array'){
-            hasEnoughSignatures = areSignaturesValid.length >= this.coinbaseSignatureNumber;
+          if(areSignaturesValid){
+            hasEnoughSignatures = Object.keys(areSignaturesValid).length >= this.coinbaseSignatureNumber;
             logger('Coinbase transaction has enough signatures: ', hasEnoughSignatures)
           }
 
@@ -704,7 +708,7 @@ class Blockchain{
         let signature = '';
         let validSignatures = {};
         if(coinbaseTx && coinbaseTx.signatures){
-          console.log(coinbaseTx)
+          
           Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
             
             publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);

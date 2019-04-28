@@ -24,16 +24,21 @@ class Mempool{
     }
 
     addCoinbaseTransaction(transaction){
-        try{
-            if(transaction && transaction.hasOwnProperty('hash')){
-                if(!this.pendingCoinbaseTransactions[transaction.hash]){
-                    this.pendingCoinbaseTransactions[transaction.hash] = transaction;
+        if(transaction){
+            try{
+                if(transaction && transaction.hasOwnProperty('hash')){
+                    if(!this.pendingCoinbaseTransactions[transaction.hash]){
+                        this.pendingCoinbaseTransactions[transaction.hash] = transaction;
+                    }
                 }
+                
+            }catch(e){
+                console.log(e);
             }
-            
-        }catch(e){
-            console.log(e);
+        }else{
+            logger('ERROR: Could not add new coinbase transaction')
         }
+        
     }
 
     getCoinbaseTransaction(hash){
