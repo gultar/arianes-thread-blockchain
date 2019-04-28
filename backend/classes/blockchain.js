@@ -42,7 +42,7 @@ class Blockchain{
     this.ipAddresses = ipAddresses;
     this.blockSize = 20; //Minimum Number of transactions per block
     this.orphanedBlocks = [];
-    this.coinbaseSignatureNumber = 5;
+    this.coinbaseSignatureNumber = 1;
     this.transactionSizeLimit = 100 * 1024;
   }
 
@@ -704,9 +704,12 @@ class Blockchain{
         let signature = '';
         let validSignatures = {};
         if(coinbaseTx && coinbaseTx.signatures){
+          console.log(coinbaseTx)
           Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
+            
             publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
-            signature = coinbastTx.signatures[publicKey];
+            signature = coinbaseTx.signatures[CompressedPublicKey];
+            
             validSignatures[CompressedPublicKey] = publicKey.verify(coinbaseTx.hash, signature);
           })
         }else{

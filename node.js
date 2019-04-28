@@ -520,10 +520,13 @@ class Node {
         if(hash && signature && publicKey){
           let coinbaseTx = Mempool.getCoinbaseTransaction(hash);
           if(coinbaseTx){
+            if(!coinbaseTx.signatures) coinbaseTx.signatures = {}
             coinbaseTx.signatures[publicKey] = signature;
             logger('RECEIVED SIGNATURE:', signature)
+            res.send('SUCCESS: Received peer signature')
           }else{
             logger('ERROR: coinbase not found')
+            res.send('ERROR: could not sign coinbase transaction')
           }
           
         }
@@ -892,17 +895,17 @@ class Node {
       logger('sending a signature');
     })
 	
-	socket.on('txSize', (hash)=>{
-		if(Mempool.pendingTransactions.hasOwnProperty(hash)){
-			let tx = Mempool.pendingTransactions[hash];
-			
-			logger('Size:'+ (Transaction.getTransactionSize(tx) / 1024) + 'Kb');
-		}else{
-			logger('No transaction found');
-			socket.emit('message', 'No transaction found')
-		}
-		
-	})
+    socket.on('txSize', (hash)=>{
+      if(Mempool.pendingTransactions.hasOwnProperty(hash)){
+        let tx = Mempool.pendingTransactions[hash];
+        
+        logger('Size:'+ (Transaction.getTransactionSize(tx) / 1024) + 'Kb');
+      }else{
+        logger('No transaction found');
+        socket.emit('message', 'No transaction found')
+      }
+      
+    })
 
     socket.on('resolveFork', ()=>{
       if(this.longestChain.peerAddress){

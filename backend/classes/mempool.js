@@ -23,7 +23,7 @@ class Mempool{
         
     }
 
-    addCoinbaseTransaction(hash){
+    addCoinbaseTransaction(transaction){
         try{
             if(transaction && transaction.hasOwnProperty('hash')){
                 if(!this.pendingCoinbaseTransactions[transaction.hash]){
