@@ -19,7 +19,7 @@ program
 
 const runWalletCLI = async () =>{
   
-      const address = await readFile('./backend/cli/target');
+      const address = await readFile('./config/target');
       if(address){
         program
           .command('create <walletName>')
@@ -100,7 +100,7 @@ const createTargetFile = ()=>{
   
   readline.question(`Enter node ip address: `, async (address) => {
     if(address && typeof address == 'string'){
-      let success = await writeToFile(address, './backend/cli/target');
+      let success = await writeToFile(address, './config/target');
       if(success){
         console.log('Set target ip address to :', address);
         runWalletCLI();
@@ -111,7 +111,7 @@ const createTargetFile = ()=>{
   })
 }
 
-fs.exists('./backend/cli/target',async (exists)=>{
+fs.exists('./config/target',async (exists)=>{
   if(exists){
     runWalletCLI();
   }else{
