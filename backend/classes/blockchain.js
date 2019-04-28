@@ -703,7 +703,7 @@ class Blockchain{
         let publicKey = '';
         let signature = '';
         let validSignatures = {};
-        if(coinbase && coinbase.signatures){
+        if(coinbaseTx && coinbaseTx.signatures){
           Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
             publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
             signature = coinbastTx.signatures[publicKey];

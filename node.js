@@ -878,6 +878,10 @@ class Node {
       
       
     })
+
+    socket.on('sign', (address)=>{
+      this.sendCoinbaseSignatureToMiner(address, { coinbaseTransactionHash:'12345' })
+    })
 	
 	socket.on('txSize', (hash)=>{
 		if(Mempool.pendingTransactions.hasOwnProperty(hash)){
