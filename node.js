@@ -890,8 +890,8 @@ class Node {
       
     })
 
-    socket.on('sign', (address)=>{
-      this.sendCoinbaseSignatureToMiner(address, { coinbaseTransactionHash:'784ea3ec8a43d16e5cbea6ad0308aa081bc91612a5cfb9d2fb7ad1b0bdbfa982' })
+    socket.on('sign', (address, hash)=>{
+      this.sendCoinbaseSignatureToMiner(address, { coinbaseTransactionHash:hash })
       logger('sending a signature');
     })
 	
