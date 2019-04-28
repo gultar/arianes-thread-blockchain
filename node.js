@@ -1438,7 +1438,7 @@ class Node {
   }
 
   async sendCoinbaseSignatureToMiner(minerAddress, block){
-    if(minerAddress && block && block instanceof Block){
+    if(minerAddress && block && block.hasOwnProperty('coinbaseTransactionHash')){
       let coinbasetTxHash = block.coinbaseTransactionHash;
       let signature = await WalletConnector.sign(this.publicKey, coinbasetTxHash);
       if(signature){
