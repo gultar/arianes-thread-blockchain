@@ -484,6 +484,7 @@ class Node {
       })
   
       app.post('/transaction', (req, res) => {
+        
         try{
           if(isValidTransactionJSON(req.body)){
             let { sender, receiver, amount, data } = req.body;
@@ -491,8 +492,8 @@ class Node {
             this.broadcastNewTransaction(sender, receiver, amount, data)
             .then((transactionEmitted)=>{
               
-              if(!transactionEmitted){
-                res.send('ERROR: Transaction could not be emitted')
+              if(transactionEmitted.error){
+                res.send(transactionEmitted.error)
               }else{
                 let signature = transactionEmitted.signature;
                 let hash = transactionEmitted.hash;
@@ -964,7 +965,7 @@ class Node {
 
               this.chain.validateTransaction(transaction)
               .then(valid => {
-                if(valid){
+                if(!valid.error){
                   Mempool.addTransaction(transaction);
                   this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
@@ -972,6 +973,7 @@ class Node {
                   this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
                   Mempool.rejectedTransactions[transaction.hash] = transaction;
+                  logger(valid.error)
                 }
               })
 
@@ -1405,20 +1407,20 @@ class Node {
 
         if(!wallet){
           logger('ERROR: Could not find wallet of sender address')
-          resolve(false);
+          resolve({error:'ERROR: Could not find wallet of sender address'});
         }else{
           let signature = await wallet.sign(transaction.hash);
           
           if(!signature){
             logger('Transaction signature failed. Check both public key addresses.')
-            resolve(false)
+            resolve({error:'Transaction signature failed. Check both public key addresses.'})
             
           }else{
             transaction.signature = signature;
             
             this.chain.createTransaction(transaction)
               .then( valid =>{
-                if(valid){
+                if(!valid.error){
 
                   Mempool.addTransaction(transaction);
                   this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
@@ -1431,7 +1433,7 @@ class Node {
                   this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
                   Mempool.rejectedTransactions[transaction.hash] = transaction;
-                  resolve(false);
+                  resolve({error:valid.error});
 
                 }
               })

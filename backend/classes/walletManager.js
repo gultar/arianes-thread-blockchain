@@ -169,6 +169,42 @@ class WalletManager{
             console.log(chalk.red(e))
           })
     }
+
+    sendTransaction(address, sender, receiver, amount, data){
+        if(sender && receiver && amount){
+            try{
+                var transactToSend = {
+                    'sender' : sender,
+                    'receiver' : receiver,
+                    'amount' : amount,
+                    'data' : data
+                }
+
+                if(typeof transactToSend.amount == 'string'){
+                    transactToSend.amount = parseInt(transactToSend.amount);
+                }
+
+                if(!transactToSend.data){
+                    transactToSend.data = ' '
+                }
+
+                axios.post(address+'/transaction', transactToSend)
+                .then((response)=>{
+                    console.log(response.data)
+                  }).catch((e)=>{
+                    console.log(chalk.red(e))
+                  })
+    
+            }catch(e){
+                console.log(e);
+            }
+            
+        }else{
+            logger('ERROR: Need to provide sender, receiver and amount when sending a transaction');
+            
+        }
+        
+    }
 }
 
 module.exports = WalletManager

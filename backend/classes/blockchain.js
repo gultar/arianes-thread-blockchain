@@ -191,15 +191,13 @@ class Blockchain{
 
   createTransaction(transaction){
     return new Promise((resolve, reject)=>{
-      try{
-        this.validateTransaction(transaction)
-        .then(valid =>{
-          resolve(valid)
-        })
-      }catch(e){
-        console.log(e)
-        reject(false)
-      }
+      this.validateTransaction(transaction)
+      .then(valid =>{
+        resolve(valid)
+      })
+      .catch(e =>{
+        reject(e);
+      })
       
     })
     
@@ -566,39 +564,39 @@ class Blockchain{
                 
               if(!isChecksumValid){
                 logger('REJECTED: Transaction checksum is invalid');
-                resolve(false);
+                resolve({error:'REJECTED: Transaction checksum is invalid'});
               }
                 
               if(!isSignatureValid){
                 logger('REJECTED: Transaction signature is invalid');
-                resolve(false);
+                resolve({error:'REJECTED: Transaction signature is invalid'});
               }
 
               // if(!amountIsNotZero){
               //   logger('REJECTED: Amount needs to be higher than zero');
-              //   resolve(false);
+              //   resolve({error:'REJECTED: Amount needs to be higher than zero'});
               // }
                 
               if(!transactionSizeIsNotTooBig){
                 logger('REJECTED: Transaction size is above 10KB');
-                resolve(false);  
+                resolve({error:'REJECTED: Transaction size is above 10KB'});  
               }
                 
               if(balanceOfSendingAddr < transaction.amount){
                 logger('REJECTED: Sender does not have sufficient funds')
-                resolve(false);
+                resolve({error:'REJECTED: Sender does not have sufficient funds'});
               }  
               
               resolve(true)
               
         }catch(err){
           console.log(err);
-          reject(err)
+          reject({error:err})
         }
   
       }else{
         logger('ERROR: Transaction is undefined');
-        resolve(false)
+        resolve({error:'ERROR: Transaction is undefined'})
       }
   
     })

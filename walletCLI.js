@@ -8,13 +8,6 @@ const { readFile, writeToFile } = require('./backend/tools/utils')
 const WalletManager = require('./backend/classes/walletManager');
 let manager = new WalletManager();
 
-program
-.version('0.0.1')
-  .option('-h, --help [command]', 'display this message')
-  .option('-c, --create <name>', 'Creates a wallet')
-  .option('-l, --load <name>', 'Activates a wallet')
-  .option('-g, --get <name>', 'Gets an active wallet')
-
  
 
 const runWalletCLI = async () =>{
@@ -83,6 +76,14 @@ const runWalletCLI = async () =>{
           .description('get a transaction from either the mempool or the chain')
           .action(( txHash)=>{
             manager.getTransaction(address, txHash);
+          })
+          
+
+        program
+          .command('sendtx <sender> <receiver> <amount> [data]')
+          .description('Sends a transaction to another wallet')
+          .action((sender, receiver, amount, data)=>{
+            manager.sendTransaction(address, sender, receiver, amount, data);
           })
           program.parse(process.argv)
       }else{
