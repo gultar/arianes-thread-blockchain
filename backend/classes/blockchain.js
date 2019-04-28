@@ -205,10 +205,10 @@ class Blockchain{
     
   }
 
-  createCoinbaseTransaction(publicKey, blockNumber){
+  createCoinbaseTransaction(publicKey){
     return new Promise((resolve, reject)=>{
       try{
-          var miningReward = new Transaction('coinbase', publicKey, this.miningReward, { blockHeight:blockNumber })
+          var miningReward = new Transaction('coinbase', publicKey, this.miningReward)
           
           Mempool.addCoinbaseTransaction(miningReward);
           logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash)
@@ -703,12 +703,16 @@ class Blockchain{
         let publicKey = '';
         let signature = '';
         let validSignatures = {};
-
-        Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
-          publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
-          signature = coinbastTx.signatures[publicKey];
-          validSignatures[CompressedPublicKey] = publicKey.verify(coinbaseTx.hash, signature);
-        })
+        if(coinbase && coinbase.signatures){
+          Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
+            publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
+            signature = coinbastTx.signatures[publicKey];
+            validSignatures[CompressedPublicKey] = publicKey.verify(coinbaseTx.hash, signature);
+          })
+        }else{
+          logger('ERROR: Coinbase transaction does not contain signatures')
+        }
+       
 
         resolve(validSignatures);
       }else{

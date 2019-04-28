@@ -872,26 +872,9 @@ class Node {
       socket.emit('mempool', Mempool);
     })
 
-    socket.on('test', (number)=>{
-		if(number){
-			let block = this.chain.chain[number];
-			if(block){
-				  let size = 0;
-				  let amount = 0;
-				  Object.keys(block.transactions).forEach((txHash)=>{
-					
-					amount = amount + block.transactions[txHash].amount;
-				  })
-				  setTimeout(()=>{
-					logger('Total sum:',amount);
-					logger('Size:'+ (Transaction.getTransactionSize(block) / 1024) + 'Kb');
-				  }, 2000)
-			}else{
-				logger('No block found');
-				socket.emit('message', 'No block found')
-			}
-			  
-		}
+    socket.on('test', ()=>{
+		
+      this.coinbaseTxIsReadyToCashIn();
       
       
     })
@@ -1558,7 +1541,7 @@ class Node {
                  let newBlockHeight = this.chain.getLatestBlock().blockNumber;
                  this.chain.isChainValid()
                  this.chain.saveBlockchain()
-                 let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, newBlockHeight)
+                 let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey)
                  this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
                  
                  setTimeout(()=>{
@@ -1604,8 +1587,10 @@ class Node {
   coinbaseTxIsReadyToCashIn(){
     if(Mempool.pendingCoinbaseTransactions){
       let hashes = Object.keys(Mempool.pendingCoinbaseTransactions);
+      console.log(hashes);
       hashes.forEach( async(hash) =>{
         let transaction = Mempool.pendingCoinbaseTransactions[hash];
+        console.log(transaction)
         let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
         if(readyToMove){
           Mempool.moveCoinbaseTransactionToPool(transaction);
