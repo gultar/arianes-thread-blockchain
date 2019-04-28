@@ -1442,6 +1442,7 @@ class Node {
       let coinbasetTxHash = block.coinbaseTransactionHash;
       let signature = await WalletConnector.sign(this.publicKey, coinbasetTxHash);
       if(signature){
+        console.log('Address:', minerAddress+'/signCoinbaseTx')
         axios.post(minerAddress+'/signCoinbaseTx', {
           signature:signature,
           hash:coinbasetTxHash,
