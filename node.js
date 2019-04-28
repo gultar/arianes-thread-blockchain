@@ -519,8 +519,13 @@ class Node {
         let { signature, hash, publicKey } = req.body;
         if(hash && signature && publicKey){
           let coinbaseTx = Mempool.getCoinbaseTransaction(hash);
-          coinbaseTx.signatures[publicKey] = signature;
-          logger('RECEIVED SIGNATURE:', signature)
+          if(coinbaseTx){
+            coinbaseTx.signatures[publicKey] = signature;
+            logger('RECEIVED SIGNATURE:', signature)
+          }else{
+            logger('ERROR: coinbase not found')
+          }
+          
         }
       })
   
