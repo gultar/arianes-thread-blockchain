@@ -60,7 +60,7 @@ class Blockchain{
         'coinbase',"AyJ6X7hDO0Irwxn/d5r2Ux1srsSsbC3TchWF5hBoK2Op", 10000, 'ICO transactions'
       ),
       new Transaction( //second node
-        'coinbase', "A1ro4i/2GALdz9UjyycVNTveAkutttMLClFjCv6P+hEI", 10000, 'ICO transactions'
+        'coinbase', "AzfdKDdw0/X8KR9Z4r6u0XJOMJUKie9Esp4kQX3926Yi", 10000, 'ICO transactions'
       ),
       new Transaction( //third node
         'coinbase', "A0LwcQG6XUkGikwn0aJ/jvv7irysO+z1MWaEh25ci4O/", 10000, 'ICO transactions'
