@@ -1598,7 +1598,7 @@ class Node {
       console.log(hashes);
       hashes.forEach( async(hash) =>{
         let transaction = Mempool.pendingCoinbaseTransactions[hash];
-        if(transactions.signatures){
+        if(transaction.signatures){
           console.log(transaction)
           let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
           if(readyToMove){
