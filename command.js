@@ -109,7 +109,7 @@ process.on('SIGINT', () => {
     if(saved){
       setTimeout(()=>{
         process.exit()
-      },3000)
+      },5000)
     }
   });
   

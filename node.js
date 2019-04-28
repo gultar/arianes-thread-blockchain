@@ -457,7 +457,30 @@ class Node {
       });
       
       app.get('/transaction', (req, res)=>{
-        //Get transaction by hash
+        let tx = {};
+        let pendingTx = {};
+        let hash = req.query.hash;
+        
+        if(hash){
+          tx = this.chain.getTransactionFromChain(hash);
+          if(tx){
+            res.json({ tx:tx }).end()
+          }else{
+
+            pendingTx = Mempool.getTransactionFromPool(hash);
+            
+            if(pendingTx){
+              res.json({ pendingTx:pendingTx }).end()
+            }else{
+              res.json({ error:'no transaction found'}).end()
+            }
+            
+          }
+        }else{
+          res.json({ error:'invalid transaction hash'}).end()
+        }
+        
+
       })
   
       app.post('/transaction', (req, res) => {
@@ -971,6 +994,24 @@ class Node {
             }
           });
           break;
+        case 'getCoinbaseTransaction':
+          if(data && typeof data == 'string'){
+            try{
+              logger('Fetching new coinbase transaction from ', originAddress)
+              axios.get(originAddress+'/transaction', {
+                param:{
+                  txHash:data
+                }
+              }).then((response)=>{
+                console.log(response)
+              }).catch((e)=>{
+                console.log(chalk.red(e))
+              })
+            }catch(e){
+              console.log(chalk.red(e))
+            }
+          }
+          break;
         case 'whoisLongestChain':
           try{
             if(this.chain instanceof Blockchain){
@@ -1463,8 +1504,10 @@ class Node {
           this.minerStarted = true;
           setInterval(()=>{
             if(!process.MINER && !this.minerPaused){
+
              let isMining = this.chain.hasEnoughTransactionsToMine();
              let block = false;
+             
              if(isMining && !block){
 
               let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock());
@@ -1479,6 +1522,7 @@ class Node {
                  process.MINER = false;
                  
                  this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+
                  this.chain.isChainValid()
                  this.chain.saveBlockchain()
                  
@@ -1490,17 +1534,27 @@ class Node {
                    this.minerPaused = false;
                    let newBlockTransactions = this.chain.getLatestBlock().transactions;
                    Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                   setTimeout(async ()=>{
+                    let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey)
+                    if(coinbase){
+                      console.log(coinbase)
+                    }
+                   },2000)
+                   
+
                  },3000)
                 }else{
                    let transactionOfCancelledBlock = block.transactions;
                    Mempool.putbackPendingTransactions(transactionOfCancelledBlock);
                 }
               })
+             }else{
+              //Block is currently being mined
              }
 
   
            }else{
-             //Already mining a block
+             //Already started mining
            }
           }, 1000)
         }else{
@@ -1519,12 +1573,13 @@ class Node {
     
     logger('Saving known nodes to blockchain file');
     logger('Number of known nodes:', this.nodeList.addresses.length)
-    this.nodeList.saveNodeList();
-    Mempool.saveMempool();
-    WalletConnector.saveState();
+    
     this.chain.saveBlockchain()
       .then((saved)=>{
         
+        this.nodeList.saveNodeList();
+        Mempool.saveMempool();
+        WalletConnector.saveState();
 
         if(saved == true){
           logger('Successfully saved blockchain file')

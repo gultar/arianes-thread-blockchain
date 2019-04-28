@@ -22,6 +22,14 @@ class Mempool{
         
     }
 
+    getTransactionFromPool(hash){
+        if(hash && typeof hash == 'string'){
+            return this.pendingTransactions[hash];
+        }else{
+            return false;
+        }
+    }
+
     sizeOfPool(){
         return Object.keys(this.pendingTransactions).length;
     }

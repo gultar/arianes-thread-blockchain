@@ -20,6 +20,7 @@ const setChallenge = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool')
+const WalletConnector = require('./walletConnector')
 
 /**
   * @desc Basic blockchain class.
@@ -166,9 +167,11 @@ class Blockchain{
             console.log(chalk.cyan("* Nonce : "), block.nonce)
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
-            var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
             
-            Mempool.addTransaction(miningReward);
+            
+            // var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
+            // Mempool.addTransaction(miningReward);
+
             callback(miningSuccessful, block.hash);
 
           }else{
@@ -195,6 +198,29 @@ class Blockchain{
         console.log(e)
         reject(e)
       }
+      
+    })
+    
+  }
+
+  createCoinbaseTransaction(publicKey){
+    return new Promise((resolve, reject)=>{
+      try{
+        var miningReward = new Transaction('coinbase', publicKey, this.miningReward, 'coinbase')
+        let signature = WalletConnector.wallets[publicKey].sign(publicKey, miningReward);
+        if(signature){
+          miningReward.signature = signature;
+          Mempool.addTransaction(miningReward);
+          logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash)
+          resolve(miningReward)
+        }else{
+          logger(chalk.red('ERROR: Could not create coinbase transaction'))
+          resolve(false)
+        }
+      }catch(e){
+        console.log(e);
+      }
+      
       
     })
     
@@ -357,6 +383,19 @@ class Blockchain{
       return history;
     }
 
+  }
+
+  getTransactionFromChain(hash){
+    let tx = {}
+    if(hash){
+      this.chain.forEach(block =>{
+        if(block.transactions[hash]){
+          //need to avoid collision
+          tx = block.transactions[hash];
+          return tx;
+        }
+      })
+    }
   }
 
   /**

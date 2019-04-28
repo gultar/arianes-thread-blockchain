@@ -146,4 +146,31 @@ program
     console.log(chalk.red(e))
   })
 })
+
+program
+.command('txget <address> <txhash>')
+.description('get a transaction from either the mempool or the chain')
+.action((address, txHash)=>{
+  
+  axios.get(address+'/transaction', {
+    params:{
+      hash:txHash
+    }
+  })
+  .then((response)=>{
+    let txInfo = response.data;
+    if(txInfo){
+      if(typeof txInfo == 'string'){
+        console.log(txInfo)
+      }else{
+        txInfo = JSON.stringify(txInfo, null, 2);
+        console.log(txInfo)
+      }
+      
+    }
+    
+  }).catch((e)=>{
+    console.log(chalk.red(e))
+  })
+})
 program.parse(process.argv)
