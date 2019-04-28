@@ -512,6 +512,14 @@ class Node {
         }
         
       });
+
+      app.post('/signCoinbaseTx', (req, res)=>{
+        let { signature, hash, publicKey } = req.body;
+        if(hash && signature && publicKey){
+          let coinbaseTx = Mempool.getCoinbaseTransaction(hash);
+          coinbaseTx.signatures[publicKey] = signature;
+        }
+      })
   
       app.get('/getAddress', (req, res)=>{
         res.json({ nodes: this.nodeList.addresses }).end();
@@ -1119,7 +1127,7 @@ class Node {
           Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
           logger(chalk.blue('* Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
           logger(chalk.blue('* Number of transactions: ', Object.keys(newBlock.transactions).length))
-          
+          this.sendCoinbaseSignatureToMiner(newBlock.minedBy, newBlock)
           return true;
         }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
           //Start syncing from the index returned by syncBlock;
@@ -1438,6 +1446,30 @@ class Node {
     })
   }
 
+  async sendCoinbaseSignatureToMiner(minerAddress, block){
+    if(minerAddress && block && block instanceof Block){
+      let coinbasetTxHash = block.coinbaseTransactionHash;
+      let signature = await WalletConnector.sign(this.publicKey, coinbasetTxHash);
+      if(signature){
+        axios.post(minerAddress+'/signCoinbaseTx', {
+          signature:signature,
+          hash:coinbasetTxHash,
+          publicKey:this.publicKey
+        })
+        .then(response =>{
+          console.log(response)
+        })
+        .catch(e =>{
+          console.log(e)
+        })
+      }else{
+        logger('ERROR: could not sign coinbase transaction')
+      }
+
+      
+    }
+  }
+
   generateReceipt(sender, receiver, amount, data, signature, hash){
     const receipt = 
     `Transaction receipt:
@@ -1509,43 +1541,47 @@ class Node {
              let block = false;
              
              if(isMining && !block){
-
+              this.coinbaseTxIsReadyToCashIn();
               let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock());
               logger('Mining next block...');
               logger('Number of pending transactions:', Mempool.sizeOfPool());
               Mempool.pendingTransactions = {};
               
 
-              this.chain.minePendingTransactions(this.address, block, this.publicKey, (success, blockHash)=>{
+              this.chain.minePendingTransactions(this.address, block, this.publicKey, async(success, blockHash)=>{
                 if(success && blockHash){
                  this.minerPaused = true;
                  process.MINER = false;
                  
                  this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-
+                 
+                 let newBlockHeight = this.chain.getLatestBlock().blockNumber;
                  this.chain.isChainValid()
                  this.chain.saveBlockchain()
+                 let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, newBlockHeight)
+                 this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
                  
                  setTimeout(()=>{
                    //Leave enough time for the nodes to receive the two messages
                    //and for this node to not mine the previous, already mined block
                    this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-                   logger('Seconds past since last block',this.showBlockTime(this.chain.getLatestBlock().blockNumber))
+                   
+                   logger('Seconds past since last block',this.showBlockTime(newBlockHeight))
                    this.minerPaused = false;
                    let newBlockTransactions = this.chain.getLatestBlock().transactions;
                    Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-                   setTimeout(async ()=>{
-                    let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey)
-                    if(coinbase){
-                      console.log(coinbase)
-                    }
-                   },2000)
+                  //  setTimeout(async ()=>{
+                  //   let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, newBlockHeight)
+                  //   if(coinbase){
+                  //     console.log(coinbase)
+                  //   }
+                  //  },2000)
                    
 
                  },3000)
                 }else{
-                   let transactionOfCancelledBlock = block.transactions;
-                   Mempool.putbackPendingTransactions(transactionOfCancelledBlock);
+                   let transactionsOfCancelledBlock = block.transactions;
+                   Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
                 }
               })
              }else{
@@ -1561,6 +1597,20 @@ class Node {
           logger('WARNING: miner already started')
         }
         
+      
+    }
+  }
+
+  coinbaseTxIsReadyToCashIn(){
+    if(Mempool.pendingCoinbaseTransactions){
+      let hashes = Object.keys(Mempool.pendingCoinbaseTransactions);
+      hashes.forEach( async(hash) =>{
+        let transaction = Mempool.pendingCoinbaseTransactions[hash];
+        let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
+        if(readyToMove){
+          Mempool.moveCoinbaseTransactionToPool(transaction);
+        }
+      })
       
     }
   }

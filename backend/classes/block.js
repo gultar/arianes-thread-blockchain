@@ -26,6 +26,7 @@ class Block{
     this.startMineTime = Date.now();
     this.endMineTime = 0;
     this.totalSumTransited = 0;
+    this.coinbaseTransactionHash = '';
   }
   /**
     Will be called on every iteration of the mining method

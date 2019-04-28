@@ -5,6 +5,7 @@ class Mempool{
     constructor(){
         this.pendingTransactions = {};
         this.rejectedTransactions = {};
+        this.pendingCoinbaseTransactions = {};
     }
 
     addTransaction(transaction){
@@ -20,6 +21,39 @@ class Mempool{
             console.log(e);
         }
         
+    }
+
+    addCoinbaseTransaction(transaction){
+        try{
+            if(transaction && transaction.hasOwnProperty('hash')){
+                if(!this.pendingCoinbaseTransactions[transaction.hash]){
+                    this.pendingCoinbaseTransactions[transaction.hash] = transaction;
+                }
+            }
+            
+        }catch(e){
+            console.log(e);
+        }
+    }
+
+    getCoinbaseTransaction(hash){
+        if(hash && typeof hash == 'string'){
+            return this.pendingCoinbaseTransactions[hash];
+        }else{
+            return false;
+        }
+    }
+
+    moveCoinbaseTransactionToPool(hash){
+        if(hash && typeof hash == 'string'){
+            let transaction = this.pendingCoinbaseTransactions[hash];
+            this.pendingTransactions[hash] = transaction;
+            delete this.pendingCoinbaseTransactions[hash];
+            console.log('SUCCESS Has tx!');
+            console.log(this.pendingTransactions[hash]);
+        }else{
+            return false;
+        }
     }
 
     getTransactionFromPool(hash){

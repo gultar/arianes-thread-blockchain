@@ -42,6 +42,8 @@ class Blockchain{
     this.ipAddresses = ipAddresses;
     this.blockSize = 20; //Minimum Number of transactions per block
     this.orphanedBlocks = [];
+    this.coinbaseSignatureNumber = 5;
+    this.transactionSizeLimit = 100 * 1024;
   }
 
   createGenesisBlock(){
@@ -203,27 +205,23 @@ class Blockchain{
     
   }
 
-  createCoinbaseTransaction(publicKey){
+  createCoinbaseTransaction(publicKey, blockNumber){
     return new Promise((resolve, reject)=>{
       try{
-        var miningReward = new Transaction('coinbase', publicKey, this.miningReward, 'coinbase')
-        let signature = WalletConnector.wallets[publicKey].sign(publicKey, miningReward);
-        if(signature){
-          miningReward.signature = signature;
-          Mempool.addTransaction(miningReward);
+          var miningReward = new Transaction('coinbase', publicKey, this.miningReward, { blockHeight:blockNumber })
+          
+          Mempool.addCoinbaseTransaction(miningReward);
           logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash)
           resolve(miningReward)
-        }else{
-          logger(chalk.red('ERROR: Could not create coinbase transaction'))
-          resolve(false)
-        }
+
       }catch(e){
         console.log(e);
       }
-      
-      
     })
-    
+  }
+
+  cashInCoinbaseTransaction(transaction){
+
   }
 
 
@@ -510,31 +508,6 @@ class Blockchain{
   }
 
 
-  // /***
-  //  * Deprecated
-  //  * 
-  //  */
-  // getBlocksFromHash(hash){
-  // 	var blocks = [];
-  // 	var index = this.getIndexOfBlockHash(hash);
-  //   var latestBlock = this.getLatestBlock();
-  //   /*
-  //      Only sends block(s) if the hash sent is not the same as the current
-  //      latest block on the chain, thus avoiding too much useless exchange
-  //   */
-  //     if(index > -1){
-
-  //         for(var i=index+1; i < this.chain.length; i++){
-  //           blocks.push(this.chain[i]);
-  //         }
-  //         return blocks;
-  //     }else if(index == false){
-  //   		logger('ERROR: Hash not found');
-  //       return false;
-  //   	}
-  // }
-
-
   isMiningRewardTransaction(transaction){
     for(var i=this.chain.length-1; i >= 0; i--){
       var block = this.chain[i];
@@ -576,7 +549,7 @@ class Blockchain{
 
           var amountIsNotZero = transaction.amount > 0;
           // logger("Amount is not zero:", amountIsNotZero);
-          var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < 10 * 1024 //10 Kbytes
+          var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < 100 * 1024 //10 Kbytes
           // logger("Transaction Size is not bigger than 10Kb", transactionSizeIsNotTooBig);
           
           //implement mining fee
@@ -628,6 +601,75 @@ class Blockchain{
     
 
   }
+
+  async validateCoinbaseTransaction(transaction){
+    return new Promise(async (resolve, reject)=>{
+      if(transaction){
+
+        try{
+  
+          let isChecksumValid = this.validateChecksum(transaction);
+          logger("Is transaction hash valid? :", isChecksumValid);
+  
+          let areSignaturesValid = await this.validateCoinbaseSignatures(transaction)
+           logger('has valid signatures? :',areSignaturesValid)
+
+          let hasEnoughSignatures = false;
+          
+          if(typeof areSignaturesValid == 'array'){
+            hasEnoughSignatures = areSignaturesValid.length >= this.coinbaseSignatureNumber;
+            logger('Coinbase transaction has enough signatures: ', hasEnoughSignatures)
+          }
+
+          //Need to check if contains more than one
+
+          let hasTheRightMiningRewardAmount = transaction.amount == this.miningReward;
+
+          let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
+          logger("Transaction Size is not bigger than "+this.transactionSizeLimit+"Kb", transactionSizeIsNotTooBig);
+                
+              if(!isChecksumValid){
+                logger('REJECTED: Coinbase transaction checksum is invalid');
+                resolve(false);
+              }
+
+              if(!hasTheRightMiningRewardAmount){
+                logger('REJECTED: Coinbase transaction does not contain the right mining reward: ', transaction.amount)
+                resolve(false);
+              }
+                
+              if(!areSignaturesValid){
+                logger('REJECTED: Coinbase transaction signatures are missing');
+                resolve(false);
+              }
+
+              if(!hasEnoughSignatures){
+                logger('REJECTED: Coinbase transaction does not has enough signatures');
+                resolve(false);
+              }
+                
+              if(!transactionSizeIsNotTooBig){
+                logger('REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
+                resolve(false);  
+              } 
+              
+              resolve(true)
+              
+        }catch(err){
+          console.log(err);
+          reject(err)
+        }
+  
+      }else{
+        logger('ERROR: Coinbase transaction is undefined');
+        resolve(false)
+      }
+  
+    })
+    
+
+  }
+
   /**
     Checks if the transaction hash matches it content
     @param {object} $transaction - Transaction to be inspected
@@ -653,8 +695,26 @@ class Blockchain{
         resolve(false);
       }
     })
-    
-    
+  }
+
+  validateCoinbaseSignatures(coinbaseTx){
+    return new Promise((resolve, reject)=>{
+      if(coinbaseTx){
+        let publicKey = '';
+        let signature = '';
+        let validSignatures = {};
+
+        Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
+          publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
+          signature = coinbastTx.signatures[publicKey];
+          validSignatures[CompressedPublicKey] = publicKey.verify(coinbaseTx.hash, signature);
+        })
+
+        resolve(validSignatures);
+      }else{
+        reject(false)
+      }
+    })
   }
 
   async saveBlockchain(){
