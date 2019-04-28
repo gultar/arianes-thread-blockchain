@@ -514,10 +514,13 @@ class Node {
       });
 
       app.post('/signCoinbaseTx', (req, res)=>{
+        console.log('BODY OF REQUEST')
+        console.log(req.body)
         let { signature, hash, publicKey } = req.body;
         if(hash && signature && publicKey){
           let coinbaseTx = Mempool.getCoinbaseTransaction(hash);
           coinbaseTx.signatures[publicKey] = signature;
+          logger('RECEIVED SIGNATURE:', signature)
         }
       })
   
@@ -881,6 +884,7 @@ class Node {
 
     socket.on('sign', (address)=>{
       this.sendCoinbaseSignatureToMiner(address, { coinbaseTransactionHash:'12345' })
+      logger('sending a signature');
     })
 	
 	socket.on('txSize', (hash)=>{
@@ -1594,11 +1598,16 @@ class Node {
       console.log(hashes);
       hashes.forEach( async(hash) =>{
         let transaction = Mempool.pendingCoinbaseTransactions[hash];
-        console.log(transaction)
-        let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
-        if(readyToMove){
-          Mempool.moveCoinbaseTransactionToPool(transaction);
+        if(transactions.signatures){
+          console.log(transaction)
+          let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
+          if(readyToMove){
+            Mempool.moveCoinbaseTransactionToPool(transaction);
+          }
+        }else{
+          logger('WARNING: coinbase does not have signatures')
         }
+        
       })
       
     }

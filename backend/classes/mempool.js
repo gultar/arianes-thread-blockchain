@@ -103,13 +103,16 @@ class Mempool{
                     try{
                         let oldMempool = JSON.parse(mempoolFile);
                         let oldTransactionPool = oldMempool.pendingTransactions;
-                        let oldRejectedTransactions = oldMempool.rejectedTransactions
+                        let oldRejectedTransactions = oldMempool.rejectedTransactions;
+                        let oldCoinbaseTransactions = oldMempool.pendingCoinbaseTransactions;
                         
                         let newTransactionPool = merge(oldTransactionPool, this.pendingTransactions);
                         let newRejectedTransactions = merge(oldRejectedTransactions,this.rejectedTransactions);
+                        let newPendingCoinbaseTransactions = merge(oldCoinbaseTransactions,this.pendingCoinbaseTransactions)
                         
                         this.pendingTransactions = newTransactionPool;
                         this.rejectedTransactions = newRejectedTransactions;
+                        this.pendingCoinbaseTransactions = newPendingCoinbaseTransactions;
                         resolve(true)
                     }catch(e){
                         console.log(e)
