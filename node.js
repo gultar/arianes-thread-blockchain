@@ -1062,7 +1062,7 @@ class Node {
                 if(response.data){
                   let transaction = response.data;
                   if(transaction && !transaction.error){
-                    console.log(transaction)
+                    
                     this.chain.validateTransaction(transaction)
                     .then(valid => {
                       if(!valid.error && !valid.pending){
@@ -1079,7 +1079,7 @@ class Node {
                       }
                     })
                   }else{
-                    if(transaction.error) logger(transaction.error)
+                    if(transaction.error) //logger(transaction.error)
                     else logger('ERROR: could not fetch coinbase transaction')
                   }
                   
@@ -1723,7 +1723,7 @@ class Node {
                 
                 Mempool.moveCoinbaseTransactionToPool(transaction.hash);
                 setTimeout(()=>{
-                  console.log(transaction.hash)
+                  
                   this.sendPeerMessage('fetchCoinbaseTransaction', transaction.hash);
                   resolve(true);
                 },1000)
