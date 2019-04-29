@@ -1061,7 +1061,7 @@ class Node {
               }).then((response)=>{
                 if(response.data){
                   let transaction = response.data;
-                  if(transaction){
+                  if(transaction && !transaction.error){
                     console.log(transaction)
                     this.chain.validateTransaction(transaction)
                     .then(valid => {
@@ -1079,7 +1079,8 @@ class Node {
                       }
                     })
                   }else{
-                    logger('ERROR: Fetched undefined transaction data')
+                    if(transaction.error) logger(transaction.error)
+                    else logger('ERROR: could not fetch coinbase transaction')
                   }
                   
                  
