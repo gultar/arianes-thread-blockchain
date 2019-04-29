@@ -54,8 +54,8 @@ class Mempool{
             let transaction = this.pendingCoinbaseTransactions[hash];
             this.pendingTransactions[hash] = transaction;
             delete this.pendingCoinbaseTransactions[hash];
-            console.log('SUCCESS Has tx!');
-            console.log(this.pendingTransactions[hash]);
+            logger(`Moved coinbase transaction ${hash.substr(0, 15)} to pool`)
+            
             return true;
         }else{
             return false;

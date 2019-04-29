@@ -1024,7 +1024,7 @@ class Node {
           if(data && typeof data == 'string'){
             try{
               logger('Fetching new coinbase transaction from ', originAddress)
-              logger('txhash', data)
+              
               axios.get(originAddress+'/transaction', {
                 params:{
                   hash:data
@@ -1034,10 +1034,12 @@ class Node {
                   let transaction = response.data;
                   this.chain.validateTransaction(transaction)
                   .then(valid => {
-                    if(!valid.error){
+                    if(!valid.error && !valid.pending){
                       Mempool.addTransaction(transaction);
                       this.UILog('<-'+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
                       if(this.verbose) logger(chalk.blue('<-')+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
+                    }else if(valid.pending && !valid.error){
+                      logger('Coinbase transaction from peer needs to wait five blocks')
                     }else{
                       this.UILog('!!!'+' Received invalid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
                       if(this.verbose) logger(chalk.red('!!!'+' Received invalid coinbase transaction : ')+ transaction.hash.substr(0, 15)+"...")
@@ -1681,7 +1683,7 @@ class Node {
               let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
               
               if(readyToMove && !readyToMove.error && !readyToMove.pending){
-                console.log('Ready to move:', readyToMove)
+                
                 Mempool.moveCoinbaseTransactionToPool(transaction.hash);
                 setTimeout(()=>{
                   this.sendPeerMessage('fetchCoinbaseTransaction', transaction.hash);

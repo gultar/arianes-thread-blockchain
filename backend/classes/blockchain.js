@@ -508,17 +508,17 @@ class Blockchain{
   }
 
 
-  isMiningRewardTransaction(transaction){
-    for(var i=this.chain.length-1; i >= 0; i--){
-      var block = this.chain[i];
-      if(block.minedBy === transaction.toAddress && block.transactions[transaction.hash]){
-        return true;
-      }else{
-        return false;
-      }
+  // isMiningRewardTransaction(transaction){
+  //   for(var i=this.chain.length-1; i >= 0; i--){
+  //     var block = this.chain[i];
+  //     if(block.minedBy === transaction.toAddress && block.transactions[transaction.hash]){
+  //       return true;
+  //     }else{
+  //       return false;
+  //     }
 
-    }
-  }
+  //   }
+  // }
 
   /**
   *  To run a proper transaction validation, one must look back at all the previous transactions that have been made by
@@ -595,6 +595,8 @@ class Blockchain{
             if(isValidCoinbaseTransaction.error){
               logger(isValidCoinbaseTransaction.error)
               resolve({error:isValidCoinbaseTransaction.error})
+            }else if(isValidCoinbaseTransaction.pending){
+              resolve({pending:isValidCoinbaseTransaction.pending})
             }
 
           }
@@ -624,7 +626,7 @@ class Blockchain{
         try{
   
           let isChecksumValid = this.validateChecksum(transaction);
-          logger("Is transaction hash valid? :", isChecksumValid);
+          // logger("Is transaction hash valid? :", isChecksumValid);
   
           let fiveBlocksHavePast = this.waitFiveBlocks(transaction);
 
@@ -633,7 +635,7 @@ class Blockchain{
           let hasTheRightMiningRewardAmount = transaction.amount == this.miningReward;
 
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
-          logger("Transaction Size is not bigger than "+this.transactionSizeLimit+"Kb", transactionSizeIsNotTooBig);
+          // logger("Transaction Size is not bigger than "+this.transactionSizeLimit+"Kb", transactionSizeIsNotTooBig);
                 
           if(!isChecksumValid){
             logger('REJECTED: Coinbase transaction checksum is invalid');
@@ -651,7 +653,7 @@ class Blockchain{
           }
 
           if(!fiveBlocksHavePast){
-            logger('PENDING: Coinbase transaction needs to wait five blocks');
+            // logger('PENDING: Coinbase transaction needs to wait five blocks');
             resolve({ pending:'PENDING: Coinbase transaction needs to wait five blocks' })
           }
             
