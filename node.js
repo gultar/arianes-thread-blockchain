@@ -1694,7 +1694,7 @@ class Node {
                 if(readyToMove.error){
                   logger(readyToMove.error);
                 }else if(readyToMove.pending){
-                  logger(readyToMove.pending)
+                  //Do nothing
                 }
               }
                 

@@ -209,7 +209,7 @@ class Blockchain{
           var miningReward = new Transaction('coinbase', publicKey, this.miningReward)
           
           Mempool.addCoinbaseTransaction(miningReward);
-          logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash)
+          logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash.substr(0, 15))
           resolve(miningReward)
 
         }catch(e){
