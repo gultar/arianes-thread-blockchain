@@ -1,14 +1,17 @@
 const program = require('commander');
 const chalk = require('chalk');
-const axios = require('axios')
+const axios = require('axios');
+const WalletConnector = require('./walletConnector');
 
 class WalletManager{
     constructor(){}
-    createWallet(address, walletName){
+    createWallet(address, walletName, pass){
 
-        if(address, walletName){
-            axios.post(address+'/createWallet', {
-                name:walletName
+        if(address && walletName && pass){
+          
+              axios.post(address+'/createWallet', {
+                name:walletName,
+                password:pass
               }).then((response)=>{
                 console.log(response.data)
               }).catch((e)=>{
@@ -19,6 +22,29 @@ class WalletManager{
         }
        
     }
+    // createWallet(address, name, password){
+    //   if(name && password){
+        
+    //     WalletConnector.createWallet(name, password)
+    //     .then((wallet)=>{
+    //       if(wallet){
+    //         console.log(`Created wallet!`);
+    //         console.log(`Name: ${name}`);
+    //         console.log(`Public key: ${wallet.publicKey}`);
+    //         console.log(`Wallet id: ${wallet.id}`);
+    //         console.log(`Keep your wallet file safe!`)
+    //       }else{
+    //         console.log('ERROR: Wallet creation failed');
+    //       }
+          
+    //     })
+    //     .catch(e =>{
+    //       console.log(e)
+    //     })
+    //   }else{
+    //     console.log('ERROR: No wallet name or password provided')
+    //   }
+    // }
 
     loadWallet(address, walletName){
 
@@ -44,6 +70,23 @@ class WalletManager{
             logger('ERROR: missing parameters')
         }
         
+    }
+
+    unlockWallet(address, walletName, password){
+      if(address && walletName && password){
+        
+            axios.post(address+'/unlockWallet', {
+              name:walletName,
+              password:password
+            }).then((response)=>{
+              console.log(response.data)
+            }).catch((e)=>{
+              console.log(chalk.red(e))
+            })
+
+      }else{
+          console.log('ERROR: missing parameters')
+      }
     }
 
     getWallet(address, walletName){

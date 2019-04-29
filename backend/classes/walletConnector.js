@@ -12,29 +12,23 @@ class WalletConnector{
     this.connectors = {};
   }
 
-  async createWallet(name, password=''){
-
+  async createWallet(name, password){
     
     return new Promise(async (resolve, reject) =>{
+      
       try{
-        if(!name){
-          logger(chalk.red('ERROR: Need to provide a wallet name'));
+        if(!name || !password){
+          logger(chalk.red('ERROR: Need to provide a wallet name and a password'));
           resolve(false);
         }else{
           
-        }
-
           fs.exists(`./wallets/${name}-${sha1(name)}.json`, async (alreadyExists)=>{
             if(!alreadyExists){
               let wallet = new Wallet();
-              let created = await wallet.init(name);
+              let created = await wallet.init(name, password);
               if(created){
                 wallet.saveWallet(`./wallets/${name}-${wallet.id}.json`);
                 this.wallets[wallet.publicKey] = wallet;
-                logger(`Created wallet!`);
-                logger(`Name: ${name}`);
-                logger(`Public key: ${wallet.publicKey}`);
-                logger(`Wallet id: ${wallet.id}`);
                 resolve(wallet);
               }else{
                 logger('ERROR: Could not create wallet')
@@ -45,6 +39,9 @@ class WalletConnector{
               resolve(false);
             }
          })
+        }
+
+
         
       }catch(e){
         console.log(e);
@@ -53,10 +50,10 @@ class WalletConnector{
 
   }
 
-  loadWallet(name){
+  loadWallet(filename){
     return new Promise((resolve, reject)=>{
       let wallet = new Wallet();
-      wallet.importWalletFromFile(`./wallets/${name}-${sha1(name)}.json`)
+      wallet.importWalletFromFile(filename)
       .then((wallet)=>{
         this.wallets[wallet.publicKey] = wallet;
         resolve(wallet);
@@ -83,6 +80,25 @@ class WalletConnector{
       }
     })
     
+  }
+
+   unlockWallet(name, password){
+    return new Promise(async (resolve, reject)=>{
+      if(name && password){
+      
+        let wallet = await this.getWalletByName(name);
+        
+        if(wallet){
+           let unlocked = await wallet.unlock(password);
+           resolve(unlocked)
+        }else{
+          resolve(false)
+        }
+      }else{
+        resolve(false)
+      }
+    })
+
   }
 
   getWalletByPublicAddress(publicAddress){
@@ -125,6 +141,7 @@ class WalletConnector{
   }
 
   saveState(){
+    
     logger('Saving wallet states')
     Object.keys(this.wallets).forEach(pubKey =>{
       let wallet = this.wallets[pubKey];

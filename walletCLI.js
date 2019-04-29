@@ -15,10 +15,10 @@ const runWalletCLI = async () =>{
       const address = await readFile('./config/target');
       if(address){
         program
-          .command('create <walletName>')
+          .command('create <walletName> <password>')
           .description('Creates a new wallet and broadcasts its public key to the network')
-          .action(( walletName)=>{
-            manager.createWallet(address, walletName);
+          .action(( walletName, password )=>{
+            manager.createWallet(address, walletName, password);
           })
 
         program
@@ -42,6 +42,12 @@ const runWalletCLI = async () =>{
           // .action((path, cmd)=>{
       
           // })
+        program
+          .command('unlock <walletName> <password>')
+          .description('Gets wallet data')
+          .action(( walletName, password)=>{
+              manager.unlockWallet(address, walletName, password)
+          })
       
         program
           .command('get <walletName>')
@@ -49,6 +55,7 @@ const runWalletCLI = async () =>{
           .action(( walletName)=>{
               manager.getWallet(address, walletName)
           })
+          
       
         program
           .command('balance <walletName>')

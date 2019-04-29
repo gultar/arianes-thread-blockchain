@@ -28,6 +28,7 @@ const {
   isValidWalletRequestJSON,
   isValidGetNextBlockJSON,
   isValidHeaderJSON,
+  isValidCreateWalletJSON,
 } = require('./backend/tools/jsonvalidator')
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
@@ -115,11 +116,11 @@ class Node {
       
       //Loading this node's wallet
       this.loadNodeWallet(`./wallets/${this.port}-${sha1(this.port)}.json`) //'./wallets/'+this.id+'.json'
-        .then((walletLoaded)=>{
-          if(walletLoaded){
-            logger('Wallet loaded:', sha1(this.port))
-          }
-        })
+      .then((walletLoaded)=>{
+        if(walletLoaded){
+          logger('Wallet loaded:', sha1(this.port))
+        }
+      })
 
       //Loading list of known peer addresses
       this.nodeList.loadNodeList()
@@ -211,20 +212,17 @@ class Node {
         fs.exists(filename, async (exists)=>{
           if(exists){
             
-              let myWallet = new Wallet();
-              let loaded = await myWallet.importWalletFromFile(filename);
               
-              if(loaded){
-                this.publicKey = myWallet.publicKey;
-                WalletConnector.wallets[this.publicKey] = myWallet;
-                resolve(true)
-              }else{
-                logger(chalk.red('ERROR: Failed to load wallet from file'));
-                resolve(false)
-              }
-              
-              
-            
+              WalletConnector.loadWallet(filename)
+              .then((wallet)=>{
+                
+                if(wallet){
+                  this.publicKey = wallet.publicKey;
+                  resolve(true)
+                }else{
+
+                }
+              })
           }else{
             
               let created = await this.createNodeWallet();
@@ -243,7 +241,7 @@ class Node {
 
   createNodeWallet(){
     return new Promise((resolve, reject)=>{
-      WalletConnector.createWallet(this.port)
+      WalletConnector.createWallet(this.port, this.port)
         .then((wallet)=>{
           if(wallet){
             resolve(true);
@@ -574,11 +572,13 @@ class Node {
       })
   
       app.post('/createWallet', (req, res)=>{
-        if(isValidWalletRequestJSON(req.body)){
-          const { name } = req.body;
-          if(name){
+        
+        if(isValidCreateWalletJSON(req.body)){
+          
+          const { name, password } = req.body;
+          if(name && password){
             
-            WalletConnector.createWallet(name)
+            WalletConnector.createWallet(name, password)
             .then((wallet)=>{
               if(wallet){
                 res.send(this.generateWalletCreationReceipt(wallet))
@@ -592,10 +592,38 @@ class Node {
               console.log(e)
             })
           }else{
-            res.send('ERROR: No wallet name provided')
+            res.send('ERROR: No wallet name or password provided')
           }
         }else{
-          res.send('ERROR: invalid JSON wallet creation format')
+          res.send('ERROR: Required parameters: walletname password ')
+        }
+          
+      })
+
+      app.post('/unlockWallet', (req, res)=>{
+
+        if(isValidCreateWalletJSON(req.body)){
+          
+          const { name, password } = req.body;
+          if(name && password){
+            
+            WalletConnector.unlockWallet(name, password)
+            .then((unlocked)=>{
+              if(unlocked){
+                res.send(`Unlocked wallet ${name}`)
+              }else{
+                res.send('ERROR: Could not unlock wallet');
+              }
+              
+            })
+            .catch(e =>{
+              console.log(e)
+            })
+          }else{
+            res.send('ERROR: No wallet name or password provided')
+          }
+        }else{
+          res.send('ERROR: Required parameters: walletname password ')
         }
           
       })
@@ -630,9 +658,9 @@ class Node {
         if(isValidWalletRequestJSON(req.query)){
           try{
             let walletName = req.query.name;
-            
+            let filename = `./wallets/${walletName}-${sha1(walletName)}.json`
             if(walletName){
-              let wallet = await WalletConnector.loadWallet(walletName);
+              let wallet = await WalletConnector.loadWallet(filename);
               logger(`Loaded wallet ${walletName}`)
               res.json(wallet).end();
             }
@@ -1558,7 +1586,8 @@ class Node {
     `Created New Wallet!
      Wallet Name: ${wallet.name}
      Public key:${wallet.publicKey}
-     Wallet id: ${wallet.id}`;
+     Wallet id: ${wallet.id}
+     Keep your password hash safe!`;
 
      return receipt;
   }
@@ -1772,14 +1801,25 @@ class Node {
     if(!stopTxgen){
       let increaseThreshold = 0.5;
       setTimeout(()=>{
-        if(this.publicKey){
-          this.broadcastNewTransaction(this.publicKey, "A+Co6v7yqFO1RqZf3P+m5gzdkvSTjdSlheaY50e9XUmp", 0, '')
-
-          txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
-          if(txgenCounter < 1000) txgenCounter = 2000
-          this.txgen()
-        }
         
+        if(this.publicKey){
+          
+          WalletConnector.unlockWallet(this.port, '8003')
+            .then((unlocked)=>{
+              if(unlocked){
+                this.broadcastNewTransaction(this.publicKey, "A+Co6v7yqFO1RqZf3P+m5gzdkvSTjdSlheaY50e9XUmp", 0, '')
+
+              }else{
+                logger('ERROR: Could not unlock wallet');
+              }
+              
+            })
+          
+        }
+
+        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
+        if(txgenCounter < 1000) txgenCounter = 2000
+        this.txgen()
       },txgenCounter)
 
     }

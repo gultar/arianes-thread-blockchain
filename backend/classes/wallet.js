@@ -13,6 +13,7 @@ class Wallet{
         _(this).privateKey = '';
         this.publicKey = '';
         _(this).passwordHash = '';
+        _(this).locked = true;
         
     }
 
@@ -31,30 +32,62 @@ class Wallet{
         return await _(this).privateKey.toCompressedPublicKey()
     }
 
-    async init(seed){
+    async init(seed, password){
         
         let secretSeed = (seed ? seed : this.generateEntropy())
         
-        return new Promise(async (resolve, reject)=>{
-            try{
-               
-                _(this).privateKey = ECDSA.generateKey(secretSeed);
-                this.publicKey = await this.createCompressedPublicKey();
-                this.name = ( seed ? seed : sha1(secretSeed));
-                this.id = await sha1((seed? seed:this.publicKey));
-                if(_(this).privateKey && this.publicKey && this.id){
-                    resolve(this);
+            return new Promise(async (resolve, reject)=>{
+
+                if(typeof seed == 'string' && typeof password == 'string'){
+                    try{
+                    
+                        _(this).privateKey = ECDSA.generateKey(secretSeed);
+                        this.publicKey = await this.createCompressedPublicKey();
+                        this.name = ( seed ? seed : sha1(secretSeed));
+                        this.id = await sha1((seed? seed:this.publicKey));
+                        _(this).locked = true;
+                        this.setPassword(password);
+                        if(_(this).privateKey && this.publicKey && this.id){
+                            resolve(this);
+                        }else{
+                            resolve(false);
+                        }
+                    }catch(e){
+                        console.log(e);
+                        resolve(false);
+                    }
+                
                 }else{
-                    resolve(false);
+                    resolve(false)
                 }
-            }catch(e){
-                console.log(e);
-                resolve(false);
-            }
+            })
+        
+        
+        
+    }
+
+    unlock(password){
+        return new Promise(async (resolve, reject)=>{
             
+            let isPasswordValid = await this.isPasswordValid(password);
+            if(isPasswordValid){
+                _(this).locked = false;
+                this.lock();
+                resolve(true)
+            }else{
+                resolve(false)
+            }
+
             
         })
         
+    }
+
+    lock(){
+        setTimeout(()=>{
+          _(this).locked = true;
+        }, 5 * 60 * 1000)
+       
     }
 
     setPassword(password){
@@ -64,11 +97,17 @@ class Wallet{
     }
 
     isPasswordValid(password){
-        if(password && typeof password == 'string'){
-            return _(this).passwordHash == sha256(password);
-        }else{
-            return false;
-        }
+        return new Promise((resolve, reject)=>{
+            if(password && typeof password == 'string'){
+            
+                let pwdHash = _(this).passwordHash
+                resolve(pwdHash == sha256(password))
+
+            }else{
+                resolve(false)
+            }
+        })
+        
     }
 
     async initFromJSON(json){
@@ -80,7 +119,7 @@ class Wallet{
                     this.name = json.name;
                     _(this).privateKey = ECDSA.fromJWK(json.privateKey);
                     _(this).passwordHash = json.passwordHash
-
+                    _(this).locked = true;
                     resolve(true)
                 }catch(e){
                     console.log(e);
@@ -92,25 +131,34 @@ class Wallet{
         
     }
 
-    getSignature(data){
-        if(_(this).privateKey && data){
-            return _(this).privateKey.sign(data)
-        }else{
-            logger('ERROR: could not sign data')
-        }
-    }
 
     async sign(data){
         if(data && _(this).privateKey){
+            
+            const getSignature = (data)=>{
+                if(!_(this).locked){
+                    if(_(this).privateKey && data){
+                        return _(this).privateKey.sign(data)
+                    }else{
+                        logger('ERROR: could not sign data')
+                        return false
+                    }
+                }else{
+                    logger('ERROR: Wallet locked')
+                    return false
+                }
+               
+            }
+
             let signature = ''
             
             try{
                 if(typeof data == 'object'){
                     let message = JSON.stringify(data);
-                    signature = this.getSignature(message)
+                    signature = getSignature(message)
 
                 }else if(typeof data == 'string'){
-                    signature = this.getSignature(data)
+                    signature = getSignature(data)
                 }
                 
                 return signature;
@@ -175,6 +223,7 @@ class Wallet{
                               this.id = wallet.id;
                               this.name = wallet.name;
                               _(this).passwordHash = wallet.passwordHash;
+                              _(this).locked = true;
                               resolve(this);
                           }else{
                             resolve(false);
