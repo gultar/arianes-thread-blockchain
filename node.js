@@ -1020,7 +1020,7 @@ class Node {
             }
           });
           break;
-        case 'getCoinbaseTransaction':
+        case 'fetchCoinbaseTransaction':
           if(data && typeof data == 'string'){
             try{
               logger('Fetching new coinbase transaction from ', originAddress)
@@ -1665,8 +1665,11 @@ class Node {
               if(readyToMove && !readyToMove.error && !readyToMove.pending){
                 console.log('Ready to move:', readyToMove)
                 Mempool.moveCoinbaseTransactionToPool(transaction.hash);
-                this.broadcastNewTransaction(transaction);
-                resolve(true);
+                setTimeout(()=>{
+                  this.sendPeerMessage('fetchCoinbaseTransaction', transaction.hash);
+                  resolve(true);
+                },1000)
+                
               }else{
                 if(readyToMove.error){
                   logger(readyToMove.error);
