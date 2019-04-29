@@ -1069,7 +1069,7 @@ class Node {
                         this.UILog('<-'+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
                         if(this.verbose) logger(chalk.blue('<-')+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
                       }else if(valid.pending && !valid.error){
-                        logger('Coinbase transaction from peer needs to wait five blocks')
+                        //logger('Coinbase transaction from peer needs to wait five blocks')
                       }else{
                         this.UILog('!!!'+' Received invalid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
                         if(this.verbose) logger(chalk.red('!!!'+' Received invalid coinbase transaction : ')+ transaction.hash.substr(0, 15)+"...")
@@ -1720,11 +1720,8 @@ class Node {
               if(readyToMove && !readyToMove.error && !readyToMove.pending){
                 
                 Mempool.moveCoinbaseTransactionToPool(transaction.hash);
-                setTimeout(()=>{
-                  
-                  this.sendPeerMessage('fetchCoinbaseTransaction', transaction.hash);
+                this.sendPeerMessage('fetchCoinbaseTransaction', transaction.hash);
                   resolve(true);
-                },1000)
                 
               }else{
                 if(readyToMove.error){
