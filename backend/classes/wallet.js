@@ -100,12 +100,10 @@ class Wallet{
         }
     }
 
-    async sign(data, password){
+    async sign(data){
         if(data && _(this).privateKey){
             let signature = ''
-            if(this.passwordHash === sha256(password)){
-                //Move
-            }
+            
             try{
                 if(typeof data == 'object'){
                     let message = JSON.stringify(data);

@@ -1460,6 +1460,8 @@ class Node {
             logger('Transaction signature failed. Check both public key addresses.')
             resolve({error:'Transaction signature failed. Check both public key addresses.'})
             
+          }else if(signature.walletLocked){
+
           }else{
             transaction.signature = signature;
             
@@ -1470,6 +1472,7 @@ class Node {
                   Mempool.addTransaction(transaction);
                   this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                  
                   this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
                   resolve(transaction)
 
