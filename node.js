@@ -931,7 +931,8 @@ class Node {
 
     socket.on('test', ()=>{
 		
-      this.coinbaseTxIsReadyToCashIn();
+      this.cashInCoinbaseTransactions();
+
       
       
     })
@@ -1060,21 +1061,26 @@ class Node {
               }).then((response)=>{
                 if(response.data){
                   let transaction = response.data;
-                  this.chain.validateTransaction(transaction)
-                  .then(valid => {
-                    if(!valid.error && !valid.pending){
-                      Mempool.addTransaction(transaction);
-                      this.UILog('<-'+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.blue('<-')+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
-                    }else if(valid.pending && !valid.error){
-                      logger('Coinbase transaction from peer needs to wait five blocks')
-                    }else{
-                      this.UILog('!!!'+' Received invalid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.red('!!!'+' Received invalid coinbase transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                      Mempool.rejectedTransactions[transaction.hash] = transaction;
-                      logger(valid.error)
-                    }
-                  })
+                  if(transaction){
+                    this.chain.validateTransaction(transaction)
+                    .then(valid => {
+                      if(!valid.error && !valid.pending){
+                        Mempool.addTransaction(transaction);
+                        this.UILog('<-'+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
+                        if(this.verbose) logger(chalk.blue('<-')+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
+                      }else if(valid.pending && !valid.error){
+                        logger('Coinbase transaction from peer needs to wait five blocks')
+                      }else{
+                        this.UILog('!!!'+' Received invalid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
+                        if(this.verbose) logger(chalk.red('!!!'+' Received invalid coinbase transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                        Mempool.rejectedTransactions[transaction.hash] = transaction;
+                        logger(valid.error)
+                      }
+                    })
+                  }else{
+                    logger('ERROR: Fetched undefined transaction data')
+                  }
+                  
                  
                 }
               }).catch((e)=>{

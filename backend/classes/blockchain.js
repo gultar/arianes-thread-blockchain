@@ -685,8 +685,8 @@ class Blockchain{
     @return {boolean} Checksum is valid or not
   */
   validateChecksum(transaction){
-    if(transaction && transaction instanceof Transaction){
-      if(typeof transaction.amount == 'number') transaction.amount = transaction.amount.toString()
+    if(transaction){
+      if(transaction.fromAddress == 'coinbase') console.log(transaction.fromAddress+ transaction.toAddress+ transaction.amount+ transaction.data+ transaction.timestamp)
       if(sha256(transaction.fromAddress+ transaction.toAddress+ transaction.amount+ transaction.data+ transaction.timestamp) === transaction.hash){
         return true;
       }
