@@ -1027,7 +1027,7 @@ class Node {
               logger('txhash', data)
               axios.get(originAddress+'/transaction', {
                 param:{
-                  txHash:data
+                  hash:data
                 }
               }).then((response)=>{
                 console.log(response.data)
