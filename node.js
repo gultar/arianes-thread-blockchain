@@ -464,13 +464,13 @@ class Node {
         if(hash){
           tx = this.chain.getTransactionFromChain(hash);
           if(tx){
-            res.json({ tx:tx }).end()
+            res.json(tx).end()
           }else{
 
             pendingTx = Mempool.getTransactionFromPool(hash);
             
             if(pendingTx){
-              res.json({ pendingTx:pendingTx }).end()
+              res.json(pendingTx).end()
             }else{
               res.json({ error:'no transaction found'}).end()
             }
@@ -1030,7 +1030,23 @@ class Node {
                   hash:data
                 }
               }).then((response)=>{
-                console.log(response.data)
+                if(response.data){
+                  let transaction = response.data;
+                  this.chain.validateTransaction(transaction)
+                  .then(valid => {
+                    if(!valid.error){
+                      Mempool.addTransaction(transaction);
+                      this.UILog('<-'+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
+                      if(this.verbose) logger(chalk.blue('<-')+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
+                    }else{
+                      this.UILog('!!!'+' Received invalid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
+                      if(this.verbose) logger(chalk.red('!!!'+' Received invalid coinbase transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                      Mempool.rejectedTransactions[transaction.hash] = transaction;
+                      logger(valid.error)
+                    }
+                  })
+                 
+                }
               }).catch((e)=>{
                 console.log(chalk.red(e))
               })
