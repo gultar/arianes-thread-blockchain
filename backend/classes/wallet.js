@@ -12,7 +12,7 @@ class Wallet{
         this.id = '';
         _(this).privateKey = '';
         this.publicKey = '';
-        this.passwordHash = '';
+        _(this).passwordHash = '';
         
     }
 
@@ -58,14 +58,14 @@ class Wallet{
     }
 
     setPassword(password){
-        if(password && !this.passwordHash){
-            this.passwordHash = sha256(password);
+        if(password && !_(this).passwordHash){
+            _(this).passwordHash = sha256(password);
         }
     }
 
     isPasswordValid(password){
-        if(password){
-            return this.passwordHash == sha256(password);
+        if(password && typeof password == 'string'){
+            return _(this).passwordHash == sha256(password);
         }else{
             return false;
         }
@@ -79,7 +79,7 @@ class Wallet{
                     this.publicKey = json.publicKey;
                     this.name = json.name;
                     _(this).privateKey = ECDSA.fromJWK(json.privateKey);
-                    this.passwordHash = json.passwordHash
+                    _(this).passwordHash = json.passwordHash
 
                     resolve(true)
                 }catch(e){
@@ -135,7 +135,7 @@ class Wallet{
                 privateKey:formatToJWK(),
                 id:this.id,
                 name:this.name,
-                passwordHash:this.passwordHash,
+                passwordHash:_(this).passwordHash,
             }
             let walletString = JSON.stringify(walletToSave, null, 2);
             var wstream = fs.createWriteStream(filename);
@@ -174,7 +174,7 @@ class Wallet{
                               _(this).privateKey = ECDSA.fromJWK(wallet.privateKey);
                               this.id = wallet.id;
                               this.name = wallet.name;
-                              this.passwordHash = wallet.passwordHash;
+                              _(this).passwordHash = wallet.passwordHash;
                               resolve(this);
                           }else{
                             resolve(false);
