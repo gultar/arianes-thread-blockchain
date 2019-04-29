@@ -1062,6 +1062,7 @@ class Node {
                 if(response.data){
                   let transaction = response.data;
                   if(transaction){
+                    console.log(transaction)
                     this.chain.validateTransaction(transaction)
                     .then(valid => {
                       if(!valid.error && !valid.pending){
