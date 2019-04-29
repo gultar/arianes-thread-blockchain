@@ -1026,7 +1026,7 @@ class Node {
               logger('Fetching new coinbase transaction from ', originAddress)
               logger('txhash', data)
               axios.get(originAddress+'/transaction', {
-                param:{
+                params:{
                   hash:data
                 }
               }).then((response)=>{
