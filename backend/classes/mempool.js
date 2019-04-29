@@ -56,6 +56,7 @@ class Mempool{
             delete this.pendingCoinbaseTransactions[hash];
             console.log('SUCCESS Has tx!');
             console.log(this.pendingTransactions[hash]);
+            return true;
         }else{
             return false;
         }

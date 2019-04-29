@@ -35,14 +35,12 @@ class Blockchain{
 
   constructor(chain=false, pendingTransactions=false, ipAddresses=[], publicKeys=[], nodeID=''){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
-    //Mempool = new Mempool;
     this.sideChain = [];
     this.difficulty = 5;
     this.miningReward = 50;
     this.ipAddresses = ipAddresses;
     this.blockSize = 20; //Minimum Number of transactions per block
     this.orphanedBlocks = [];
-    this.coinbaseSignatureNumber = 1;
     this.transactionSizeLimit = 100 * 1024;
   }
 
@@ -534,64 +532,79 @@ class Blockchain{
   async validateTransaction(transaction){
     return new Promise(async (resolve, reject)=>{
       if(transaction){
-
         try{
-  
-          var isChecksumValid = this.validateChecksum(transaction);
-          // logger("Is transaction hash valid? :", isChecksumValid);
-  
-          let isSignatureValid = await this.validateSignature(transaction)
-          //  logger('Is valid signature? :',isSignatureValid)
-           
           var isMiningReward = this.isMiningRewardTransaction(transaction);
-          // logger('Is mining reward transaction? :', isMiningReward);
-  
-          var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
-          // logger("Balance of sender is : ",balanceOfSendingAddr);
+            // logger('Is mining reward transaction? :', isMiningReward);
 
-          var amountIsNotZero = transaction.amount > 0;
-          // logger("Amount is not zero:", amountIsNotZero);
-          var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < 100 * 1024 //10 Kbytes
-          // logger("Transaction Size is not bigger than 10Kb", transactionSizeIsNotTooBig);
-          
-          //implement mining fee
-  
+          if(!isMiningReward){
 
-              // if(!balanceOfSendingAddr || balanceOfSendingAddr === 0){
-              //   logger('REJECTED: Balance of sending address is 0');
-              //   resolve(false);
-              // }
-                
-              if(!isChecksumValid){
-                logger('REJECTED: Transaction checksum is invalid');
-                resolve({error:'REJECTED: Transaction checksum is invalid'});
-              }
-                
-              if(!isSignatureValid){
-                logger('REJECTED: Transaction signature is invalid');
-                resolve({error:'REJECTED: Transaction signature is invalid'});
-              }
+            var isChecksumValid = this.validateChecksum(transaction);
+            // logger("Is transaction hash valid? :", isChecksumValid);
+    
+            let isSignatureValid = await this.validateSignature(transaction)
+            //  logger('Is valid signature? :',isSignatureValid)
+            
+            
+    
+            var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+            // logger("Balance of sender is : ",balanceOfSendingAddr);
 
-              // if(!amountIsNotZero){
-              //   logger('REJECTED: Amount needs to be higher than zero');
-              //   resolve({error:'REJECTED: Amount needs to be higher than zero'});
-              // }
-                
-              if(!transactionSizeIsNotTooBig){
-                logger('REJECTED: Transaction size is above 10KB');
-                resolve({error:'REJECTED: Transaction size is above 10KB'});  
-              }
-                
-              if(balanceOfSendingAddr < transaction.amount){
-                logger('REJECTED: Sender does not have sufficient funds')
-                resolve({error:'REJECTED: Sender does not have sufficient funds'});
-              }  
+            var amountIsNotZero = transaction.amount > 0;
+            // logger("Amount is not zero:", amountIsNotZero);
+            var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < 100 * 1024 //10 Kbytes
+            // logger("Transaction Size is not bigger than 10Kb", transactionSizeIsNotTooBig);
+        
+            //implement mining fee
+
+
+            // if(!balanceOfSendingAddr || balanceOfSendingAddr === 0){
+            //   logger('REJECTED: Balance of sending address is 0');
+            //   resolve(false);
+            // }
               
-              resolve(true)
+            if(!isChecksumValid){
+              logger('REJECTED: Transaction checksum is invalid');
+              resolve({error:'REJECTED: Transaction checksum is invalid'});
+            }
+              
+            if(!isSignatureValid){
+              logger('REJECTED: Transaction signature is invalid');
+              resolve({error:'REJECTED: Transaction signature is invalid'});
+            }
+
+            // if(!amountIsNotZero){
+            //   logger('REJECTED: Amount needs to be higher than zero');
+            //   resolve({error:'REJECTED: Amount needs to be higher than zero'});
+            // }
+              
+            if(!transactionSizeIsNotTooBig){
+              logger('REJECTED: Transaction size is above 10KB');
+              resolve({error:'REJECTED: Transaction size is above 10KB'});  
+            }
+              
+            if(balanceOfSendingAddr < transaction.amount){
+              logger('REJECTED: Sender does not have sufficient funds')
+              resolve({error:'REJECTED: Sender does not have sufficient funds'});
+            }  
+          
+
+          }else{
+            
+            let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
+
+            if(isValidCoinbaseTransaction.error){
+              logger(isValidCoinbaseTransaction.error)
+              resolve({error:isValidCoinbaseTransaction.error})
+            }
+
+          }
+          
+          resolve(true)
+         
               
         }catch(err){
           console.log(err);
-          reject({error:err})
+          reject({error:'ERROR: an error occured'})
         }
   
       }else{
@@ -613,58 +626,50 @@ class Blockchain{
           let isChecksumValid = this.validateChecksum(transaction);
           logger("Is transaction hash valid? :", isChecksumValid);
   
-          let areSignaturesValid = await this.validateCoinbaseSignatures(transaction)
-           logger('has valid signatures? :',areSignaturesValid)
+          let fiveBlocksHavePast = this.waitFiveBlocks(transaction);
 
-          let hasEnoughSignatures = false;
-          
-          if(areSignaturesValid){
-            hasEnoughSignatures = Object.keys(areSignaturesValid).length >= this.coinbaseSignatureNumber;
-            logger('Coinbase transaction has enough signatures: ', hasEnoughSignatures)
-          }
-
-          //Need to check if contains more than one
+          let isAttachedToMinedBlock = this.coinbaseTxIsAttachedToBlock(transaction);
 
           let hasTheRightMiningRewardAmount = transaction.amount == this.miningReward;
 
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
           logger("Transaction Size is not bigger than "+this.transactionSizeLimit+"Kb", transactionSizeIsNotTooBig);
                 
-              if(!isChecksumValid){
-                logger('REJECTED: Coinbase transaction checksum is invalid');
-                resolve(false);
-              }
+          if(!isChecksumValid){
+            logger('REJECTED: Coinbase transaction checksum is invalid');
+            resolve({error:'REJECTED: Transaction checksum is invalid'});
+          }
 
-              if(!hasTheRightMiningRewardAmount){
-                logger('REJECTED: Coinbase transaction does not contain the right mining reward: ', transaction.amount)
-                resolve(false);
-              }
-                
-              if(!areSignaturesValid){
-                logger('REJECTED: Coinbase transaction signatures are missing');
-                resolve(false);
-              }
+          if(!hasTheRightMiningRewardAmount){
+            logger('REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount)
+            resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
+          }
 
-              if(!hasEnoughSignatures){
-                logger('REJECTED: Coinbase transaction does not has enough signatures');
-                resolve(false);
-              }
-                
-              if(!transactionSizeIsNotTooBig){
-                logger('REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
-                resolve(false);  
-              } 
-              
-              resolve(true)
+          if(!isAttachedToMinedBlock){
+            logger('REJECTED: Is not attached to any mined block');
+            resolve({error:'REJECTED: Is not attached to any mined block'})
+          }
+
+          if(!fiveBlocksHavePast){
+            logger('PENDING: Coinbase transaction needs to wait five blocks');
+            resolve({ pending:'PENDING: Coinbase transaction needs to wait five blocks' })
+          }
+            
+          if(!transactionSizeIsNotTooBig){
+            logger('REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
+            resolve({error:'REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
+          } 
+          
+          resolve(true)
               
         }catch(err){
           console.log(err);
-          reject(err)
+          reject({error:'ERROR: an error occured'})
         }
   
       }else{
         logger('ERROR: Coinbase transaction is undefined');
-        resolve(false)
+        resolve({error:'ERROR: Coinbase transaction is undefined'})
       }
   
     })
@@ -699,31 +704,51 @@ class Blockchain{
     })
   }
 
-  validateCoinbaseSignatures(coinbaseTx){
-    return new Promise((resolve, reject)=>{
-      if(coinbaseTx){
-        let publicKey = '';
-        let signature = '';
-        let validSignatures = {};
-        if(coinbaseTx && coinbaseTx.signatures){
+  // validateCoinbaseSignatures(coinbaseTx){
+  //   return new Promise((resolve, reject)=>{
+  //     if(coinbaseTx){
+  //       let publicKey = '';
+  //       let signature = '';
+  //       let validSignatures = {};
+  //       if(coinbaseTx && coinbaseTx.signatures){
           
-          Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
+  //         Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
             
-            publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
-            signature = coinbaseTx.signatures[CompressedPublicKey];
+  //           publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
+  //           signature = coinbaseTx.signatures[CompressedPublicKey];
             
-            validSignatures[CompressedPublicKey] = publicKey.verify(coinbaseTx.hash, signature);
-          })
-        }else{
-          logger('ERROR: Coinbase transaction does not contain signatures')
-        }
+  //           validSignatures[CompressedPublicKey] = publicKey.verify(coinbaseTx.hash, signature);
+  //         })
+  //       }else{
+  //         logger('ERROR: Coinbase transaction does not contain signatures')
+  //       }
        
 
-        resolve(validSignatures);
-      }else{
-        reject(false)
+  //       resolve(validSignatures);
+  //     }else{
+  //       reject(false)
+  //     }
+  //   })
+  // }
+  coinbaseTxIsAttachedToBlock(transaction){
+    this.chain.forEach( block =>{
+      if(block.coinbaseTransactionHash == transaction.hash){
+        return block;
       }
     })
+
+    return false
+  }
+
+  waitFiveBlocks(transaction){
+    let blockOfTransaction;
+    this.chain.forEach( block =>{
+      if(block.coinbaseTransactionHash == transaction.hash){
+        blockOfTransaction = block;
+      }
+    })
+
+    return this.chain.getLatestBlock().blockNumber - blockOfTransaction.blockNumber >= 5;
   }
 
   async saveBlockchain(){

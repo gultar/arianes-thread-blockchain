@@ -1,5 +1,6 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger } = require('../tools/utils');
+const sha256 = require('../tools/sha256')
 const sha1 = require('sha1');
 const fs = require('fs')
 let _ = require('private-parts').createKey();
@@ -11,6 +12,8 @@ class Wallet{
         this.id = '';
         _(this).privateKey = '';
         this.publicKey = '';
+        this.passwordHash = '';
+        
     }
 
     generateEntropy(){
@@ -54,6 +57,20 @@ class Wallet{
         
     }
 
+    setPassword(password){
+        if(password && !this.passwordHash){
+            this.passwordHash = sha256(password);
+        }
+    }
+
+    isPasswordValid(password){
+        if(password){
+            return this.passwordHash == sha256(password);
+        }else{
+            return false;
+        }
+    }
+
     async initFromJSON(json){
         return new Promise(async (resolve, reject)=>{
             if(json){
@@ -62,6 +79,7 @@ class Wallet{
                     this.publicKey = json.publicKey;
                     this.name = json.name;
                     _(this).privateKey = ECDSA.fromJWK(json.privateKey);
+                    this.passwordHash = json.passwordHash
 
                     resolve(true)
                 }catch(e){
@@ -82,10 +100,12 @@ class Wallet{
         }
     }
 
-    async sign(data){
+    async sign(data, password){
         if(data && _(this).privateKey){
             let signature = ''
-
+            if(this.passwordHash === sha256(password)){
+                //Move
+            }
             try{
                 if(typeof data == 'object'){
                     let message = JSON.stringify(data);
@@ -117,6 +137,7 @@ class Wallet{
                 privateKey:formatToJWK(),
                 id:this.id,
                 name:this.name,
+                passwordHash:this.passwordHash,
             }
             let walletString = JSON.stringify(walletToSave, null, 2);
             var wstream = fs.createWriteStream(filename);
@@ -155,6 +176,7 @@ class Wallet{
                               _(this).privateKey = ECDSA.fromJWK(wallet.privateKey);
                               this.id = wallet.id;
                               this.name = wallet.name;
+                              this.passwordHash = wallet.passwordHash;
                               resolve(this);
                           }else{
                             resolve(false);
