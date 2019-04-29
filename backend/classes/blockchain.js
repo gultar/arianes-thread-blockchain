@@ -604,7 +604,7 @@ class Blockchain{
               
         }catch(err){
           console.log(err);
-          reject({error:'ERROR: an error occured'})
+          resolve({error:'ERROR: an error occured'})
         }
   
       }else{
@@ -628,7 +628,7 @@ class Blockchain{
   
           let fiveBlocksHavePast = this.waitFiveBlocks(transaction);
 
-          let isAttachedToMinedBlock = this.coinbaseTxIsAttachedToBlock(transaction);
+          let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
 
           let hasTheRightMiningRewardAmount = transaction.amount == this.miningReward;
 
@@ -664,7 +664,7 @@ class Blockchain{
               
         }catch(err){
           console.log(err);
-          reject({error:'ERROR: an error occured'})
+          resolve({error:'ERROR: an error occured'})
         }
   
       }else{
@@ -731,13 +731,15 @@ class Blockchain{
   //   })
   // }
   coinbaseTxIsAttachedToBlock(transaction){
+    let found = false;
+
     this.chain.forEach( block =>{
       if(block.coinbaseTransactionHash == transaction.hash){
-        return block;
+        found = block;
       }
     })
 
-    return false
+    return found
   }
 
   waitFiveBlocks(transaction){
@@ -748,7 +750,7 @@ class Blockchain{
       }
     })
 
-    return this.chain.getLatestBlock().blockNumber - blockOfTransaction.blockNumber >= 5;
+    return this.getLatestBlock().blockNumber - blockOfTransaction.blockNumber >= 5;
   }
 
   async saveBlockchain(){

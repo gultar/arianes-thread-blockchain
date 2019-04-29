@@ -1024,12 +1024,13 @@ class Node {
           if(data && typeof data == 'string'){
             try{
               logger('Fetching new coinbase transaction from ', originAddress)
+              logger('txhash', data)
               axios.get(originAddress+'/transaction', {
                 param:{
                   txHash:data
                 }
               }).then((response)=>{
-                console.log(response)
+                console.log(response.data)
               }).catch((e)=>{
                 console.log(chalk.red(e))
               })
@@ -1681,7 +1682,7 @@ class Node {
               
             }else{
               logger('ERROR: coinbase transaction not found');
-              reject({error:'ERROR: coinbase transaction not found'})
+              resolve({error:'ERROR: coinbase transaction not found'})
             }
            
           
