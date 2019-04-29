@@ -533,7 +533,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       if(transaction){
         try{
-          var isMiningReward = this.isMiningRewardTransaction(transaction);
+          var isMiningReward = transaction.fromAddress == 'coinbase';
             // logger('Is mining reward transaction? :', isMiningReward);
 
           if(!isMiningReward){
