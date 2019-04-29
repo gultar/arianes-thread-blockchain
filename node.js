@@ -1052,7 +1052,6 @@ class Node {
         case 'fetchCoinbaseTransaction':
           if(data && typeof data == 'string'){
             try{
-              logger('Fetching new coinbase transaction from ', originAddress)
               
               axios.get(originAddress+'/transaction', {
                 params:{
