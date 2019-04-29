@@ -844,7 +844,7 @@ function fetchMempool(){
   
   socket.on('mempool', (pool)=>{
     console.log(pool)
-    outputToDebug('<pre>'+JSON.stringify(pool, null, 2)+'</pre>');
+    output('<pre>'+JSON.stringify(pool, null, 2)+'</pre>');
     socket.off('mempool')
   })
 }
