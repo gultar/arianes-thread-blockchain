@@ -1592,7 +1592,7 @@ class Node {
              let block = false;
              
              if(isMining && !block){
-              this.cashInCoinbaseTransactions();
+              
               let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock());
               logger('Mining next block...');
               logger('Number of pending transactions:', Mempool.sizeOfPool());
@@ -1627,12 +1627,13 @@ class Node {
                    this.minerPaused = false;
                    let newBlockTransactions = this.chain.getLatestBlock().transactions;
                    Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-                   
+                   this.cashInCoinbaseTransactions();
 
                  },3000)
                 }else{
                    let transactionsOfCancelledBlock = block.transactions;
                    Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
+                   this.cashInCoinbaseTransactions();
                 }
               })
              }else{
