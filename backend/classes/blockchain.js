@@ -686,8 +686,7 @@ class Blockchain{
   */
   validateChecksum(transaction){
     if(transaction){
-      if(transaction.fromAddress == 'coinbase') console.log(sha256(transaction.fromAddress+ transaction.toAddress+ transaction.amount+ transaction.data+ transaction.timestamp))
-      if(sha256(transaction.fromAddress+ transaction.toAddress+ transaction.amount+ transaction.data+ transaction.timestamp) === transaction.hash){
+       if(sha256(transaction.fromAddress+ transaction.toAddress+ transaction.amount+ transaction.data+ transaction.timestamp) === transaction.hash){
         return true;
       }
     }

@@ -14,6 +14,7 @@ class Wallet{
         this.publicKey = '';
         _(this).passwordHash = '';
         _(this).locked = true;
+        this.lockTimer = '';
         
     }
 
@@ -84,7 +85,7 @@ class Wallet{
     }
 
     lock(){
-        setTimeout(()=>{
+        this.lockTimer = setTimeout(()=>{
           _(this).locked = true;
         }, 5 * 60 * 1000)
        

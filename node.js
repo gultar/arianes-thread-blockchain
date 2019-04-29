@@ -1723,6 +1723,7 @@ class Node {
                 
                 Mempool.moveCoinbaseTransactionToPool(transaction.hash);
                 setTimeout(()=>{
+                  console.log(transaction.hash)
                   this.sendPeerMessage('fetchCoinbaseTransaction', transaction.hash);
                   resolve(true);
                 },1000)
