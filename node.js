@@ -1804,7 +1804,7 @@ class Node {
         
         if(this.publicKey){
           
-          WalletConnector.unlockWallet(this.port, '8003')
+          WalletConnector.unlockWallet(this.port, this.port)
             .then((unlocked)=>{
               if(unlocked){
                 this.broadcastNewTransaction(this.publicKey, "A+Co6v7yqFO1RqZf3P+m5gzdkvSTjdSlheaY50e9XUmp", 0, '')
