@@ -1079,8 +1079,7 @@ class Node {
                       }
                     })
                   }else{
-                    if(transaction.error) //logger(transaction.error)
-                    else logger('ERROR: could not fetch coinbase transaction')
+                    //Can't fetch
                   }
                   
                  
