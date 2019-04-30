@@ -745,14 +745,21 @@ class Blockchain{
   }
 
   waitFiveBlocks(transaction){
-    let blockOfTransaction;
-    this.chain.forEach( block =>{
-      if(block.coinbaseTransactionHash == transaction.hash){
-        blockOfTransaction = block;
-      }
-    })
+    let latestBlock = this.getLatestBlock()
+    if(latestBlock){
+      let blockOfTransaction;
+      this.chain.forEach( block =>{
+        if(block.coinbaseTransactionHash == transaction.hash){
+          blockOfTransaction = block;
+        }
+      })
+      return this.getLatestBlock().blockNumber - blockOfTransaction.blockNumber >= 5;
+    }else{
+      return false;
+    }
+    
 
-    return this.getLatestBlock().blockNumber - blockOfTransaction.blockNumber >= 5;
+   
   }
 
   async saveBlockchain(){
