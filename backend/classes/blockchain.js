@@ -753,7 +753,7 @@ class Blockchain{
           blockOfTransaction = block;
         }
       })
-      return this.getLatestBlock().blockNumber - blockOfTransaction.blockNumber >= 5;
+      return latestBlock.blockNumber - blockOfTransaction.blockNumber >= 5;
     }else{
       return false;
     }
