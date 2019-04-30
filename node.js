@@ -571,33 +571,33 @@ class Node {
           
       })
 
-      app.post('/unlockWallet', (req, res)=>{
+      // app.post('/unlockWallet', (req, res)=>{
 
-        if(isValidCreateWalletJSON(req.body)){
+      //   if(isValidCreateWalletJSON(req.body)){
           
-          const { name, password } = req.body;
-          if(name && password){
+      //     const { name, password } = req.body;
+      //     if(name && password){
             
-            WalletConnector.unlockWallet(name, password)
-            .then((unlocked)=>{
-              if(unlocked){
-                res.send(`Unlocked wallet ${name}`)
-              }else{
-                res.send('ERROR: Could not unlock wallet');
-              }
+      //       WalletConnector.unlockWallet(name, password)
+      //       .then((unlocked)=>{
+      //         if(unlocked){
+      //           res.send(`Unlocked wallet ${name}`)
+      //         }else{
+      //           res.send('ERROR: Could not unlock wallet');
+      //         }
               
-            })
-            .catch(e =>{
-              console.log(e)
-            })
-          }else{
-            res.send('ERROR: No wallet name or password provided')
-          }
-        }else{
-          res.send('ERROR: Required parameters: walletname password ')
-        }
+      //       })
+      //       .catch(e =>{
+      //         console.log(e)
+      //       })
+      //     }else{
+      //       res.send('ERROR: No wallet name or password provided')
+      //     }
+      //   }else{
+      //     res.send('ERROR: Required parameters: walletname password ')
+      //   }
           
-      })
+      // })
   
       app.get('/getWalletPublicInfo', async (req, res)=>{
         if(isValidWalletRequestJSON(req.query)){

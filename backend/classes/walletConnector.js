@@ -3,7 +3,7 @@ const Wallet = require('./wallet');
 const sha1 = require('sha1');
 const ECDSA = require('ecdsa-secp256r1');
 const fs = require('fs');
-const Node = require('../../Node.js')
+const Node = require('../../node.js')
 
 
 class WalletConnector{
