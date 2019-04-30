@@ -84,7 +84,7 @@ class Node {
       express.json({ limit: '300kb' })
       app.use(helmet())
       const server = http.createServer(app).listen(this.port);
-
+      
       this.initHTTPAPI(app);
       this.cleanMessageBuffer();
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
@@ -485,9 +485,9 @@ class Node {
         
         try{
           if(isValidTransactionJSON(req.body)){
-            let { sender, receiver, amount, data } = req.body;
-  
-            this.broadcastNewTransaction(sender, receiver, amount, data)
+            let transaction = req.body
+            
+            this.broadcastNewTransaction(transaction)
             .then((transactionEmitted)=>{
               
               if(transactionEmitted.error){
@@ -495,7 +495,13 @@ class Node {
               }else{
                 let signature = transactionEmitted.signature;
                 let hash = transactionEmitted.hash;
-                res.send(this.generateReceipt(sender, receiver, amount, data, signature, hash));
+                res.send(this.generateReceipt(
+                  transaction.fromAddress, 
+                  transaction.toAddress, 
+                  transaction.amount, 
+                  transaction.data, 
+                  transaction.signature, 
+                  transaction.hash));
               }
             })
             .catch((e)=>{
@@ -512,41 +518,6 @@ class Node {
         
       });
 
-      // app.post('/signCoinbaseTx', (req, res)=>{
-      //   console.log('BODY OF REQUEST')
-      //   console.log(req.body)
-      //   let { signature, hash, publicKey } = req.body;
-      //   if(hash && signature && publicKey){
-      //     let coinbaseTx = Mempool.getCoinbaseTransaction(hash);
-      //     if(coinbaseTx){
-      //       if(!coinbaseTx.signatures) coinbaseTx.signatures = {}
-      //       coinbaseTx.signatures[publicKey] = signature;
-      //       logger('RECEIVED SIGNATURE:', signature)
-      //       res.send('SUCCESS: Received peer signature')
-      //     }else{
-      //       logger('ERROR: coinbase not found')
-      //       res.send('ERROR: could not sign coinbase transaction')
-      //     }
-          
-      //   }
-      // })
-
-      // app.get('/coinbaseTransaction', (req, res)=>{
-        
-      //   let hash = req.query.hash;
-        
-      //   if(hash){
-      //     let coinbaseTx = Mempool.getCoinbaseTransaction(hash);
-      //     if(tx){
-      //       res.json({ tx:coinbaseTx }).end()
-      //     }else{
-      //       res.json({ error:'coinbase transaction not found' }).end()
-      //     }
-      //   }else{
-      //     res.json({ error:'invalid transaction hash'}).end()
-      //   }
-        
-      // })
   
       app.get('/getAddress', (req, res)=>{
         res.json({ nodes: this.nodeList.addresses }).end();
@@ -849,9 +820,9 @@ class Node {
       socket.emit('blockchain', this.chain);
     })
 
-    socket.on('transaction', (fromAddress, toAddress, amount, data)=>{
-      this.broadcastNewTransaction(fromAddress, toAddress, amount, data);
-    })
+    // socket.on('transaction', (fromAddress, toAddress, amount, data)=>{
+    //   this.broadcastNewTransaction(fromAddress, toAddress, amount, data);
+    // })
 
     socket.on('getAddress', (address)=>{
       this.requestKnownPeers(address);
@@ -1496,27 +1467,24 @@ class Node {
     @param {number} $amount - Amount of coins to send. Optional IF blockbase query
     @param {object} $data - data to send along with transaction
   */
-  async broadcastNewTransaction(sender, receiver, amount, data){
+  async broadcastNewTransaction(transaction){
     return new Promise( async (resolve, reject)=>{
       try{
-        let transaction = new Transaction(sender, receiver, amount, data);
         
-        let wallet = WalletConnector.getWalletByPublicAddress(sender);
+        
+        // let wallet = WalletConnector.getWalletByPublicAddress(sender);
 
-        if(!wallet){
-          logger('ERROR: Could not find wallet of sender address')
-          resolve({error:'ERROR: Could not find wallet of sender address'});
-        }else{
-          let signature = await wallet.sign(transaction.hash);
+        // if(!wallet){
+        //   logger('ERROR: Could not find wallet of sender address')
+        //   resolve({error:'ERROR: Could not find wallet of sender address'});
+        // }else{
+          // let signature = await wallet.sign(transaction.hash);
           
-          if(!signature){
+          if(!transaction.signature){
             logger('Transaction signature failed. Check both public key addresses.')
             resolve({error:'Transaction signature failed. Check both public key addresses.'})
             
-          }else if(signature.walletLocked){
-
           }else{
-            transaction.signature = signature;
             
             this.chain.createTransaction(transaction)
               .then( valid =>{
@@ -1539,7 +1507,7 @@ class Node {
                 }
               })
           }
-        }
+        // }
         
         
       }catch(e){
@@ -1547,31 +1515,6 @@ class Node {
       }
     })
   }
-
-  // async sendCoinbaseSignatureToMiner(minerAddress, block){
-  //   if(minerAddress && block && block.hasOwnProperty('coinbaseTransactionHash')){
-  //     let coinbasetTxHash = block.coinbaseTransactionHash;
-  //     let signature = await WalletConnector.sign(this.publicKey, coinbasetTxHash);
-  //     if(signature){
-  //       console.log('Address:', minerAddress+'/signCoinbaseTx')
-  //       axios.post(minerAddress+'/signCoinbaseTx', {
-  //         signature:signature,
-  //         hash:coinbasetTxHash,
-  //         publicKey:this.publicKey
-  //       })
-  //       .then(response =>{
-  //         console.log(response)
-  //       })
-  //       .catch(e =>{
-  //         console.log(e)
-  //       })
-  //     }else{
-  //       logger('ERROR: could not sign coinbase transaction')
-  //     }
-
-      
-  //   }
-  // }
 
   generateReceipt(sender, receiver, amount, data, signature, hash){
     const receipt = 
@@ -1804,21 +1747,31 @@ class Node {
   txgen(){
     if(!stopTxgen){
       let increaseThreshold = 0.5;
-      setTimeout(()=>{
+      setTimeout(async ()=>{
         
         if(this.publicKey){
           
-          WalletConnector.unlockWallet(this.port, this.port)
-            .then((unlocked)=>{
-              if(unlocked){
-                this.broadcastNewTransaction(this.publicKey, "A+Co6v7yqFO1RqZf3P+m5gzdkvSTjdSlheaY50e9XUmp", 0, '')
-
-              }else{
-                logger('ERROR: Could not unlock wallet');
-              }
-              
-            })
-          
+                let transaction = new Transaction(this.publicKey, 'A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R', 0)
+                let wallet = await WalletConnector.getWalletByPublicAddress(this.publicKey);
+                if(wallet){
+                  let unlocked = await wallet.unlock(this.port);
+                  if(unlocked){
+                    let signature = await wallet.sign(transaction.hash)
+                    if(signature){
+                      
+                      transaction.signature = signature;
+                      this.broadcastNewTransaction(transaction)
+                    }else{
+                      logger('ERROR: Txgen could not sign transaction')
+                    }
+                  }else{
+                    logger('ERROR: Txgen could not unlock wallet')
+                  }
+                  
+                }else{
+                  logger('ERROR: Txgen could not find wallet')
+                }
+                
         }
 
         txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);

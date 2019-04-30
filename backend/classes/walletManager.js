@@ -1,10 +1,14 @@
-const program = require('commander');
 const chalk = require('chalk');
 const axios = require('axios');
-const WalletConnector = require('./walletConnector');
+const WalletConnector = require('../classes/walletConnector');
+const Transaction = require('../classes/transaction')
+const sha1 = require('sha1')
+let inquirer = require('inquirer');
 
 class WalletManager{
-    constructor(){}
+    constructor(){
+
+    }
     createWallet(address, walletName, pass){
 
         if(address && walletName && pass){
@@ -22,29 +26,6 @@ class WalletManager{
         }
        
     }
-    // createWallet(address, name, password){
-    //   if(name && password){
-        
-    //     WalletConnector.createWallet(name, password)
-    //     .then((wallet)=>{
-    //       if(wallet){
-    //         console.log(`Created wallet!`);
-    //         console.log(`Name: ${name}`);
-    //         console.log(`Public key: ${wallet.publicKey}`);
-    //         console.log(`Wallet id: ${wallet.id}`);
-    //         console.log(`Keep your wallet file safe!`)
-    //       }else{
-    //         console.log('ERROR: Wallet creation failed');
-    //       }
-          
-    //     })
-    //     .catch(e =>{
-    //       console.log(e)
-    //     })
-    //   }else{
-    //     console.log('ERROR: No wallet name or password provided')
-    //   }
-    // }
 
     loadWallet(address, walletName){
 
@@ -72,22 +53,22 @@ class WalletManager{
         
     }
 
-    unlockWallet(address, walletName, password){
-      if(address && walletName && password){
+    // unlockWallet(address, walletName, password){
+    //   if(address && walletName && password){
         
-            axios.post(address+'/unlockWallet', {
-              name:walletName,
-              password:password
-            }).then((response)=>{
-              console.log(response.data)
-            }).catch((e)=>{
-              console.log(chalk.red(e))
-            })
+    //         axios.post(address+'/unlockWallet', {
+    //           name:walletName,
+    //           password:password
+    //         }).then((response)=>{
+    //           console.log(response.data)
+    //         }).catch((e)=>{
+    //           console.log(chalk.red(e))
+    //         })
 
-      }else{
-          console.log('ERROR: missing parameters')
-      }
-    }
+    //   }else{
+    //       console.log('ERROR: missing parameters')
+    //   }
+    // }
 
     getWallet(address, walletName){
 
@@ -213,41 +194,6 @@ class WalletManager{
           })
     }
 
-    sendTransaction(address, sender, receiver, amount, data){
-        if(sender && receiver && amount){
-            try{
-                var transactToSend = {
-                    'sender' : sender,
-                    'receiver' : receiver,
-                    'amount' : amount,
-                    'data' : data
-                }
-
-                if(typeof transactToSend.amount == 'string'){
-                    transactToSend.amount = parseInt(transactToSend.amount);
-                }
-
-                if(!transactToSend.data){
-                    transactToSend.data = ' '
-                }
-
-                axios.post(address+'/transaction', transactToSend)
-                .then((response)=>{
-                    console.log(response.data)
-                  }).catch((e)=>{
-                    console.log(chalk.red(e))
-                  })
-    
-            }catch(e){
-                console.log(e);
-            }
-            
-        }else{
-            logger('ERROR: Need to provide sender, receiver and amount when sending a transaction');
-            
-        }
-        
-    }
 }
 
 module.exports = WalletManager

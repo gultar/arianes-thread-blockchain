@@ -4,8 +4,9 @@ const program = require('commander');
 const chalk = require('chalk');
 const axios = require('axios');
 const fs = require('fs');
-const { readFile, writeToFile } = require('./backend/tools/utils')
+const { readFile, writeToFile, createTargetFile } = require('./backend/tools/utils')
 const WalletManager = require('./backend/classes/walletManager');
+const transactionCreator = require('./transactionCreator');
 let manager = new WalletManager();
 
  
@@ -35,13 +36,7 @@ const runWalletCLI = async () =>{
           .action(( walletName)=>{
               manager.loadWallet(address, walletName)
           })
-      
-          // program
-          // .command('import  <pathToWalletFile>')
-          // .description('Imports a wallet file')
-          // .action((path, cmd)=>{
-      
-          // })
+
         program
           .command('unlock <walletName> <password>')
           .description('Gets wallet data')
@@ -86,44 +81,26 @@ const runWalletCLI = async () =>{
           })
           
 
-        program
-          .command('sendtx <sender> <receiver> <amount> [data]')
-          .description('Sends a transaction to another wallet')
-          .action((sender, receiver, amount, data)=>{
-            manager.sendTransaction(address, sender, receiver, amount, data);
-          })
-          program.parse(process.argv)
+        // program
+        //   .command('sendtx')
+        //   .description('Sends a transaction to another wallet')
+        //   .action(async ()=>{
+        //     await transactionCreator(address)
+        //   })
+          
       }else{
 
       }
-  
-  
+      
+      program.parse(process.argv)
 }
 
-const createTargetFile = ()=>{
-  const readline = require('readline').createInterface({
-    input: process.stdin,
-    output: process.stdout
-  })
-  
-  readline.question(`Enter node ip address: `, async (address) => {
-    if(address && typeof address == 'string'){
-      let success = await writeToFile(address, './config/target');
-      if(success){
-        console.log('Set target ip address to :', address);
-        runWalletCLI();
-      }
-    }
-    readline.close();
-    process.exit();
-  })
-}
 
 fs.exists('./config/target',async (exists)=>{
   if(exists){
     runWalletCLI();
   }else{
-    createTargetFile();
+    createTargetFile('./config/target');
     
   }
 })

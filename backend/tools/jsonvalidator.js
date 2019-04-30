@@ -2,16 +2,21 @@ const Validator = require('jsonschema').Validator;
 
 const isValidTransactionJSON = (transaction)=>{
     var v = new Validator();
+    
     var schema = {
         "id":"/transaction",
         "type": "object",
         "properties": {
-            "sender": {"type": "string"},
-            "receiver": {"type": "string"},
+            "fromAddress": {"type": "string"},
+            "toAddress": {"type": "string"},
             "amount": {"type": "number"},
-            "data": {"type": "string"}
+            "data": {"type": "string"},
+            "timestamp":{"type":"number"},
+            "hash":{"type":"string"},
+            "type":{"type":"string"},
+            "signature":{"type":"string"}
         },
-        "required": ["sender", "receiver", "amount"]
+        "required": ["fromAddress", "toAddress", "amount", "timestamp", "hash"]
     };
 
     if(transaction){

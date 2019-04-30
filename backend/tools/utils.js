@@ -148,6 +148,24 @@ const createFile = (data, filename) =>{
   
 }
 
+const createTargetFile = (path)=>{
+  const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
+  })
+  
+  readline.question(`Enter node ip address: `, async (address) => {
+    if(address && typeof address == 'string'){
+      let success = await writeToFile(address, path);
+      if(success){
+        return true;
+      }
+    }
+    readline.close();
+    process.exit()  //DANGEROUS <-----
+  })
+}
+
 const parseToString = (data)=>{
   let typeOfData = typeof data;
   let file = data;
@@ -216,4 +234,5 @@ module.exports = {
   readFile,
   writeToFile,
   createFile,
-  merge };
+  merge,
+  createTargetFile };

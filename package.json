@@ -19,6 +19,7 @@
     "express-ws": "^4.0.0",
     "fetch": "^1.1.0",
     "helmet": "^3.16.0",
+    "inquirer": "^6.3.1",
     "json-size": "^1.0.0",
     "jsonschema": "^1.2.4",
     "loopyloop": "^1.1.2",
@@ -34,7 +35,7 @@
   "devDependencies": {},
   "bin": {
     "blockchain": "command.js",
-    "wallet":"walletCLI.js"
+    "wallet": "walletCLI.js"
   },
   "scripts": {
     "test": "node test.js",

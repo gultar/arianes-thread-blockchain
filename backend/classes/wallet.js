@@ -87,7 +87,7 @@ class Wallet{
     lock(){
         this.lockTimer = setTimeout(()=>{
           _(this).locked = true;
-        }, 5 * 60 * 1000)
+        }, 5000)
        
     }
 
@@ -135,6 +135,8 @@ class Wallet{
 
     async sign(data){
         if(data && _(this).privateKey){
+
+            if(typeof data == 'object') data = JSON.stringify(data)
             
             const getSignature = (data)=>{
                 if(!_(this).locked){

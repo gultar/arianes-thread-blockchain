@@ -126,17 +126,15 @@ class WalletConnector{
     })
   }
 
-  sign(publicKey, data){
+  sign(publicKey, data, password){
     if(this.wallets[publicKey] && typeof data == 'string'){
       
       try{
         let wallet = this.wallets[publicKey];
-        return wallet.sign(data);
+        return wallet.sign(data, password);
       }catch(e){
         console.log(e);
       }
-      
-
     }
   }
 
