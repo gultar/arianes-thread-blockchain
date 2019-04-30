@@ -81,12 +81,12 @@ const runWalletCLI = async () =>{
           })
           
 
-        // program
-        //   .command('sendtx')
-        //   .description('Sends a transaction to another wallet')
-        //   .action(async ()=>{
-        //     await transactionCreator(address)
-        //   })
+        program
+          .command('sendtx')
+          .description('Sends a transaction to another wallet')
+          .action(async ()=>{
+            await transactionCreator(address)
+          })
           
       }else{
 
