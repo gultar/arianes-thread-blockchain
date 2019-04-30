@@ -83,7 +83,7 @@ class Mempool{
 
     deleteTransactionsFromMinedBlock(transactions){
         let txHashes = Object.keys(transactions);
-        logger('Deleting '+txHashes.length+' transactions from pool');
+        
         for(var hash of txHashes){
             if(this.pendingTransactions.hasOwnProperty(hash)){
                 delete this.pendingTransactions[hash];
