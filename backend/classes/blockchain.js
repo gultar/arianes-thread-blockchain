@@ -60,7 +60,7 @@ class Blockchain{
         'coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'
       ),
       new Transaction( //third node
-        'coinbase', "A0LwcQG6XUkGikwn0aJ/jvv7irysO+z1MWaEh25ci4O/", 10000, 'ICO transactions'
+        'coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'
       )
 
     );
@@ -629,7 +629,7 @@ class Blockchain{
 
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
 
-          let hasTheRightMiningRewardAmount = transaction.amount == this.miningReward;
+          // let hasTheRightMiningRewardAmount = transaction.amount = this.miningReward;
 
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
           // logger("Transaction Size is not bigger than "+this.transactionSizeLimit+"Kb", transactionSizeIsNotTooBig);
