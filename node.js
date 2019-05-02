@@ -147,6 +147,7 @@ class Node {
       if(socket){
         let peerAddress;
         let peerToken;
+        let peerPublicKey;
          if(socket.handshake.query.token !== undefined){
              try{
                socket.on('message', (msg) => { logger('Client:', msg); });
