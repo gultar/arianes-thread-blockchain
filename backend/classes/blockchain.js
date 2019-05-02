@@ -724,7 +724,8 @@ class Blockchain{
           blockOfTransaction = block;
         }
       })
-      return latestBlock.blockNumber - blockOfTransaction.blockNumber >= 5;
+      if(latestBlock.hasOwnProperty('blockNumber')) return latestBlock.blockNumber - blockOfTransaction.blockNumber >= 5;
+      else return 0;
     }else{
       return false;
     }
