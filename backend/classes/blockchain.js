@@ -639,10 +639,10 @@ class Blockchain{
             resolve({error:'REJECTED: Transaction checksum is invalid'});
           }
 
-          if(!hasTheRightMiningRewardAmount){
-            logger('REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount)
-            resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
-          }
+          // if(!hasTheRightMiningRewardAmount){
+          //   logger('REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount)
+          //   resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
+          // }
 
           if(!isAttachedToMinedBlock){
             logger('REJECTED: Is not attached to any mined block');
