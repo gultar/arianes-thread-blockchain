@@ -797,12 +797,9 @@ class Node {
       socket.emit('mempool', Mempool);
     })
 
-    // socket.on('test', ()=>{
-    //   let socket = ioClient('http://localhost:3000')
-    //   socket.on('message', (message)=>{
-    //     console.log(message)
-    //   })
-    // })
+    socket.on('test', ()=>{
+      this.cashInCoinbaseTransactions();
+    })
 	
     socket.on('txSize', (hash)=>{
       if(Mempool.pendingTransactions.hasOwnProperty(hash)){

@@ -717,7 +717,7 @@ class Blockchain{
 
   waitFiveBlocks(transaction){
     let latestBlock = this.getLatestBlock()
-    if(latestBlock){
+    if(latestBlock && latestBlock.hasOwnProperty('blockNumber')){
       let blockOfTransaction;
       this.chain.forEach( block =>{
         if(block.coinbaseTransactionHash == transaction.hash){
