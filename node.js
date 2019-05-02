@@ -31,7 +31,8 @@ const {
   isValidGetNextBlockJSON,
   isValidHeaderJSON,
   isValidCreateWalletJSON,
-  isValidUnlockWalletJSON
+  isValidUnlockWalletJSON,
+  isValidWalletBalanceJSON
 } = require('./backend/tools/jsonvalidator')
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
@@ -90,7 +91,7 @@ class Node {
       const server = http.createServer(app).listen(this.port);
       
       this.initHTTPAPI(app);
-      this.initWalletAPI();
+      this.connectToKeyServer()
       this.cleanMessageBuffer();
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
       
@@ -151,9 +152,11 @@ class Node {
                socket.on('message', (msg) => { logger('Client:', msg); });
 
                peerToken = JSON.parse(socket.handshake.query.token);
-               peerAddress = peerToken.address
+               peerAddress = peerToken.address;
+               peerPublicKey = peerToken.publicKey
 
               //Implement checksum based authentification
+              
                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
                  this.peersConnected[peerAddress] = socket;
                  this.nodeList.addNewAddress(peerAddress)
@@ -277,7 +280,7 @@ class Node {
             'max reconnection attempts' : 3,
             'query':
             {
-              token: JSON.stringify({ 'address':this.address })
+              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey })
             }
           });
 
@@ -347,6 +350,20 @@ class Node {
     // else{
     //   logger(chalk.red('ERROR: Address in undefined'));
     // }
+  }
+
+  async connectToKeyServer(){
+    let socket = await ioClient('http://localhost:3000', {
+      'query':
+            {
+              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey })
+            }
+    });
+    socket.on('connect', ()=>{
+      logger('Connected to key server')
+    })
+    socket.on('message', message => console.log(message))
+
   }
 
 
@@ -458,7 +475,96 @@ class Node {
       //   res.json({ message: 'attempting connection to peer '+node}).end()
       // });
       
-      
+      app.get('/transaction', (req, res)=>{
+        let tx = {};
+        let pendingTx = {};
+        let hash = req.query.hash;
+        
+        if(hash){
+          tx = this.chain.getTransactionFromChain(hash);
+          if(tx){
+            res.json(tx).end()
+          }else{
+
+            pendingTx = Mempool.getTransactionFromPool(hash);
+            
+            if(pendingTx){
+              res.json(pendingTx).end()
+            }else{
+              res.json({ error:'no transaction found'}).end()
+            }
+            
+          }
+        }else{
+          res.json({ error:'invalid transaction hash'}).end()
+        }
+
+      })
+  
+      app.post('/transaction', (req, res) => {
+        
+        try{
+          if(isValidTransactionJSON(req.body)){
+            let transaction = req.body
+            
+            this.broadcastNewTransaction(transaction)
+            .then((transactionEmitted)=>{
+              
+              if(transactionEmitted.error){
+                res.send(transactionEmitted.error)
+              }else{
+                res.send(this.generateReceipt(
+                  transaction.fromAddress, 
+                  transaction.toAddress, 
+                  transaction.amount, 
+                  transaction.data, 
+                  transaction.signature, 
+                  transaction.hash));
+              }
+            })
+            .catch((e)=>{
+              console.log(chalk.red(e));
+            })
+          }else{
+            res.send('ERROR: Invalid transaction format')
+          }
+          
+        }catch(e){
+          console.log(chalk.red(e))
+        }
+        
+      });
+
+      app.get('/getWalletBalance', async(req, res)=>{
+        if(isValidWalletBalanceJSON(req.query)){
+          let publicKey = req.query.publicKey;
+          if(publicKey){
+            res.json({ 
+              balance: 
+              this.chain.getBalanceOfAddress(publicKey) 
+              + this.chain.checkFundsThroughPendingTransactions(publicKey)
+            }).end()
+          }else{
+            res.json({error:'ERROR: must provide publicKey'}).end()
+          }
+        }else{
+          res.json({error:'ERROR: Invalid JSON request parameters'}).end()
+        }
+      })
+
+      app.get('/getWalletHistory', async(req, res)=>{
+        if(isValidWalletBalanceJSON(req.query)){
+          let publicKey = req.query.publicKey;
+          if(publicKey){
+            let history = await this.chain.getTransactionHistory(publicKey)
+              res.json({ history:history }).end()
+          }else{
+            res.json({error:'ERROR: must provide publicKey'}).end()
+          }
+        }else{
+          res.json({error:'ERROR: Invalid JSON request parameters'}).end()
+        }
+      })
 
   
       app.get('/getAddress', (req, res)=>{
@@ -554,236 +660,6 @@ class Node {
     
   }
 
-  initWalletAPI(walletApi=express()){
-
-      walletApi.set('json spaces', 2);
-      let rateLimiter = new RateLimit({
-        windowMs: 1000, // 1 hour window 
-        max: 30, // start blocking after 100 requests 
-        message: "Too many requests per second"
-      });
-      walletApi.use(rateLimiter);
-
-      walletApi.use(bodyParser.json());
-      walletApi.use(function (error, req, res, next) {
-        if (error instanceof SyntaxError &&
-          error.status >= 400 && error.status < 500 &&
-          error.message.indexOf('JSON')) {
-          res.send("ERROR: Invalid JSON format");
-        } else {
-          next();
-        }
-      });
-
-      walletApi.post('/createWallet', (req, res)=>{
-        
-        if(isValidCreateWalletJSON(req.body)){
-          const { name, password } = req.body;
-          if(name && password){
-            this.walletManager.createWallet(name, password)
-            .then((wallet)=>{
-              if(wallet){
-                res.send(this.generateWalletCreationReceipt(wallet))
-              }else{
-                res.send('ERROR: Wallet creation failed');
-              }
-              
-            })
-            .catch(e =>{
-              console.log(e)
-            })
-          }else{
-            res.send('ERROR: No wallet name or password provided')
-          }
-        }else{
-          res.send('ERROR: Required parameters: walletname password ')
-        }
-
-      })
-
-      walletApi.post('/unlockWallet', (req, res)=>{
-        if(isValidUnlockWalletJSON(req.body)){
-          const { name, password, seconds } = req.body;
-          if(name && password){
-                        
-            this.walletManager.unlockWallet(name, password, seconds)
-            .then((wallet)=>{
-              if(wallet){
-                res.send(`Wallet ${name} unlocked for ${( seconds ? seconds : 5)} seconds`);
-              }else{
-                res.send('ERROR: Wallet unlocking failed');
-              }
-              
-            })
-            .catch(e =>{
-              console.log(e)
-            })
-          
-          }else{
-            res.send('ERROR: No wallet name or password provided. Optional: number of seconds')
-          }
-        }else{
-          res.send('ERROR: Required parameters: walletname password. Optional: number of seconds ')
-        }
- 
-      })
-  
-      walletApi.get('/getWalletPublicInfo', async (req, res)=>{
-
-        if(isValidWalletRequestJSON(req.query)){
-          let walletName = req.query.name;
-          if(walletName){
-            let wallet = await this.walletManager.getWalletByName(walletName);
-            if(wallet){
-              res.json(wallet).end();
-            }else{
-              res.json({error:`wallet ${walletName} not found`}).end()
-            }
-          }else{
-            res.json({ error:'must provide wallet name' }).end()
-          }
-        }else{
-          res.json({ error:'invalid JSON wallet creation format' }).end()
-        }
-        
-      })
-  
-      walletApi.get('/loadWallet', async (req, res)=>{
-        // if(isValidWalletRequestJSON(req.query)){
-          try{
-            if(isValidWalletRequestJSON(req.query)){
-              let walletName = req.query.name;
-              if(walletName){
-                let filename = `./wallets/${walletName}-${sha1(walletName)}.json`
-                let wallet = await this.walletManager.loadWallet(filename);
-                logger(`Loaded wallet ${walletName}`)
-                res.json({loaded:wallet}).end();
-              }else{
-                res.json({ error:'must provide wallet name' }).end()
-              }
-            }else{
-              res.json({ error:'invalid JSON wallet creation format' }).end()
-            }
-
-          }catch(e){
-            console.log(e);
-          }
-        
-      })
-
-      walletApi.get('/getWalletBalance', async(req, res)=>{
-
-        if(isValidWalletRequestJSON(req.query)){
-          let walletName = req.query.name;
-          if(walletName){
-            let publicKey = await this.walletManager.getPublicKeyOfWallet(walletName);
-            if(publicKey){
-              res.json({ 
-                balance: 
-                this.chain.getBalanceOfAddress(publicKey) 
-                + this.chain.checkFundsThroughPendingTransactions(publicKey)
-              }).end()
-            }else{
-              res.json({ error:'could not find balance of unknown wallet' }).end()
-            }
-          }else{
-            res.json({ error:'must provide wallet name' }).end()
-          }
-        }else{
-          res.json({ error:'invalid JSON wallet creation format' }).end()
-        }
-
-      })
-
-      walletApi.get('/getWalletHistory', async(req, res)=>{
-        if(isValidWalletRequestJSON(req.query)){
-          let walletName = req.query.name;
-          if(walletName){
-            let publicKey = await this.walletManager.getPublicKeyOfWallet(walletName);
-            if(publicKey){
-              res.json({ history:this.chain.getTransactionHistory(publicKey) }).end()
-            }else{
-              res.json({ error:'could not find history of unknown wallet' }).end()
-            }
-          }else{
-            res.json({ error:'must provide wallet name' }).end()
-          }
-        }else{
-          res.json({ error:'invalid JSON wallet creation format' }).end()
-        }
-      })
-
-      walletApi.get('/listWallets', async(req, res)=>{
-        res.json(this.walletManager.wallets).end()
-      })
-
-      walletApi.get('/transaction', (req, res)=>{
-        let tx = {};
-        let pendingTx = {};
-        let hash = req.query.hash;
-        
-        if(hash){
-          tx = this.chain.getTransactionFromChain(hash);
-          if(tx){
-            res.json(tx).end()
-          }else{
-
-            pendingTx = Mempool.getTransactionFromPool(hash);
-            
-            if(pendingTx){
-              res.json(pendingTx).end()
-            }else{
-              res.json({ error:'no transaction found'}).end()
-            }
-            
-          }
-        }else{
-          res.json({ error:'invalid transaction hash'}).end()
-        }
-
-      })
-  
-      walletApi.post('/transaction', (req, res) => {
-        
-        try{
-          if(isValidTransactionJSON(req.body)){
-            let transaction = req.body
-            
-            this.broadcastNewTransaction(transaction)
-            .then((transactionEmitted)=>{
-              
-              if(transactionEmitted.error){
-                res.send(transactionEmitted.error)
-              }else{
-                let signature = transactionEmitted.signature;
-                let hash = transactionEmitted.hash;
-                res.send(this.generateReceipt(
-                  transaction.fromAddress, 
-                  transaction.toAddress, 
-                  transaction.amount, 
-                  transaction.data, 
-                  transaction.signature, 
-                  transaction.hash));
-              }
-            })
-            .catch((e)=>{
-              console.log(chalk.red(e));
-            })
-          }else{
-            res.send('ERROR: Invalid transaction format')
-          }
-          
-        }catch(e){
-          console.log(chalk.red(e))
-        }
-        
-      });
-
-      walletApi.listen(3000, '127.0.0.1', 511, ()=>{
-        if(this.verbose) logger('Wallet server running on 127.0.0.1:3000')
-      });
-  }
-
 
   /**
     Socket listeners only usable by server nodes
@@ -860,10 +736,6 @@ class Node {
       socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
     })
 
-    socket.on('getBlockTxHashes', (number)=>{
-      socket.emit('txHashes', Object.keys(this.chain.chain[number-1].transactions))
-    })
-
     socket.on('startMiner', ()=>{
       this.minerPaused = false;
       this.updateAndMine();
@@ -923,6 +795,13 @@ class Node {
     socket.on('getMempool', ()=>{
       socket.emit('mempool', Mempool);
     })
+
+    // socket.on('test', ()=>{
+    //   let socket = ioClient('http://localhost:3000')
+    //   socket.on('message', (message)=>{
+    //     console.log(message)
+    //   })
+    // })
 	
     socket.on('txSize', (hash)=>{
       if(Mempool.pendingTransactions.hasOwnProperty(hash)){

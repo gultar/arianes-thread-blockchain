@@ -51,7 +51,7 @@ class Blockchain{
     genesisBlock.transactions.push(
       //Setup initial coin distribution
       new Transaction( //Blockchain node
-        'coinbase', "AiJP8Hsy0f4SoQPoYYIubw87zv6rfjYzWNOxXn2+wgHb", 10000, 'ICO transactions'
+        'coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions'
       ),
       new Transaction( //first node
         'coinbase',"AyJ6X7hDO0Irwxn/d5r2Ux1srsSsbC3TchWF5hBoK2Op", 10000, 'ICO transactions'

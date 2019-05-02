@@ -36,7 +36,8 @@
   "devDependencies": {},
   "bin": {
     "blockchain": "command.js",
-    "wallet": "walletCLI.js"
+    "wallet": "walletCLI.js",
+    "keyserver": "keyServer.js"
   },
   "scripts": {
     "test": "node test.js",

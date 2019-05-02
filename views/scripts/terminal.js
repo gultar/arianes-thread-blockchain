@@ -736,6 +736,11 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
     }, 1000)
   }
 
+  function getProperOutput(output, debugOutput){
+    output_ = output;
+    debugOutput_ = debugOutput;
+  }
+
   // Cross-browser impl to get document's height.
   function getDocHeight_() {
     var d = document;

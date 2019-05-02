@@ -60,7 +60,7 @@ const isValidChainLengthJSON = (transaction)=>{
 const isValidWalletRequestJSON = (transaction)=>{
     var v = new Validator();
     var schema = {
-        "id":"/chainLength",
+        "id":"/walletRequest",
         "type": "object",
         "properties": {
             "name": {"type": "string"},
@@ -80,10 +80,33 @@ const isValidWalletRequestJSON = (transaction)=>{
     }
 }
 
+const isValidWalletBalanceJSON = (transaction)=>{
+    var v = new Validator();
+    var schema = {
+        "id":"/walletBalance",
+        "type": "object",
+        "properties": {
+            "publicKey": {"type": "string"},
+        },
+        "required": ["publicKey"]
+    };
+
+    if(transaction){
+        v.addSchema(schema, "/transaction")
+        let valid = v.validate(transaction, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
 const isValidCreateWalletJSON = (transaction)=>{
     var v = new Validator();
     var schema = {
-        "id":"/chainLength",
+        "id":"/createWallet",
         "type": "object",
         "properties": {
             "name": {"type": "string"},
@@ -107,7 +130,7 @@ const isValidCreateWalletJSON = (transaction)=>{
 const isValidUnlockWalletJSON = (transaction)=>{
     var v = new Validator();
     var schema = {
-        "id":"/chainLength",
+        "id":"/unlockWallet",
         "type": "object",
         "properties": {
             "name": {"type": "string"},
@@ -198,5 +221,6 @@ module.exports = {
     isValidGetNextBlockJSON,
     isValidHeaderJSON,
     isValidCreateWalletJSON,
-    isValidUnlockWalletJSON
+    isValidUnlockWalletJSON,
+    isValidWalletBalanceJSON
  };
