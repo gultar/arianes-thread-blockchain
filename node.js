@@ -267,7 +267,7 @@ class Node {
   */
   connectToPeer(address, callback){
 
-    if(address){
+    if(address && this.address !== address){
       if(this.connectionsToPeers[address] == undefined){
         let connectionAttempts = 0;
         let peer;
@@ -343,9 +343,10 @@ class Node {
       }else{
       }
 
-    }else{
-      logger(chalk.red('ERROR: Address in undefined'));
     }
+    // else{
+    //   logger(chalk.red('ERROR: Address in undefined'));
+    // }
   }
 
 
