@@ -724,14 +724,11 @@ class Blockchain{
           blockOfTransaction = block;
         }
       })
-      if(latestBlock.hasOwnProperty('blockNumber')) return latestBlock.blockNumber - blockOfTransaction.blockNumber >= 5;
-      else return 0;
+      return this.chain.length - blockOfTransaction.blockNumber >= 6;
     }else{
       return false;
     }
     
-
-   
   }
 
   async saveBlockchain(){
