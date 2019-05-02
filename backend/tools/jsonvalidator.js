@@ -10,7 +10,9 @@ const isValidTransactionJSON = (transaction)=>{
             "fromAddress": {"type": "string"},
             "toAddress": {"type": "string"},
             "amount": {"type": "number"},
-            "data": {"type": "string"},
+            "data": {"type": [
+                "string","object"
+            ]},
             "timestamp":{"type":"number"},
             "hash":{"type":"string"},
             "type":{"type":"string"},

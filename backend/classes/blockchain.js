@@ -703,32 +703,6 @@ class Blockchain{
     })
   }
 
-  // validateCoinbaseSignatures(coinbaseTx){
-  //   return new Promise((resolve, reject)=>{
-  //     if(coinbaseTx){
-  //       let publicKey = '';
-  //       let signature = '';
-  //       let validSignatures = {};
-  //       if(coinbaseTx && coinbaseTx.signatures){
-          
-  //         Object.keys(coinbaseTx.signatures).forEach( CompressedPublicKey =>{
-            
-  //           publicKey = ECDSA.fromCompressedPublicKey(CompressedPublicKey);
-  //           signature = coinbaseTx.signatures[CompressedPublicKey];
-            
-  //           validSignatures[CompressedPublicKey] = publicKey.verify(coinbaseTx.hash, signature);
-  //         })
-  //       }else{
-  //         logger('ERROR: Coinbase transaction does not contain signatures')
-  //       }
-       
-
-  //       resolve(validSignatures);
-  //     }else{
-  //       reject(false)
-  //     }
-  //   })
-  // }
   coinbaseTxIsAttachedToBlock(transaction){
     let found = false;
 

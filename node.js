@@ -216,7 +216,7 @@ class Node {
       return new Promise(async (resolve, reject)=>{
         
         fs.exists(filename, async (exists)=>{
-          
+
           if(!exists){
             let created = await this.createNodeWallet();
              resolve(created);
@@ -921,20 +921,6 @@ class Node {
 
     socket.on('getMempool', ()=>{
       socket.emit('mempool', Mempool);
-    })
-
-    socket.on('test', (addr)=>{
-      var sock = ioClient('http://localhost:3000');
-      sock.emit('message', addr)
-      sock.on('file', (file)=>{
-        console.log(file)
-      })
-      // console.log(sock)
-    })
-
-    socket.on('sign', (address, hash)=>{
-      this.sendCoinbaseSignatureToMiner(address, { coinbaseTransactionHash:hash })
-      logger('sending a signature');
     })
 	
     socket.on('txSize', (hash)=>{
