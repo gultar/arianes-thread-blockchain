@@ -14,7 +14,7 @@ class Wallet{
         this.publicKey = '';
         _(this).passwordHash = '';
         _(this).locked = true;
-        this.lockTimer = '';
+        _(this).lockTimer = '';
         
     }
 
@@ -67,13 +67,13 @@ class Wallet{
         
     }
 
-    unlock(password){
+    unlock(password, seconds){
         return new Promise(async (resolve, reject)=>{
             
             let isPasswordValid = await this.isPasswordValid(password);
             if(isPasswordValid){
                 _(this).locked = false;
-                this.lock();
+                this.lock(seconds);
                 resolve(true)
             }else{
                 resolve(false)
@@ -84,10 +84,19 @@ class Wallet{
         
     }
 
-    lock(){
-        this.lockTimer = setTimeout(()=>{
+    lock(seconds){
+        let lockWalletIn = 0;
+
+        if(!seconds || typeof seconds !== 'number') lockWalletIn = 5 * 1000
+        else if(seconds > 60 * 10) logger('WARNING: Unlocking wallet for more than 10 minutes is risky');
+        else if(seconds < 1) {
+            logger('ERROR: Cannot unlock for less than a second ');
+            lockWalletIn = 1000;
+        }else lockWalletIn = seconds * 1000;
+
+        _(this).lockTimer = setTimeout(()=>{
           _(this).locked = true;
-        }, 5000)
+        }, lockWalletIn)
        
     }
 

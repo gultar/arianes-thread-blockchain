@@ -99,12 +99,12 @@ class Mempool{
 
     async loadMempool(){
         return new Promise((resolve, reject)=>{
-            fs.exists('mempool.json', async (exists)=>{
+            fs.exists('./data/mempool.json', async (exists)=>{
                 if(!exists){
                     resolve(await this.createMempool().catch(e =>{ { console.log(e) } }))
                 }
 
-                let mempoolFile = await readFile('mempool.json').catch(e =>{ { console.log(e) } })
+                let mempoolFile = await readFile('./data/mempool.json').catch(e =>{ { console.log(e) } })
                 if(mempoolFile){
                     try{
                         let oldMempool = JSON.parse(mempoolFile);
@@ -133,7 +133,7 @@ class Mempool{
     }
 
     async saveMempool(){
-        let saved = await writeToFile(this, 'mempool.json');
+        let saved = await writeToFile(this, './data/mempool.json');
         if(saved){
             logger('Saved mempool');
         }else{
@@ -143,7 +143,7 @@ class Mempool{
 
     async createMempool(){
         return new Promise(async (resolve, reject)=>{
-            let created = await createFile(this, 'mempool.json').catch(e =>{ { console.log(e) } })
+            let created = await createFile(this, './data/mempool.json').catch(e =>{ { console.log(e) } })
             if(created){
                 logger('Created mempool file');
                 resolve(true)

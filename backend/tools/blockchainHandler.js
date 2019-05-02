@@ -10,11 +10,11 @@ const initBlockchain = async () => {
     let blockchain = {};
     let blockchainObject = {};
     logger('Initiating blockchain');
-    fs.exists('blockchain.json', async (exists)=>{
+    fs.exists('./data/blockchain.json', async (exists)=>{
       
       if(exists){
 
-        let blockchainFile = await readFile('blockchain.json');
+        let blockchainFile = await readFile('./data/blockchain.json');
 
         if(blockchainFile){
           try{

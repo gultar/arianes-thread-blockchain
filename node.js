@@ -1,6 +1,7 @@
 //node.js
 
 'use strict'
+
 /********HTTP Server and protection************/
 const express = require('express');
 const http = require('http');
@@ -19,7 +20,8 @@ const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
 /**************Live instances******************/
 const Mempool = require('./backend/classes/mempool'); //Instance not class
-const WalletConnector = require('./backend/classes/walletConnector'); //Instance not class
+const WalletManager = require('./backend/classes/walletManager'); //Instance not class
+
 /****************Tools*************************/
 const { displayTime, logger } = require('./backend/tools/utils');
 const {
@@ -29,6 +31,7 @@ const {
   isValidGetNextBlockJSON,
   isValidHeaderJSON,
   isValidCreateWalletJSON,
+  isValidUnlockWalletJSON
 } = require('./backend/tools/jsonvalidator')
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
@@ -62,6 +65,7 @@ class Node {
     this.minerStarted = false;
     this.minerPaused = false;
     this.verbose = false;
+    this.walletManager = new WalletManager(this.address);
     this.longestChain = {
       length:0,
       peerAddress:''
@@ -79,13 +83,14 @@ class Node {
       console.log(chalk.cyan('\n******************************************'))
       console.log(chalk.cyan('*')+' Starting node at '+this.address);
       console.log(chalk.cyan('******************************************\n'))
-      const expressWs = require('express-ws')(app);
+      // const expressWs = require('express-ws')(app);
       app.use(express.static(__dirname+'/views'));
       express.json({ limit: '300kb' })
       app.use(helmet())
       const server = http.createServer(app).listen(this.port);
       
       this.initHTTPAPI(app);
+      this.initWalletAPI();
       this.cleanMessageBuffer();
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
       
@@ -96,6 +101,7 @@ class Node {
             logger('Blockchain successfully loaded')
             this.chain = chain;
 
+            //Loading transaction Mempool
             Mempool.loadMempool()
             .then((mempoolLoaded)=>{
               if(mempoolLoaded){
@@ -111,7 +117,7 @@ class Node {
           }
         })
 
-      //Loading transaction Mempool
+      
       
       
       //Loading this node's wallet
@@ -210,25 +216,22 @@ class Node {
       return new Promise(async (resolve, reject)=>{
         
         fs.exists(filename, async (exists)=>{
-          if(exists){
-            
-              
-              WalletConnector.loadWallet(filename)
-              .then((wallet)=>{
-                
-                if(wallet){
-                  this.publicKey = wallet.publicKey;
-                  resolve(true)
-                }else{
-
-                }
-              })
-          }else{
-            
-              let created = await this.createNodeWallet();
-              resolve(created);
-    
+          
+          if(!exists){
+            let created = await this.createNodeWallet();
+             resolve(created);
           }
+
+          this.walletManager.loadWallet(filename)
+          .then((wallet)=>{
+            if(wallet){
+              this.publicKey = wallet.publicKey;
+              resolve(true)
+            }else{
+              logger('ERROR: Could not load node wallet')
+              resolve(false)
+            }
+          })
           
         })
       })
@@ -241,7 +244,7 @@ class Node {
 
   createNodeWallet(){
     return new Promise((resolve, reject)=>{
-      WalletConnector.createWallet(this.port, this.port)
+     this.walletManager.createWallet(this.port, this.port)
         .then((wallet)=>{
           if(wallet){
             resolve(true);
@@ -446,77 +449,15 @@ class Node {
       
       app.set('json spaces', 2)
       
-      app.post('/node', (req, res) => {
-        const { host, port } = req.body;
-        const node = `http://${host}:${port}`;
+      // app.post('/node', (req, res) => {
+      //   const { host, port } = req.body;
+      //   const node = `http://${host}:${port}`;
   
-        this.connectToPeer(node);
-        res.json({ message: 'attempting connection to peer '+node}).end()
-      });
+      //   this.connectToPeer(node);
+      //   res.json({ message: 'attempting connection to peer '+node}).end()
+      // });
       
-      app.get('/transaction', (req, res)=>{
-        let tx = {};
-        let pendingTx = {};
-        let hash = req.query.hash;
-        
-        if(hash){
-          tx = this.chain.getTransactionFromChain(hash);
-          if(tx){
-            res.json(tx).end()
-          }else{
-
-            pendingTx = Mempool.getTransactionFromPool(hash);
-            
-            if(pendingTx){
-              res.json(pendingTx).end()
-            }else{
-              res.json({ error:'no transaction found'}).end()
-            }
-            
-          }
-        }else{
-          res.json({ error:'invalid transaction hash'}).end()
-        }
-        
-
-      })
-  
-      app.post('/transaction', (req, res) => {
-        
-        try{
-          if(isValidTransactionJSON(req.body)){
-            let transaction = req.body
-            
-            this.broadcastNewTransaction(transaction)
-            .then((transactionEmitted)=>{
-              
-              if(transactionEmitted.error){
-                res.send(transactionEmitted.error)
-              }else{
-                let signature = transactionEmitted.signature;
-                let hash = transactionEmitted.hash;
-                res.send(this.generateReceipt(
-                  transaction.fromAddress, 
-                  transaction.toAddress, 
-                  transaction.amount, 
-                  transaction.data, 
-                  transaction.signature, 
-                  transaction.hash));
-              }
-            })
-            .catch((e)=>{
-              console.log(chalk.red(e));
-            })
-          }else{
-            res.send('ERROR: Invalid transaction format')
-          }
-          
-          
-        }catch(e){
-          console.log(chalk.red(e))
-        }
-        
-      });
+      
 
   
       app.get('/getAddress', (req, res)=>{
@@ -541,160 +482,9 @@ class Node {
           logger(chalk.red("ERROR: Could not receive chainLength response", e.errno));
         }
       })
-  
-      app.post('/createWallet', (req, res)=>{
-        
-        if(isValidCreateWalletJSON(req.body)){
-          
-          const { name, password } = req.body;
-          if(name && password){
-            
-            WalletConnector.createWallet(name, password)
-            .then((wallet)=>{
-              if(wallet){
-                res.send(this.generateWalletCreationReceipt(wallet))
-              }else{
-                logger('ERROR: Wallet creation failed');
-                res.send('ERROR: Wallet creation failed');
-              }
-              
-            })
-            .catch(e =>{
-              console.log(e)
-            })
-          }else{
-            res.send('ERROR: No wallet name or password provided')
-          }
-        }else{
-          res.send('ERROR: Required parameters: walletname password ')
-        }
-          
-      })
 
-      // app.post('/unlockWallet', (req, res)=>{
-
-      //   if(isValidCreateWalletJSON(req.body)){
-          
-      //     const { name, password } = req.body;
-      //     if(name && password){
-            
-      //       WalletConnector.unlockWallet(name, password)
-      //       .then((unlocked)=>{
-      //         if(unlocked){
-      //           res.send(`Unlocked wallet ${name}`)
-      //         }else{
-      //           res.send('ERROR: Could not unlock wallet');
-      //         }
-              
-      //       })
-      //       .catch(e =>{
-      //         console.log(e)
-      //       })
-      //     }else{
-      //       res.send('ERROR: No wallet name or password provided')
-      //     }
-      //   }else{
-      //     res.send('ERROR: Required parameters: walletname password ')
-      //   }
-          
-      // })
-  
-      app.get('/getWalletPublicInfo', async (req, res)=>{
-        if(isValidWalletRequestJSON(req.query)){
-          try{
-            let walletName = req.query.name;
-            
-            if(walletName){
-              let wallet = await WalletConnector.getWalletByName(walletName);
-              if(wallet){
-                res.json(wallet).end();
-              }else{
-                res.json({error:`wallet ${walletName} not found`}).end()
-              }
-              
-            }else{
-              res.json({error:'no wallet name provided'}).end();
-            }
-          }catch(e){
-            console.log(e);
-          }
-        }else{
-          res.json({ error:'invalid JSON wallet creation format' }).end()
-        }
-       
-  
-      })
-  
-      app.get('/loadWallet', async (req, res)=>{
-        if(isValidWalletRequestJSON(req.query)){
-          try{
-            let walletName = req.query.name;
-            let filename = `./wallets/${walletName}-${sha1(walletName)}.json`
-            if(walletName){
-              let wallet = await WalletConnector.loadWallet(filename);
-              logger(`Loaded wallet ${walletName}`)
-              res.json(wallet).end();
-            }
-          }catch(e){
-            console.log(e);
-          }
-        }else{
-          res.json({ error:'invalid JSON wallet creation format' }).end()
-        }
-        
-      })
-
-      app.get('/getWalletBalance', async(req, res)=>{
-        if(isValidWalletRequestJSON(req.query)){
-          let walletName = req.query.name;
-          if(walletName){
-            let publicKey = await WalletConnector.getPublicKeyOfWallet(walletName);
-            if(publicKey){
-              res.json({ 
-                balance: 
-                this.chain.getBalanceOfAddress(publicKey) 
-                + this.chain.checkFundsThroughPendingTransactions(publicKey)
-              }).end()
-            }else{
-              res.json({ error:'could not find balance of unknown wallet' })
-            }
-
-            
-          }else{
-            res.json({ error:'must provide wallet name' })
-          }
-        }else{
-          res.json({ error:'invalid JSON wallet creation format' }).end()
-        }
-      })
-
-      app.get('/getWalletHistory', async(req, res)=>{
-        if(isValidWalletRequestJSON(req.query)){
-          let walletName = req.query.name;
-          if(walletName){
-            let publicKey = await WalletConnector.getPublicKeyOfWallet(walletName);
-            if(publicKey){
-              res.json({ history:this.chain.getTransactionHistory(publicKey) }).end()
-            }else{
-              res.json({ error:'could not find balance of unknown wallet' })
-            }
-
-            
-          }else{
-            res.json({ error:'must provide wallet name' })
-          }
-        }else{
-          res.json({ error:'invalid JSON wallet creation format' }).end()
-        }
-        
-        
-      })
-
-      app.get('/listWallets', async(req, res)=>{
-        res.json(WalletConnector.wallets).end()
-      })
-  
       app.get('/getChainHeaders', (req, res)=>{
+  
         try{
             let chainHeaders = this.getAllHeaders();
             res.json({ chainHeaders:chainHeaders }).end()
@@ -750,15 +540,247 @@ class Node {
         }else{
           res.json({ error: 'invalid block request JSON format' }) 
         }
-        
-  
+
       })
+
+
+
   
     }catch(e){
       logger("ERROR: getNextBlock request could not be completed: An error occured");
       logger(e)
     }
     
+  }
+
+  initWalletAPI(walletApi=express()){
+
+      walletApi.set('json spaces', 2);
+      let rateLimiter = new RateLimit({
+        windowMs: 1000, // 1 hour window 
+        max: 30, // start blocking after 100 requests 
+        message: "Too many requests per second"
+      });
+      walletApi.use(rateLimiter);
+
+      walletApi.use(bodyParser.json());
+      walletApi.use(function (error, req, res, next) {
+        if (error instanceof SyntaxError &&
+          error.status >= 400 && error.status < 500 &&
+          error.message.indexOf('JSON')) {
+          res.send("ERROR: Invalid JSON format");
+        } else {
+          next();
+        }
+      });
+
+      walletApi.post('/createWallet', (req, res)=>{
+        
+        if(isValidCreateWalletJSON(req.body)){
+          const { name, password } = req.body;
+          if(name && password){
+            this.walletManager.createWallet(name, password)
+            .then((wallet)=>{
+              if(wallet){
+                res.send(this.generateWalletCreationReceipt(wallet))
+              }else{
+                res.send('ERROR: Wallet creation failed');
+              }
+              
+            })
+            .catch(e =>{
+              console.log(e)
+            })
+          }else{
+            res.send('ERROR: No wallet name or password provided')
+          }
+        }else{
+          res.send('ERROR: Required parameters: walletname password ')
+        }
+
+      })
+
+      walletApi.post('/unlockWallet', (req, res)=>{
+        if(isValidUnlockWalletJSON(req.body)){
+          const { name, password, seconds } = req.body;
+          if(name && password){
+                        
+            this.walletManager.unlockWallet(name, password, seconds)
+            .then((wallet)=>{
+              if(wallet){
+                res.send(`Wallet ${name} unlocked for ${( seconds ? seconds : 5)} seconds`);
+              }else{
+                res.send('ERROR: Wallet unlocking failed');
+              }
+              
+            })
+            .catch(e =>{
+              console.log(e)
+            })
+          
+          }else{
+            res.send('ERROR: No wallet name or password provided. Optional: number of seconds')
+          }
+        }else{
+          res.send('ERROR: Required parameters: walletname password. Optional: number of seconds ')
+        }
+ 
+      })
+  
+      walletApi.get('/getWalletPublicInfo', async (req, res)=>{
+
+        if(isValidWalletRequestJSON(req.query)){
+          let walletName = req.query.name;
+          if(walletName){
+            let wallet = await this.walletManager.getWalletByName(walletName);
+            if(wallet){
+              res.json(wallet).end();
+            }else{
+              res.json({error:`wallet ${walletName} not found`}).end()
+            }
+          }else{
+            res.json({ error:'must provide wallet name' }).end()
+          }
+        }else{
+          res.json({ error:'invalid JSON wallet creation format' }).end()
+        }
+        
+      })
+  
+      walletApi.get('/loadWallet', async (req, res)=>{
+        // if(isValidWalletRequestJSON(req.query)){
+          try{
+            if(isValidWalletRequestJSON(req.query)){
+              let walletName = req.query.name;
+              if(walletName){
+                let filename = `./wallets/${walletName}-${sha1(walletName)}.json`
+                let wallet = await this.walletManager.loadWallet(filename);
+                logger(`Loaded wallet ${walletName}`)
+                res.json({loaded:wallet}).end();
+              }else{
+                res.json({ error:'must provide wallet name' }).end()
+              }
+            }else{
+              res.json({ error:'invalid JSON wallet creation format' }).end()
+            }
+
+          }catch(e){
+            console.log(e);
+          }
+        
+      })
+
+      walletApi.get('/getWalletBalance', async(req, res)=>{
+
+        if(isValidWalletRequestJSON(req.query)){
+          let walletName = req.query.name;
+          if(walletName){
+            let publicKey = await this.walletManager.getPublicKeyOfWallet(walletName);
+            if(publicKey){
+              res.json({ 
+                balance: 
+                this.chain.getBalanceOfAddress(publicKey) 
+                + this.chain.checkFundsThroughPendingTransactions(publicKey)
+              }).end()
+            }else{
+              res.json({ error:'could not find balance of unknown wallet' }).end()
+            }
+          }else{
+            res.json({ error:'must provide wallet name' }).end()
+          }
+        }else{
+          res.json({ error:'invalid JSON wallet creation format' }).end()
+        }
+
+      })
+
+      walletApi.get('/getWalletHistory', async(req, res)=>{
+        if(isValidWalletRequestJSON(req.query)){
+          let walletName = req.query.name;
+          if(walletName){
+            let publicKey = await this.walletManager.getPublicKeyOfWallet(walletName);
+            if(publicKey){
+              res.json({ history:this.chain.getTransactionHistory(publicKey) }).end()
+            }else{
+              res.json({ error:'could not find history of unknown wallet' }).end()
+            }
+          }else{
+            res.json({ error:'must provide wallet name' }).end()
+          }
+        }else{
+          res.json({ error:'invalid JSON wallet creation format' }).end()
+        }
+      })
+
+      walletApi.get('/listWallets', async(req, res)=>{
+        res.json(this.walletManager.wallets).end()
+      })
+
+      walletApi.get('/transaction', (req, res)=>{
+        let tx = {};
+        let pendingTx = {};
+        let hash = req.query.hash;
+        
+        if(hash){
+          tx = this.chain.getTransactionFromChain(hash);
+          if(tx){
+            res.json(tx).end()
+          }else{
+
+            pendingTx = Mempool.getTransactionFromPool(hash);
+            
+            if(pendingTx){
+              res.json(pendingTx).end()
+            }else{
+              res.json({ error:'no transaction found'}).end()
+            }
+            
+          }
+        }else{
+          res.json({ error:'invalid transaction hash'}).end()
+        }
+
+      })
+  
+      walletApi.post('/transaction', (req, res) => {
+        
+        try{
+          if(isValidTransactionJSON(req.body)){
+            let transaction = req.body
+            
+            this.broadcastNewTransaction(transaction)
+            .then((transactionEmitted)=>{
+              
+              if(transactionEmitted.error){
+                res.send(transactionEmitted.error)
+              }else{
+                let signature = transactionEmitted.signature;
+                let hash = transactionEmitted.hash;
+                res.send(this.generateReceipt(
+                  transaction.fromAddress, 
+                  transaction.toAddress, 
+                  transaction.amount, 
+                  transaction.data, 
+                  transaction.signature, 
+                  transaction.hash));
+              }
+            })
+            .catch((e)=>{
+              console.log(chalk.red(e));
+            })
+          }else{
+            res.send('ERROR: Invalid transaction format')
+          }
+          
+        }catch(e){
+          console.log(chalk.red(e))
+        }
+        
+      });
+
+      walletApi.listen(3000, '127.0.0.1', 511, ()=>{
+        if(this.verbose) logger('Wallet server running on 127.0.0.1:3000')
+      });
   }
 
 
@@ -820,9 +842,10 @@ class Node {
       socket.emit('blockchain', this.chain);
     })
 
-    // socket.on('transaction', (fromAddress, toAddress, amount, data)=>{
-    //   this.broadcastNewTransaction(fromAddress, toAddress, amount, data);
-    // })
+    socket.on('tx', (data)=>{
+      let tx = new Transaction('aoiwdjaoiwjdawdawdidawdwa', 'awdoijawoidjaowidjoaiwjdoaw', 0, data)
+      tx.setMiningFee()
+    })
 
     socket.on('getAddress', (address)=>{
       this.requestKnownPeers(address);
@@ -900,12 +923,13 @@ class Node {
       socket.emit('mempool', Mempool);
     })
 
-    socket.on('test', ()=>{
-		
-      this.cashInCoinbaseTransactions();
-
-      
-      
+    socket.on('test', (addr)=>{
+      var sock = ioClient('http://localhost:3000');
+      sock.emit('message', addr)
+      sock.on('file', (file)=>{
+        console.log(file)
+      })
+      // console.log(sock)
     })
 
     socket.on('sign', (address, hash)=>{
@@ -1062,7 +1086,7 @@ class Node {
             }
           }
           break;
-        case 'whoisLongestChain':
+        case 'getLongestChain':
           try{
             if(this.chain instanceof Blockchain){
               axios.post(originAddress+'/chainLength', {
@@ -1090,11 +1114,9 @@ class Node {
             
           }
           break;
-        case 'message':
-          logger(chalk.green('['+originAddress+']')+' -> '+data)
-          break;
-
-
+        // case 'message':
+        //   logger(chalk.green('['+originAddress+']')+' -> '+data)
+        //   break;
       }
 
       this.messageBuffer[messageId] = peerMessage;
@@ -1135,7 +1157,7 @@ class Node {
 
 
   /**
-    Response to a whoisLongestChain, to determine from which peer to update
+    Response to a getLongestChain, to determine from which peer to update
     @param {string} $address - Requesting peer address
   */
   sendChainLength(address){
@@ -1220,7 +1242,7 @@ class Node {
       })
       .then(async (response) =>{
         let transaction = response.data;
-        if(transaction){
+        if(isValidTransactionJSON(transaction)){
           let isValid = await this.chain.validateTransaction(transaction);
           if(!isValid.error){
             Mempool.addTransaction(transaction)
@@ -1228,7 +1250,7 @@ class Node {
             logger(isValid.error);
           }
         }else{
-          logger('ERROR: No transaction found');
+          logger('ERROR: Received invalid transaction data format');
         }
         
 
@@ -1335,7 +1357,9 @@ class Node {
   }
 
   validateBlockchain(){
-    this.chain.isChainValid()
+    if(this.chain instanceof Blockchain){
+      this.chain.isChainValid()
+    }
   }
 
   compareHeaders(headers){
@@ -1470,15 +1494,6 @@ class Node {
   async broadcastNewTransaction(transaction){
     return new Promise( async (resolve, reject)=>{
       try{
-        
-        
-        // let wallet = WalletConnector.getWalletByPublicAddress(sender);
-
-        // if(!wallet){
-        //   logger('ERROR: Could not find wallet of sender address')
-        //   resolve({error:'ERROR: Could not find wallet of sender address'});
-        // }else{
-          // let signature = await wallet.sign(transaction.hash);
           
           if(!transaction.signature){
             logger('Transaction signature failed. Check both public key addresses.')
@@ -1542,7 +1557,7 @@ class Node {
   }
 
   updateAndMine(){
-    this.sendPeerMessage('whoisLongestChain');
+    this.sendPeerMessage('getLongestChain');
     logger('Querying the network for the longest chain before starting the miner')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
@@ -1560,7 +1575,7 @@ class Node {
 
 
   update(){
-    this.sendPeerMessage('whoisLongestChain');
+    this.sendPeerMessage('getLongestChain');
     logger('Querying the network for the longest chain')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
@@ -1635,7 +1650,6 @@ class Node {
              }else{
               //Block is currently being mined
              }
-
   
            }else{
              //Already started mining
@@ -1680,17 +1694,11 @@ class Node {
               resolve({error:'ERROR: coinbase transaction not found'})
             }
            
-          
-          
         })
         
       }
     })
   
-  }
-
-  maintenance(){
-
   }
 
   save(callback){
@@ -1703,7 +1711,7 @@ class Node {
         
         this.nodeList.saveNodeList();
         Mempool.saveMempool();
-        WalletConnector.saveState();
+       this.walletManager.saveState();
 
         if(saved == true){
           logger('Successfully saved blockchain file')
@@ -1752,7 +1760,7 @@ class Node {
         if(this.publicKey){
           
                 let transaction = new Transaction(this.publicKey, 'A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R', 0)
-                let wallet = await WalletConnector.getWalletByPublicAddress(this.publicKey);
+                let wallet = await this.walletManager.getWalletByPublicAddress(this.publicKey);
                 if(wallet){
                   let unlocked = await wallet.unlock(this.port);
                   if(unlocked){

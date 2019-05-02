@@ -17,6 +17,12 @@
 //     stopmine
 //     verbose
 //     getmempool
+//     createwallet
+//     loadwallet
+//     getwallet
+//     walletbalance
+//     wallethistory
+//     listwallets
 
 const cmds = {
     'clear':`<span class'help-line'><b class='help-cmd'>clear</b>: Clears the console</span><br/><br/>
@@ -54,5 +60,14 @@ const cmds = {
     'getmempool':`<span class'help-line'><b class='help-cmd'>getmempool</b>: Queries connected node for its list of pending transactions.</span>`,
     'createwallet':`<span class'help-line'><b class='help-cmd'>createwallet</b>: Generates a new wallet to send and receive transactions. </span><br/>
     <span class'help-line'><br/>Usage: createwallet [walletname]</span><br/><br/>`,
+    'loadwallet':`<span class'help-line'><b class='help-cmd'>loadwallet</b>: Loads target wallet into the node's wallet manager </span><br/>
+    <span class'help-line'><br/>Usage: loadwallet [walletname] </span><br/><br/>`,
+    'getwallet':`<span class'help-line'><b class='help-cmd'>getwallet</b>: Gets loaded wallet's public information </span><br/>
+    <span class'help-line'><br/>Usage: getwallet [walletname]</span><br/><br/>`,
+    'walletbalance':`<span class'help-line'><b class='help-cmd'>walletbalance</b>: Queries for target wallet's balance </span><br/>
+    <span class'help-line'><br/>Usage: walletbalance [walletname]</span><br/><br/>`,
+    'wallethistory':`<span class'help-line'><b class='help-cmd'>wallethistory</b>: Queries for target wallet's transaction history </span><br/>
+    <span class'help-line'><br/>Usage: wallethistory [walletname]</span><br/><br/>`,
+    'listwallets':`<span class'help-line'><b class='help-cmd'>listwallets</b>: Queries for the list of loaded wallets </span><br/>`,
   
   }

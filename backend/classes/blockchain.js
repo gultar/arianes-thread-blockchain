@@ -20,7 +20,6 @@ const setChallenge = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool')
-const WalletConnector = require('./walletConnector')
 
 /**
   * @desc Basic blockchain class.
@@ -155,6 +154,8 @@ class Blockchain{
       block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
+
+            
             
             block.minedBy = ipAddress;
             this.chain.push(block);
@@ -422,6 +423,8 @@ class Blockchain{
 
     return true;
   }
+
+
   /**
     Criterias for validation are as follows:
     - Block has successfully calculated a valid hash
@@ -444,7 +447,7 @@ class Blockchain{
 
         if(latestBlock.previousHash == block.previousHash){
           /*.*/
-          console.log('New block received has been orphaned since latest block has been mined before')
+          logger('New block received has been orphaned since latest block has been mined before')
           return false;
         }
 
@@ -456,6 +459,13 @@ class Blockchain{
         /*
           validate difficulty level
         */
+       let blockTransactions = block.transactions;
+       let txHashes = Object.keys(blockTransactions);
+       txHashes.forEach( hash =>{
+         let tx = blockTransactions[hash];
+         let valid = this.validateTransaction(tx);
+         if(valid.error) logger(error)
+       })
         // logger('New block successfully validated. Will be appended to current blockchain.')
         return true;
       }
@@ -506,19 +516,6 @@ class Blockchain{
       }
     }
   }
-
-
-  // isMiningRewardTransaction(transaction){
-  //   for(var i=this.chain.length-1; i >= 0; i--){
-  //     var block = this.chain[i];
-  //     if(block.minedBy === transaction.toAddress && block.transactions[transaction.hash]){
-  //       return true;
-  //     }else{
-  //       return false;
-  //     }
-
-  //   }
-  // }
 
   /**
   *  To run a proper transaction validation, one must look back at all the previous transactions that have been made by
@@ -766,7 +763,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       try{
         let blockchainFile = JSON.stringify(this, null, 2);
-        let success = await writeToFile(blockchainFile, 'blockchain.json');
+        let success = await writeToFile(blockchainFile, './data/blockchain.json');
         if(success){
           resolve(true)
         }else{

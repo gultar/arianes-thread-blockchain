@@ -107,7 +107,12 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
     "<span class'help-line'><b class='help-cmd'>stopmine</b> ------- Stops current mining process. </span>",
     "<span class'help-line'><b class='help-cmd'>verbose</b> -------- Toggles verbose mode on and off. </span>",
     "<span class'help-line'><b class='help-cmd'>getmempool</b> ----- Queries connected node for its list of pending transactions. </span>",
-    "<span class'help-line'><b class='help-cmd'>createwallet</b> --- Generates a new wallet to send and receive transactions. </span>"
+    "<span class'help-line'><b class='help-cmd'>createwallet</b> --- Generates a new wallet to send and receive transactions. </span>",
+    "<span class'help-line'><b class='help-cmd'>loadwallet</b> ----- Loads target wallet into the node's wallet manager </span>",
+    "<span class'help-line'><b class='help-cmd'>getwallet</b> ------ Gets loaded wallet's public information </span>",
+    "<span class'help-line'><b class='help-cmd'>walletbalance</b> -- Queries for target wallet's balance </span>",
+    "<span class'help-line'><b class='help-cmd'>wallethistory</b> -- Queries for target wallet's transaction history </span>",
+    "<span class'help-line'><b class='help-cmd'>listwallets</b> ---- Queries for the list of loaded wallets </span>"
   ];
 
   
@@ -289,15 +294,15 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         case 'ls':
         case 'help': runHelp(args, cmd);
           break;
-        case 'tx':
-          if(!isConnected){
-            connectError(cmd);
-            break;
-          }
+        // case 'tx':
+        //   if(!isConnected){
+        //     connectError(cmd);
+        //     break;
+        //   }
 
-          runSendTx(args, cmd)
+        //   // runSendTx(args, cmd)
 
-          break;
+        //   break;
         case 'txgen':
           if(!isConnected){
             connectError(cmd);
@@ -401,7 +406,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
-          createWalletWithRESTApi(cmd, args);
+          createWallet(cmd, args);
           break;
         case 'getwallet':
           if(!isConnected){
@@ -514,29 +519,29 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
       }
 
 
-      function runSendTx(args, cmd){
+      // function runSendTx(args, cmd){
 
-        args = args.join(' ');
+      //   args = args.join(' ');
 
-        if(args.indexOf(';') > -1){
+      //   if(args.indexOf(';') > -1){
 
-          args = args.split(';');
+      //     args = args.split(';');
 
-          for(var i=0; i<args.length; i++){
-            args[i] = args[i].trim()
-          }
+      //     for(var i=0; i<args.length; i++){
+      //       args[i] = args[i].trim()
+      //     }
 
-          if(args.length > 2){
+      //     if(args.length > 2){
 
-            sendTx(args[0], args[1], args[2], args[3])
-          }else{
-            output('Please enter an <b>address to send to</b>, the <b>amount</b> and some <b>optional data</b>');
-            output('All values are delimited by semi-colons like so: ')
-            output('tx toAddr; amount; data')
-          }
-        }
+      //       sendTx(args[0], args[1], args[2], args[3])
+      //     }else{
+      //       output('Please enter an <b>address to send to</b>, the <b>amount</b> and some <b>optional data</b>');
+      //       output('All values are delimited by semi-colons like so: ')
+      //       output('tx toAddr; amount; data')
+      //     }
+      //   }
 
-      }
+      // }
 
       function runVerbose(){
         
@@ -549,34 +554,16 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         
       }
 
-      function runCreateWallet(cmd, args){
-        if(args[0]){
-          output(`Creating wallet with name ${args[0]}`)
-          socket.emit('createWallet', args[0])
-          socket.on('walletCreated', (wallet)=>{
-            if(wallet){
-              output(`<pre>${JSON.stringify(wallet, null, 2)}</pre>`)
-            }else{
-              output('ERROR: Could not create wallet')
-              console.log(wallet)
-            }
-            socket.off('walletCreated');
-          })
-
-          
-        }else{
-          output('ERROR: Wallet creation failed. No wallet name provided')
-        }
-      }
-
-      function createWalletWithRESTApi(cmd, args){
-        if(args[0]){
+      function createWallet(cmd, args){
+        if(args[0] && args[1]){
           $.ajax({
             type: "POST",
-            url: localAddress+"createWallet",
+            url: "http://locahost:3000/createWallet",
         
             data: JSON.stringify({ 
-              name: args[0] }),
+              name: args[0],
+              password:args[1] 
+            }),
             processData: true,
             contentType: "application/json; charset=utf-8",
             dataType: "json",
@@ -598,7 +585,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
 
       function getWalletByName(cmd, args){
         if(args[0]){
-          $.get(localAddress+"getWalletPublicInfo", { name: args[0]} ,(response, status)=>{
+          $.get("http://locahost:3000/getWalletPublicInfo", { name: args[0]} ,(response, status)=>{
             if(response){
               output(`Wallet:\n <pre>${JSON.stringify(response, null, 2)}</pre>`)
               console.log(response);
@@ -616,7 +603,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
 
       function loadWallet(cmd, args){
         if(args[0]){
-          $.get(localAddress+"loadWallet", { name: args[0]} ,(response, status)=>{
+          $.get("http://locahost:3000/loadWallet", { name: args[0]} ,(response, status)=>{
             if(response){
               output(`<pre>Wallet ${args[0]} loaded</pre>`)
               console.log(response);
@@ -632,43 +619,43 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
         }
       }
 
-      function sendTx(fromAddress, toAddress, amount, data=''){
-        try{
-          var transactToSend = {
-            'sender' : fromAddress,
-            'receiver' : toAddress,
-            'amount' : amount,
-            'data' : data
-          }
+    //   function sendTx(fromAddress, toAddress, amount, data=''){
+    //     try{
+    //       var transactToSend = {
+    //         'sender' : fromAddress,
+    //         'receiver' : toAddress,
+    //         'amount' : amount,
+    //         'data' : data
+    //       }
   
-          if(typeof transactToSend.amount == 'string'){
-            transactToSend.amount = parseInt(transactToSend.amount);
-          }
-          var txL = JSON.stringify(transactToSend);
-          $.ajax({
-              type: "POST",
-              url: localAddress+"transaction",
+    //       if(typeof transactToSend.amount == 'string'){
+    //         transactToSend.amount = parseInt(transactToSend.amount);
+    //       }
+    //       var txL = JSON.stringify(transactToSend);
+    //       $.ajax({
+    //           type: "POST",
+    //           url: "http://localhost:3000/transaction",
           
-              data: txL,
-              processData: true,
-              contentType: "application/json; charset=utf-8",
-              dataType: "json",
+    //           data: txL,
+    //           processData: true,
+    //           contentType: "application/json; charset=utf-8",
+    //           dataType: "json",
           
-              error: function (xhr, status, error) {
-                  console.log(xhr.responseText);
-                  output("<pre>"+xhr.responseText+"</pre>")
-              },
+    //           error: function (xhr, status, error) {
+    //               console.log(xhr.responseText);
+    //               output("<pre>"+xhr.responseText+"</pre>")
+    //           },
           
-              success: function (msg) {
-                  console.log(msg);
-                  output(msg);
-              }
-          });
-        }catch(e){
-          console.log(e)
-        }
+    //           success: function (msg) {
+    //               console.log(msg);
+    //               output(msg);
+    //           }
+    //       });
+    //     }catch(e){
+    //       console.log(e)
+    //     }
         
-    }
+    // }
 
       function runIching(args, cmd){
 		let hexNumber = 0;
@@ -917,28 +904,6 @@ window.onload = function() {
     },60000)
     
 }
-
-// function longestChain(localBlockchain=false, distantBlockchain=false){
-//   var longestBlockchain;
-
-//   if(distantBlockchain){
-//     if(localBlockchain){
-//       if(localBlockchain.chain.length >= distantBlockchain.chain.length){
-//         longestBlockchain = localBlockchain;
-//       }
-//       else{
-//         longestBlockchain = distantBlockchain;
-//       }
-//       return longestBlockchain;
-//     }else{
-//       //no localblockchain, revert to distant node's version
-//       return distantBlockchain
-//     }
-//   }else{
-//     //no distant blockchain, revert to local version
-//     return localBlockchain;
-//   }
-// }
 
 function getLatestBlock(blockchain){
   var lengthChain = blockchain.chain.length;

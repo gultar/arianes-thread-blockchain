@@ -1,199 +1,153 @@
-const chalk = require('chalk');
-const axios = require('axios');
-const WalletConnector = require('../classes/walletConnector');
-const Transaction = require('../classes/transaction')
+const { logger } = require('../tools/utils')
+const Wallet = require('./wallet');
 const sha1 = require('sha1')
-let inquirer = require('inquirer');
+const fs = require('fs');
+
 
 class WalletManager{
-    constructor(){
+  constructor(){
+    this.wallets = {};
+    this.connectors = {};
+  }
 
-    }
-    createWallet(address, walletName, pass){
-
-        if(address && walletName && pass){
+  async createWallet(name, password){
+    
+    return new Promise(async (resolve, reject) =>{
+      
+      try{
+        if(!name || !password){
+          logger(chalk.red('ERROR: Need to provide a wallet name and a password'));
+          resolve(false);
+        }else{
           
-              axios.post(address+'/createWallet', {
-                name:walletName,
-                password:pass
-              }).then((response)=>{
-                console.log(response.data)
-              }).catch((e)=>{
-                console.log(chalk.red(e))
-              })
-        }else{
-            logger('ERROR: missing parameters')
-        }
-       
-    }
-
-    loadWallet(address, walletName){
-
-        if(address, walletName){
-            axios.get(address+'/loadWallet', {params:{
-                name:walletName
-              }}).then((response)=>{
-                let walletInfo = response.data;
-                if(walletInfo){
-                  if(typeof walletInfo == 'string'){
-                    console.log(walletInfo)
-                  }else{
-                    walletInfo = JSON.stringify(walletInfo, null, 2);
-                    console.log(walletInfo)
-                  }
-                  
-                }
-                
-              }).catch((e)=>{
-                console.log(chalk.red(e))
-              })
-        }else{
-            logger('ERROR: missing parameters')
-        }
-        
-    }
-
-    // unlockWallet(address, walletName, password){
-    //   if(address && walletName && password){
-        
-    //         axios.post(address+'/unlockWallet', {
-    //           name:walletName,
-    //           password:password
-    //         }).then((response)=>{
-    //           console.log(response.data)
-    //         }).catch((e)=>{
-    //           console.log(chalk.red(e))
-    //         })
-
-    //   }else{
-    //       console.log('ERROR: missing parameters')
-    //   }
-    // }
-
-    getWallet(address, walletName){
-
-        if(address, walletName){
-            axios.get(address+'/getWalletPublicInfo', {params:{
-                name:walletName
-              }}).then((response)=>{
-                let walletInfo = response.data;
-                if(walletInfo){
-                  if(typeof walletInfo == 'string'){
-                    console.log(walletInfo)
-                  }else{
-                    walletInfo = JSON.stringify(walletInfo, null, 2);
-                    console.log(walletInfo)
-                  }
-                  
-                }
-                
-              }).catch((e)=>{
-                console.log(chalk.red(e))
-              })
-        }else{
-            logger('ERROR: missing parameters')
-        }
-       
-    }
-
-    getWalletBalance(address, walletName){
-
-        if(address, walletName){
-            axios.get(address+'/getWalletBalance', {params:{
-                name:walletName
-              }})
-              .then((response)=>{
-                let walletInfo = response.data;
-                if(walletInfo){
-                  if(typeof walletInfo == 'string'){
-                    console.log(walletInfo)
-                  }else{
-                    walletInfo = JSON.stringify(walletInfo, null, 2);
-                    console.log(walletInfo)
-                  }
-                  
-                }
-                
-              }).catch((e)=>{
-                console.log(chalk.red(e))
-              })
-        }else{
-            logger('ERROR: missing parameters')
-        }
-        
-    }
-
-    getWalletHistory(address, walletName){
-
-        if(address, walletName){
-            axios.get(address+'/getWalletHistory', {params:{
-                name:walletName
-              }})
-              .then((response)=>{
-                let walletInfo = response.data;
-                if(walletInfo){
-                  if(typeof walletInfo == 'string'){
-                    console.log(walletInfo)
-                  }else{
-                    walletInfo = JSON.stringify(walletInfo, null, 2);
-                    console.log(walletInfo)
-                  }
-                  
-                }
-                
-              }).catch((e)=>{
-                console.log(chalk.red(e))
-              })
-        }else{
-            logger('ERROR: missing parameters')
-        }
-        
-    }
-
-    listWallets(address){
-        if(address){
-            axios.get(address+'/listWallets')
-            .then((response)=>{
-              let walletInfo = response.data;
-              if(walletInfo){
-                if(typeof walletInfo == 'string'){
-                  console.log(walletInfo)
-                }else{
-                  walletInfo = JSON.stringify(walletInfo, null, 2);
-                  console.log(walletInfo)
-                }
-                
-              }
-              
-            }).catch((e)=>{
-              console.log(chalk.red(e))
-            })
-        }
-    }
-
-    getTransaction(address, txHash){
-        axios.get(address+'/transaction', {
-            params:{
-              hash:txHash
-            }
-          })
-          .then((response)=>{
-            let txInfo = response.data;
-            if(txInfo){
-              if(typeof txInfo == 'string'){
-                console.log(txInfo)
+          fs.exists(`./wallets/${name}-${sha1(name)}.json`, async (alreadyExists)=>{
+            if(!alreadyExists){
+              let wallet = new Wallet();
+              let created = await wallet.init(name, password);
+              if(created){
+                wallet.saveWallet(`./wallets/${name}-${wallet.id}.json`);
+                this.wallets[wallet.publicKey] = wallet;
+                resolve(wallet);
               }else{
-                txInfo = JSON.stringify(txInfo, null, 2);
-                console.log(txInfo)
+                logger('ERROR: Could not create wallet')
+                resolve(false)
               }
-              
+            }else{
+              logger('ERROR: Wallet already exists')
+              resolve(false);
             }
-            
-          }).catch((e)=>{
-            console.log(chalk.red(e))
-          })
+         })
+        }
+
+      }catch(e){
+        console.log(e);
+      }
+    })
+
+  }
+
+
+  loadWallet(filename){
+    return new Promise((resolve, reject)=>{
+      let wallet = new Wallet();
+      wallet.importWalletFromFile(filename)
+      .then((wallet)=>{
+        this.wallets[wallet.publicKey] = wallet;
+        resolve(wallet);
+      })
+      .catch((e)=>{
+        console.log(e);
+      })
+    })
+  }
+
+  getWalletByName(name){
+    return new Promise((resolve, reject)=>{
+      if(name && this.wallets){
+        let id = sha1(name);
+        Object.keys(this.wallets).forEach((pubKey)=>{
+          let wallet = this.wallets[pubKey];
+
+          if(wallet.id == id){
+            resolve(wallet)
+          }
+
+        })
+        resolve(false);
+      }
+    })
+    
+  }
+
+  unlockWallet(name, password, seconds=5){
+    return new Promise(async (resolve, reject)=>{
+      if(name && password){
+      
+        let wallet = await this.getWalletByName(name);
+        
+        if(wallet){
+           let unlocked = await wallet.unlock(password, seconds);
+           resolve(unlocked)
+        }else{
+          resolve(false)
+        }
+      }else{
+        resolve(false)
+      }
+    })
+
+  }
+
+  getWalletByPublicAddress(publicAddress){
+    if(publicAddress && this.wallets){
+      return this.wallets[publicAddress]
+    }else{
+      logger('Connector does not contain wallets')
     }
+  }
+
+  getPublicKeyOfWallet(name){
+    return new Promise((resolve, reject)=>{
+      if(name && this.wallets){
+
+        Object.keys(this.wallets).forEach((pubKey)=>{
+          let wallet = this.wallets[pubKey];
+
+          if(wallet.name == name){
+            resolve(wallet.publicKey)
+          }
+
+        })
+        resolve(false);
+      }
+    })
+  }
+
+  sign(publicKey, data, password){
+    if(this.wallets[publicKey] && typeof data == 'string'){
+      
+      try{
+        let wallet = this.wallets[publicKey];
+        return wallet.sign(data, password);
+      }catch(e){
+        console.log(e);
+      }
+    }
+  }
+
+  saveState(){
+    
+    logger('Saving wallet states')
+    Object.keys(this.wallets).forEach(pubKey =>{
+      let wallet = this.wallets[pubKey];
+      if(wallet){
+        wallet.saveWallet(`./wallets/${wallet.name}-${sha1(wallet.name)}.json`)
+      }
+    })
+  }
+
 
 }
+
 
 module.exports = WalletManager
