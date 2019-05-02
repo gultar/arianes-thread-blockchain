@@ -722,9 +722,10 @@ class Blockchain{
       this.chain.forEach( block =>{
         if(block.coinbaseTransactionHash == transaction.hash){
           blockOfTransaction = block;
+          return this.chain.length - blockOfTransaction.blockNumber >= 6;
         }
       })
-      return this.chain.length - blockOfTransaction.blockNumber >= 6;
+      return 0
     }else{
       return false;
     }
