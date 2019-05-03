@@ -35,7 +35,7 @@ class Block{
     this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce).toString();
   }
 
-
+  //Deprecated
   isProofValid(difficulty){
     
     this.calculateHash()

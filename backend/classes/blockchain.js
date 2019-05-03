@@ -202,12 +202,12 @@ class Blockchain{
     
   }
 
-  createCoinbaseTransaction(publicKey){
+  createCoinbaseTransaction(publicKey, blockHash){
     
     return new Promise((resolve, reject)=>{
       if(publicKey){
         try{
-          var miningReward = new Transaction('coinbase', publicKey, this.miningReward)
+          var miningReward = new Transaction('coinbase', publicKey, this.miningReward, blockHash)
           
           Mempool.addCoinbaseTransaction(miningReward);
           logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash.substr(0, 15))
@@ -394,6 +394,7 @@ class Blockchain{
           return tx;
         }
       })
+      return false;
     }
   }
 
@@ -459,13 +460,7 @@ class Blockchain{
         /*
           validate difficulty level
         */
-       let blockTransactions = block.transactions;
-       let txHashes = Object.keys(blockTransactions);
-       txHashes.forEach( hash =>{
-         let tx = blockTransactions[hash];
-         let valid = this.validateTransaction(tx);
-         if(valid.error) logger(error)
-       })
+        // let block = this.validateBlockTransactions(block);
         // logger('New block successfully validated. Will be appended to current blockchain.')
         return true;
       }
@@ -515,6 +510,28 @@ class Blockchain{
         return false;
       }
     }
+  }
+
+  validateBlockTransactions(block){
+    return new Promise((resolve, reject)=>{
+      if(block){
+        let txHashes = Object.keys(block.transactions);
+        txHashes.forEach( hash =>{
+          let transaction = block.transactions[hash];
+          let valid = this.validateTransaction(transaction);
+          if(valid.error){
+            Mempool.rejectTransactions(hash)
+            logger('Rejected Transaction:', hash);
+            delete block.transactions[hash];
+          }
+        })
+        resolve(block);
+      }else{
+        logger('ERROR: Must pass block object')
+        resolve(false)
+      }
+      
+    })
   }
 
   /**
@@ -590,7 +607,7 @@ class Blockchain{
             let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
 
             if(isValidCoinbaseTransaction.error){
-              logger(isValidCoinbaseTransaction.error)
+              // logger(isValidCoinbaseTransaction.error)
               resolve({error:isValidCoinbaseTransaction.error})
             }else if(isValidCoinbaseTransaction.pending){
               resolve({pending:isValidCoinbaseTransaction.pending})
@@ -625,10 +642,11 @@ class Blockchain{
           let isChecksumValid = this.validateChecksum(transaction);
           // logger("Is transaction hash valid? :", isChecksumValid);
   
-          let fiveBlocksHavePast = this.waitFiveBlocks(transaction);
+          let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
 
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
 
+          let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);
           // let hasTheRightMiningRewardAmount = transaction.amount = this.miningReward;
 
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
@@ -644,9 +662,14 @@ class Blockchain{
           //   resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
           // }
 
+          if(isAlreadyInChain){
+            logger('COINBASE TX REJECTED: Already exists in blockchain')
+            Mempool.deleteCoinbaseTransaction(transaction)
+          }
+
           if(!isAttachedToMinedBlock){
-            logger('REJECTED: Is not attached to any mined block');
-            resolve({error:'REJECTED: Is not attached to any mined block'})
+            logger('COINBASE TX REJECTED: Is not attached to any mined block');
+            resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           }
 
           if(!fiveBlocksHavePast){
@@ -655,8 +678,8 @@ class Blockchain{
           }
             
           if(!transactionSizeIsNotTooBig){
-            logger('REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
-            resolve({error:'REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
+            logger('COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
+            resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
           } 
           
           resolve(true)
@@ -707,25 +730,25 @@ class Blockchain{
     let found = false;
 
     this.chain.forEach( block =>{
+
       if(block.coinbaseTransactionHash == transaction.hash){
         found = block;
       }
     })
-
+        
     return found
   }
 
-  waitFiveBlocks(transaction){
+  async waitFiveBlocks(transaction){
     let latestBlock = this.getLatestBlock()
     if(latestBlock && latestBlock.hasOwnProperty('blockNumber')){
-      let blockOfTransaction;
       this.chain.forEach( block =>{
+        
         if(block.coinbaseTransactionHash == transaction.hash){
-          blockOfTransaction = block;
-          return this.chain.length - blockOfTransaction.blockNumber >= 6;
+          return this.chain.length - block.blockNumber >= 6;
         }
       })
-      return 0
+      return 0;
     }else{
       return false;
     }

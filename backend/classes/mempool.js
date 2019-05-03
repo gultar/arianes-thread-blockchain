@@ -1,5 +1,6 @@
 const fs = require('fs')
 const { logger, readFile, writeToFile, createFile, merge } = require('../tools/utils')
+const {isValidTransactionJSON} = require('../tools/jsonvalidator')
 
 class Mempool{
     constructor(){
@@ -59,6 +60,32 @@ class Mempool{
             return true;
         }else{
             return false;
+        }
+    }
+
+    deleteCoinbaseTransaction(hash){
+        if(hash && this.pendingCoinbaseTransactions[hash]){
+            delete this.pendingCoinbaseTransactions[hash];
+        }
+    }
+
+    rejectCoinbaseTransaction(hash){
+        if(hash && this.pendingCoinbaseTransactions[hash]){
+            this.rejectCoinbaseTransaction[hash] = this.pendingCoinbaseTransactions[hash];
+            delete this.pendingCoinbaseTransactions[hash];
+        }
+    }
+
+    rejectTransaction(hash){
+        if(hash && this.pendingTransactions[hash]){
+            this.rejectedTransactions[hash] = this.pendingTransactions[hash];
+            delete this.pendingTransactions[hash];
+        }
+    }
+
+    rejectBlockTransaction(transaction){
+        if(transaction && isValidTransactionJSON(transaction)){
+            this.rejectedTransactions[transaction.hash] = transaction;
         }
     }
 

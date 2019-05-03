@@ -908,6 +908,8 @@ class Node {
             }
           });
           break;
+        case 'newAccount':
+        break
         case 'fetchCoinbaseTransaction':
           if(data && typeof data == 'string'){
             try{
@@ -1206,7 +1208,7 @@ class Node {
             }
           })
           .catch((error)=>{
-            //logger(error.errno)
+            logger(error)
             logger(chalk.red('Could not fetch block from '+address))
             
             return false;
@@ -1485,7 +1487,7 @@ class Node {
                  this.chain.isChainValid()
                  this.chain.saveBlockchain();
 
-                 let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey)
+                 let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
                  if(coinbase){
                   this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
                  }else{
@@ -1546,7 +1548,10 @@ class Node {
                 
               }else{
                 if(readyToMove.error){
+                  logger('Rejected Transaction:', transaction.hash)
                   logger(readyToMove.error);
+                  Mempool.rejectCoinbaseTransaction(transaction.hash);
+
                 }else if(readyToMove.pending){
                   //Do nothing
                 }
