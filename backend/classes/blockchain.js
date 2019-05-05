@@ -643,12 +643,13 @@ class Blockchain{
           // logger("Is transaction hash valid? :", isChecksumValid);
   
           let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
-
+          console.log(fiveBlocksHavePast)
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
-
+          // logger('Attached:', isAttachedToMinedBlock != false)
           let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);
-          // let hasTheRightMiningRewardAmount = transaction.amount = this.miningReward;
 
+          let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + transaction.miningFee);
+          // logger('Reward is okay: ', hasTheRightMiningRewardAmount)
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
           // logger("Transaction Size is not bigger than "+this.transactionSizeLimit+"Kb", transactionSizeIsNotTooBig);
                 
@@ -672,7 +673,7 @@ class Blockchain{
             resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           }
 
-          if(!fiveBlocksHavePast){
+          if(fiveBlocksHavePast != true){
             // logger('PENDING: Coinbase transaction needs to wait five blocks');
             resolve({ pending:'PENDING: Coinbase transaction needs to wait five blocks' })
           }
@@ -740,18 +741,29 @@ class Blockchain{
   }
 
   async waitFiveBlocks(transaction){
-    let latestBlock = this.getLatestBlock()
-    if(latestBlock && latestBlock.hasOwnProperty('blockNumber')){
-      this.chain.forEach( block =>{
+    return new Promise((resolve, reject) =>{
+      let latestBlock = this.getLatestBlock()
+      if(latestBlock && latestBlock.hasOwnProperty('blockNumber')){
+        this.chain.forEach( block =>{
+          
+          if(block.coinbaseTransactionHash == transaction.hash){
+            
+            let blocksPast = this.chain.length - block.blockNumber;
+            if(blocksPast >= 6){
+              
+              resolve(true)
+            }else{
+              resolve(false)
+            }
+            
+          }
+        })
         
-        if(block.coinbaseTransactionHash == transaction.hash){
-          return this.chain.length - block.blockNumber >= 6;
-        }
-      })
-      return 0;
-    }else{
-      return false;
-    }
+      }else{
+        resolve(false)
+      }
+    })
+    
     
   }
 

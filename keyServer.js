@@ -11,7 +11,6 @@ const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const WalletManager = require('./backend/classes/walletManager'); //Instance not class
 //************** Tools ************************/
-const { logger } = require('./backend/tools/utils');
 const sha1 = require('sha1')
 const {
   isValidTransactionJSON,
@@ -20,6 +19,7 @@ const {
   isValidUnlockWalletJSON
 } = require('./backend/tools/jsonvalidator')
 const axios = require('axios');
+const program = require('commander')
 
 
 
@@ -29,6 +29,7 @@ class KeyServer{
         this.walletApi = express()
         this.socketServer = {}
         this.nodes = {}
+        this.address = 'http://localhost:8003'
     }
 
     startServer(){
@@ -50,13 +51,13 @@ class KeyServer{
           this.nodes = nodes
           console.log('User '+address+" is connected")
         }catch(e){
-          logger(e)
+          console.log(e)
         }
         
       });
 
       http.listen(3000, function(){
-        console.log('listening on *:3000');
+        console.log('Keyserver listening on 3000');
         
       });
       
@@ -98,7 +99,7 @@ class KeyServer{
               
             })
             .catch(e =>{
-              logger(e)
+              console.log(e)
             })
           }else{
             res.send('ERROR: No wallet name or password provided')
@@ -124,7 +125,7 @@ class KeyServer{
               
             })
             .catch(e =>{
-              logger(e)
+              console.log(e)
             })
           
           }else{
@@ -164,7 +165,7 @@ class KeyServer{
               if(walletName){
                 let filename = `./wallets/${walletName}-${sha1(walletName)}.json`
                 let wallet = await this.walletManager.loadWallet(filename);
-                logger(`Loaded wallet ${walletName}`)
+                console.log(`Loaded wallet ${walletName}`)
                 res.json({loaded:wallet}).end();
               }else{
                 res.json({ error:'must provide wallet name' }).end()
@@ -174,7 +175,7 @@ class KeyServer{
             }
 
           }catch(e){
-            logger(e);
+            console.log(e);
           }
         
       })
@@ -279,17 +280,17 @@ class KeyServer{
     forwardGetRequestToNode(route, params){
       return new Promise(async (resolve, reject)=>{
         if(route && params && this.nodes){
-          let addresses = Object.keys(this.nodes);
-          let randIndex = Math.floor(Math.random()) * addresses.length;
-          let address = (this.nodes[randIndex] ? this.nodes[randIndex]:'http://localhost:8003')
-          axios.get(address+route,{
+          // let addresses = Object.keys(this.nodes);
+          // let randIndex = Math.floor(Math.random()) * addresses.length;
+          // let address = (this.nodes[randIndex] ? this.nodes[randIndex]:'http://localhost:8003')
+          axios.get(this.address+route,{
             params:params
           })
           .then( response=>{
             resolve(response.data)
           })
           .catch(e=> {
-            logger(e)
+            console.log(e)
             resolve({error:'an error occured'})
           })
         }
@@ -301,15 +302,15 @@ class KeyServer{
     forwardPostRequestToNode(route, params){
       return new Promise((resolve, reject)=>{
         if(route && params && this.nodes){
-          let addresses = Object.keys(this.nodes);
-          let randIndex = Math.floor(Math.random()) * addresses.length;
-          let address = (this.nodes[randIndex] ? this.nodes[randIndex]:'http://localhost:8003')
-          axios.post(address+route,params)
+          // let addresses = Object.keys(this.nodes);
+          // let randIndex = Math.floor(Math.random()) * addresses.length;
+          // let address = (this.nodes[randIndex] ? this.nodes[randIndex]:'http://localhost:8003')
+          axios.post(this.address+route,params)
           .then( response=>{
             resolve(response.data)
           })
           .catch(e=> {
-            logger(e)
+            console.log(e)
             resolve({error:'an error occured'})
           })
         }
@@ -368,7 +369,7 @@ class KeyServer{
           let addresses = Object.keys(this.nodes);
           let randIndex = Math.floor(Math.random()) * addresses.length;
           let address = (this.nodes[randIndex] ? this.nodes[randIndex]:'http://localhost:8003')
-          axios.get(address+'/transaction',{
+          axios.get(this.address+'/transaction',{
             params:{
               hash:hash
             }
@@ -377,7 +378,7 @@ class KeyServer{
             resolve(response.data)
           })
           .catch(e=> {
-            logger(e)
+            console.log(e)
             resolve({error:'an error occured'})
           })
         }else{
@@ -386,9 +387,26 @@ class KeyServer{
       })
     }
 
+    setTargetAddress(address){
+      if(address && typeof address == 'string'){
+        this.address = address;
+      }else{
+        console.log('ERROR: Valid IP address required')
+      }
+    }
+
 
 }
 
 let server = new KeyServer()
-server.startServer()
 
+
+program
+.command('setip <ip>')
+.action((ip)=>{
+  if(ip){
+    server.setTargetAddress(ip)
+  }
+})
+
+server.startServer()

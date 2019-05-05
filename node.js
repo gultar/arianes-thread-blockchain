@@ -18,6 +18,8 @@ const Block = require('./backend/classes/block');
 const Blockchain = require('./backend/classes/blockchain');
 const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
+/*************Smart Contract VM************** */
+const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
 const Mempool = require('./backend/classes/mempool'); //Instance not class
 const WalletManager = require('./backend/classes/walletManager'); //Instance not class
@@ -796,8 +798,18 @@ class Node {
     socket.on('getMempool', ()=>{
       socket.emit('mempool', Mempool);
     })
-
+    ////let myCoin = new Coin('EMU', 10000, {})
     socket.on('test', ()=>{
+      let code = `
+      function stackTrace() {
+        var err = new Error();
+        console.log((err.stack))
+        }
+
+        console.log(stackTrace())
+      
+      `
+      // callRemoteVM(code)
       this.cashInCoinbaseTransactions();
     })
 	
@@ -980,9 +992,9 @@ class Node {
             
           }
           break;
-        // case 'message':
-        //   logger(chalk.green('['+originAddress+']')+' -> '+data)
-        //   break;
+        case 'message':
+          logger(chalk.green('['+originAddress+']')+' -> '+data)
+          break;
       }
 
       this.messageBuffer[messageId] = peerMessage;

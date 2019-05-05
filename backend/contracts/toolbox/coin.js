@@ -85,26 +85,26 @@ class Coin{
     }
 }
 
-const test = async()=>{
-    let w = new Wallet();
-    await w.init('muppet', 'boom');
-    let w2 = new Wallet();
-    await w2.init('broom', 'kaboom');
+// const test = async()=>{
+//     let w = new Wallet();
+//     await w.init('muppet', 'boom');
+//     let w2 = new Wallet();
+//     await w2.init('broom', 'kaboom');
 
-    let a = new Account('dumbo', w.publicKey);
-    let a2 = new Account('fellow', w2.publicKey);
+//     let a = new Account('dumbo', w.publicKey);
+//     let a2 = new Account('fellow', w2.publicKey);
 
-    let signed = await a.signAccount(w, 'boom');
+//     let signed = await a.signAccount(w, 'boom');
 
-    let signed2 = await a2.signAccount(w2, 'kaboom');
+//     let signed2 = await a2.signAccount(w2, 'kaboom');
 
-    let coin = new Coin('CUP', 1000*1000, a);
-    let issue = await coin.issue(1000, a, a2);
+//     let coin = new Coin('CUP', 1000*1000, a);
+//     let issue = await coin.issue(1000, a, a2);
     
 
-}
+// }
 
-test()
+// test()
 
 
 module.exports = Coin
