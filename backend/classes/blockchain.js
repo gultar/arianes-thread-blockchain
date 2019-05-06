@@ -643,7 +643,7 @@ class Blockchain{
           // logger("Is transaction hash valid? :", isChecksumValid);
   
           let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
-          console.log(fiveBlocksHavePast)
+          
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
           // logger('Attached:', isAttachedToMinedBlock != false)
           let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);

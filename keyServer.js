@@ -84,6 +84,10 @@ class KeyServer{
         }
       });
 
+      this.walletApi.get('/', (req, res)=>{
+        res.send({status:'Active'})
+      })
+
       this.walletApi.post('/createWallet', (req, res)=>{
         
         if(isValidCreateWalletJSON(req.body)){
@@ -242,26 +246,6 @@ class KeyServer{
             let transaction = req.body
             let txSent = await this.forwardPostRequestToNode('/transaction', transaction);
             res.json(txSent).end()
-            // this.broadcastNewTransaction(transaction)
-            // .then((transactionEmitted)=>{
-              
-            //   if(transactionEmitted.error){
-            //     res.send(transactionEmitted.error)
-            //   }else{
-            //     let signature = transactionEmitted.signature;
-            //     let hash = transactionEmitted.hash;
-            //     res.send(this.generateReceipt(
-            //       transaction.fromAddress, 
-            //       transaction.toAddress, 
-            //       transaction.amount, 
-            //       transaction.data, 
-            //       transaction.signature, 
-            //       transaction.hash));
-            //   }
-            // })
-            // .catch((e)=>{
-            //   console.log(chalk.red(e));
-            // })
           }else{
             res.send('ERROR: Invalid transaction format')
           }
@@ -275,14 +259,9 @@ class KeyServer{
       
     }
 
-    
-
     forwardGetRequestToNode(route, params){
       return new Promise(async (resolve, reject)=>{
         if(route && params && this.nodes){
-          // let addresses = Object.keys(this.nodes);
-          // let randIndex = Math.floor(Math.random()) * addresses.length;
-          // let address = (this.nodes[randIndex] ? this.nodes[randIndex]:'http://localhost:8003')
           axios.get(this.address+route,{
             params:params
           })
@@ -302,9 +281,6 @@ class KeyServer{
     forwardPostRequestToNode(route, params){
       return new Promise((resolve, reject)=>{
         if(route && params && this.nodes){
-          // let addresses = Object.keys(this.nodes);
-          // let randIndex = Math.floor(Math.random()) * addresses.length;
-          // let address = (this.nodes[randIndex] ? this.nodes[randIndex]:'http://localhost:8003')
           axios.post(this.address+route,params)
           .then( response=>{
             resolve(response.data)
@@ -401,12 +377,12 @@ class KeyServer{
 let server = new KeyServer()
 
 
-program
-.command('setip <ip>')
-.action((ip)=>{
-  if(ip){
-    server.setTargetAddress(ip)
-  }
-})
+// program
+// .command('setip <ip>')
+// .action((ip)=>{
+//   if(ip){
+//     server.setTargetAddress(ip)
+//   }
+// })
 
 server.startServer()

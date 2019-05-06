@@ -8,6 +8,7 @@ class Account{
         this.ownerKey = ownerKey;
         this.data = sha256(JSON.stringify(this));
         this.ownerSignature = '';
+        this.contracts = {}
     }
 
     signAccount(wallet, password){

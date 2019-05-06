@@ -1,8 +1,9 @@
 const { logger } = require('../tools/utils')
 
-class Datatable{
+class DataTable{
     constructor(accounts={}){
-        this.accounts = accounts
+        this.accounts = accounts;
+        this.contracts = contracts;
     }
 
     addAccount(account){
@@ -31,3 +32,5 @@ class Datatable{
         return this.accounts;
     }
 }
+
+module.exports = DataTable;

@@ -25,7 +25,7 @@ const Mempool = require('./backend/classes/mempool'); //Instance not class
 const WalletManager = require('./backend/classes/walletManager'); //Instance not class
 
 /****************Tools*************************/
-const { displayTime, logger } = require('./backend/tools/utils');
+const { displayTime, logger, writeToFile, readFile } = require('./backend/tools/utils');
 const {
   isValidTransactionJSON,
   isValidChainLengthJSON,
@@ -42,9 +42,7 @@ const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
 
-//To be removed
-let txgenCounter = 5000;
-let stopTxgen = false;
+
 /**
   Instanciates a blockchain node
   @constructor
@@ -69,6 +67,7 @@ class Node {
     this.minerPaused = false;
     this.verbose = false;
     this.walletManager = new WalletManager(this.address);
+    this.accountTable = {}
     this.longestChain = {
       length:0,
       peerAddress:''
@@ -91,7 +90,7 @@ class Node {
       express.json({ limit: '300kb' })
       app.use(helmet())
       const server = http.createServer(app).listen(this.port);
-      
+      this.loadNodeConfig()
       this.initHTTPAPI(app);
       this.connectToKeyServer()
       this.cleanMessageBuffer();
@@ -124,12 +123,12 @@ class Node {
       
       
       //Loading this node's wallet
-      this.loadNodeWallet(`./wallets/${this.port}-${sha1(this.port)}.json`) //'./wallets/'+this.id+'.json'
-      .then((walletLoaded)=>{
-        if(walletLoaded){
-          logger('Wallet loaded:', sha1(this.port))
-        }
-      })
+      // this.loadNodeWallet(`./wallets/${this.port}-${sha1(this.port)}.json`) //'./wallets/'+this.id+'.json'
+      // .then((walletLoaded)=>{
+      //   if(walletLoaded){
+      //     logger('Wallet loaded:', sha1(this.port))
+      //   }
+      // })
 
       //Loading list of known peer addresses
       this.nodeList.loadNodeList()
@@ -147,28 +146,35 @@ class Node {
 
     this.ioServer.on('connection', (socket) => {
       if(socket){
-        let peerAddress;
-        let peerToken;
-        let peerPublicKey;
          if(socket.handshake.query.token !== undefined){
              try{
                socket.on('message', (msg) => { logger('Client:', msg); });
 
-               peerToken = JSON.parse(socket.handshake.query.token);
-               peerAddress = peerToken.address;
-               peerPublicKey = peerToken.publicKey
+               let peerToken = JSON.parse(socket.handshake.query.token);
+               let peerAddress = peerToken.address;
+               let peerPublicKey = peerToken.publicKey
+               let peerChecksumObj = peerToken.checksum;
 
-              //Implement checksum based authentification
+               if(peerChecksumObj){
+                let peerTimestamp = peerChecksumObj.timestamp;
+                let peerRandomOrder = peerChecksumObj.randomOrder;
+                let peerChecksum = peerChecksumObj.checksum
+
+                let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
+                //Implement checksum based authentification
               
-               if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
-                 this.peersConnected[peerAddress] = socket;
-                 this.nodeList.addNewAddress(peerAddress)
-                 this.nodeEventHandlers(socket)
-
-               }else{
-                 socket.emit('message', 'Connected to local node');
-                 this.externalEventHandlers(socket);
+                if(isValid){
+                  this.peersConnected[peerAddress] = socket;
+                  this.nodeList.addNewAddress(peerAddress);
+                  this.nodeEventHandlers(socket);
+                }else{
+                  socket.emit('message', 'Connected to local node');
+                  this.externalEventHandlers(socket);
+                }
                }
+               
+
+               
 
              }catch(e){
                console.log(chalk.red(e))
@@ -216,56 +222,56 @@ class Node {
     Public (and optionally private) key loader
     @param {string} $callback - callback that hands out the loaded wallet
   */
-  loadNodeWallet(filename){
+  // loadNodeWallet(filename){
     
-    try{
-      return new Promise(async (resolve, reject)=>{
+  //   try{
+  //     return new Promise(async (resolve, reject)=>{
         
-        fs.exists(filename, async (exists)=>{
+  //       fs.exists(filename, async (exists)=>{
 
-          if(!exists){
-            let created = await this.createNodeWallet();
-             resolve(created);
-          }
+  //         if(!exists){
+  //           let created = await this.createNodeWallet();
+  //            resolve(created);
+  //         }
 
-          this.walletManager.loadWallet(filename)
-          .then((wallet)=>{
-            if(wallet){
-              this.publicKey = wallet.publicKey;
-              resolve(true)
-            }else{
-              logger('ERROR: Could not load node wallet')
-              resolve(false)
-            }
-          })
+  //         this.walletManager.loadWallet(filename)
+  //         .then((wallet)=>{
+  //           if(wallet){
+  //             this.publicKey = wallet.publicKey;
+  //             resolve(true)
+  //           }else{
+  //             logger('ERROR: Could not load node wallet')
+  //             resolve(false)
+  //           }
+  //         })
           
-        })
-      })
+  //       })
+  //     })
 
-    }catch(e){
-      console.log(chalk.red(e));
-    }
+  //   }catch(e){
+  //     console.log(chalk.red(e));
+  //   }
     
-  }
+  // }
 
-  createNodeWallet(){
-    return new Promise((resolve, reject)=>{
-     this.walletManager.createWallet(this.port, this.port)
-        .then((wallet)=>{
-          if(wallet){
-            resolve(true);
-          }else{
-            logger('ERROR: Wallet creation failed');
-            resolve(false);
-          }
+  // createNodeWallet(){
+  //   return new Promise((resolve, reject)=>{
+  //    this.walletManager.createWallet(this.port, this.port)
+  //       .then((wallet)=>{
+  //         if(wallet){
+  //           resolve(true);
+  //         }else{
+  //           logger('ERROR: Wallet creation failed');
+  //           resolve(false);
+  //         }
           
-        })
-        .catch(e =>{
-          console.log(e)
-        })
-    })
+  //       })
+  //       .catch(e =>{
+  //         console.log(e)
+  //       })
+  //   })
     
-  }
+  // }
 
 
   /**
@@ -277,13 +283,21 @@ class Node {
       if(this.connectionsToPeers[address] == undefined){
         let connectionAttempts = 0;
         let peer;
+        let timestamp = Date.now();
+        let randomOrder = Math.random();
+        let checksum = this.validateChecksum(timestamp, randomOrder)
         try{
           peer = ioClient(address, {
             'reconnection limit' : 1000,
             'max reconnection attempts' : 3,
             'query':
             {
-              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey })
+              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey, 'checksum':{
+                timestamp:timestamp,
+                randomOrder:randomOrder,
+                checksum:checksum
+              } }),
+              
             }
           });
 
@@ -458,6 +472,7 @@ class Node {
       app.use(rateLimiter);
 
       app.use(bodyParser.json());
+
       app.use(function (error, req, res, next) {
         if (error instanceof SyntaxError &&
           error.status >= 400 && error.status < 500 &&
@@ -469,14 +484,6 @@ class Node {
       });
       
       app.set('json spaces', 2)
-      
-      // app.post('/node', (req, res) => {
-      //   const { host, port } = req.body;
-      //   const node = `http://${host}:${port}`;
-  
-      //   this.connectToPeer(node);
-      //   res.json({ message: 'attempting connection to peer '+node}).end()
-      // });
       
       app.get('/transaction', (req, res)=>{
         let tx = {};
@@ -653,11 +660,11 @@ class Node {
 
       })
 
+      app.post('/createAccount', (req, res)=>{
+        //Create account and broadcast it
+      })
 
-
-  
     }catch(e){
-      logger("ERROR: getNextBlock request could not be completed: An error occured");
       logger(e)
     }
     
@@ -684,6 +691,11 @@ class Node {
      socket.on('peerMessage', (data)=>{
        var { type, originAddress, messageId, data } = data
        this.handlePeerMessage(type, originAddress, messageId, data);
+     })
+
+     socket.on('directMessage', (data)=>{
+      var { type, originAddress, targetAddress, messageId, data } = data
+      this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
      })
 
      socket.on('getPeers', ()=>{
@@ -720,11 +732,6 @@ class Node {
 
     socket.on('getBlockchain', ()=>{
       socket.emit('blockchain', this.chain);
-    })
-
-    socket.on('tx', (data)=>{
-      let tx = new Transaction('aoiwdjaoiwjdawdawdidawdwa', 'awdoijawoidjaowidjoaiwjdoaw', 0, data)
-      tx.setMiningFee()
     })
 
     socket.on('getAddress', (address)=>{
@@ -768,12 +775,6 @@ class Node {
       }
     })
 
-    socket.on('txgen', ()=>{
-      this.UILog('Starting transaction generator');
-      logger('Starting transaction generator')
-      this.txgen();
-    })
-
     socket.on('verbose', ()=>{
       
       if(this.verbose){
@@ -787,12 +788,6 @@ class Node {
       
       socket.emit('verboseToggled', this.verbose)
      
-    })
-
-    socket.on('stoptxgen', ()=>{
-      this.UILog('Stopping transaction generator');
-      logger('Stopping transaction generator')
-      stopTxgen = true;
     })
 
     socket.on('getMempool', ()=>{
@@ -809,8 +804,17 @@ class Node {
         console.log(stackTrace())
       
       `
-      // callRemoteVM(code)
-      this.cashInCoinbaseTransactions();
+      callRemoteVM(code)
+      // this.cashInCoinbaseTransactions();
+    })
+
+    socket.on('checksum', async ()=>{
+      let time = Date.now();
+      let order = Math.random()
+      let checksum = await this.validateChecksum(time, order)
+      let checksum2 = await this.validateChecksum(time, order);
+      
+      console.log(checksum == checksum2)
     })
 	
     socket.on('txSize', (hash)=>{
@@ -864,6 +868,29 @@ class Node {
     }
   }
 
+  sendDirectMessage(type, data){
+    if(type){
+      try{
+        if(typeof data == 'object')
+          data = JSON.stringify(data);
+        var shaInput = (Math.random() * Date.now()).toString()
+        var messageId = sha256(shaInput);
+        this.messageBuffer[messageId] = messageId;
+        this.broadcast('directMessage', { 
+         'type':type,
+         'messageId':messageId, 
+         'originAddress':this.address, 
+         'targetAddress':targetAddress, 
+         'data':data 
+        });
+
+      }catch(e){
+        console.log(chalk.red(e));
+      }
+
+    }
+  }
+
 
   /**
     @param {String} $type - Peer message type
@@ -876,24 +903,27 @@ class Node {
     if(!this.messageBuffer[messageId]){
       switch(type){
         case 'transaction':
+          
           try{
             var transaction = JSON.parse(data);
             if(transaction && this.chain instanceof Blockchain){
+              if(isValidTransactionJSON(transaction)){
 
-              this.chain.validateTransaction(transaction)
-              .then(valid => {
-                if(!valid.error){
-                  Mempool.addTransaction(transaction);
-                  this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                  if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                }else{
-                  this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                  if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                  Mempool.rejectedTransactions[transaction.hash] = transaction;
-                  logger(valid.error)
-                }
-              })
+                this.chain.validateTransaction(transaction)
+                .then(valid => {
+                  if(!valid.error){
+                    Mempool.addTransaction(transaction);
+                    this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                    if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  }else{
+                    this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                    if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                    Mempool.rejectedTransactions[transaction.hash] = transaction;
+                    logger(valid.error)
+                  }
+                })
 
+              }
             }
           }catch(e){
             console.log(chalk.red(e))
@@ -1000,6 +1030,44 @@ class Node {
       this.messageBuffer[messageId] = peerMessage;
       this.broadcast('peerMessage', peerMessage)
     }
+  }
+
+  handleDirectMessage(type, originAddress, targetAddress, messageId, data){
+    let directMessage = { 
+      'type':type, 
+      'originAddress':originAddress, 
+      'targetAddress':targetAddress, 
+      'messageId':messageId, 
+      'data':data 
+    }
+    if(!this.messageBuffer[messageId]){
+
+      if(directMessage.originAddress == directMessage.targetAddress){
+        return false;
+      }
+
+      if(this.address == directMessage.targetAddress){
+        switch(type){
+          case 'peerRequest':
+          break;
+          case 'accountRequest':
+          break;
+          case 'addressRequest':
+          break;
+          case '':
+          break;
+        }
+      }else if(this.connectionsToPeers[targetAddress]){
+
+      }else if(this.peersConnected[targetAddress]){
+
+      }else{
+        this.messageBuffer[messageId] = directMessage;
+        this.broadcast('directMessage', directMessage)
+      }
+      
+    }
+    
   }
 
 
@@ -1400,7 +1468,6 @@ class Node {
                 }
               })
           }
-        // }
         
         
       }catch(e){
@@ -1555,8 +1622,8 @@ class Node {
               if(readyToMove && !readyToMove.error && !readyToMove.pending){
                 
                 Mempool.moveCoinbaseTransactionToPool(transaction.hash);
-                this.sendPeerMessage('fetchCoinbaseTransaction', transaction.hash);
-                  resolve(true);
+                this.sendPeerMessage(transaction);
+                resolve(true);
                 
               }else{
                 if(readyToMove.error){
@@ -1592,7 +1659,8 @@ class Node {
         
         this.nodeList.saveNodeList();
         Mempool.saveMempool();
-       this.walletManager.saveState();
+        this.walletManager.saveState();
+        this.saveNodeConfig()
 
         if(saved == true){
           logger('Successfully saved blockchain file')
@@ -1612,6 +1680,44 @@ class Node {
     
     
   }
+
+  async loadNodeConfig(){
+    fs.exists('./config/nodeconfig.json', async (exists)=>{
+      if(exists){
+        let nodeConfigString = await readFile('./config/nodeconfig.json');
+        try{
+          if(nodeConfigString){
+            let nodeConfig = JSON.parse(nodeConfigString);
+            this.address = nodeConfig.address;
+            this.port = nodeConfig.port;
+            this.id = nodeConfig.id;
+            this.publicKey = nodeConfig.publicKey;
+            this.accountTable = nodeConfig.accountTable;
+            logger('Loaded node config')
+          }
+          
+        }catch(e){
+          logger(e)
+        }
+      }else{
+        this.saveNodeConfig();
+      }
+    })
+  }
+
+  async saveNodeConfig(){
+    let config = {
+      address:this.address,
+      port:this.port,
+      id:this.id,
+      publicKey:this.publicKey,
+      accountTable:this.accountTable,
+    }
+
+    let saved = await writeToFile(JSON.stringify(config, null, 2),'./config/nodeconfig.json');
+    if(saved) logger('Saved node config')
+  }
+
   /**
     @desc Periodically clears out peer messages to avoid overflow
   */
@@ -1632,44 +1738,56 @@ class Node {
     }
   }
 
+  async validateChecksum(timestamp, randomOrder){
+    let nodeChecksum = '';
+    let blockchainChecksum = '';
+    let blockChecksum = '';
+    let challengeChecksum = '';
+    let transactionChecksum = '';
 
-  txgen(){
-    if(!stopTxgen){
-      let increaseThreshold = 0.5;
-      setTimeout(async ()=>{
-        
-        if(this.publicKey){
-          
-                let transaction = new Transaction(this.publicKey, 'A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R', 0)
-                let wallet = await this.walletManager.getWalletByPublicAddress(this.publicKey);
-                if(wallet){
-                  let unlocked = await wallet.unlock(this.port);
-                  if(unlocked){
-                    let signature = await wallet.sign(transaction.hash)
-                    if(signature){
-                      
-                      transaction.signature = signature;
-                      this.broadcastNewTransaction(transaction)
-                    }else{
-                      logger('ERROR: Txgen could not sign transaction')
-                    }
-                  }else{
-                    logger('ERROR: Txgen could not unlock wallet')
-                  }
-                  
-                }else{
-                  logger('ERROR: Txgen could not find wallet')
-                }
-                
-        }
+    let nodeFile = await readFile('./node.js');
+    let blockchainFile = await readFile(`./backend/classes/blockchain.js`);
+    let blockFile = await readFile(`./backend/classes/block.js`);
+    let challengeFile = await readFile(`./backend/classes/challenge.js`);
+    let transactionFile = await readFile(`./backend/classes/transaction.js`);
 
-        txgenCounter = (Math.random() > increaseThreshold ? txgenCounter + 200 : txgenCounter - 200);
-        if(txgenCounter < 1000) txgenCounter = 2000
-        this.txgen()
-      },txgenCounter)
+    if(nodeFile && blockchainFile && blockFile && challengeFile && transactionFile){
+      nodeChecksum = await sha256(nodeFile)
+      blockchainChecksum = await sha256(blockchainFile)
+      blockChecksum = await sha256(blockFile)
+      challengeChecksum = await sha256(challengeFile)
+      transactionChecksum = await sha256(transactionFile);
 
+      let checksumArray = [
+        nodeChecksum,
+        blockchainChecksum,
+        blockChecksum,
+        challengeChecksum,
+        transactionChecksum
+      ]
+  
+      checksumArray.sort((a, b)=>{
+        return 0.5 - randomOrder;
+      })
+  
+      let finalChecksum
+      checksumArray.forEach( checksum=>{
+        finalChecksum = finalChecksum + checksum;
+      })
+  
+      finalChecksum = sha256(finalChecksum + timestamp.toString()) ;
+      return finalChecksum;
+
+    }else{
+      return false;
     }
+    
+    
+
   }
+
+
+
 
 }
 

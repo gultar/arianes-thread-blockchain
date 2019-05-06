@@ -3,9 +3,43 @@
 const program = require('commander');
 const fs = require('fs');
 const WalletQueryTool = require('./backend/classes/walletQueryTool');
-const transactionCreator = require('./backend/tools/transactionCreator');
+const txgen = require('./backend/tools/_tempTxgen');
 let api = new WalletQueryTool();
  
+//Commands to implement
+//Version
+/*Get  
+- wallet
+- info Get current blockchain information
+- block Retrieve a full block from the blockchain
+- account Retrieve an account from the blockchain
+- code Get code of a contract
+- table Retrieve the contents of a database table
+- currency Retrieve information related to standard currencies
+- accounts Retrieve accounts associated with a public key
+- transaction Retrieve a transaction from the blockchain
+- actions Retrieve all actions with specific account name referenced in authorization or receiver
+- schedule Retrieve the producer schedule
+*/
+/**
+ * Create
+ * - wallet
+ * - account
+ * 
+ */
+/**
+ * Set
+ * - contract
+ * - account permission
+ * - action permission
+ * - 
+ */
+
+/**Transfer
+ * - basic coins
+ * - created coins
+ */
+
 
 const runWalletCLI = async () =>{
   
@@ -74,6 +108,14 @@ const runWalletCLI = async () =>{
           .action(async ()=>{
             api.sendTransaction();
           })
+
+        program
+          .command('txgen <walletName> <password>')
+          .description('TEMP: Transaction generator')
+          .action((walletName, password)=>{
+            txgen(walletName, password)
+          })
+
           
      
       
