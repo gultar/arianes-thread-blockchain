@@ -1,4 +1,5 @@
 const { logger } = require('../tools/utils')
+const ECDSA = require('ecdsa-secp256r1');
 const Wallet = require('./wallet');
 const sha1 = require('sha1')
 const fs = require('fs');
@@ -46,9 +47,26 @@ class WalletManager{
 
   }
 
+  
+
 
   loadWallet(filename){
     return new Promise((resolve, reject)=>{
+      let wallet = new Wallet();
+      wallet.importWalletFromFile(filename)
+      .then((wallet)=>{
+        this.wallets[wallet.publicKey] = wallet;
+        resolve(wallet);
+      })
+      .catch((e)=>{
+        console.log(e);
+      })
+    })
+  }
+
+  loadByWalletName(walletName){
+    return new Promise((resolve, reject)=>{
+      let filename = `./wallets/${walletName}-${sha1(walletName)}.json`
       let wallet = new Wallet();
       wallet.importWalletFromFile(filename)
       .then((wallet)=>{
@@ -133,6 +151,13 @@ class WalletManager{
         console.log(e);
       }
     }
+  }
+
+  verify(compressedKey, data, signature){
+    return new Promise((resolve, reject)=>{
+      const publicKey = ECDSA.fromCompressedPublicKey(compressedKey);
+      resolve(publicKey.verify(data, signature))
+    })
   }
 
   saveState(){

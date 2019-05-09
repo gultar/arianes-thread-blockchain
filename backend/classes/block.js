@@ -12,13 +12,15 @@ process.env.MINER = ()=>{}
 
 //////////////////Block/////////////////////
 class Block{
-  constructor(timestamp, transactions=[], previousHash='', blockNumber=0){ 
+  constructor(timestamp, transactions={}, actions={}, previousHash='', blockNumber=0){ 
     this.blockNumber = blockNumber;
     this.timestamp = timestamp;
     this.transactions = transactions;
+    this.actions = actions;
     this.previousHash = previousHash;
     this.hash = this.calculateHash();
     this.merkleRoot = this.createMerkleRoot(this.transactions);
+    this.actionMerkleRoot = this.createMerkleRoot(this.actions);
     this.nonce = 0;
     this.valid = true;
     this.minedBy = '';
@@ -32,7 +34,7 @@ class Block{
     Will be called on every iteration of the mining method
   */
   calculateHash(){
-    this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce).toString();
+    this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce + this.actionMerkleRoot).toString();
   }
 
   //Deprecated

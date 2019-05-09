@@ -29,6 +29,7 @@ class KeyServer{
         this.walletApi = express()
         this.socketServer = {}
         this.nodes = {}
+        this.accounts = {}
         this.address = 'http://localhost:8003'
     }
 

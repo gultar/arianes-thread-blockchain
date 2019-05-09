@@ -37,7 +37,8 @@
   "bin": {
     "blockchain": "command.js",
     "wallet": "walletCLI.js",
-    "keyserver": "keyServer.js"
+    "keyserver": "keyServer.js",
+    "chain":"chainCLI.js"
   },
   "scripts": {
     "test": "node test.js",

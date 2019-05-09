@@ -33,6 +33,38 @@ const isValidTransactionJSON = (transaction)=>{
     }
 }
 
+const isValidActionJSON = (action)=>{
+    var v = new Validator();
+    var schema = {
+        "id":"/action",
+        "type": "object",
+        "properties": {
+            "fromAccount": {"type": "object"},
+            "type": {"type": "string"},
+            "task": {"type": "string"},
+            "data": {"type": [
+                "string","object"
+            ]},
+            "fee":{"type":"number"},
+            "timestamp":{"type":"number"},
+            "hash":{"type":"string"},
+            "signature":{"type":"string"}
+        },
+        "required": ["fromAccount", "type", "task", "fee", "timestamp", "hash", "signature"]
+    };
+
+    if(action){
+        v.addSchema(schema, "/action")
+        let valid = v.validate(action, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
 const isValidChainLengthJSON = (transaction)=>{
     var v = new Validator();
     var schema = {
@@ -222,5 +254,6 @@ module.exports = {
     isValidHeaderJSON,
     isValidCreateWalletJSON,
     isValidUnlockWalletJSON,
-    isValidWalletBalanceJSON
+    isValidWalletBalanceJSON,
+    isValidActionJSON
  };

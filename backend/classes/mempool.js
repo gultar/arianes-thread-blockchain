@@ -7,6 +7,7 @@ class Mempool{
         this.pendingTransactions = {};
         this.rejectedTransactions = {};
         this.pendingCoinbaseTransactions = {};
+        this.pendingActions = {}
     }
 
     addTransaction(transaction){
@@ -42,6 +43,20 @@ class Mempool{
         
     }
 
+    addAction(action){
+        try{
+            if(action && action.hasOwnProperty('hash')){
+                if(!this.pendingActions[action.hash]){
+                    this.pendingActions[action.hash] = action;
+                }
+            }
+            
+        }catch(e){
+            console.log(e);
+        }
+        
+    }
+
     getCoinbaseTransaction(hash){
         if(hash && typeof hash == 'string'){
             return this.pendingCoinbaseTransactions[hash];
@@ -63,9 +78,16 @@ class Mempool{
         }
     }
 
+
     deleteCoinbaseTransaction(hash){
         if(hash && this.pendingCoinbaseTransactions[hash]){
             delete this.pendingCoinbaseTransactions[hash];
+        }
+    }
+
+    deleteActions(hash){
+        if(hash && this.pendingActions[hash]){
+            delete this.pendingActions[hash];
         }
     }
 
@@ -106,6 +128,11 @@ class Mempool{
         return transactions;
     }
 
+    gatherActionsForBlock(){
+        let actions = this.pendingActions;
+        return actions;
+    }
+
     
 
     deleteTransactionsFromMinedBlock(transactions){
@@ -118,9 +145,26 @@ class Mempool{
         }
     }
 
+    deleteActionsFromMinedBlock(actions){
+        let actionHashes = Object.keys(actions);
+        
+        for(var hash of actionHashes){
+            if(this.pendingActions.hasOwnProperty(hash)){
+                console.log('Deleting action: ', hash)
+                delete this.pendingActions[hash];
+            }
+        }
+    }
+
     putbackPendingTransactions(transactions){
         for(var txHash of Object.keys(transactions)){
             this.pendingTransactions[txHash] = transactions[txHash];
+        }
+    }
+
+    putbackPendingActions(actions){
+        for(var actionHash of Object.keys(actions)){
+            this.pendingActions[actionHash] = actions[actionHash];
         }
     }
 
@@ -138,14 +182,18 @@ class Mempool{
                         let oldTransactionPool = oldMempool.pendingTransactions;
                         let oldRejectedTransactions = oldMempool.rejectedTransactions;
                         let oldCoinbaseTransactions = oldMempool.pendingCoinbaseTransactions;
+                        let oldActions = oldMempool.pendingActions;
                         
                         let newTransactionPool = merge(oldTransactionPool, this.pendingTransactions);
                         let newRejectedTransactions = merge(oldRejectedTransactions,this.rejectedTransactions);
                         let newPendingCoinbaseTransactions = merge(oldCoinbaseTransactions,this.pendingCoinbaseTransactions)
-                        
+                        let newActions = merge(oldActions, this.actions);
+
                         this.pendingTransactions = newTransactionPool;
                         this.rejectedTransactions = newRejectedTransactions;
                         this.pendingCoinbaseTransactions = newPendingCoinbaseTransactions;
+                        this.actions = newActions;
+
                         resolve(true)
                     }catch(e){
                         console.log(e)

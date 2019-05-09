@@ -11,6 +11,15 @@ const displayTime = () =>{
   return time;
 }
 
+const displayDate = (d) =>{
+    var minutes = d.getMinutes().toString().length == 1 ? '0'+d.getMinutes() : d.getMinutes()
+    var hours = d.getHours().toString().length == 1 ? '0'+d.getHours() : d.getHours()
+    var ampm = d.getHours() >= 12 ? 'pm' : 'am'
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    var days = ['Sunday','Monday','Tuesday','Wedneday','Thursday','Friday','Saturday'];
+    return days[d.getDay()]+' '+months[d.getMonth()]+' '+d.getDate()+' '+d.getFullYear()+' '+hours+':'+minutes+ampm;
+}
+
 const logger = (message, arg) => {
   let date = new Date();
   let time = date.toLocaleTimeString();
@@ -25,7 +34,7 @@ const logger = (message, arg) => {
 
 function RecalculateHash(block){
 
-  return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce).toString();
+  return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot).toString();
 }
 
 function merkleRoot(dataSets){
@@ -225,7 +234,8 @@ function copyFile(source, target) {
 
 
 module.exports = { 
-  displayTime, 
+  displayTime,
+  displayDate,
   logger, 
   RecalculateHash, 
   merkleRoot, 

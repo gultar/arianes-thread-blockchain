@@ -11,6 +11,7 @@ program
   .version('0.0.1')
   .option('-j, --join', 'Joins network')
   .option('-m, --mine', 'Starts the node as a miner')
+  .option('-M, --forcemine', 'Force mining even if chain is not updated')
   .option('-u, --update', 'Tries to update chain by querying for the longest chain in the network')
   .option('-s, --seed', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
@@ -61,6 +62,12 @@ program
           node.updateAndMine()
       },3000)
 
+    }
+
+    if(program.forcemine){
+      setTimeout(()=>{
+        node.forceMine()
+      },3000)
     }
 
     if(program.update && !program.mine){

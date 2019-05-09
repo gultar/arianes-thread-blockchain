@@ -6,12 +6,12 @@ const fs = require('fs');
 const jsonSize = require('json-size');
 
 class Transaction{
-  constructor(fromAddress, toAddress, amount, data='', hash='', type=''){
+  constructor(fromAddress, toAddress, amount, data='', type='', hash='', ){
     this.fromAddress = fromAddress;
     this.toAddress = toAddress;
+    this.type = type;
     this.data = data;
     this.timestamp = Date.now()
-    this.type = type;
     this.signature;
     this.miningFee = 0;
     this.amount = this.setMiningFee(amount);

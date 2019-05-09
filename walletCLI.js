@@ -71,6 +71,13 @@ const runWalletCLI = async () =>{
           .action(( walletName )=>{
               api.getWallet(walletName)
           })
+
+        program
+          .command('createAccount <accountName> <walletName> <password>')
+          .description('Creates a new wallet and broadcasts its public key to the network')
+          .action(( accountName, walletName, password )=>{
+            api.createWallet(walletName, password);
+          })
           
       
         program

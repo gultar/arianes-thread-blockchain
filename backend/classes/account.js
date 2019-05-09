@@ -1,4 +1,5 @@
 const Wallet = require('./wallet')
+const Action = require('./action')
 const sha256 = require('../tools/sha256');
 const { logger } = require('../tools/utils');
 
@@ -6,9 +7,8 @@ class Account{
     constructor(name, ownerKey){
         this.name = name;
         this.ownerKey = ownerKey;
-        this.data = sha256(JSON.stringify(this));
+        this.hash = sha256(JSON.stringify(this));
         this.ownerSignature = '';
-        this.contracts = {}
     }
 
     signAccount(wallet, password){
@@ -16,14 +16,12 @@ class Account{
             if(wallet && password && wallet instanceof Wallet){
                let unlocked = await wallet.unlock(password)
                if(unlocked){
-                    this.ownerSignature = await wallet.sign(this.data);
-                    if(this.ownerSignature){
-                        Object.freeze(this);
-                        logger(`Wallet ${wallet.name} signed account name ${this.name}`)
-                        resolve(true)
-                    }else{
-                        logger('ERROR: Could not sign account');
-                    }
+                 let signature = await wallet.sign(this.hash);
+                 if(signature){
+                     resolve(signature);
+                 }else{
+                     logger('ERROR: Could not sign account')
+                 }
                 }else{
                     logger('ERROR: Could not unlock account')
                     resolve(false);
@@ -43,6 +41,15 @@ class Account{
         if(pathToFile){
             //create transaction and send to node
         }
+    }
+
+    async emitAction(type, task, onContract){
+        let accountRef = {
+            name:this.name,
+            publicKey:this.ownerKey
+        }
+        let action = new Action(accountRef, type, task, onContract);
+        return action;
     }
 
 }

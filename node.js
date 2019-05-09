@@ -18,14 +18,16 @@ const Block = require('./backend/classes/block');
 const Blockchain = require('./backend/classes/blockchain');
 const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
+const WalletManager = require('./backend/classes/walletManager');
+const AccountManager = require('./backend/classes/accountManager')
 /*************Smart Contract VM************** */
 const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
 const Mempool = require('./backend/classes/mempool'); //Instance not class
-const WalletManager = require('./backend/classes/walletManager'); //Instance not class
+
 
 /****************Tools*************************/
-const { displayTime, logger, writeToFile, readFile } = require('./backend/tools/utils');
+const { displayTime, displayDate, logger, writeToFile, readFile } = require('./backend/tools/utils');
 const {
   isValidTransactionJSON,
   isValidChainLengthJSON,
@@ -34,7 +36,8 @@ const {
   isValidHeaderJSON,
   isValidCreateWalletJSON,
   isValidUnlockWalletJSON,
-  isValidWalletBalanceJSON
+  isValidWalletBalanceJSON,
+  isValidActionJSON
 } = require('./backend/tools/jsonvalidator')
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
@@ -67,6 +70,7 @@ class Node {
     this.minerPaused = false;
     this.verbose = false;
     this.walletManager = new WalletManager(this.address);
+    this.accountManager = new AccountManager();
     this.accountTable = {}
     this.longestChain = {
       length:0,
@@ -119,17 +123,6 @@ class Node {
           }
         })
 
-      
-      
-      
-      //Loading this node's wallet
-      // this.loadNodeWallet(`./wallets/${this.port}-${sha1(this.port)}.json`) //'./wallets/'+this.id+'.json'
-      // .then((walletLoaded)=>{
-      //   if(walletLoaded){
-      //     logger('Wallet loaded:', sha1(this.port))
-      //   }
-      // })
-
       //Loading list of known peer addresses
       this.nodeList.loadNodeList()
         .then(loaded =>{
@@ -161,7 +154,6 @@ class Node {
                 let peerChecksum = peerChecksumObj.checksum
 
                 let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
-                //Implement checksum based authentification
               
                 if(isValid){
                   this.peersConnected[peerAddress] = socket;
@@ -217,62 +209,6 @@ class Node {
     }
   }
 
-  
-  /**
-    Public (and optionally private) key loader
-    @param {string} $callback - callback that hands out the loaded wallet
-  */
-  // loadNodeWallet(filename){
-    
-  //   try{
-  //     return new Promise(async (resolve, reject)=>{
-        
-  //       fs.exists(filename, async (exists)=>{
-
-  //         if(!exists){
-  //           let created = await this.createNodeWallet();
-  //            resolve(created);
-  //         }
-
-  //         this.walletManager.loadWallet(filename)
-  //         .then((wallet)=>{
-  //           if(wallet){
-  //             this.publicKey = wallet.publicKey;
-  //             resolve(true)
-  //           }else{
-  //             logger('ERROR: Could not load node wallet')
-  //             resolve(false)
-  //           }
-  //         })
-          
-  //       })
-  //     })
-
-  //   }catch(e){
-  //     console.log(chalk.red(e));
-  //   }
-    
-  // }
-
-  // createNodeWallet(){
-  //   return new Promise((resolve, reject)=>{
-  //    this.walletManager.createWallet(this.port, this.port)
-  //       .then((wallet)=>{
-  //         if(wallet){
-  //           resolve(true);
-  //         }else{
-  //           logger('ERROR: Wallet creation failed');
-  //           resolve(false);
-  //         }
-          
-  //       })
-  //       .catch(e =>{
-  //         console.log(e)
-  //       })
-  //   })
-    
-  // }
-
 
   /**
     Basis for P2P connection
@@ -319,14 +255,13 @@ class Node {
 
           peer.on('connect', () =>{
             if(!this.connectionsToPeers.hasOwnProperty(address)){
-              //Console output
+
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
-              //Messages emitted to peer
               peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
               peer.emit('connectionRequest', this.address);
               this.sendPeerMessage('addressBroadcast');
-              //Handling of socket and peer address
+              
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
               
@@ -364,9 +299,6 @@ class Node {
       }
 
     }
-    // else{
-    //   logger(chalk.red('ERROR: Address in undefined'));
-    // }
   }
 
   async connectToKeyServer(){
@@ -380,6 +312,7 @@ class Node {
       logger('Connected to key server')
     })
     socket.on('message', message => console.log(message))
+    socket.on('wallet', (wallet)=>{  })
 
   }
 
@@ -545,6 +478,33 @@ class Node {
         
       });
 
+      app.post('/action', (req, res) => {
+        
+        try{
+          if(isValidActionJSON(req.body)){
+            let action = req.body
+            
+            this.broadcastNewAction(action)
+            .then((actionEmitted)=>{
+              if(!actionEmitted.error){
+                res.send(JSON.stringify(actionEmitted, null, 2));
+              }else{
+                res.send(actionEmitted.error)
+              }
+            })
+            .catch((e)=>{
+              console.log(chalk.red(e));
+            })
+          }else{
+            res.send('ERROR: Invalid transaction format')
+          }
+          
+        }catch(e){
+          console.log(chalk.red(e))
+        }
+        
+      });
+
       app.get('/getWalletBalance', async(req, res)=>{
         if(isValidWalletBalanceJSON(req.query)){
           let publicKey = req.query.publicKey;
@@ -660,9 +620,20 @@ class Node {
 
       })
 
-      app.post('/createAccount', (req, res)=>{
-        //Create account and broadcast it
+      app.get('/getInfo', (req, res)=>{
+        res.json(this.getChainInfo()).end()
       })
+
+      app.get('/getBlockHeader',(req, res)=>{
+        var blockNumber = req.query.hash;
+        if(blockNumber){
+          res.json(this.chain.getBlockHeader(blockNumber)).end()
+        }
+      })
+
+      // app.post('/createAccount', (req, res)=>{
+
+      // })
 
     }catch(e){
       logger(e)
@@ -742,6 +713,51 @@ class Node {
       socket.emit('knownPeers', this.nodeList.addresses);
     })
 
+    socket.on('getInfo', ()=>{
+      socket.emit('chainInfo', this.getChainInfo());
+    })
+
+    socket.on('getBlock', (blockNumber)=>{
+      let block = this.chain.chain[blockNumber];
+      let blockInfo = {}
+      if(block){
+        
+        blockInfo = {
+          blockNumber:block.blockNumber,
+          timestamp:block.timestamp,
+          previousHash:block.previousHash,
+          hash:block.hash,
+          merkleRoot:block.merkleRoot,
+          nonce:block.nonce,
+          valid:block.valid,
+          minedBy:block.minedBy,
+          challenge:block.challenge,
+          startMineTime:block.startMineTime,
+          endMineTime:block.endMineTime,
+          totalSumTransited:block.totalSumTransited,
+          coinbaseTransactionHash:block.coinbaseTransactionHash
+        }
+      }else{
+        blockInfo = {
+          error: 'block not found'
+        }
+      }
+      socket.emit('block', blockInfo)
+    })
+
+    socket.on('newAccount', (account)=>{
+      this.accountManager.addAccount(account).then((added)=>{
+        if(added){
+          logger(`New account -${account.name}- has been created!`)
+          socket.emit('accountCreationSuccess', account)
+          this.sendPeerMessage('newAccount', account)
+        }else{
+          socket.emit('accountCreationError', 'ERROR: Could not add account')
+        }
+      })
+      
+    })
+
     socket.on('getBlockSize', (number)=>{
       socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
     })
@@ -809,12 +825,7 @@ class Node {
     })
 
     socket.on('checksum', async ()=>{
-      let time = Date.now();
-      let order = Math.random()
-      let checksum = await this.validateChecksum(time, order)
-      let checksum2 = await this.validateChecksum(time, order);
-      
-      console.log(checksum == checksum2)
+       console.log(this.getChainInfo())
     })
 	
     socket.on('txSize', (hash)=>{
@@ -903,37 +914,38 @@ class Node {
     if(!this.messageBuffer[messageId]){
       switch(type){
         case 'transaction':
-          
-          try{
-            var transaction = JSON.parse(data);
-            if(transaction && this.chain instanceof Blockchain){
-              if(isValidTransactionJSON(transaction)){
-
-                this.chain.validateTransaction(transaction)
-                .then(valid => {
-                  if(!valid.error){
-                    Mempool.addTransaction(transaction);
-                    this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                    if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                  }else{
-                    this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                    if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                    Mempool.rejectedTransactions[transaction.hash] = transaction;
-                    logger(valid.error)
-                  }
-                })
-
+          if(data){
+            try{
+              var transaction = JSON.parse(data);
+              if(transaction && this.chain instanceof Blockchain){
+                if(isValidTransactionJSON(transaction)){
+  
+                  this.chain.validateTransaction(transaction)
+                  .then(valid => {
+                    if(!valid.error){
+                      Mempool.addTransaction(transaction);
+                      this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                      if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                    }else{
+                      this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                      if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                      Mempool.rejectedTransactions[transaction.hash] = transaction;
+                      logger(valid.error)
+                    }
+                  })
+  
+                }
               }
+            }catch(e){
+              console.log(chalk.red(e))
             }
-          }catch(e){
-            console.log(chalk.red(e))
           }
+
           break;
         case 'endMining':
           if(this.minerStarted){
             this.minerPaused = true;
             if(process.MINER){
-              
               process.MINER.stop();
               process.MINER = false;
               
@@ -950,7 +962,18 @@ class Node {
             }
           });
           break;
-        case 'newAccount':
+        case 'action':
+          if(data && isValidActionJSON(data)){
+            try{
+              let action = data;
+              
+              this.handleAction(action);
+              
+            }catch(e){
+              console.log(e)
+            }
+            
+          }
         break
         case 'fetchCoinbaseTransaction':
           if(data && typeof data == 'string'){
@@ -1097,8 +1120,17 @@ class Node {
         console.log(chalk.red(e))
       }
     
+  }
 
-
+  getChainInfo(){
+    let info = {
+      chainLength:this.chain.chain.length,
+      headBlockNumber:this.chain.getLatestBlock().blockNumber,
+      headBlockHash:this.chain.getLatestBlock().hash,
+      lastBlockTime:displayDate(new Date(this.chain.getLatestBlock().endMineTime)),
+      minedBy:this.chain.getLatestBlock().minedBy,
+    }
+    return info
   }
 
 
@@ -1308,6 +1340,7 @@ class Node {
     }
   }
 
+   //could be moved to Blockchain.js
   compareHeaders(headers){
     // logger(headers)
     if(this.chain instanceof Blockchain){
@@ -1429,6 +1462,8 @@ class Node {
     })
   }
 
+  
+
 
   /**
     @desc Emits all transactions as peerMessages.
@@ -1442,8 +1477,8 @@ class Node {
       try{
           
           if(!transaction.signature){
-            logger('Transaction signature failed. Check both public key addresses.')
-            resolve({error:'Transaction signature failed. Check both public key addresses.'})
+            logger('Transaction signature failed. Missing signature')
+            resolve({error:'Transaction signature failed. Missing signature'})
             
           }else{
             
@@ -1451,6 +1486,7 @@ class Node {
               .then( valid =>{
                 if(!valid.error){
 
+      
                   Mempool.addTransaction(transaction);
                   this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
@@ -1476,13 +1512,60 @@ class Node {
     })
   }
 
+  handleAction(action){
+    switch(action.type){
+      case 'createAccount':
+        this.accountManager.addAccount(action.data);
+        break;
+      case 'getValue':
+        this.executeAction(action)
+        break;
+      case 'setValue':
+        this.executeAction(action)
+        break;
+      default:
+        return false;
+      // break;
+    }
+
+    Mempool.addAction(action);
+  }
+
+  executeAction(action){
+    //To be implemented
+  }
+
+  broadcastNewAction(action){
+    return new Promise((resolve, reject)=>{
+      try{
+        if(!action.signature){
+          logger('ERROR: Action could not be emitted. Missing signature')
+          resolve({error:'Action could not be emitted. Missing signature'})
+        }else{
+          this.chain.validateAction(action)
+          .then(valid=>{
+            if(valid && !valid.error){
+              this.handleAction(action);
+              if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
+              resolve(action)
+            }else{
+              logger('ERROR: Action is invalid')
+              resolve({error:valid.error})
+            }
+          })
+        }
+      }catch(e){
+        console.log(e)
+      }
+    })
+  }
+
   generateReceipt(sender, receiver, amount, data, signature, hash){
     const receipt = 
     `Transaction receipt:
     Sender: ${sender}
     Receiver: ${receiver}
     Amount: ${amount}
-    Data: ${data}
     Sent at: ${Date.now()}
     Signature: ${signature}
     Hash: ${hash}`
@@ -1518,6 +1601,12 @@ class Node {
     },8000)
   }
 
+  forceMine(){
+    logger('Starting miner!')
+    this.outputToUI('Starting miner!')
+    this.startMiner();
+  }
+
 
   update(){
     this.sendPeerMessage('getLongestChain');
@@ -1549,11 +1638,11 @@ class Node {
              
              if(isMining && !block){
               
-              let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock());
+              let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock(), Mempool.gatherActionsForBlock());
               logger('Mining next block...');
               logger('Number of pending transactions:', Mempool.sizeOfPool());
               Mempool.pendingTransactions = {};
-              
+              Mempool.pendingActions = {};
 
               this.chain.minePendingTransactions(this.address, block, this.publicKey, async(success, blockHash)=>{
                 if(success && blockHash){
@@ -1582,13 +1671,17 @@ class Node {
                    logger('Seconds past since last block',this.showBlockTime(newBlockHeight))
                    this.minerPaused = false;
                    let newBlockTransactions = this.chain.getLatestBlock().transactions;
+                   let newBlockActions = this.chain.getLatestBlock().actions
                    Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                   Mempool.deleteActionsFromMinedBlock(newBlockActions);
                    this.cashInCoinbaseTransactions();
 
                  },3000)
                 }else{
                    let transactionsOfCancelledBlock = block.transactions;
+                   let actionsOfCancelledBlock = block.actions
                    Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
+                   Mempool.putbackPendingActions(actionsOfCancelledBlock)
                    this.cashInCoinbaseTransactions();
                 }
               })

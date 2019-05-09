@@ -73,13 +73,6 @@ class Blockchain{
   getLatestBlock(){
     return this.chain[this.chain.length - 1];
   }
-
-  // /*Deprecated*/
-  // addBlock(newBlock){
-  //   newBlock.previousHash = this.getLatestBlock().hash;
-  //   //newBlock.mine(this.difficulty); //Proof of work in action
-  //   this.chain.push(newBlock);
-  // }
   
   /**
     Adds block only if valid
@@ -268,9 +261,9 @@ class Blockchain{
         return false;
       }
         for(var block of this.chain){
-          // logger(block);
+          
           for(var transHash of Object.keys(block.transactions)){
-
+            
             trans = block.transactions[transHash]
             if(trans){
               if(trans.fromAddress == address){
@@ -491,7 +484,8 @@ class Blockchain{
           previousHash:block.previousHash,
           hash:block.hash,
           nonce:block.nonce,
-          merkleRoot:block.merkleRoot
+          merkleRoot:block.merkleRoot,
+          actionMerkleRoot:block.actionMerkleRoot
         }
 
         return header
@@ -548,33 +542,20 @@ class Blockchain{
       if(transaction){
         try{
           var isMiningReward = transaction.fromAddress == 'coinbase';
-            // logger('Is mining reward transaction? :', isMiningReward);
 
           if(!isMiningReward){
 
             var isChecksumValid = this.validateChecksum(transaction);
-            // logger("Is transaction hash valid? :", isChecksumValid);
-    
+           
             let isSignatureValid = await this.validateSignature(transaction)
-            //  logger('Is valid signature? :',isSignatureValid)
-            
-            
-    
+           
             var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
-            // logger("Balance of sender is : ",balanceOfSendingAddr);
-
+           
             var amountIsNotZero = transaction.amount > 0;
-            // logger("Amount is not zero:", amountIsNotZero);
-            var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < 100 * 1024 //10 Kbytes
-            // logger("Transaction Size is not bigger than 10Kb", transactionSizeIsNotTooBig);
-        
-            //implement mining fee
 
-
-            // if(!balanceOfSendingAddr || balanceOfSendingAddr === 0){
-            //   logger('REJECTED: Balance of sending address is 0');
-            //   resolve(false);
-            // }
+            let hasMiningFee = transaction.miningFee > 0; //check size and fee 
+            
+            var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
               
             if(!isChecksumValid){
               logger('REJECTED: Transaction checksum is invalid');
@@ -586,10 +567,10 @@ class Blockchain{
               resolve({error:'REJECTED: Transaction signature is invalid'});
             }
 
-            // if(!amountIsNotZero){
-            //   logger('REJECTED: Amount needs to be higher than zero');
-            //   resolve({error:'REJECTED: Amount needs to be higher than zero'});
-            // }
+            if(!amountIsNotZero){
+              logger('REJECTED: Amount needs to be higher than zero');
+              resolve({error:'REJECTED: Amount needs to be higher than zero'});
+            }
               
             if(!transactionSizeIsNotTooBig){
               logger('REJECTED: Transaction size is above 10KB');
@@ -600,14 +581,14 @@ class Blockchain{
               logger('REJECTED: Sender does not have sufficient funds')
               resolve({error:'REJECTED: Sender does not have sufficient funds'});
             }  
+
           
 
-          }else{
+          }else if(isMiningReward){
             
             let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
 
             if(isValidCoinbaseTransaction.error){
-              // logger(isValidCoinbaseTransaction.error)
               resolve({error:isValidCoinbaseTransaction.error})
             }else if(isValidCoinbaseTransaction.pending){
               resolve({pending:isValidCoinbaseTransaction.pending})
@@ -640,21 +621,14 @@ class Blockchain{
         try{
   
           let isChecksumValid = this.validateChecksum(transaction);
-          // logger("Is transaction hash valid? :", isChecksumValid);
-  
           let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
-          
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
-          // logger('Attached:', isAttachedToMinedBlock != false)
           let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);
-
           let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + transaction.miningFee);
-          // logger('Reward is okay: ', hasTheRightMiningRewardAmount)
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
-          // logger("Transaction Size is not bigger than "+this.transactionSizeLimit+"Kb", transactionSizeIsNotTooBig);
-                
+                  
           if(!isChecksumValid){
-            logger('REJECTED: Coinbase transaction checksum is invalid');
+            // logger('REJECTED: Coinbase transaction checksum is invalid');
             resolve({error:'REJECTED: Transaction checksum is invalid'});
           }
 
@@ -664,22 +638,21 @@ class Blockchain{
           // }
 
           if(isAlreadyInChain){
-            logger('COINBASE TX REJECTED: Already exists in blockchain')
+            // logger('COINBASE TX REJECTED: Already exists in blockchain')
             Mempool.deleteCoinbaseTransaction(transaction)
           }
 
           if(!isAttachedToMinedBlock){
-            logger('COINBASE TX REJECTED: Is not attached to any mined block');
+            // logger('COINBASE TX REJECTED: Is not attached to any mined block');
             resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           }
 
           if(fiveBlocksHavePast != true){
-            // logger('PENDING: Coinbase transaction needs to wait five blocks');
             resolve({ pending:'PENDING: Coinbase transaction needs to wait five blocks' })
           }
             
           if(!transactionSizeIsNotTooBig){
-            logger('COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
+            // logger('COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
             resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
           } 
           
@@ -700,6 +673,35 @@ class Blockchain{
 
   }
 
+  validateAction(action){
+    return new Promise((resolve, reject)=>{
+      if(action){
+        let isChecksumValid = this.validateActionChecksum(action);
+        let isSentByOwner = this.validateActionSignature(action);
+        let hasMiningFee = action.fee > 0; //check if amount is correct
+        let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+        if(!isChecksumValid){
+          resolve({error:"ERROR: Action checksum is invalid"})
+        }
+  
+        if(!isSentByOwner){
+          resolve({error:"ERROR: Signature is not associated with sender account"})
+        }
+  
+        if(!actionIsNotTooBig){
+          resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+        }
+  
+        if(!hasMiningFee){
+          resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
+        }
+  
+        resolve(true);
+      }
+    })
+    
+  }
+
   /**
     Checks if the transaction hash matches it content
     @param {object} $transaction - Transaction to be inspected
@@ -714,6 +716,16 @@ class Blockchain{
     return false;
   }
 
+  validateActionChecksum(action){
+    if(action){
+      if(sha256(action.fromAccount.publicKey + action.type + action.task + action.data + action.fee + action.timestamp + action.contractRef) == action.hash){
+       return true
+      }else{
+        return false;
+      }
+    }
+  }
+
   validateSignature(transaction){
     return new Promise((resolve, reject)=>{
       if(transaction){
@@ -726,6 +738,19 @@ class Blockchain{
       }
     })
   }
+
+  validateActionSignature(action){
+    return new Promise((resolve, reject)=>{
+      if(action){
+        
+        const publicKey = ECDSA.fromCompressedPublicKey(action.fromAccount.publicKey);
+        resolve(publicKey.verify(action.hash, action.signature))
+      }else{
+        resolve(false);
+      }
+    })
+  }
+  
 
   coinbaseTxIsAttachedToBlock(transaction){
     let found = false;
