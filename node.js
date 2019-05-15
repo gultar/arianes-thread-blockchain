@@ -1022,6 +1022,7 @@ class Node {
             }
             
           }else{
+            console.log(data)
             console.log('ERROR: Invalid action structure')
           }
         break
