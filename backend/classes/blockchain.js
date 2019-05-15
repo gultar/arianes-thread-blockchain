@@ -683,11 +683,11 @@ class Blockchain{
 
   }
 
-  validateAction(action){
-    return new Promise((resolve, reject)=>{
+  validateAction(action, account){
+    return new Promise(async (resolve, reject)=>{
       if(action){
-        let isChecksumValid = this.validateActionChecksum(action);
-        let isSentByOwner = this.validateActionSignature(action);
+        let isChecksumValid = await this.validateActionChecksum(action);
+        let isSentByOwner = await this.validateActionSignature(action, account.ownerKey);
         let hasMiningFee = action.fee > 0; //check if amount is correct
         let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
         if(!isChecksumValid){
@@ -749,11 +749,11 @@ class Blockchain{
     })
   }
 
-  validateActionSignature(action){
+  validateActionSignature(action, ownerKey){
     return new Promise((resolve, reject)=>{
       if(action){
         
-        const publicKey = ECDSA.fromCompressedPublicKey(action.fromAccount.publicKey);
+        const publicKey = ECDSA.fromCompressedPublicKey(ownerKey);
         resolve(publicKey.verify(action.hash, action.signature))
       }else{
         resolve(false);

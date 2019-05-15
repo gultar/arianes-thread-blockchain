@@ -1001,8 +1001,8 @@ class Node {
             try{
               let action = JSON.parse(data);
               if(action && isValidActionJSON(action)){
-                
-                this.chain.validateAction(action)
+                let account = this.accountTable.getAccount(action.fromAccount.name)
+                this.chain.validateAction(action, account)
                 .then(isValid =>{
                   if(isValid){
                     //Action will be added to Mempool only is valid and if corresponds with contract call
@@ -1594,7 +1594,8 @@ class Node {
           logger('ERROR: Action could not be emitted. Missing signature')
           resolve({error:'Action could not be emitted. Missing signature'})
         }else{
-          this.chain.validateAction(action)
+          let account = this.accountTable.getAccount(action.fromAccount.name);
+          this.chain.validateAction(action, account)
           .then(valid=>{
             if(valid && !valid.error){
               this.handleAction(action);
