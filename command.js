@@ -15,7 +15,7 @@ program
   .option('-u, --update', 'Tries to update chain by querying for the longest chain in the network')
   .option('-s, --seed', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
-
+  .option('-j, --jsondebug', 'Debugs JSON schema')
 
 program
   .command('start <address> <port>')

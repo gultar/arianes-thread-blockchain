@@ -1018,9 +1018,6 @@ class Node {
                   }
                   
                 })
-              }else{
-                console.log(data)
-                console.log('ERROR: Invalid action structure')
               }
             }catch(e){
               console.log(e)
@@ -1643,7 +1640,7 @@ class Node {
 
   updateAndMine(){
     this.sendPeerMessage('getLongestChain');
-    logger('Querying the network for the longest chain before starting the miner')
+    // logger('Querying the network for the longest chain before starting the miner')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
         this.fetchBlocks(this.longestChain.peerAddress, ()=>{
@@ -1667,7 +1664,7 @@ class Node {
 
   update(){
     this.sendPeerMessage('getLongestChain');
-    logger('Querying the network for the longest chain')
+    // logger('Querying the network for the longest chain')
     setTimeout(()=>{
       if(this.longestChain.peerAddress !== ''){
           this.fetchBlocks(this.longestChain.peerAddress, ()=>{
