@@ -1601,7 +1601,7 @@ class Node {
             if(valid && !valid.error){
               this.handleAction(action);
               if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-              this.sendPeerMessage('action', JSON(action, null, 2)); //Propagate transaction
+              this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
 
               resolve(action)
             }else{
