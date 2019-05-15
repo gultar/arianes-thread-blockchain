@@ -19,7 +19,8 @@ const Blockchain = require('./backend/classes/blockchain');
 const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
-const AccountManager = require('./backend/classes/accountManager')
+const AccountCreator = require('./backend/classes/accountCreator');
+const AccountTable = require('./backend/classes/accountTable')
 /*************Smart Contract VM************** */
 const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
@@ -70,8 +71,8 @@ class Node {
     this.minerPaused = false;
     this.verbose = false;
     this.walletManager = new WalletManager(this.address);
-    this.accountManager = new AccountManager();
-    this.accountTable = {}
+    this.accountCreator = new AccountCreator();
+    this.accountTable = new AccountTable();
     this.longestChain = {
       length:0,
       peerAddress:''
@@ -132,6 +133,15 @@ class Node {
             logger(chalk.red('Could not load list of nodes'))
           }
         })
+
+      this.accountTable.loadAllAccountsFromFile()
+      .then(loaded =>{
+        if(loaded){
+          logger('Loaded account table');
+        }else{
+          logger(chalk.red('Could not load account table'))
+        }
+      })
       
     }catch(e){
       console.log(chalk.red(e));
@@ -746,7 +756,7 @@ class Node {
     })
 
     socket.on('newAccount', (account)=>{
-      this.accountManager.addAccount(account).then((added)=>{
+      this.accountTable.addAccount(account).then((added)=>{
         if(added){
           logger(`New account -${account.name}- has been created!`)
           socket.emit('accountCreationSuccess', account)
@@ -824,15 +834,39 @@ class Node {
       // this.cashInCoinbaseTransactions();
     })
 
-    socket.on('checksum', async ()=>{
-       console.log(this.getChainInfo())
+    socket.on('sumFee', async (number)=>{
+      console.log(this.chain.gatherMiningFees(this.chain.chain[number]))
     })
+
+    socket.on('accounts', ()=>{
+      console.log(this.accountTable.accounts)
+    })
+
+
+    socket.on('deleteAccounts', async()=>{
+      let w = new Wallet();
+      w = await w.importWalletFromFile(`./wallets/8003-b5ac90fbdd1355438a65edd2fabe14e9fcca10ea.json`);
+      let account = this.accountTable.accounts['kayusha'];
+      console.log(w)
+      let unlocked = await w.unlock(this.port)
+      let signature = await w.sign(account.hash);
+      console.log(signature)
+      let deleted = await this.accountTable.deleteAccount('kayusha', signature);
+      if(deleted){
+        logger(`Account kayusha got deleted`);
+      }else{
+        logger('Could not delete kayusha')
+      }
+      
+     })
 	
     socket.on('txSize', (hash)=>{
       if(Mempool.pendingTransactions.hasOwnProperty(hash)){
         let tx = Mempool.pendingTransactions[hash];
         
         logger('Size:'+ (Transaction.getTransactionSize(tx) / 1024) + 'Kb');
+        console.log(tx.miningFee)
+        console.log(this.chain.calculateTransactionMiningFee(tx))
       }else{
         logger('No transaction found');
         socket.emit('message', 'No transaction found')
@@ -1515,7 +1549,8 @@ class Node {
   handleAction(action){
     switch(action.type){
       case 'createAccount':
-        this.accountManager.addAccount(action.data);
+        this.accountTable.addAccount(action.data);
+        //Add account to data table as reference for contracts
         break;
       case 'getValue':
         this.executeAction(action)
@@ -1525,7 +1560,6 @@ class Node {
         break;
       default:
         return false;
-      // break;
     }
 
     Mempool.addAction(action);
@@ -1754,7 +1788,7 @@ class Node {
         Mempool.saveMempool();
         this.walletManager.saveState();
         this.saveNodeConfig()
-
+        this.accountTable.saveTable();
         if(saved == true){
           logger('Successfully saved blockchain file')
           if(callback) callback(true);
@@ -1785,7 +1819,7 @@ class Node {
             this.port = nodeConfig.port;
             this.id = nodeConfig.id;
             this.publicKey = nodeConfig.publicKey;
-            this.accountTable = nodeConfig.accountTable;
+            // this.accountTable = nodeConfig.accountTable;
             logger('Loaded node config')
           }
           
@@ -1804,7 +1838,7 @@ class Node {
       port:this.port,
       id:this.id,
       publicKey:this.publicKey,
-      accountTable:this.accountTable,
+      // accountTable:this.accountTable,
     }
 
     let saved = await writeToFile(JSON.stringify(config, null, 2),'./config/nodeconfig.json');

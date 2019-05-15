@@ -1,0 +1,20 @@
+{
+  "hector": {
+    "name": "hector",
+    "ownerKey": "Aj1KMxhTMoPyYX2uKF9fUmCtZ2BMkt50i0yB0XxjjuJ6",
+    "hash": "89d0c0b6a4ea1914c3dde02102b76f9f158ede7f15a1417072e863cffe172122",
+    "ownerSignature": "Dc61xaqHFQ6ihOSX1m+4I8E1PWLz0wtkU3ph+cblQwERjX/kEFsKClvKPMIlPdBaYbxCMEH4PSmR6jzkwMqpXQ=="
+  },
+  "geo": {
+    "name": "geo",
+    "ownerKey": "Aj1KMxhTMoPyYX2uKF9fUmCtZ2BMkt50i0yB0XxjjuJ6",
+    "hash": "788a2c8b4e0f7075366bc6ac08fb0025601982d442f62d4df79ed1f2a39f3154",
+    "ownerSignature": "cldqWmJv0+6lL4f2hJx1nvEmllXqNoZ/xgeKwp0bYkbbxdK9r4Z9uTTRI52ZwKWSn8sygN7AWliiHqZ7l+hH7w=="
+  },
+  "garmin": {
+    "name": "garmin",
+    "ownerKey": "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG",
+    "hash": "b0a4f0195afb5b7219b59b1d2cfad99bccc8d84038f59cceed97e5e5678103b1",
+    "ownerSignature": "COREfGkQWWCRtSV4DqoHGsTnq37QtL38ecidlhmYKUxYL7L3NOzfQ31YX8f2NZjckGrLMSXm/yPL4LOYXi38Fg=="
+  }
+}

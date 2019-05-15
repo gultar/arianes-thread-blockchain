@@ -1,18 +1,10 @@
 
 /////////////////////Blockchain///////////////////////
 const sha256 = require('../tools/sha256');
-const { initBlockchain } = require('../tools/blockchainHandler')
-const merkle = require('merkle');
-const crypto = require('crypto');
-const fs = require('fs');
-// const { exec } = require('child_process');
-const { MINING_RATE, END_MINING } = require('./globals');
 const { 
   displayTime, 
   logger, 
   RecalculateHash, 
-  merkleRoot, 
-  readFile, 
   writeToFile } = require('../tools/utils');
 const Transaction = require('./transaction');
 const Block = require('./block');
@@ -281,6 +273,24 @@ class Blockchain{
 
           }
         }
+
+      return balance;
+    }
+
+  }
+
+  gatherMiningFees(block){
+    if(block){
+      let balance = 0;
+      var txHashes = Object.keys(block.transactions);
+      var actionHashes = Object.keys(block.actions);
+      for(var hash of txHashes){
+        balance += block.transactions[hash].miningFee;
+      }
+
+      for(var hash of actionHashes){
+        balance += block.actions[hash].fee;
+      }
 
       return balance;
     }
@@ -749,6 +759,21 @@ class Blockchain{
         resolve(false);
       }
     })
+  }
+
+  calculateTransactionMiningFee(transaction){
+    let transactionBeforeSignature = {
+      fromAddress:transaction.fromAddress,
+      toAddress:transaction.toAddress,
+      type:transaction.type,
+      data:transaction.data,
+      timestamp:transaction.timestamp
+    }
+
+    let size = Transaction.getTransactionSize(transactionBeforeSignature);
+    
+    let sizeFee = size * 0.0001;
+    return sizeFee;
   }
   
 

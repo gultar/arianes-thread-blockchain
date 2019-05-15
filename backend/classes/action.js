@@ -1,4 +1,3 @@
-const Transaction = require('./transaction')
 const Wallet = require('./wallet')
 const sha256 = require('../tools/sha256');
 const { logger } = require('../tools/utils');
@@ -36,16 +35,15 @@ class Action{
 
     //Not practical at all
     //Instead, treat as a seperate by transaction-like entity
-    storeInTransaction(senderPublicKey){
-        try{
-            let transaction = new Transaction(senderPublicKey, 'storeInChain', 0, JSON.stringify(this))
-            transaction.type = 'action';
-            return transaction;
-        }catch(e){
-            console.log(e)
-        }
-
-    }
+    // storeInTransaction(senderPublicKey){
+    //     try{
+    //         let transaction = new Transaction(senderPublicKey, 'storeInChain', 0, JSON.stringify(this))
+    //         transaction.type = 'action';
+    //         return transaction;
+    //     }catch(e){
+    //         console.log(e)
+    //     }
+    // }
 
     //Does it actually work?
     signAction(wallet, password, actionHash){

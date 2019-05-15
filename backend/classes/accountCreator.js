@@ -1,7 +1,7 @@
 const WalletManager = require('./walletManager');
 const Account = require('./account')
 
-class AccountManager{
+class AccountCreator{
     constructor(){
         this.accounts = {};
         this.manager = new WalletManager();
@@ -28,33 +28,7 @@ class AccountManager{
         })
     
       }
-
-      addAccount(account){
-        return new Promise((resolve, reject)=>{
-            if(!this.accounts[account.name]){
-                this.accounts[account.name] = account;
-                resolve(true)
-            }else{
-                resolve(false)
-            }
-        })
-      }
-
-      loadAllAccounts(){
-
-      }
-
-      getAccount(){
-        //implement
-      }
-
-      deleteAccount(){
-        //implement
-      }
-
-      executeAction(action){
-
-      }
+      
 }
 
-module.exports = AccountManager
+module.exports = AccountCreator
