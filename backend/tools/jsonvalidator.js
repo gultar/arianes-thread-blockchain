@@ -56,6 +56,7 @@ const isValidActionJSON = (action)=>{
     if(action){
         v.addSchema(schema, "/action")
         let valid = v.validate(action, schema);
+        console.log(valid.errors)
         if(valid.errors.length == 0){
             return true
         }else{

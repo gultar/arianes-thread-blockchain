@@ -999,8 +999,9 @@ class Node {
         case 'action':
          
             try{
-              if(data && isValidActionJSON(data)){
-                let action = JSON.parse(data);
+              let action = JSON.parse(data);
+              if(action && isValidActionJSON(action)){
+                
                 this.chain.validateAction(action)
                 .then(isValid =>{
                   if(isValid){
