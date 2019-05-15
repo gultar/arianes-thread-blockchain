@@ -1000,8 +1000,22 @@ class Node {
           if(data && isValidActionJSON(data)){
             try{
               let action = data;
-              
-              this.handleAction(action);
+              this.chain.validateAction(action)
+              .then(isValid =>{
+                if(isValid){
+                  //Action will be added to Mempool only is valid and if corresponds with contract call
+                  logger(chalk.green('<-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+                  let mapsToContractCall = this.handleAction(action);
+                  if(mapsToContractCall){
+                    //Execution success message
+                    //Need to avoid executing call on everynode simultaneously 
+                    //Also need to avoid any security breach when signing actions
+                  }
+                }else{
+                  logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
+                }
+                
+              })
               
             }catch(e){
               console.log(e)
@@ -1559,10 +1573,12 @@ class Node {
         this.executeAction(action)
         break;
       default:
+        logger('ERROR: Invalid contract call')
         return false;
     }
 
     Mempool.addAction(action);
+    return true;
   }
 
   executeAction(action){
@@ -1581,6 +1597,8 @@ class Node {
             if(valid && !valid.error){
               this.handleAction(action);
               if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
+              this.sendPeerMessage('action', JSON.stringify(action)); //Propagate transaction
+
               resolve(action)
             }else{
               logger('ERROR: Action is invalid')
