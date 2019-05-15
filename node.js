@@ -997,34 +997,35 @@ class Node {
           });
           break;
         case 'action':
-          if(data && isValidActionJSON(data)){
+         
             try{
-              let action = data;
-              this.chain.validateAction(action)
-              .then(isValid =>{
-                if(isValid){
-                  //Action will be added to Mempool only is valid and if corresponds with contract call
-                  logger(chalk.green('<-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
-                  let mapsToContractCall = this.handleAction(action);
-                  if(mapsToContractCall){
-                    //Execution success message
-                    //Need to avoid executing call on everynode simultaneously 
-                    //Also need to avoid any security breach when signing actions
+              if(data && isValidActionJSON(data)){
+                let action = JSON.parse(data);
+                this.chain.validateAction(action)
+                .then(isValid =>{
+                  if(isValid){
+                    //Action will be added to Mempool only is valid and if corresponds with contract call
+                    logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+                    let mapsToContractCall = this.handleAction(action);
+                    if(mapsToContractCall){
+                      //Execution success message
+                      //Need to avoid executing call on everynode simultaneously 
+                      //Also need to avoid any security breach when signing actions
+                    }
+                  }else{
+                    logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
                   }
-                }else{
-                  logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
-                }
-                
-              })
-              
+                  
+                })
+              }else{
+                console.log(data)
+                console.log('ERROR: Invalid action structure')
+              }
             }catch(e){
               console.log(e)
             }
             
-          }else{
-            console.log(data)
-            console.log('ERROR: Invalid action structure')
-          }
+          
         break
         case 'fetchCoinbaseTransaction':
           if(data && typeof data == 'string'){
@@ -1600,7 +1601,7 @@ class Node {
             if(valid && !valid.error){
               this.handleAction(action);
               if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-              this.sendPeerMessage('action', action); //Propagate transaction
+              this.sendPeerMessage('action', JSON(action, null, 2)); //Propagate transaction
 
               resolve(action)
             }else{
