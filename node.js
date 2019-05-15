@@ -1542,7 +1542,7 @@ class Node {
                   this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                   
-                  this.sendPeerMessage('transaction', JSON.stringify(transaction)); //Propagate transaction
+                  this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
                   resolve(transaction)
 
                 }else{
@@ -1600,7 +1600,7 @@ class Node {
             if(valid && !valid.error){
               this.handleAction(action);
               if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-              this.sendPeerMessage('action', JSON.stringify(action)); //Propagate transaction
+              this.sendPeerMessage('action', action); //Propagate transaction
 
               resolve(action)
             }else{
