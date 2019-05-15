@@ -1021,6 +1021,8 @@ class Node {
               console.log(e)
             }
             
+          }else{
+            console.log('ERROR: Invalid action structure')
           }
         break
         case 'fetchCoinbaseTransaction':
