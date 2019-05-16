@@ -675,6 +675,7 @@ class Node {
      })
 
      socket.on('directMessage', (data)=>{
+       console.log(data);
       var { type, originAddress, targetAddress, messageId, data } = data
       this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
      })
@@ -835,6 +836,7 @@ class Node {
     })
 
     socket.on('dm', (address, message)=>{
+      console.log(`Sending: ${message} to ${address}`)
       this.sendDirectMessage('message', address, message)
     })
 
@@ -925,11 +927,12 @@ class Node {
         var shaInput = (Math.random() * Date.now()).toString()
         var messageId = sha256(shaInput);
         this.messageBuffer[messageId] = messageId;
+        
         this.broadcast('directMessage', { 
          'type':type,
-         'messageId':messageId, 
          'originAddress':this.address, 
          'targetAddress':targetAddress, 
+         'messageId':messageId, 
          'data':data 
         });
 
