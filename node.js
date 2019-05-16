@@ -834,6 +834,10 @@ class Node {
       // this.cashInCoinbaseTransactions();
     })
 
+    socket.on('dm', (address, message)=>{
+      this.sendDirectMessage('message', address, message)
+    })
+
     socket.on('sumFee', async (number)=>{
       console.log(this.chain.gatherMiningFees(this.chain.chain[number]))
     })
@@ -913,7 +917,7 @@ class Node {
     }
   }
 
-  sendDirectMessage(type, data){
+  sendDirectMessage(type, targetAddress, data){
     if(type){
       try{
         if(typeof data == 'object')
