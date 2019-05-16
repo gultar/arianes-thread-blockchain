@@ -1128,9 +1128,9 @@ class Node {
           break;
           case 'addressRequest':
           break;
-          default:
-
-          break;
+          case 'message':
+              console.log(`!Received message from: ${originAddress}: ${data}`)
+            break;
         }
       }else if(this.connectionsToPeers[targetAddress]){
 
