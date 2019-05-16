@@ -162,6 +162,11 @@ class Relay{
             peer.on('message', (message)=>{
                 logger('Server: ' + message);
             })
+
+            peer.on('directMessage', (data)=>{
+              var { type, originAddress, targetAddress, messageId, data } = data
+              this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
+            })
   
             peer.on('getAddr', ()=>{
               peer.emit('addr', this.nodeList);
@@ -337,9 +342,9 @@ class Relay{
             break;
           }
         }else if(this.connectionsToPeers[targetAddress]){
-  
+          this.connectionsToPeers[targetAddress].emit('directMessage', directMessage)
         }else if(this.peersConnected[targetAddress]){
-          
+          this.peersConnected[targetAddress].emit('directMessage', directMessage)
         }else{
           this.messageBuffer[messageId] = directMessage;
           this.broadcast('directMessage', directMessage)

@@ -675,7 +675,7 @@ class Node {
      })
 
      socket.on('directMessage', (data)=>{
-       console.log(data);
+      
       var { type, originAddress, targetAddress, messageId, data } = data
       this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
      })
@@ -1140,9 +1140,9 @@ class Node {
             break;
         }
       }else if(this.connectionsToPeers[targetAddress]){
-
+        this.connectionsToPeers[targetAddress].emit('directMessage', directMessage)
       }else if(this.peersConnected[targetAddress]){
-
+        this.peersConnected[targetAddress].emit('directMessage', directMessage)
       }else{
         this.messageBuffer[messageId] = directMessage;
         this.broadcast('directMessage', directMessage)
