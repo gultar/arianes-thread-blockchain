@@ -1001,6 +1001,7 @@ class Node {
             try{
               let action = JSON.parse(data);
               if(action && isValidActionJSON(action)){
+                //Check if is owner of contract or has permission
                 let account = this.accountTable.getAccount(action.fromAccount.name)
                 this.chain.validateAction(action, account)
                 .then(isValid =>{
@@ -1127,7 +1128,8 @@ class Node {
           break;
           case 'addressRequest':
           break;
-          case '':
+          default:
+
           break;
         }
       }else if(this.connectionsToPeers[targetAddress]){

@@ -239,6 +239,11 @@ class Relay{
           var { type, originAddress, messageId, data } = data
           this.handlePeerMessage(type, originAddress, messageId, data);
         })
+
+        socket.on('directMessage', (data)=>{
+          var { type, originAddress, targetAddress, messageId, data } = data
+          this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
+        })
    
         socket.on('getPeers', ()=>{
            socket.emit('address', this.nodeList.addresses);
@@ -303,6 +308,47 @@ class Relay{
         this.broadcast('peerMessage', peerMessage)
       }
     }
+
+    handleDirectMessage(type, originAddress, targetAddress, messageId, data){
+      let directMessage = { 
+        'type':type, 
+        'originAddress':originAddress, 
+        'targetAddress':targetAddress, 
+        'messageId':messageId, 
+        'data':data 
+      }
+      if(!this.messageBuffer[messageId]){
+  
+        if(directMessage.originAddress == directMessage.targetAddress){
+          return false;
+        }
+  
+        if(this.address == directMessage.targetAddress){
+          switch(type){
+            case 'peerRequest':
+            break;
+            case 'accountRequest':
+            break;
+            case 'addressRequest':
+            break;
+
+            case 'message':
+              console.log(`!Received message from: ${originAddress}: ${data}`)
+            break;
+          }
+        }else if(this.connectionsToPeers[targetAddress]){
+  
+        }else if(this.peersConnected[targetAddress]){
+          
+        }else{
+          this.messageBuffer[messageId] = directMessage;
+          this.broadcast('directMessage', directMessage)
+        }
+        
+      }
+      
+    }
+  
   
     requestKnownPeers(address){
 
@@ -331,7 +377,7 @@ module.exports = Relay;
 
 const tryOut = () =>{
   let nodes = [];
-  let numberOfNodesToGenerate = 10
+  let numberOfNodesToGenerate = 4
   for(var i=0; i<numberOfNodesToGenerate ;i++){
     let address = '10.10.10.10';
     let port = 9000 + i;
