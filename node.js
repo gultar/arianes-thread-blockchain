@@ -1245,7 +1245,7 @@ class Node {
           case 'addressRequest':
           break;
           case 'chainLength':
-            const { length, peerAddress } = data;
+            const length = data
             logger(chalk.blue(`Received Chain Length ${length} from ${originAddress}`))
             if(this.longestChain.length < length && this.nodeList.addresses.includes(peerAddress)){
               
