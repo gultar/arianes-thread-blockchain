@@ -1196,8 +1196,8 @@ class Node {
               })
             }
             this.sendDirectMessage('chainLength', originAddress, {
-              length:this.chain.chain.length, 
-              peerAddress:this.address,
+              length:this.chain.chain.length,
+              peerAddress:this.address
             })
             
           }catch(e){
