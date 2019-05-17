@@ -195,6 +195,117 @@ class Node {
     this.ioServer.on('disconnect', ()=>{ logger('a node has disconnected') })
 
     this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
+  }startServer(app=express()){
+    try{
+
+      console.log(chalk.cyan('\n******************************************'))
+      console.log(chalk.cyan('*')+' Starting node at '+this.address);
+      console.log(chalk.cyan('******************************************\n'))
+      // const expressWs = require('express-ws')(app);
+      app.use(express.static(__dirname+'/views'));
+      express.json({ limit: '300kb' })
+      app.use(helmet())
+      const server = http.createServer(app).listen(this.port);
+      this.loadNodeConfig()
+      this.initHTTPAPI(app);
+      this.connectToKeyServer()
+      this.cleanMessageBuffer();
+      this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
+      
+      //Loading blockchain from file
+      initBlockchain()
+        .then(chain => {
+          if(chain){
+            logger('Blockchain successfully loaded')
+            this.chain = chain;
+
+            //Loading transaction Mempool
+            Mempool.loadMempool()
+            .then((mempoolLoaded)=>{
+              if(mempoolLoaded){
+                logger('Loaded transaction mempool');
+                logger('Number of transactions in pool: '+Mempool.sizeOfPool());
+              }else{
+                logger(chalk.red('ERROR: Could not load mempool'))
+              }
+            })
+
+          }else{
+            logger(chalk.red('ERROR: Could not init blockchain'))
+          }
+        })
+
+      //Loading list of known peer addresses
+      this.nodeList.loadNodeList()
+        .then(loaded =>{
+          if(loaded){
+            logger('Loaded list of known nodes')
+          }else{
+            logger(chalk.red('Could not load list of nodes'))
+          }
+        })
+
+      this.accountTable.loadAllAccountsFromFile()
+      .then(loaded =>{
+        if(loaded){
+          logger('Loaded account table');
+        }else{
+          logger(chalk.red('Could not load account table'))
+        }
+      })
+      
+    }catch(e){
+      console.log(chalk.red(e));
+    }
+
+    this.ioServer.on('connection', (socket) => {
+      if(socket){
+         if(socket.handshake.query.token !== undefined){
+             try{
+               socket.on('message', (msg) => { logger('Client:', msg); });
+
+               let peerToken = JSON.parse(socket.handshake.query.token);
+               let peerAddress = peerToken.address;
+               let peerPublicKey = peerToken.publicKey
+               let peerChecksumObj = peerToken.checksum;
+
+               if(peerChecksumObj){
+                let peerTimestamp = peerChecksumObj.timestamp;
+                let peerRandomOrder = peerChecksumObj.randomOrder;
+                let peerChecksum = peerChecksumObj.checksum
+
+                let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
+              
+                if(isValid){
+                  this.peersConnected[peerAddress] = socket;
+                  this.nodeList.addNewAddress(peerAddress);
+                  this.nodeEventHandlers(socket);
+                }else{
+                  socket.emit('message', 'Connected to local node');
+                  this.externalEventHandlers(socket);
+                }
+               }
+               
+
+               
+
+             }catch(e){
+               console.log(chalk.red(e))
+             }
+
+         }else{
+           socket.emit('message', 'Connected to local node')
+           this.externalEventHandlers(socket);
+         }
+      }else{
+        logger(chalk.red('ERROR: Could not create socket'))
+      }
+
+    });
+
+    this.ioServer.on('disconnect', ()=>{ logger('a node has disconnected') })
+
+    this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
   }
 
   joinPeers(){
@@ -239,10 +350,11 @@ class Node {
             'query':
             {
               token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey, 'checksum':{
-                timestamp:timestamp,
-                randomOrder:randomOrder,
-                checksum:checksum
-              } }),
+                  timestamp:timestamp,
+                  randomOrder:randomOrder,
+                  checksum:checksum
+                } 
+              }),
               
             }
           });
@@ -640,10 +752,6 @@ class Node {
           res.json(this.chain.getBlockHeader(blockNumber)).end()
         }
       })
-
-      // app.post('/createAccount', (req, res)=>{
-
-      // })
 
     }catch(e){
       logger(e)
@@ -1087,6 +1195,10 @@ class Node {
                 console.log(chalk.red(e))
               })
             }
+            this.sendDirectMessage('chainLength', originAddress, {
+              length:this.chain.chain.length, 
+              peerAddress:this.address,
+            })
             
           }catch(e){
             console.log(chalk.red(e))
@@ -1134,6 +1246,16 @@ class Node {
           case 'accountRequest':
           break;
           case 'addressRequest':
+          break;
+          case 'chainLength':
+            const { length, peerAddress } = data;
+            logger(chalk.blue(`Received Chain Length ${length} from ${peerAddress}`))
+            if(this.longestChain.length < length && this.nodeList.addresses.includes(peerAddress)){
+              
+              this.longestChain.length = length;
+              this.longestChain.peerAddress = peerAddress
+              logger(peerAddress+' has sent its chain length: '+length)
+            }
           break;
           case 'message':
               console.log(`!Received message from: ${originAddress}: ${data}`)

@@ -7,7 +7,7 @@ const RateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
-const { logger } = require('../tools/utils');
+const { logger, readFile } = require('../tools/utils');
 const sha256 = require('../tools/sha256');
 const sha1 = require('sha1');
 const axios = require('axios');
@@ -34,16 +34,18 @@ class Relay{
 
     startServer(app=express()){
       try{
-        logger(`Starting relay at ${this.address}`)
-        const expressWs = require('express-ws')(app);
+  
+        console.log(chalk.cyan('\n******************************************'))
+        console.log(chalk.cyan('*')+' Starting node at '+this.address);
+        console.log(chalk.cyan('******************************************\n'))
+        // const expressWs = require('express-ws')(app);
         app.use(express.static(__dirname+'/views'));
         express.json({ limit: '300kb' })
         app.use(helmet())
         const server = http.createServer(app).listen(this.port);
-  
+        
         this.cleanMessageBuffer();
         this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
-      
         
       }catch(e){
         console.log(chalk.red(e));
@@ -51,28 +53,30 @@ class Relay{
   
       this.ioServer.on('connection', (socket) => {
         if(socket){
-          let peerAddress;
-          let peerToken;
            if(socket.handshake.query.token !== undefined){
                try{
                  socket.on('message', (msg) => { logger('Client:', msg); });
   
-                 peerToken = JSON.parse(socket.handshake.query.token);
-                 peerAddress = peerToken.address
+                 let peerToken = JSON.parse(socket.handshake.query.token);
+                 let peerAddress = peerToken.address;
+                 let peerPublicKey = peerToken.publicKey
+                 let peerChecksumObj = peerToken.checksum;
   
-                 if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
+                 if(peerChecksumObj){
+                  let peerTimestamp = peerChecksumObj.timestamp;
+                  let peerRandomOrder = peerChecksumObj.randomOrder;
+                  let peerChecksum = peerChecksumObj.checksum
   
-                   this.peersConnected[peerAddress] = socket;
-                   if(!this.nodeList.includes(peerAddress)){
-                    this.nodeList.push(peerAddress);
-                   }
-                      
-                   this.nodeEventHandlers(socket)
-  
-                 }else{
-                   socket.emit('message', 'Connected to local node');
-                   this.externalEventHandlers(socket);
+                  let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
+                
+                  if(isValid){
+                    this.peersConnected[peerAddress] = socket;
+                    this.nodeEventHandlers(socket);
+                  }
                  }
+                 
+  
+                 
   
                }catch(e){
                  console.log(chalk.red(e))
@@ -111,31 +115,38 @@ class Relay{
 
     connectToPeer(address, callback){
 
-      if(address){
+      if(address && this.address !== address){
         if(this.connectionsToPeers[address] == undefined){
           let connectionAttempts = 0;
           let peer;
+          let timestamp = Date.now();
+          let randomOrder = Math.random();
+          let checksum = this.validateChecksum(timestamp, randomOrder)
           try{
             peer = ioClient(address, {
               'reconnection limit' : 1000,
               'max reconnection attempts' : 3,
               'query':
               {
-                token: JSON.stringify({ 'address':this.address })
+                token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey, 'checksum':{
+                  timestamp:timestamp,
+                  randomOrder:randomOrder,
+                  checksum:checksum
+                } }),
+                
               }
             });
   
             peer.heartbeatTimeout = 120000;
   
-            // logger('Requesting connection to '+ address+ ' ...');
-            
+            logger('Requesting connection to '+ address+ ' ...');
   
             peer.on('connect_timeout', (timeout)=>{
               if(connectionAttempts >= 3) { 
                 peer.destroy()
                 delete this.connectionsToPeers[address];
               }else{
-                // logger('Connection attempt to address '+address+' timed out.\n'+(4 - connectionAttempts)+' attempts left');
+                logger('Connection attempt to address '+address+' timed out.\n'+(4 - connectionAttempts)+' attempts left');
                 connectionAttempts++;
               }
                 
@@ -143,16 +154,13 @@ class Relay{
   
             peer.on('connect', () =>{
               if(!this.connectionsToPeers.hasOwnProperty(address)){
-                //Console output
-                logger(chalk.green(`${this.address} connected to ${address}`))
-                
-                //Messages emitted to peer
-                // peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
+  
+                logger(chalk.green('Connected to ', address))
+                peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
                 peer.emit('connectionRequest', this.address);
-                // this.sendPeerMessage('addressBroadcast');
-                //Handling of socket and peer address
+                this.sendPeerMessage('addressBroadcast');
+                
                 this.connectionsToPeers[address] = peer;
-                this.nodeList.push(address)
                 
               }else{
                 logger('Already connected to target node')
@@ -162,14 +170,9 @@ class Relay{
             peer.on('message', (message)=>{
                 logger('Server: ' + message);
             })
-
-            peer.on('directMessage', (data)=>{
-              var { type, originAddress, targetAddress, messageId, data } = data
-              this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
-            })
   
             peer.on('getAddr', ()=>{
-              peer.emit('addr', this.nodeList);
+              peer.emit('addr', this.nodeList.addresses);
             })
   
             peer.on('disconnect', () =>{
@@ -192,8 +195,6 @@ class Relay{
         }else{
         }
   
-      }else{
-        logger(chalk.red('ERROR: Address in undefined'));
       }
     }
   
@@ -368,13 +369,53 @@ class Relay{
         }, 30000)
     }
 
-    // UILog(message, arg){
-    //     if(arg){
-    //       this.outputToUI(message, arg)
-    //     }else{
-    //       this.outputToUI(message)
-    //     }
-    // }
+    async validateChecksum(timestamp, randomOrder){
+      let nodeChecksum = '';
+      let blockchainChecksum = '';
+      let blockChecksum = '';
+      let challengeChecksum = '';
+      let transactionChecksum = '';
+  
+      let nodeFile = await readFile('./node.js');
+      let blockchainFile = await readFile(`./backend/classes/blockchain.js`);
+      let blockFile = await readFile(`./backend/classes/block.js`);
+      let challengeFile = await readFile(`./backend/classes/challenge.js`);
+      let transactionFile = await readFile(`./backend/classes/transaction.js`);
+  
+      if(nodeFile && blockchainFile && blockFile && challengeFile && transactionFile){
+        nodeChecksum = await sha256(nodeFile)
+        blockchainChecksum = await sha256(blockchainFile)
+        blockChecksum = await sha256(blockFile)
+        challengeChecksum = await sha256(challengeFile)
+        transactionChecksum = await sha256(transactionFile);
+  
+        let checksumArray = [
+          nodeChecksum,
+          blockchainChecksum,
+          blockChecksum,
+          challengeChecksum,
+          transactionChecksum
+        ]
+    
+        checksumArray.sort((a, b)=>{
+          return 0.5 - randomOrder;
+        })
+    
+        let finalChecksum
+        checksumArray.forEach( checksum=>{
+          finalChecksum = finalChecksum + checksum;
+        })
+    
+        finalChecksum = sha256(finalChecksum + timestamp.toString()) ;
+        return finalChecksum;
+  
+      }else{
+        return false;
+      }
+      
+      
+  
+    }
 
 }
 
