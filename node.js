@@ -1186,16 +1186,17 @@ class Node {
         case 'getLongestChain':
           try{
             if(this.chain instanceof Blockchain){
-              axios.post(originAddress+'/chainLength', {
-                length:this.chain.chain.length,
-                peerAddress:this.address
-              }).then((response)=>{
+              // axios.post(originAddress+'/chainLength', {
+              //   length:this.chain.chain.length,
+              //   peerAddress:this.address
+              // }).then((response)=>{
   
-              }).catch((e)=>{
-                console.log(chalk.red(e))
-              })
+              // }).catch((e)=>{
+              //   console.log(chalk.red(e))
+              // })
+              this.sendDirectMessage('chainLength', originAddress, this.chain.chain.length)
             }
-            this.sendDirectMessage('chainLength', originAddress, this.chain.chain.length)
+            
             
           }catch(e){
             console.log(chalk.red(e))
@@ -1246,7 +1247,7 @@ class Node {
           break;
           case 'chainLength':
             const length = data
-            logger(chalk.blue(`Received Chain Length ${length} from ${originAddress}`))
+            
             if(this.longestChain.length < length && this.nodeList.addresses.includes(originAddress)){
               
               this.longestChain.length = length;
