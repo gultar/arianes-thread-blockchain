@@ -1195,10 +1195,7 @@ class Node {
                 console.log(chalk.red(e))
               })
             }
-            this.sendDirectMessage('chainLength', originAddress, {
-              length:this.chain.chain.length,
-              peerAddress:this.address
-            })
+            this.sendDirectMessage('chainLength', originAddress, this.chain.chain.length)
             
           }catch(e){
             console.log(chalk.red(e))
@@ -1249,7 +1246,7 @@ class Node {
           break;
           case 'chainLength':
             const { length, peerAddress } = data;
-            logger(chalk.blue(`Received Chain Length ${length} from ${peerAddress}`))
+            logger(chalk.blue(`Received Chain Length ${length} from ${originAddress}`))
             if(this.longestChain.length < length && this.nodeList.addresses.includes(peerAddress)){
               
               this.longestChain.length = length;
