@@ -1782,7 +1782,7 @@ class Node {
         return this.updateAndMine()
       }
 
-    },8000)
+    },3000)
   }
 
   forceMine(){
@@ -1804,7 +1804,7 @@ class Node {
         return this.update();
       }
 
-    },8000)
+    },3000)
   }
 
   /**
