@@ -1247,11 +1247,11 @@ class Node {
           case 'chainLength':
             const length = data
             logger(chalk.blue(`Received Chain Length ${length} from ${originAddress}`))
-            if(this.longestChain.length < length && this.nodeList.addresses.includes(peerAddress)){
+            if(this.longestChain.length < length && this.nodeList.addresses.includes(originAddress)){
               
               this.longestChain.length = length;
-              this.longestChain.peerAddress = peerAddress
-              logger(peerAddress+' has sent its chain length: '+length)
+              this.longestChain.peerAddress = originAddress
+              logger(originAddress+' has sent its chain length: '+length)
             }
           break;
           case 'message':
