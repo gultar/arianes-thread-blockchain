@@ -16,5 +16,23 @@
     "ownerKey": "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG",
     "hash": "b0a4f0195afb5b7219b59b1d2cfad99bccc8d84038f59cceed97e5e5678103b1",
     "ownerSignature": "COREfGkQWWCRtSV4DqoHGsTnq37QtL38ecidlhmYKUxYL7L3NOzfQ31YX8f2NZjckGrLMSXm/yPL4LOYXi38Fg=="
+  },
+  "helix": {
+    "name": "helix",
+    "ownerKey": "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG",
+    "hash": "332b1b0f8761c0ed5cde2d2a35145c0d58a19f4567fbe38fc8444a48d5b345b0",
+    "ownerSignature": "VPLnCeIdtUHSXv+PyLa078d4kXFedDtSIUxTzE/hHgSMd/79YUDlCSnWMTnk5Hgls241+P74UDMv/H4BP6TEMw=="
+  },
+  "felix": {
+    "name": "felix",
+    "ownerKey": "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG",
+    "hash": "02eac7c6b6b13bc8153c28f671d48521b3c8cbeed2e6cd33318a88947d5bb736",
+    "ownerSignature": "M23xg12jHMzML+Qb2vqpLgdEgqT7YGDw954MBaa8J5t2o64c/E7aTbeEjPH9oMLb0i7Ajgdu5Cq2ZFtq8wl2qw=="
+  },
+  "jules": {
+    "name": "jules",
+    "ownerKey": "Aj1KMxhTMoPyYX2uKF9fUmCtZ2BMkt50i0yB0XxjjuJ6",
+    "hash": "295fd5f9c3c6074c263c106c2b7e15bb1ead6575ff9e09c1c67a25c9d9db7e0e",
+    "ownerSignature": "8sQEf9+fzSAkYkQhKXLQpyw+xfn9U2QrTviz0eeiUfmV7z2DcEg7grWZ3WMooN1FzjD7CIXI8PlZf4NLMqBlAg=="
   }
 }

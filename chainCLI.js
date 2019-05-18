@@ -2,13 +2,13 @@
 
 const program = require('commander');
 const ioClient = require('socket.io-client');
-const axios = require('axios');
-const AccountCreator = require('./backend/classes/accountCreator');
-const WalletManager = require('./backend/classes/walletManager');
-const AccountTable = require('./backend/classes/accountTable');
-const Transaction = require('./backend/classes/transaction')
-const Action = require('./backend/classes/action');
-const sha1 = require('sha1');
+// const axios = require('axios');
+// const AccountCreator = require('./backend/classes/accountCreator');
+// const WalletManager = require('./backend/classes/walletManager');
+// const AccountTable = require('./backend/classes/accountTable');
+// const Transaction = require('./backend/classes/transaction')
+// const Action = require('./backend/classes/action');
+// const sha1 = require('sha1');
 
 //Commands to implement
 //Version
@@ -85,99 +85,100 @@ program
     })
 })
 
-program
-.command('createaccount <address> <name> <walletName> <password>')
-.description('Requests some general information about the blockchain')
-.action((address, name, walletName, password)=>{
-    openSocket(address, async (socket)=>{
-            let accountCreator = new AccountCreator();
-            let walletManager = new WalletManager();
+// program
+// .command('createaccount <address> <accountName> <walletName> <password>')
+// .description('Requests some general information about the blockchain')
+// .action((address, accountName, walletName, password)=>{
+//     openSocket(address, async (socket)=>{
+//             let accountCreator = new AccountCreator();
+// //             let walletManager = new WalletManager();
 
-            let newAccount = await accountCreator.createAccount(name, walletName, password);
-            let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
+//             let newAccount = await accountCreator.createAccount(accountName, walletName, password);
+//             let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
 
-            let action = new Action({ 
-                name:newAccount.name, 
-                publicKey:newAccount.ownerKey 
-            }, 'createAccount', 'create', newAccount);
+//             let action = new Action({ 
+//                 name:newAccount.name, 
+//                 publicKey:newAccount.ownerKey 
+//             }, 'account', 'create', newAccount);
             
-            walletManager.unlockWallet(walletName, password)
-            .then(async (unlocked)=>{
+//             walletManager.unlockWallet(walletName, password)
+//             .then(async (unlocked)=>{
                 
-                if(unlocked){
-                    let signature = await wallet.sign(action.hash)
-                    if(signature){
-                        action.signature = signature;
+//                 if(unlocked){
+//                     let signature = await wallet.sign(action.hash)
+//                     if(signature){
+//                         action.signature = signature;
                         
-                        axios.post(`${address}/action`, action)
-                        .then( response => {
-                            console.log(response.data);
-                        })
-                        .catch(e => console.log(e))
-                        socket.close()
-                    }else{
-                        console.log('ERROR: Could not sign action')
-                    }
+//                         axios.post(`${address}/action`, action)
+//                         .then( response => {
+//                             console.log(response.data);
+//                         })
+//                         .catch(e => console.log(e))
+//                         socket.close()
+//                     }else{
+//                         console.log('ERROR: Could not sign action')
+//                     }
                     
 
-                }else{
-                    console.log('ERROR: Could not unlock wallet')
-                }
-            })
+//                 }else{
+//                     console.log('ERROR: Could not unlock wallet')
+//                 }
+//             })
         
-    })
-})
+//     })
+// })
 
-program
-.command('action <address> <accountName> <walletName> <password>')
-.description('Requests some general information about the blockchain')
-.action((address, accountName, walletName, password)=>{
+// program
+// .command('action <address> <accountName> <walletName> <password>')
+// .description('Requests some general information about the blockchain')
+// .action((address, accountName, walletName, password)=>{
 
-            openSocket(address, async (socket)=>{
+//             openSocket(address, async (socket)=>{
 
-                let accountTable = new AccountTable();
+//                 let accountTable = new AccountTable();
                 
-                let loaded = await accountTable.loadAllAccountsFromFile();
+//                 let loaded = await accountTable.loadAllAccountsFromFile();
                 
-                let account = await accountTable.getAccount(accountName)
+//                 let account = await accountTable.getAccount(accountName)
                 
-                let walletManager = new WalletManager();
-                let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
+//                 let walletManager = new WalletManager();
+//                 let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
 
 
-                let action = new Action({ 
-                    name:account.name, 
-                    publicKey:account.ownerKey 
-                }, 'getValue', 'action');
+//                 let action = new Action({ 
+//                     name:account.name, 
+//                     publicKey:account.ownerKey 
+//                 }, 'getValue', 'action');
                 
-                walletManager.unlockWallet(walletName, password)
-                .then(async (unlocked)=>{
+//                 walletManager.unlockWallet(walletName, password)
+//                 .then(async (unlocked)=>{
                     
-                    if(unlocked){
-                        let signature = await wallet.sign(action.hash)
-                        if(signature){
-                            action.signature = signature;
+//                     if(unlocked){
+//                         let signature = await wallet.sign(action.hash)
+//                         if(signature){
+//                             action.signature = signature;
                             
-                            axios.post(`${address}/action`, action)
-                            .then( response => {
-                                console.log(response.data);
-                            })
-                            .catch(e => console.log(e))
-                            socket.close()
-                        }else{
-                            console.log('ERROR: Could not sign action')
-                        }
+//                             axios.post(`${address}/action`, action)
+//                             .then( response => {
+//                                 console.log(response.data);
+//                             })
+//                             .catch(e => console.log(e))
+//                             socket.close()
+//                         }else{
+//                             console.log('ERROR: Could not sign action')
+//                         }
                         
 
-                    }else{
-                        console.log('ERROR: Could not unlock wallet')
-                    }
-                })
+//                     }else{
+//                         console.log('ERROR: Could not unlock wallet')
+//                     }
+//                 })
             
-        })
+//         })
 
     
-})
+// })
+
 
 
 program.parse(process.argv)

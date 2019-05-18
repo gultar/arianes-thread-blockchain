@@ -69,34 +69,7 @@ const transactionCreator = ()=>{
                             console.log(chalk.red(e))
                             resolve(false)
                         })
-                        // if(wallet){
-                        //     let unlocked = await wallet.unlock(password);
-                        //     if(unlocked){
-                        //         let signature = await wallet.sign(transaction.hash)
-                        //         if(signature){
-                        //             transaction.signature = signature;
-                        //             axios.post('http://localhost:3000/transaction', transaction)
-                        //             .then((response)=>{
-                        //               console.log(response.data)
-                        //               resolve(true)
-  
-                        //             }).catch((e)=>{
-                        //               console.log(chalk.red(e))
-                        //               resolve(false)
-                        //             })
-                        //         }else{
-                        //             console.log('ERROR: Could not sign transaction')
-                        //             resolve(false)
-                        //         }
-                        //     }else{
-                        //         console.log('ERROR: Could not unlock wallet')
-                        //         resolve(false)
-                        //     }
-                            
-                        // }else{
-                        //     console.log(`ERROR: Wallet ${credentials.walletName} not found`)
-                        //     resolve(false)
-                        // }
+                        
                     })
     
                     

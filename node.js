@@ -614,15 +614,17 @@ class Node {
                 res.send(actionEmitted.error)
               }
             })
-            .catch((e)=>{
-              console.log(chalk.red(e));
-            })
+            // .catch((e)=>{
+            //   console.log(chalk.red(e));
+
+            // })
           }else{
             res.send('ERROR: Invalid transaction format')
           }
           
         }catch(e){
           console.log(chalk.red(e))
+          res.send("ERROR: An Error occurred")
         }
         
       });
@@ -864,18 +866,18 @@ class Node {
       socket.emit('block', blockInfo)
     })
 
-    socket.on('newAccount', (account)=>{
-      this.accountTable.addAccount(account).then((added)=>{
-        if(added){
-          logger(`New account -${account.name}- has been created!`)
-          socket.emit('accountCreationSuccess', account)
-          this.sendPeerMessage('newAccount', account)
-        }else{
-          socket.emit('accountCreationError', 'ERROR: Could not add account')
-        }
-      })
+    // socket.on('newAccount', (account)=>{
+    //   this.accountTable.addAccount(account).then((added)=>{
+    //     if(added){
+    //       logger(`New account -${account.name}- has been created!`)
+    //       socket.emit('accountCreationSuccess', account)
+    //       this.sendPeerMessage('newAccount', account)
+    //     }else{
+    //       socket.emit('accountCreationError', 'ERROR: Could not add account')
+    //     }
+    //   })
       
-    })
+    // })
 
     socket.on('getBlockSize', (number)=>{
       socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
@@ -952,8 +954,14 @@ class Node {
       console.log(this.chain.gatherMiningFees(this.chain.chain[number]))
     })
 
-    socket.on('accounts', ()=>{
-      console.log(this.accountTable.accounts)
+    socket.on('getAccounts', (ownerKey)=>{
+      if(ownerKey){
+        let accounts = this.accountTable.getAccountsOfKey(ownerKey)
+        socket.emit('accounts', accounts)
+      }else{
+        socket.emit('accounts', this.accountTable.accounts)
+      }
+        
     })
 
 
@@ -1693,9 +1701,10 @@ class Node {
 
   handleAction(action){
     switch(action.type){
-      case 'createAccount':
-        this.accountTable.addAccount(action.data);
-        //Add account to data table as reference for contracts
+      case 'account':
+        if(action.task == 'create'){
+          this.accountTable.addAccount(action.data);
+        }
         break;
       case 'getValue':
         this.executeAction(action)
@@ -1719,25 +1728,37 @@ class Node {
   broadcastNewAction(action){
     return new Promise((resolve, reject)=>{
       try{
+
+        let linkedAccount = this.accountTable.getAccount(action.fromAccount.name);
+
         if(!action.signature){
           logger('ERROR: Action could not be emitted. Missing signature')
           resolve({error:'Action could not be emitted. Missing signature'})
         }else{
-          let account = this.accountTable.getAccount(action.fromAccount.name);
-          this.chain.validateAction(action, account)
-          .then(valid=>{
-            if(valid && !valid.error){
-              this.handleAction(action);
-              if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-              this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
 
-              resolve(action)
-            }else{
-              logger('ERROR: Action is invalid')
-              resolve({error:valid.error})
-            }
-          })
+          if(action.type == 'account' && action.task == 'create' && linkedAccount ){
+            resolve({error:"Account already exists"});
+            
+          }else{
+            this.chain.validateAction(action, linkedAccount)
+            .then(valid=>{
+              if(valid && !valid.error){
+                this.handleAction(action);
+                if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
+                this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
+
+                resolve(action)
+              }else{
+                logger('ERROR: Action is invalid')
+                resolve({error:valid.error})
+              }
+            })
+          }
+          
         }
+        
+        
+        
       }catch(e){
         console.log(e)
       }

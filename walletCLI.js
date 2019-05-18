@@ -3,6 +3,8 @@
 const program = require('commander');
 const fs = require('fs');
 const WalletQueryTool = require('./backend/classes/walletQueryTool');
+const Transaction = require('./backend/classes/transaction');
+const { readFile } = require('./backend/tools/utils');
 const txgen = require('./backend/tools/_tempTxgen');
 let api = new WalletQueryTool();
  
@@ -53,14 +55,14 @@ const runWalletCLI = async () =>{
     
         program
           .command('load <walletName>')
-          .description('Loads and activates a wallet file')
+          .description('Loads a wallet on keyserver')
           .action(( walletName)=>{
               api.loadWallet(walletName)
           })
 
         program
           .command('unlock <walletName> <password> [numberOfSeconds]')
-          .description('Gets wallet data')
+          .description('Unlocks target wallet')
           .action(( walletName, password, numberOfSeconds)=>{
               api.unlockWallet(walletName, password, numberOfSeconds)
           })
@@ -72,24 +74,24 @@ const runWalletCLI = async () =>{
               api.getWallet(walletName)
           })
 
-        program
-          .command('createAccount <accountName> <walletName> <password>')
-          .description('Creates a new wallet and broadcasts its public key to the network')
-          .action(( accountName, walletName, password )=>{
-            api.createWallet(walletName, password);
-          })
+        // program
+        //   .command('createAccount <accountName> <walletName> <password>')
+        //   .description('Creates a new wallet and broadcasts its public key to the network')
+        //   .action(( accountName, walletName, password )=>{
+        //     api.createWallet(walletName, password);
+        //   })
           
       
         program
           .command('balance <walletName>')
-          .description('Display balance of a wallet')
+          .description('Displays balance of a wallet')
           .action(( walletName )=>{
             api.getWalletBalance(walletName);
           })
       
         program
           .command('history <walletName>')
-          .description('Display balance of a wallet')
+          .description('Displays history of a wallet')
           .action(( walletName )=>{
             api.getWalletHistory(walletName);
           })
@@ -114,6 +116,17 @@ const runWalletCLI = async () =>{
           .description('Sends a transaction to another wallet')
           .action(async ()=>{
             api.sendTransaction();
+          })
+
+        program
+          .command('sendRawTx <filename> <walletName> <password>')
+          .description('Sends a transaction to another wallet')
+          .action(async (filename, walletName, password)=>{
+            let fileString = await readFile(`./transactions/${filename}.json`);
+            let file = JSON.parse(fileString);
+            let transaction = new Transaction(file.fromAddress, file.toAddress, file.amount, file.data);
+            
+            api.sendRawTransaction(transaction, walletName, password)
           })
 
         program

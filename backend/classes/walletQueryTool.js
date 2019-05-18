@@ -1,6 +1,9 @@
 const chalk = require('chalk');
 const axios = require('axios');
-const transactionCreator = require('../tools/transactionCreator')
+const transactionCreator = require('../tools/transactionCreator');
+const WalletManager = require('./walletManager');
+const walletManager = new WalletManager()
+const sha1 = require('sha1')
 
 class WalletQueryTool{
     constructor(){
@@ -194,6 +197,42 @@ class WalletQueryTool{
 
     async sendTransaction(){
       await transactionCreator()
+    }
+
+    async sendRawTransaction(transaction, walletName, password){
+      return new Promise(async (resolve, reject)=>{
+        let wallet = await  walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`)
+        
+        if(wallet){
+              let unlocked = await wallet.unlock(password);
+              if(unlocked){
+                  let signature = await wallet.sign(transaction.hash)
+                  if(signature){
+                      transaction.signature = signature;
+                      axios.post('http://localhost:3000/transaction', transaction)
+                      .then((response)=>{
+                        console.log(response.data)
+                        resolve(true)
+
+                      }).catch((e)=>{
+                        console.log(chalk.red(e))
+                        resolve(false)
+                      })
+                  }else{
+                      console.log('ERROR: Could not sign transaction')
+                      resolve(false)
+                  }
+              }else{
+                  console.log('ERROR: Could not unlock wallet')
+                  resolve(false)
+              }
+              
+          }else{
+              console.log(`ERROR: Wallet not found`)
+              resolve(false)
+          }
+        })
+      
     }
 
 }

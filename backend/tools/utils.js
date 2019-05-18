@@ -3,7 +3,7 @@ const merkle = require('merkle');
 const fs = require('fs')
 const crypto = require('crypto');
 const algorithm = 'aes-256-ctr';
-
+const ECDSA = require('ecdsa-secp256r1');
 
 const displayTime = () =>{
   let date = new Date();
@@ -231,6 +231,21 @@ function copyFile(source, target) {
   });
 }
 
+const validatePublicKey = (compressedPublicKey) =>{
+  return new Promise((resolve, reject)=>{
+    if(compressedPublicKey){
+      try{
+        const publicKey = ECDSA.fromCompressedPublicKey(compressedPublicKey);
+        resolve(true)
+      }catch(e){
+        resolve(false)
+      }
+    }else{
+      resolve(false);
+    }
+  })
+}
+
 
 
 module.exports = { 
@@ -245,4 +260,5 @@ module.exports = {
   writeToFile,
   createFile,
   merge,
-  createTargetFile };
+  createTargetFile,
+  validatePublicKey };

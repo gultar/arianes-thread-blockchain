@@ -5,7 +5,9 @@ const {
   displayTime, 
   logger, 
   RecalculateHash, 
-  writeToFile } = require('../tools/utils');
+  writeToFile,
+  validatePublicKey } = require('../tools/utils');
+const { isValidAccountJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
 const Block = require('./block');
 const setChallenge = require('./challenge');
@@ -638,22 +640,18 @@ class Blockchain{
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
           if(!isChecksumValid){
-            // logger('REJECTED: Coinbase transaction checksum is invalid');
             resolve({error:'REJECTED: Transaction checksum is invalid'});
           }
 
           // if(!hasTheRightMiningRewardAmount){
-          //   logger('REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount)
           //   resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
           // }
 
           if(isAlreadyInChain){
-            // logger('COINBASE TX REJECTED: Already exists in blockchain')
             Mempool.deleteCoinbaseTransaction(transaction)
           }
 
           if(!isAttachedToMinedBlock){
-            // logger('COINBASE TX REJECTED: Is not attached to any mined block');
             resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           }
 
@@ -662,7 +660,6 @@ class Blockchain{
           }
             
           if(!transactionSizeIsNotTooBig){
-            // logger('COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb');
             resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
           } 
           
@@ -686,18 +683,43 @@ class Blockchain{
   validateAction(action, account){
     return new Promise(async (resolve, reject)=>{
       if(action){
-        let isChecksumValid = await this.validateActionChecksum(action);
-        let isSentByOwner = await this.validateActionSignature(action, account.ownerKey);
-        let hasMiningFee = action.fee > 0; //check if amount is correct
-        let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+
+          let isChecksumValid = await this.validateActionChecksum(action);
+          let hasMiningFee = action.fee > 0; //check if amount is correct
+          let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+          let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
+          let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
+          let isCreateAccount = action.type == 'account' && action.task == 'create';
+          
+
+          if(account && isValidAccountJSON(account)){ 
+            
+            let isSentByOwner = await this.validateActionSignature(action, account.ownerKey);
+      
+            if(!isSentByOwner){
+              resolve({error:"ERROR: Signature is not associated with sender account"})
+            }
+          
+          }else if(isCreateAccount){
+            let newAccount = action.data;
+            let isValidAccount = isValidAccountJSON(newAccount);
+
+            if(!isValidAccount){
+              resolve({error:"ERROR: Account contained in create account action is invalid"})
+            }
+
+          }else{
+            resolve({error:"ERROR: Could not find action's sender account"})
+          }
+
         if(!isChecksumValid){
           resolve({error:"ERROR: Action checksum is invalid"})
         }
-  
-        if(!isSentByOwner){
-          resolve({error:"ERROR: Signature is not associated with sender account"})
+
+        if(!isLinkedToWallet){
+          resolve({error:"ERROR: Action ownerKey is invalid"})
         }
-  
+
         if(!actionIsNotTooBig){
           resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
         }
@@ -705,9 +727,14 @@ class Blockchain{
         if(!hasMiningFee){
           resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
         }
-  
+
         resolve(true);
+
+      }else{
+        resolve({error:'Account or Action is undefined'})
       }
+      
+      
     })
     
   }

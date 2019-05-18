@@ -17,32 +17,44 @@ class AccountTable{
         })
       }
 
-      loadAllAccountsFromFile(){
-       return new Promise(async (resolve, reject)=>{
-        try{
-            let accountsFile = await readFile('./data/accounts.json');
-            if(accountsFile){
-                let accounts = JSON.parse(accountsFile);
-                if(accounts){
-                    this.accounts = accounts;
-                    resolve(true)
-                }else{
-                    resolve(false)
-                }
-            }else{
-                resolve(false)
-            }
-        }catch(e){
-            console.log(e)
-            resolve(false)
-        }
-       })
-      }
+    //   loadAllAccountsFromFile(){
+    //    return new Promise(async (resolve, reject)=>{
+    //     try{
+    //         let accountsFile = await readFile('./data/accounts.json');
+    //         if(accountsFile){
+    //             let accounts = JSON.parse(accountsFile);
+    //             if(accounts){
+    //                 this.accounts = accounts;
+    //                 resolve(true)
+    //             }else{
+    //                 resolve(false)
+    //             }
+    //         }else{
+    //             resolve(false)
+    //         }
+    //     }catch(e){
+    //         console.log(e)
+    //         resolve(false)
+    //     }
+    //    })
+    //   }
 
       getAccount(name){
         if(this.accounts){
             return this.accounts[name];
         }
+      }
+
+      getAccountsOfKey(key){
+        let accountNames = Object.keys(this.accounts);
+        let accounts = {};
+        accountNames.forEach( name =>{
+            if(this.accounts[name].ownerKey == key){
+                accounts[name] = this.accounts[name];
+            }
+        })
+
+        return accounts
       }
 
       deleteAccount(name, signature){

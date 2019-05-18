@@ -38,7 +38,8 @@
     "blockchain": "command.js",
     "wallet": "walletCLI.js",
     "keyserver": "keyServer.js",
-    "chain":"chainCLI.js"
+    "chain":"chainCLI.js",
+    "push":"actionCLI.js"
   },
   "scripts": {
     "test": "node test.js",

@@ -5,7 +5,7 @@ const jsonSize = require('json-size');
 
 class Action{
     constructor(fromAccount, type, task, data='', contractRef={}){
-        this.fromAccount = fromAccount; //name 
+        this.fromAccount = fromAccount; //{ name, publicKey }
         this.type = type; //GET, POST, PUT, DELETE, UPDATE
         this.task = task; //Function on the contract
         this.data = data;

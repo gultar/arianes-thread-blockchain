@@ -97,7 +97,7 @@ class KeyServer{
             this.walletManager.createWallet(name, password)
             .then((wallet)=>{
               if(wallet){
-                res.send(this.generateWalletCreationReceipt(wallet))
+                res.send(wallet)
               }else{
                 res.send('ERROR: Wallet creation failed');
               }

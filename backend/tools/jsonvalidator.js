@@ -66,6 +66,33 @@ const isValidActionJSON = (action)=>{
     }
 }
 
+const isValidAccountJSON = (account)=>{
+    var v = new Validator();
+    var schema = {
+        "id":"/account",
+        "type": "object",
+        "properties": {
+            "name": {"type":"string"},
+            "ownerKey": {"type": "string"},
+            "hash": {"type": "string"},
+            "ownerSignature": {"type": "string"},
+        },
+        "required": ["name", "ownerKey", "hash", "ownerSignature"]
+    };
+
+    if(account){
+        v.addSchema(schema, "/account")
+        let valid = v.validate(account, schema);
+        
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
 const isValidChainLengthJSON = (transaction)=>{
     var v = new Validator();
     var schema = {
@@ -256,5 +283,6 @@ module.exports = {
     isValidCreateWalletJSON,
     isValidUnlockWalletJSON,
     isValidWalletBalanceJSON,
-    isValidActionJSON
+    isValidActionJSON,
+    isValidAccountJSON,
  };
