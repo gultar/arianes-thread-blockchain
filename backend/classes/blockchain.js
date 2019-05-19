@@ -267,7 +267,6 @@ class Blockchain{
             for(var actionHash of Object.keys(block.actions)){
               action = block.actions[actionHash]
               if(action){
-                console.log('Herm',Object.keys(block.actions))
                 if(action.fromAccount.publicKey == address){
                   balance = balance - action.fee;
                 }
