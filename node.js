@@ -1130,12 +1130,16 @@ class Node {
                 .then(isValid =>{
                   if(isValid){
                     //Action will be added to Mempool only is valid and if corresponds with contract call
-                    logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+                    
+                    
                     let mapsToContractCall = this.handleAction(action);
                     if(mapsToContractCall){
                       //Execution success message
-                      //Need to avoid executing call on everynode simultaneously 
-                      //Also need to avoid any security breach when signing actions
+                    //Need to avoid executing call on everynode simultaneously 
+                    //Also need to avoid any security breach when signing actions
+                    if(this.verbose) logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+                    this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
+               
                     }
                   }else{
                     logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
@@ -1685,7 +1689,6 @@ class Node {
 
                   this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
                   if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                  Mempool.rejectedTransactions[transaction.hash] = transaction;
                   resolve({error:valid.error});
 
                 }
@@ -1716,8 +1719,7 @@ class Node {
         logger('ERROR: Invalid contract call')
         return false;
     }
-
-    Mempool.addAction(action);
+    Mempool.addAction(action)
     return true;
   }
 
@@ -1743,10 +1745,15 @@ class Node {
             this.chain.validateAction(action, linkedAccount)
             .then(valid=>{
               if(valid && !valid.error){
-                this.handleAction(action);
-                if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-                this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
-
+                let mapsToContractCall = this.handleAction(action);
+                if(mapsToContractCall){
+                  //Execution success message
+                  //Need to avoid executing call on everynode simultaneously 
+                  //Also need to avoid any security breach when signing actions
+                  if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
+                  this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
+                }
+                
                 resolve(action)
               }else{
                 logger('ERROR: Action is invalid')

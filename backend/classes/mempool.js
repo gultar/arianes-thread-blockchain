@@ -187,12 +187,12 @@ class Mempool{
                         let newTransactionPool = merge(oldTransactionPool, this.pendingTransactions);
                         let newRejectedTransactions = merge(oldRejectedTransactions,this.rejectedTransactions);
                         let newPendingCoinbaseTransactions = merge(oldCoinbaseTransactions,this.pendingCoinbaseTransactions)
-                        let newActions = merge(oldActions, this.actions);
+                        let newActions = merge(oldActions, this.pendingActions);
 
                         this.pendingTransactions = newTransactionPool;
                         this.rejectedTransactions = newRejectedTransactions;
                         this.pendingCoinbaseTransactions = newPendingCoinbaseTransactions;
-                        this.actions = newActions;
+                        this.pendingActions = newActions;
 
                         resolve(true)
                     }catch(e){

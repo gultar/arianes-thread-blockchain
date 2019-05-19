@@ -39,26 +39,13 @@ class Blockchain{
 
   createGenesisBlock(){
     //Initial Nonce Challenge is 10 000 000
-    let genesisBlock = new Block(1554987342039, ["Genesis block"], "Infinity");
+    let genesisBlock = new Block(1554987342039, {}, {});
     genesisBlock.challenge = 10 * 1000 * 1000; //average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
-    genesisBlock.transactions.push(
-      //Setup initial coin distribution
-      new Transaction( //Blockchain node
-        'coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions'
-      ),
-      new Transaction( //first node
-        'coinbase',"AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6", 10000, 'ICO transactions'
-      ),
-      new Transaction( //second node
-        'coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'
-      ),
-      new Transaction( //third node
-        'coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'
-      )
-
-    );
-
+    genesisBlock.transactions['first'] = new Transaction('coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions');
+    genesisBlock.transactions['second'] = new Transaction('coinbase',"AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6", 10000, 'ICO transactions');
+    genesisBlock.transactions['third'] = new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions');
+    genesisBlock.transactions['fourth'] = new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions')
     genesisBlock.calculateHash();
 
     return genesisBlock;
@@ -250,6 +237,7 @@ class Blockchain{
       var address = publicKey;
       let balance = 0;
       var trans;
+      var action;
       if(!publicKey){
         logger("ERROR: Can't get balance of undefined publickey")
         return false;
@@ -271,9 +259,21 @@ class Blockchain{
               }
 
             }
-
+            
 
           }
+          if(block.actions){
+            for(var actionHash of Object.keys(block.actions)){
+              action = block.actions[actionHash]
+              if(action){
+                console.log('Herm',Object.keys(block.actions))
+                if(action.fromAccount.publicKey == address){
+                  balance = balance - action.fee;
+                }
+              }
+            }
+          }
+
         }
 
       return balance;
@@ -306,7 +306,7 @@ class Blockchain{
   checkFundsThroughPendingTransactions(publicKey){
     var balance = 0;
     var trans;
-
+    var action
     if(publicKey){
       var address = publicKey;
 
@@ -326,6 +326,18 @@ class Blockchain{
           return 0;
         }
 
+      }
+
+      if(Mempool.pendingActions){
+        for(var actionHash of Object.keys(Mempool.pendingActions)){
+          
+          action = Mempool.pendingActions[actionHash]
+          if(action){
+            if(action.fromAccount.publicKey == address){
+              balance = balance - action.fee;
+            }
+          }
+        }
       }
 
       return balance;
@@ -560,6 +572,10 @@ class Blockchain{
             var isChecksumValid = this.validateChecksum(transaction);
            
             let isSignatureValid = await this.validateSignature(transaction)
+
+            let isReceivingAddressValid = await validatePublicKey(transaction.toAddress)
+
+            let isNotCircular = transaction.fromAddress !== transaction.toAddress;
            
             var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
            
@@ -582,6 +598,16 @@ class Blockchain{
             if(!amountIsNotZero){
               logger('REJECTED: Amount needs to be higher than zero');
               resolve({error:'REJECTED: Amount needs to be higher than zero'});
+            }
+
+            if(!isNotCircular){
+              logger("REJECTED: Sending address can't be the same as receiving address");
+              resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
+            }
+
+            if(!isReceivingAddressValid){
+              logger('REJECTED: Receiving address is invalid');
+              resolve({error:'REJECTED: Receiving address is invalid'});
             }
               
             if(!transactionSizeIsNotTooBig){
@@ -687,6 +713,7 @@ class Blockchain{
           let isChecksumValid = await this.validateActionChecksum(action);
           let hasMiningFee = action.fee > 0; //check if amount is correct
           let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+          let balanceOfSendingAddr = this.getBalanceOfAddress(action.fromAccount.publicKey) + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
           let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
           let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
           let isCreateAccount = action.type == 'account' && action.task == 'create';
@@ -711,6 +738,14 @@ class Blockchain{
           }else{
             resolve({error:"ERROR: Could not find action's sender account"})
           }
+
+        if(balanceOfSendingAddr < action.fee){
+          resolve({error:"ERROR: Sender's balance is too low"})
+        }
+
+        if(!isSignatureValid){
+          resolve({error:"ERROR: Action signature is invalid"})
+        }
 
         if(!isChecksumValid){
           resolve({error:"ERROR: Action checksum is invalid"})
