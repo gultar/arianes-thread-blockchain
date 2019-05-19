@@ -1134,11 +1134,10 @@ class Node {
                     let mapsToContractCall = this.handleAction(action);
                     if(mapsToContractCall){
                       //Execution success message
-                    //Need to avoid executing call on everynode simultaneously 
-                    //Also need to avoid any security breach when signing actions
-                    if(this.verbose) logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
-                    this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
-               
+                      //Need to avoid executing call on everynode simultaneously 
+                      //Also need to avoid any security breach when signing actions
+                      if(this.verbose) logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+                    
                     }
                   }else{
                     logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
