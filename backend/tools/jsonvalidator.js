@@ -259,7 +259,7 @@ const isValidHeaderJSON = (header)=>{
                 "merkleRoot":{"type":"string"},
                 "actionMerkleRoot":{"type":"string"}
             },
-        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot", "actionMerkleRoot"]
+        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot"]
     }
 
     if(header){
