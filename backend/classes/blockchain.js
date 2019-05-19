@@ -39,13 +39,14 @@ class Blockchain{
 
   createGenesisBlock(){
     //Initial Nonce Challenge is 10 000 000
-    let genesisBlock = new Block(1554987342039, {}, {});
+    let genesisBlock = new Block(1554987342039, {
+      'first':new Transaction('coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions'),
+      'second':new Transaction('coinbase',"AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6", 10000, 'ICO transactions'),
+      'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
+      'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
+    }, {});
     genesisBlock.challenge = 10 * 1000 * 1000; //average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
-    genesisBlock.transactions['first'] = new Transaction('coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions');
-    genesisBlock.transactions['second'] = new Transaction('coinbase',"AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6", 10000, 'ICO transactions');
-    genesisBlock.transactions['third'] = new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions');
-    genesisBlock.transactions['fourth'] = new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions')
     genesisBlock.calculateHash();
 
     return genesisBlock;

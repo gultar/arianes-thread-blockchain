@@ -256,15 +256,16 @@ const isValidHeaderJSON = (header)=>{
                 "previousHash":{"type":"string"},
                 "hash":{"type":"string"},
                 "nonce":{"type":"number"},
-                "merkleRoot":{"type":"string"}
+                "merkleRoot":{"type":"string"},
+                "actionMerkleRoot":{"type":"string"}
             },
-        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot"]
+        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot", "actionMerkleRoot"]
     }
 
     if(header){
         v.addSchema(headerSchema, "/getNextBlock")
         let valid = v.validate(header, headerSchema);
-        
+        console.log(valid.errors)
         if(valid.errors.length == 0){
             return true
         }else{
