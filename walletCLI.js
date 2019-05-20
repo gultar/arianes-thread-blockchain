@@ -44,7 +44,8 @@ let api = new WalletQueryTool();
 
 
 const runWalletCLI = async () =>{
-  
+        program
+          .option('-u, --url <url>', 'URL of running node to send commands to')
       
         program
           .command('create <walletName> <password>')
@@ -53,19 +54,19 @@ const runWalletCLI = async () =>{
             api.createWallet(walletName, password);
           })
     
-        program
-          .command('load <walletName>')
-          .description('Loads a wallet on keyserver')
-          .action(( walletName)=>{
-              api.loadWallet(walletName)
-          })
+        // program
+        //   .command('load <walletName>')
+        //   .description('Loads a wallet on keyserver')
+        //   .action(( walletName)=>{
+        //       api.loadWallet(walletName)
+        //   })
 
-        program
-          .command('unlock <walletName> <password> [numberOfSeconds]')
-          .description('Unlocks target wallet')
-          .action(( walletName, password, numberOfSeconds)=>{
-              api.unlockWallet(walletName, password, numberOfSeconds)
-          })
+        // program
+        //   .command('unlock <walletName> <password> [numberOfSeconds]')
+        //   .description('Unlocks target wallet')
+        //   .action(( walletName, password, numberOfSeconds)=>{
+        //       api.unlockWallet(walletName, password, numberOfSeconds)
+        //   })
       
         program
           .command('get <walletName>')
@@ -86,22 +87,32 @@ const runWalletCLI = async () =>{
           .command('balance <walletName>')
           .description('Displays balance of a wallet')
           .action(( walletName )=>{
-            api.getWalletBalance(walletName);
+            if(program.url){
+              api.getWalletBalance(walletName, program.url);
+            }else{
+              console.log('Need to provide URL of running node')
+            }
+            
           })
       
         program
           .command('history <walletName>')
           .description('Displays history of a wallet')
           .action(( walletName )=>{
-            api.getWalletHistory(walletName);
+            if(program.url){
+              api.getWalletHistory(walletName, program.url);
+            }else{
+              console.log('Need to provide URL of running node')
+            }
+            
           })
       
-        program
-          .command('list')
-          .description('List all active wallets')
-          .action(()=>{
-            api.listWallets();
-          })
+        // program
+        //   .command('list')
+        //   .description('List all active wallets')
+        //   .action(()=>{
+        //     api.listWallets();
+        //   })
       
         program
           .command('txget <txhash>')
@@ -112,29 +123,31 @@ const runWalletCLI = async () =>{
           
 
         program
-          .command('sendtx')
+          .command('txmenu')
           .description('Sends a transaction to another wallet')
           .action(async ()=>{
             api.sendTransaction();
           })
 
-        program
-          .command('sendRawTx <filename> <walletName> <password>')
-          .description('Sends a transaction to another wallet')
-          .action(async (filename, walletName, password)=>{
-            let fileString = await readFile(`./transactions/${filename}.json`);
-            let file = JSON.parse(fileString);
-            let transaction = new Transaction(file.fromAddress, file.toAddress, file.amount, file.data);
+        // program
+        //   .command('sendRawTx <filename> <walletName> <password>')
+        //   .description('Sends a transaction to another wallet')
+        //   .action(async (filename, walletName, password)=>{
+        //     let fileString = await readFile(`./transactions/${filename}.json`);
+        //     let file = JSON.parse(fileString);
+        //     let transaction = new Transaction(file.fromAddress, file.toAddress, file.amount, file.data);
             
-            api.sendRawTransaction(transaction, walletName, password)
-          })
+        //     api.sendRawTransaction(transaction, walletName, password)
+        //   })
 
-        program
-          .command('txgen <walletName> <password>')
-          .description('TEMP: Transaction generator')
-          .action((walletName, password)=>{
-            txgen(walletName, password)
-          })
+         
+
+        // program
+        //   .command('txgen <walletName> <password>')
+        //   .description('TEMP: Transaction generator')
+        //   .action((walletName, password)=>{
+        //     txgen(walletName, password)
+        //   })
 
           
      

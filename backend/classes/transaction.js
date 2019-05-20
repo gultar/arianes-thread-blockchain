@@ -12,13 +12,13 @@ class Transaction{
     this.type = type;
     this.data = data;
     this.timestamp = Date.now()
-    this.miningFee = 0;
-    this.amount = this.setMiningFee(amount);
+    this.amount = amount
     this.signature;
     this.hash = (hash? hash : sha256(this.fromAddress+ this.toAddress+ this.amount+ this.data+ this.timestamp));
+    this.miningFee = this.setMiningFee();
   }
 
-  setMiningFee(amount){
+  setMiningFee(){
     let txToWeigh = {
       fromAddress:this.fromAddress,
       toAddress:this.toAddress,
@@ -29,7 +29,7 @@ class Transaction{
     let size = jsonSize(txToWeigh);
     let sizeFee = size * 0.0001;
     this.miningFee = sizeFee  //Roughly a coin per kilobyte?
-    return amount + sizeFee;
+    return sizeFee;
   }
 
   static getTransactionSize(transaction){

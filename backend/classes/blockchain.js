@@ -251,7 +251,7 @@ class Blockchain{
             if(trans){
               if(trans.fromAddress == address){
 
-                balance = balance - trans.amount;
+                balance = balance - trans.amount - trans.miningFee;
               }
 
               if(trans.toAddress == address){
@@ -283,18 +283,18 @@ class Blockchain{
 
   gatherMiningFees(block){
     if(block){
-      let balance = 0;
+      let reward = 0;
       var txHashes = Object.keys(block.transactions);
       var actionHashes = Object.keys(block.actions);
       for(var hash of txHashes){
-        balance += block.transactions[hash].miningFee;
+        reward += block.transactions[hash].miningFee;
       }
 
       for(var hash of actionHashes){
-        balance += block.actions[hash].fee;
+        reward += block.actions[hash].fee;
       }
 
-      return balance;
+      return reward;
     }
 
   }
@@ -315,7 +315,7 @@ class Blockchain{
         if(trans){
 
           if(trans.fromAddress == address){
-            balance = balance - trans.amount;
+            balance = balance - trans.amount - trans.miningFee;
           }
 
           if(trans.toAddress == address){
@@ -573,6 +573,8 @@ class Blockchain{
            
             let isSignatureValid = await this.validateSignature(transaction)
 
+            let isSendingAddressValid = await validatePublicKey(transaction.fromAddress)
+
             let isReceivingAddressValid = await validatePublicKey(transaction.toAddress)
 
             let isNotCircular = transaction.fromAddress !== transaction.toAddress;
@@ -588,6 +590,16 @@ class Blockchain{
             if(!isChecksumValid){
               logger('REJECTED: Transaction checksum is invalid');
               resolve({error:'REJECTED: Transaction checksum is invalid'});
+            }
+
+            if(!isSendingAddressValid){
+              logger('REJECTED: Sending address is invalid');
+              resolve({error:'REJECTED: Sending address is invalid'});
+            }
+
+            if(!isReceivingAddressValid){
+              logger('REJECTED: Receiving address is invalid');
+              resolve({error:'REJECTED: Receiving address is invalid'});
             }
               
             if(!isSignatureValid){
@@ -605,10 +617,7 @@ class Blockchain{
               resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
             }
 
-            if(!isReceivingAddressValid){
-              logger('REJECTED: Receiving address is invalid');
-              resolve({error:'REJECTED: Receiving address is invalid'});
-            }
+            
               
             if(!transactionSizeIsNotTooBig){
               logger('REJECTED: Transaction size is above 10KB');
@@ -638,7 +647,6 @@ class Blockchain{
          
               
         }catch(err){
-          console.log(err);
           resolve({error:'ERROR: an error occured'})
         }
   
@@ -801,10 +809,12 @@ class Blockchain{
   validateSignature(transaction){
     return new Promise((resolve, reject)=>{
       if(transaction){
-        
-        const publicKey = ECDSA.fromCompressedPublicKey(transaction.fromAddress);
-        resolve(publicKey.verify(transaction.hash, transaction.signature))
-
+        if(validatePublicKey(transaction.fromAddress)){
+          const publicKey = ECDSA.fromCompressedPublicKey(transaction.fromAddress);
+          resolve(publicKey.verify(transaction.hash, transaction.signature))
+        }else{
+          resolve(false)
+        }
       }else{
         resolve(false);
       }

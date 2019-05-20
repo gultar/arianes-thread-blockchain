@@ -236,7 +236,12 @@ const validatePublicKey = (compressedPublicKey) =>{
     if(compressedPublicKey){
       try{
         const publicKey = ECDSA.fromCompressedPublicKey(compressedPublicKey);
-        resolve(true)
+        if(publicKey){
+          resolve(true)
+        }else{
+          resolve(false)
+        }
+        
       }catch(e){
         resolve(false)
       }

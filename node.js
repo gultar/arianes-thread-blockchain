@@ -578,13 +578,15 @@ class Node {
               if(transactionEmitted.error){
                 res.send(transactionEmitted.error)
               }else{
-                res.send(this.generateReceipt(
+                let receipt = JSON.stringify(transaction, null, 2)
+                res.send(receipt);
+                /**this.generateReceipt(
                   transaction.fromAddress, 
                   transaction.toAddress, 
                   transaction.amount, 
                   transaction.data, 
                   transaction.signature, 
-                  transaction.hash));
+                  transaction.hash) */
               }
             })
             .catch((e)=>{
@@ -1089,6 +1091,7 @@ class Node {
                       logger(valid.error)
                     }
                   })
+                  
   
                 }
               }

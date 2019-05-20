@@ -39,7 +39,9 @@
     "wallet": "walletCLI.js",
     "keyserver": "keyServer.js",
     "chain":"chainCLI.js",
-    "push":"actionCLI.js"
+    "action":"actionCLI.js",
+    "txgen":"txgen.js",
+    "sendTx":"txCLI.js"
   },
   "scripts": {
     "test": "node test.js",
