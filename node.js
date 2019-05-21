@@ -369,7 +369,6 @@ class Node {
               peer.destroy()
               delete this.connectionsToPeers[address];
             }else{
-              logger('Connection attempt to address '+address+' timed out.\n'+(4 - connectionAttempts)+' attempts left');
               connectionAttempts++;
             }
               
@@ -380,7 +379,7 @@ class Node {
 
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
-              peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
+              peer.emit('message', 'Connection established by '+ this.address);
               peer.emit('connectionRequest', this.address);
               this.sendPeerMessage('addressBroadcast');
               
