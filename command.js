@@ -9,10 +9,23 @@ const { logger } = require('./backend/tools/utils');
 
 program
   .version('0.0.1')
+  .usage('<value> [-options]')
+  .description(
+  `
+  Possible other commands:
+
+  wallet - For managing wallets and wallet states
+  sendTx - For sending transactions from one wallet to another
+  action - For creating and sending an action to a contract
+  chain  - For querying the blockchain for information
+  config - For updating node config file
+  pool   - For managing transaction pool
+  `
+    )
   .option('-j, --join', 'Joins network')
   .option('-m, --mine', 'Starts the node as a miner')
   .option('-M, --forcemine', 'Force mining even if chain is not updated')
-  .option('-u, --update', 'Tries to update chain by querying for the longest chain in the network')
+  .option('-u, --update', 'Updates blockchain by fetching longest chain')
   .option('-s, --seed', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-j, --jsondebug', 'Debugs JSON schema')

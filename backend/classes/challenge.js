@@ -19,10 +19,7 @@ const setChallenge = (currentChallenge, startTime, endTime) =>{
 
 }
 
-/**
- * 
- * 
- */
+
 
 const adjustDifficulty = () =>{
   //
