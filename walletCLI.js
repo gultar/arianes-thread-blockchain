@@ -4,7 +4,7 @@ const program = require('commander');
 const fs = require('fs');
 const WalletQueryTool = require('./backend/classes/walletQueryTool');
 const Transaction = require('./backend/classes/transaction');
-const { readFile } = require('./backend/tools/utils');
+const { readFile, validatePublicKey } = require('./backend/tools/utils');
 const txgen = require('./backend/tools/_tempTxgen');
 let api = new WalletQueryTool();
  
@@ -86,9 +86,16 @@ const runWalletCLI = async () =>{
         program
           .command('balance <walletName>')
           .description('Displays balance of a wallet')
-          .action(( walletName )=>{
+          .action(async ( walletName )=>{
             if(program.url){
-              api.getWalletBalance(walletName, program.url);
+              let isPublicKey = await validatePublicKey(walletName)
+              if(isPublicKey){
+                let publicKey = walletName;
+                api.getWalletBalanceOfPublicKey(publicKey, program.url);
+              }else{
+                api.getWalletBalance(walletName, program.url);
+              }
+              
             }else{
               console.log('Need to provide URL of running node')
             }

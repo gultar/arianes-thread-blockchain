@@ -127,6 +127,36 @@ class WalletQueryTool{
         
     }
 
+    async getWalletBalanceOfPublicKey(publicKey, address){
+
+      if(publicKey && address){
+           
+              axios.get(`${address}/getWalletBalance`, {params:{
+                publicKey:publicKey
+              }})
+              .then((response)=>{
+                let walletInfo = response.data;
+                if(walletInfo){
+                  if(typeof walletInfo == 'string'){
+                    console.log(walletInfo)
+                  }else{
+                    walletInfo = JSON.stringify(walletInfo, null, 2);
+                    console.log(walletInfo)
+                  }
+                  
+                }
+                
+              }).catch((e)=>{
+                console.log(chalk.red(e))
+              })
+           
+            
+      }else{
+          logger('ERROR: missing parameters')
+      }
+      
+  }
+
     async getWalletHistory(walletName, address){
 
         if(walletName && address){
@@ -158,6 +188,36 @@ class WalletQueryTool{
         }
         
     }
+
+    async getWalletHistoryOfPublicKey(publicKey, address){
+
+      if(publicKey && address){
+           
+              axios.get(`${address}/getWalletHistory`, {params:{
+                publicKey:publicKey
+              }})
+              .then((response)=>{
+                let walletInfo = response.data;
+                if(walletInfo){
+                  if(typeof walletInfo == 'string'){
+                    console.log(walletInfo)
+                  }else{
+                    walletInfo = JSON.stringify(walletInfo, null, 2);
+                    console.log(walletInfo)
+                  }
+                  
+                }
+                
+              }).catch((e)=>{
+                console.log(chalk.red(e))
+              })
+           
+            
+      }else{
+          logger('ERROR: missing parameters')
+      }
+      
+  }
 
     // listWallets(){
         
