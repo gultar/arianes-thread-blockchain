@@ -12,7 +12,7 @@ process.env.MINER = ()=>{}
 
 //////////////////Block/////////////////////
 class Block{
-  constructor(timestamp, transactions={}, actions={}, previousHash='', blockNumber=0){ 
+  constructor(timestamp, transactions={}, actions={}, difficulty=1,previousHash='', blockNumber=0){ 
     this.blockNumber = blockNumber;
     this.timestamp = timestamp;
     this.transactions = transactions;

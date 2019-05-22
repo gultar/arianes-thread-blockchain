@@ -467,7 +467,11 @@ class Blockchain{
 
       }else{
         if(block.difficulty < this.getLatestBlock().difficulty){
-          return false
+          return false;
+        }
+
+        if(block.difficulty < (block.hash.substring(0, block.difficulty)).length){
+          return false;
         }
 
         // if(block.difficulty < Math.floor(Math.log10(block.challenge))-1){
