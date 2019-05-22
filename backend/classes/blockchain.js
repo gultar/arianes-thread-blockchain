@@ -114,7 +114,7 @@ class Blockchain{
   async minePendingTransactions(ip, block , miningRewardAddress, callback){
       let ipAddress = ip
       //this.difficulty = setDifficulty(this.difficulty, this.getLatestBlock().challenge, this.chain.length);
-      logger(chalk.cyan('Adjusted difficulty to :', this.difficulty))
+      
       let miningSuccessful = false;
       let isMining = this.hasEnoughTransactionsToMine();
       
@@ -124,7 +124,7 @@ class Blockchain{
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
       logger('Current Challenge:', block.challenge)
-      
+      logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
       block.mine(block.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
