@@ -48,7 +48,7 @@ class Blockchain{
     genesisBlock.challenge = 1000 * 1000//10 * 1000 * 1000; //average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
     genesisBlock.calculateHash();
-
+    genesisBlock.difficulty = 1;
     return genesisBlock;
   }
 
@@ -113,7 +113,7 @@ class Blockchain{
   */
   async minePendingTransactions(ip, block , miningRewardAddress, callback){
       let ipAddress = ip
-      this.difficulty = setDifficulty(this.difficulty, this.getLatestBlock().challenge, this.chain.length);
+      //this.difficulty = setDifficulty(this.difficulty, this.getLatestBlock().challenge, this.chain.length);
       logger(chalk.cyan('Adjusted difficulty to :', this.difficulty))
       let miningSuccessful = false;
       let isMining = this.hasEnoughTransactionsToMine();
@@ -122,7 +122,7 @@ class Blockchain{
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
-      
+      block.difficulty = setDifficulty(lastBlock.difficulty, this.getLatestBlock().challenge, this.chain.length);
       logger('Current Challenge:', block.challenge)
       
       block.mine(this.difficulty, (miningSuccessful)=>{
@@ -466,18 +466,18 @@ class Blockchain{
         return this.getIndexOfBlockHash(block.previousHash);
 
       }else{
-        // if(block.difficulty = )
-        /*
-          validate difficulty level
-        */
-        // let block = this.validateBlockTransactions(block);
-        // logger('New block successfully validated. Will be appended to current blockchain.')
+        if(block.difficulty < this.getLatestBlock().difficulty){
+          return false
+        }
+
+        // if(block.difficulty < Math.floor(Math.log10(block.challenge))-1){
+        //   false
+        // }
         return true;
       }
 
     }else if(containsCurrentBlock){
       logger('Chain already contains that block')
-      /*Chain already contains that block*/
       return false;
     }
 

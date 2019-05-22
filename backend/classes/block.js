@@ -18,6 +18,7 @@ class Block{
     this.transactions = transactions;
     this.actions = actions;
     this.previousHash = previousHash;
+    this.difficulty = difficulty;
     this.hash = this.calculateHash();
     this.merkleRoot = this.createMerkleRoot(this.transactions);
     this.actionMerkleRoot = this.createMerkleRoot(this.actions);
