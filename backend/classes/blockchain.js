@@ -26,11 +26,12 @@ const Mempool = require('./mempool')
 */
 class Blockchain{
 
-  constructor(chain=false, difficulty=1){
+  constructor(chain=false, difficulty=1, ipAddresses=[]){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
     this.difficulty = difficulty;
     this.miningReward = 50;
+    this.ipAddresses = ipAddresses
     this.blockSize = 1; //Minimum Number of transactions per block
     this.orphanedBlocks = [];
     this.transactionSizeLimit = 100 * 1024;
