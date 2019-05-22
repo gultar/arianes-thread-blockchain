@@ -122,10 +122,10 @@ class Blockchain{
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
-      block.difficulty = setDifficulty(lastBlock.difficulty, this.getLatestBlock().challenge, this.chain.length);
+      block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
       logger('Current Challenge:', block.challenge)
       
-      block.mine(this.difficulty, (miningSuccessful)=>{
+      block.mine(block.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
 

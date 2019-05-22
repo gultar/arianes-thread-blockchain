@@ -12,13 +12,13 @@ process.env.MINER = ()=>{}
 
 //////////////////Block/////////////////////
 class Block{
-  constructor(timestamp, transactions={}, actions={}, difficulty=1,previousHash='', blockNumber=0){ 
+  constructor(timestamp, transactions={}, actions={}, previousHash='', blockNumber=0){ 
     this.blockNumber = blockNumber;
     this.timestamp = timestamp;
     this.transactions = transactions;
     this.actions = actions;
     this.previousHash = previousHash;
-    this.difficulty = difficulty;
+    this.difficulty = 1;
     this.hash = this.calculateHash();
     this.merkleRoot = this.createMerkleRoot(this.transactions);
     this.actionMerkleRoot = this.createMerkleRoot(this.actions);
