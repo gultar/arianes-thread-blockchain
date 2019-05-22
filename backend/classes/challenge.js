@@ -6,8 +6,8 @@ const { MINING_RATE, NEW_DIFFICULTY_LENGTH } = require('./globals');
   Algorithm to increase difficulty over time to ensure uniform block time.
   To be worked on.
   @param {number} $currentChallenge - Mining difficulty current set on blockchain
-  @param {number} $startTime - Time of block creation expressed in milliseconds
-  @param {number} $endTime - Time at the end of the block creation process in milliseconds
+  @param {number} $lastTimestamp - Time of block creation expressed in milliseconds
+  @param {number} $newTimestamp - Time at the end of the block creation process in milliseconds
 */
 
 const setChallenge = (currentChallenge, lastTimestamp, newTimestamp) =>{
@@ -27,7 +27,7 @@ const setChallenge = (currentChallenge, lastTimestamp, newTimestamp) =>{
 const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
   //Every time challenge value goes beyond a power of ten, increase difficulty
   if(challenge && currentDifficulty && chainLength){
-    if(chainLength % 1  == 0){ //NEW_DIFFICULTY_LENGTH
+    if(chainLength % NEW_DIFFICULTY_LENGTH == 0){ //
       
       let difficulty = Math.floor(Math.log10(challenge))
       if(difficulty > currentDifficulty + 1){
@@ -41,6 +41,8 @@ const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
           return currentDifficulty
         }
       }
+    }else{
+      return currentDifficulty
     }
     
   }

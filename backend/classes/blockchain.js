@@ -121,7 +121,7 @@ class Blockchain{
       let lastBlock = this.getLatestBlock();
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
-      block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, block.startMineTime)
+      block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       
       logger('Current Challenge:', block.challenge)
       
@@ -941,7 +941,7 @@ class Blockchain{
   async saveBlockchain(){
     return new Promise(async (resolve, reject)=>{
       try{
-        let blockchainFile = JSON.stringify(this, null, 2);
+        let blockchainFile = JSON.stringify(this);
         let success = await writeToFile(blockchainFile, './data/blockchain.json');
         if(success){
           resolve(true)
