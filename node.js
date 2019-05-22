@@ -1550,10 +1550,10 @@ class Node {
               return false;
             }
 
-            if(i > 1 && header){
-
-              let containsBlock = localBlockHeader.hash == header.hash;
+            if(i > 1 && isValidHeaderJSON(header)){
               let isValid = this.chain.validateBlockHeader(header);
+              let containsBlock = localBlockHeader.hash == header.hash;
+              
 
               if(!containsBlock) {
                 console.log('Does not contain block ',i)
@@ -1576,7 +1576,7 @@ class Node {
             }
 
           }catch(e){
-            console.log(chalk.red(e))
+            console.log(e)
           }
 
 

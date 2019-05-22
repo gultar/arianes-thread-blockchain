@@ -7,7 +7,7 @@ const {
   RecalculateHash, 
   writeToFile,
   validatePublicKey } = require('../tools/utils');
-const { isValidAccountJSON } = require('../tools/jsonvalidator');
+const { isValidAccountJSON, isValidHeaderJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
 const Block = require('./block');
 const { setChallenge, setDifficulty } = require('./challenge');
@@ -524,6 +524,8 @@ class Blockchain{
       }else{
         return false;
       }
+    }else{
+      return false;
     }
   }
 
@@ -597,6 +599,29 @@ class Blockchain{
           }
         })
         resolve(validTransactions);
+      }else{
+        logger('ERROR: Must pass block object')
+        resolve(false)
+      }
+      
+    })
+  }
+
+  blockContainsOnlyValidTransactions(block){
+    return new Promise((resolve, reject)=>{
+      if(block){
+        let txHashes = Object.keys(block.transactions);
+        txHashes.forEach( hash =>{
+          let transaction = block.transactions[hash];
+          let valid = this.validateTransaction(transaction);
+          if(valid.error){
+            Mempool.rejectTransactions(hash)
+            logger('Rejected Transaction:', hash);
+            //If contains invalid tx, need to reject block alltogether
+            resolve(false)
+          }
+        })
+        resolve(block);
       }else{
         logger('ERROR: Must pass block object')
         resolve(false)
