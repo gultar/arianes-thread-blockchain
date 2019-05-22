@@ -1,4 +1,4 @@
-const MINING_RATE= 30 * 1000;
+const MINING_RATE= 60 * 1000;
 const NEW_DIFFICULTY_LENGTH = 2 * 60 * 24// Every day, if block time is 30 seconds
 let endMining = false;
 let miner = ''
