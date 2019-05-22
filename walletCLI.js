@@ -3,6 +3,9 @@
 const program = require('commander');
 const fs = require('fs');
 const WalletQueryTool = require('./backend/classes/walletQueryTool');
+const WalletManager = require('./backend/classes/walletManager');
+const walletManager = new WalletManager()
+const sha1 = require('sha1')
 const Transaction = require('./backend/classes/transaction');
 const { readFile, validatePublicKey } = require('./backend/tools/utils');
 const txgen = require('./backend/tools/_tempTxgen');
@@ -53,20 +56,7 @@ const runWalletCLI = async () =>{
           .action(( walletName, password )=>{
             api.createWallet(walletName, password);
           })
-    
-        // program
-        //   .command('load <walletName>')
-        //   .description('Loads a wallet on keyserver')
-        //   .action(( walletName)=>{
-        //       api.loadWallet(walletName)
-        //   })
-
-        // program
-        //   .command('unlock <walletName> <password> [numberOfSeconds]')
-        //   .description('Unlocks target wallet')
-        //   .action(( walletName, password, numberOfSeconds)=>{
-        //       api.unlockWallet(walletName, password, numberOfSeconds)
-        //   })
+  
       
         program
           .command('get <walletName>')
@@ -74,13 +64,6 @@ const runWalletCLI = async () =>{
           .action(( walletName )=>{
               api.getWallet(walletName)
           })
-
-        // program
-        //   .command('createAccount <accountName> <walletName> <password>')
-        //   .description('Creates a new wallet and broadcasts its public key to the network')
-        //   .action(( accountName, walletName, password )=>{
-        //     api.createWallet(walletName, password);
-        //   })
           
       
         program
@@ -113,13 +96,7 @@ const runWalletCLI = async () =>{
             }
             
           })
-      
-        // program
-        //   .command('list')
-        //   .description('List all active wallets')
-        //   .action(()=>{
-        //     api.listWallets();
-        //   })
+
       
         program
           .command('txget <txhash>')
@@ -136,25 +113,36 @@ const runWalletCLI = async () =>{
             api.sendTransaction();
           })
 
-        // program
-        //   .command('sendRawTx <filename> <walletName> <password>')
-        //   .description('Sends a transaction to another wallet')
-        //   .action(async (filename, walletName, password)=>{
-        //     let fileString = await readFile(`./transactions/${filename}.json`);
-        //     let file = JSON.parse(fileString);
-        //     let transaction = new Transaction(file.fromAddress, file.toAddress, file.amount, file.data);
-            
-        //     api.sendRawTransaction(transaction, walletName, password)
-        //   })
-
-         
-
-        // program
-        //   .command('txgen <walletName> <password>')
-        //   .description('TEMP: Transaction generator')
-        //   .action((walletName, password)=>{
-        //     txgen(walletName, password)
-        //   })
+        program
+          .command('sign <data> <walletName> <password>')
+          .description('Generates a signature of selected data')
+          .action(async (data, walletName, password)=>{
+              if(walletName && password && data){
+                let wallet = await  walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`)
+                if(wallet){
+                  let unlocked = await wallet.unlock(password);
+                        if(unlocked){
+                            let signature = await wallet.sign(data)
+                            if(signature){
+                                console.log(signature)  
+                            }else{
+                                console.log('ERROR: Could not sign')
+                                
+                            }
+                        }else{
+                            console.log('ERROR: Could not unlock wallet')
+                            
+                        }
+                }else{
+                  console.log('ERROR: Could not find wallet')
+                }
+                        
+                        
+              }else{
+                  console.log(`ERROR: Missing parameters`)
+                  
+              }
+          })
 
           
      

@@ -1,5 +1,5 @@
 
-const { MINING_RATE } = require('./globals');
+const { MINING_RATE, NEW_DIFFICULTY_LENGTH } = require('./globals');
 
 /**
   WIP
@@ -9,20 +9,42 @@ const { MINING_RATE } = require('./globals');
   @param {number} $startTime - Time of block creation expressed in milliseconds
   @param {number} $endTime - Time at the end of the block creation process in milliseconds
 */
-const setChallenge = (currentChallenge, startTime, endTime) =>{
 
-  // if(!currentChallenge) console.log('Problem with challenge param');
-  // if(!startTime) console.log('Problem with start time');
-  // if(!endTime) console.log('Problem with end time')
-  const modifier = Math.random() * 100000
-  return ( endTime - startTime > MINING_RATE ? currentChallenge-modifier : currentChallenge+modifier )
+const setChallenge = (currentChallenge, lastTimestamp, newTimestamp) =>{
+  const blockTime = newTimestamp - lastTimestamp;
+
+  if(blockTime > MINING_RATE+10000){
+    return currentChallenge-(blockTime - MINING_RATE)
+  }else if(blockTime < MINING_RATE-10000){
+    return currentChallenge+(MINING_RATE - blockTime)
+  }else{
+    return currentChallenge;
+  }
 
 }
 
 
-
-const adjustDifficulty = () =>{
-  //
+const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
+  //Every time challenge value goes beyond a power of ten, increase difficulty
+  if(challenge && currentDifficulty && chainLength){
+    if(chainLength % 1  == 0){ //NEW_DIFFICULTY_LENGTH
+      
+      let difficulty = Math.floor(Math.log10(challenge))
+      if(difficulty > currentDifficulty + 1){
+        return currentDifficulty+1;
+      }else if(difficulty == currentDifficulty + 1){
+        return currentDifficulty
+      }else{
+        if(currentDifficulty > 1){
+          return currentDifficulty - 1;
+        }else{
+          return currentDifficulty
+        }
+      }
+    }
+    
+  }
 }
 
-module.exports = setChallenge;
+
+module.exports = {setChallenge, setDifficulty};

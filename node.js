@@ -866,19 +866,6 @@ class Node {
       socket.emit('block', blockInfo)
     })
 
-    // socket.on('newAccount', (account)=>{
-    //   this.accountTable.addAccount(account).then((added)=>{
-    //     if(added){
-    //       logger(`New account -${account.name}- has been created!`)
-    //       socket.emit('accountCreationSuccess', account)
-    //       this.sendPeerMessage('newAccount', account)
-    //     }else{
-    //       socket.emit('accountCreationError', 'ERROR: Could not add account')
-    //     }
-    //   })
-      
-    // })
-
     socket.on('getBlockSize', (number)=>{
       socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
     })
@@ -930,19 +917,34 @@ class Node {
     socket.on('getMempool', ()=>{
       socket.emit('mempool', Mempool);
     })
-    ////let myCoin = new Coin('EMU', 10000, {})
+    
     socket.on('test', ()=>{
-      let code = `
-      function stackTrace() {
-        var err = new Error();
-        console.log((err.stack))
-        }
-
-        console.log(stackTrace())
-      
-      `
-      callRemoteVM(code)
-      // this.cashInCoinbaseTransactions();
+      let transactions = this.chain.chain[18].transactions
+      let txHashes = Object.keys(transactions);
+      let fakeTx = { 
+        fromAddress: 'Aj1KMxhTMoPyYX2uKF9fUmCtZ2BMkt50i0yB0XxjjuJ6',
+        toAddress: 'Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG',
+        type: 'FAKE ASS TX',
+        data: '',
+        timestamp: 1558441319935,
+        amount: 10,
+        hash:'',
+        miningFee: 0.0167,
+        signature:
+        'L4zw68CEybVBtas+M/4UZZ8FgkSunjHihqVzYmQ5tV7Aswxl6ktyrLf1/5DY3/dKNsTDWJ7XLqmsc7pqba+YzA==' 
+      }
+      fakeTx.hash = sha256(fakeTx.fromAddress+ fakeTx.toAddress+ fakeTx.amount+ fakeTx.data+ fakeTx.timestamp);
+      console.log(fakeTx.hash)
+      // // fakeTx.hash = 
+      let txSample = {}
+      for(var i=0; i < 10; i++){
+        let hash = txHashes[i];
+        let transaction = transactions[hash];
+        txSample[hash] = transaction
+      }
+      txSample[fakeTx.hash] = fakeTx;
+      let valid = this.chain.validateTransactionsForMining(txSample)
+      console.log(valid)
     })
 
     socket.on('dm', (address, message)=>{
@@ -1841,15 +1843,16 @@ class Node {
     if(this.chain instanceof Blockchain){
         if(!this.minerStarted){
           this.minerStarted = true;
-          setInterval(()=>{
+          setInterval(async ()=>{
             if(!process.MINER && !this.minerPaused){
 
              let isMining = this.chain.hasEnoughTransactionsToMine();
              let block = false;
              
              if(isMining && !block){
-              
-              let block = new Block(Date.now(), Mempool.gatherTransactionsForBlock(), Mempool.gatherActionsForBlock());
+              let transactionsGathered = Mempool.gatherTransactionsForBlock();
+              let validatedTransactions = await this.chain.validateTransactionsForMining(transactionsGathered);
+              let block = new Block(Date.now(), validatedTransactions, Mempool.gatherActionsForBlock());
               logger('Mining next block...');
               logger('Number of pending transactions:', Mempool.sizeOfPool());
               Mempool.pendingTransactions = {};

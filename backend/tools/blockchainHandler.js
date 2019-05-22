@@ -47,7 +47,7 @@ const initBlockchain = async () => {
 };
 
 const instanciateBlockchain = (blockchain) =>{
-  return new Blockchain(blockchain.chain, blockchain.pendingTransactions, blockchain.nodeTokens, blockchain.ipAddresses, blockchain.publicKeys);
+  return new Blockchain(blockchain.chain, blockchain.difficulty);
 }
 
 module.exports = {

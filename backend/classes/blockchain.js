@@ -10,7 +10,7 @@ const {
 const { isValidAccountJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
 const Block = require('./block');
-const setChallenge = require('./challenge');
+const { setChallenge, setDifficulty } = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool')
@@ -26,13 +26,12 @@ const Mempool = require('./mempool')
 */
 class Blockchain{
 
-  constructor(chain=false, pendingTransactions=false, ipAddresses=[], publicKeys=[], nodeID=''){
+  constructor(chain=false, difficulty=1){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
-    this.difficulty = 5;
+    this.difficulty = difficulty;
     this.miningReward = 50;
-    this.ipAddresses = ipAddresses;
-    this.blockSize = 20; //Minimum Number of transactions per block
+    this.blockSize = 1; //Minimum Number of transactions per block
     this.orphanedBlocks = [];
     this.transactionSizeLimit = 100 * 1024;
   }
@@ -45,7 +44,7 @@ class Blockchain{
       'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
       'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
     }, {});
-    genesisBlock.challenge = 10 * 1000 * 1000; //average 150 000 nonce/sec
+    genesisBlock.challenge = 1000 * 1000//10 * 1000 * 1000; //average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
     genesisBlock.calculateHash();
 
@@ -112,26 +111,23 @@ class Blockchain{
     @param {function} $callback - Sends result of mining operation
   */
   async minePendingTransactions(ip, block , miningRewardAddress, callback){
-    let ipAddress = ip
-    
-    //Useless???
-    let miningSuccessful = false;
-    let isMining = this.hasEnoughTransactionsToMine();
+      let ipAddress = ip
+      this.difficulty = setDifficulty(this.difficulty, this.getLatestBlock().challenge, this.chain.length);
+      logger(chalk.cyan('Adjusted difficulty to :', this.difficulty))
+      let miningSuccessful = false;
+      let isMining = this.hasEnoughTransactionsToMine();
       
       let lastBlock = this.getLatestBlock();
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
-      block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
+      block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, block.startMineTime)
       
       logger('Current Challenge:', block.challenge)
       
-
       block.mine(this.difficulty, (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
 
-            
-            
             block.minedBy = ipAddress;
             this.chain.push(block);
             
@@ -143,10 +139,6 @@ class Blockchain{
             console.log(chalk.cyan("* Nonce : "), block.nonce)
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
-            
-            
-            // var miningReward = new Transaction('coinbase', miningRewardAddress, this.miningReward, 'coinbase')
-            // Mempool.addTransaction(miningReward);
 
             callback(miningSuccessful, block.hash);
 
@@ -540,10 +532,66 @@ class Blockchain{
           if(valid.error){
             Mempool.rejectTransactions(hash)
             logger('Rejected Transaction:', hash);
+            //If contains invalid tx, need to reject block alltogether
             delete block.transactions[hash];
           }
         })
         resolve(block);
+      }else{
+        logger('ERROR: Must pass block object')
+        resolve(false)
+      }
+      
+    })
+  }
+
+  orderTransactionsByTimestamp(transactions){
+    if(transactions){
+        let txHashes = Object.keys(transactions);
+        let orderedTransaction = {};
+        let txAndTimestamp = {};
+
+        if(txHashes){
+          txHashes.forEach( hash =>{
+            let transaction = transactions[hash];
+            txAndTimestamp[transaction.timestamp] = hash;
+          })
+
+          let timestamps = Object.keys(txAndTimestamp);
+          timestamps.sort(function(a, b){return a-b});
+          timestamps.forEach( timestamp=>{
+            let hash = txAndTimestamp[timestamp];
+            let transaction = transactions[hash];
+            orderedTransaction[hash] = transaction;
+          })
+
+          return orderedTransaction;
+
+        }
+
+    }
+  }
+
+  validateTransactionsForMining(transactions){
+    return new Promise((resolve, reject)=>{
+      if(transactions){
+        let orderedTransaction = this.orderTransactionsByTimestamp(transactions)
+        let txHashes = Object.keys(orderedTransaction);
+        
+        let validTransactions = {}
+        txHashes.forEach( hash =>{
+          let transaction = transactions[hash];
+          let valid = this.validateTransaction(transaction);
+          if(!valid.error){
+            validTransactions[hash] = transaction
+            
+          }else{
+            Mempool.rejectTransactions(hash)
+            logger('Rejected Transaction:', hash);
+            logger('Reason: ', valid.error)
+          }
+        })
+        resolve(validTransactions);
       }else{
         logger('ERROR: Must pass block object')
         resolve(false)
@@ -579,7 +627,7 @@ class Blockchain{
 
             let isNotCircular = transaction.fromAddress !== transaction.toAddress;
            
-            var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) + this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+            var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
            
             var amountIsNotZero = transaction.amount > 0;
 
@@ -721,7 +769,7 @@ class Blockchain{
           let isChecksumValid = await this.validateActionChecksum(action);
           let hasMiningFee = action.fee > 0; //check if amount is correct
           let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
-          let balanceOfSendingAddr = this.getBalanceOfAddress(action.fromAccount.publicKey) + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
+          let balanceOfSendingAddr = this.getBalanceOfAddress(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
           let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
           let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
           let isCreateAccount = action.type == 'account' && action.task == 'create';
