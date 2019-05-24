@@ -13,7 +13,8 @@ const Block = require('./block');
 const { setChallenge, setDifficulty } = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
-const Mempool = require('./mempool')
+const Mempool = require('./mempool');
+let _ = require('private-parts').createKey();
 
 /**
   * @desc Basic blockchain class.
@@ -290,6 +291,21 @@ class Blockchain{
       return reward;
     }
 
+  }
+
+  calculateTotalMiningRewards(){
+    let amountOfReward = 0;
+    this.chain.forEach( block =>{
+      let txHashes = Object.keys(block.transactions);
+      txHashes.forEach( hash =>{
+        let tx = block.transactions[hash];
+        if(tx.fromAddress == 'coinbase'){
+          amountOfReward += tx.amount;
+        }
+      })
+    })
+
+    return amountOfReward;
   }
 
     /**

@@ -517,10 +517,12 @@ class Node {
   */
   initHTTPAPI(app){
     try{
+
+      
       
       let rateLimiter = new RateLimit({
         windowMs: 1000, // 1 hour window 
-        max: 30, // start blocking after 100 requests 
+        max: 100, // start blocking after 100 requests 
         message: "Too many requests per second"
       });
       app.use(rateLimiter);
@@ -579,13 +581,6 @@ class Node {
               }else{
                 let receipt = JSON.stringify(transaction, null, 2)
                 res.send(receipt);
-                /**this.generateReceipt(
-                  transaction.fromAddress, 
-                  transaction.toAddress, 
-                  transaction.amount, 
-                  transaction.data, 
-                  transaction.signature, 
-                  transaction.hash) */
               }
             })
             .catch((e)=>{
@@ -615,10 +610,6 @@ class Node {
                 res.send(actionEmitted.error)
               }
             })
-            // .catch((e)=>{
-            //   console.log(chalk.red(e));
-
-            // })
           }else{
             res.send('ERROR: Invalid transaction format')
           }
@@ -696,6 +687,19 @@ class Node {
         }
       })
   
+
+
+      app.get('/getInfo', (req, res)=>{
+        res.json(this.getChainInfo()).end()
+      })
+
+      app.get('/getBlockHeader',(req, res)=>{
+        var blockNumber = req.query.hash;
+        if(blockNumber){
+          res.json(this.chain.getBlockHeader(blockNumber)).end()
+        }
+      })
+
       app.get('/getNextBlock', (req, res)=>{
         
         if(isValidGetNextBlockJSON(req.query)){
@@ -730,7 +734,6 @@ class Node {
                   res.json( { error:'no block found' } ).end()
                 }
     
-                
               }
             }else{
               res.json( { error:'invalid request parameters' } ).end()
@@ -742,17 +745,6 @@ class Node {
           res.json({ error: 'invalid block request JSON format' }) 
         }
 
-      })
-
-      app.get('/getInfo', (req, res)=>{
-        res.json(this.getChainInfo()).end()
-      })
-
-      app.get('/getBlockHeader',(req, res)=>{
-        var blockNumber = req.query.hash;
-        if(blockNumber){
-          res.json(this.chain.getBlockHeader(blockNumber)).end()
-        }
       })
 
     }catch(e){
@@ -1502,10 +1494,10 @@ class Node {
                   return false
 
                 }else{
-                  setTimeout(()=>{
+                  // setTimeout(()=>{
                     this.fetchBlocks(address)
 
-                  },500)
+                  // },50)
                 }
             }else{
               logger('No block received from '+address)
