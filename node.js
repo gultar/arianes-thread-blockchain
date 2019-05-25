@@ -77,7 +77,8 @@ class Node {
       length:0,
       peerAddress:'',
       totalChallenge:0,
-    }  
+    }
+    this.isDownloading = false;  
   }
 
 
@@ -296,20 +297,22 @@ class Node {
                 
                 let thisTotalChallenge = await this.chain.calculateTotalChallenge();
       
-                if(thisTotalChallenge < totalChallenge){
+                if(thisTotalChallenge < totalChallenge && !this.isDownloading){
                   logger('Attempting to download missing blocks from peer')
+                  this.isDownloading = true;
                   let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
                   if(isValidHeader){
                     
                     this.requestChainHeaders(peer, address, length)
                   }else{
+
                     logger('ERROR: Last block header from peer is invalid')
+                    this.isDownloading = false;
                   }
-                }else if(thisTotalChallenge == totalChallenge){
-                  logger('Chain is up to date')
-                }else{
-                  logger('Peer has a smaller chain')
                 }
+                // else if(thisTotalChallenge == totalChallenge){
+                //   logger('Chain is up to date')
+                // }
               }else{
                 logger('ERROR: Status object is missing parameters parameters')
               }
@@ -362,6 +365,7 @@ class Node {
                 let isChainValid = await this.chain.validateHeadersOfChain(headers)
                 if(isChainValid.error){
                   logger(isChainValid.error)
+                  this.isDownloading = false;
                 }else{
                   this.downloadBlockchain(peer, address, length)
                 }
@@ -369,6 +373,7 @@ class Node {
             
           }else{
             logger('ERROR:Is not valid header json')
+            this.isDownloading = false;
           }
         }
         
@@ -380,6 +385,7 @@ class Node {
 
     }else{
       logger('ERROR: Missing parameters to header request function')
+      this.isDownloading = false;
     }
             
   }
@@ -391,12 +397,20 @@ class Node {
         if(block){
           if(block.error){
             logger(block.error)
+            this.isDownloading = false;
           }
   
           if(block.end){
             logger(chalk.green(block.end))
             peer.off('blockHeader');
             peer.off('block');
+            this.isDownloading = false;
+            this.chain.saveBlockchain()
+            .then( saved=>{
+              if(saved){
+                logger('Saved blockchain state')
+              }
+            })
           }
 
           this.receiveNewBlock(block)
@@ -409,6 +423,7 @@ class Node {
       }
     }else{
       logger('ERROR: Could not download blockchain. Missing parameters')
+      this.isDownloading = false;
     }
   }
 
@@ -2069,7 +2084,7 @@ class Node {
     var that = this;
     setInterval(()=>{
       that.messageBuffer = {};
-      
+      this.isDownloading = false; //In case it is stuck
       
     }, 30000)
   }
