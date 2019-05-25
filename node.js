@@ -336,16 +336,17 @@ class Node {
           let { totalChallenge, bestBlockHeader, length } = status;
   
           if(totalChallenge && bestBlockHeader && length){
-            let thisTotalChallenge = await this.chain.calculateTotalChallenge();
-            let peerChainHasMoreWork = thisTotalChallenge < totalChallenge;
+            console.log('OKAY, ABOUT TO COMPARE CHALLENGE')
+            // let thisTotalChallenge = await this.chain.calculateTotalChallenge();
+            // let peerChainHasMoreWork = thisTotalChallenge < totalChallenge;
   
-            if(peerChainHasMoreWork){
+            // if(peerChainHasMoreWork){
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
-
+                console.log('OKAY CHECKING CHAIN HEADER REQUEST')
                 this.requestChainHeaders(peer, address)
 
-              }
+              // }
             }else{
               //This chain has more work
             }
@@ -780,7 +781,7 @@ class Node {
         try{
           let status = {
             totalChallenge: this.chain.calculateTotalChallenge(),
-            bestBlockHeader: this.chain.getBlockHeader(this.getLatestBlock().blockNumber)
+            bestBlockHeader: this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber)
           }
           socket.emit('blockchainStatus', status);
          }catch(e){
@@ -940,7 +941,11 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      
+      let peers = Object.keys(this.connectionsToPeers);
+      let addr = peers[0]
+      let peer = this.connectionsToPeers[addr];
+      peer.emit('getBlockchainStatus')
+      this.openChainSynchronizationChannel(peer, addr)
     })
 
     socket.on('dm', (address, message)=>{
