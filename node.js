@@ -1501,6 +1501,7 @@ class Node {
       var sideChain = [];
       sideChain = this.chain.chain.splice(blockIndex);
       sideChain.forEach((block)=>{
+        this.unwrapBlock(block);
         this.chain.orphanedBlocks.push(block)
       })
 
