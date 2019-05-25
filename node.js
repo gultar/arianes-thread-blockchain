@@ -747,7 +747,7 @@ class Node {
     })
 
     socket.on('resolveInvalidChain', ()=>{
-      this.validateBlockchain();
+      this.validateBlockchain(true);
     })
 
     socket.on('startMiner', ()=>{
@@ -1413,6 +1413,7 @@ class Node {
         let atBlockNumber = isValid.conflict;
         if(allowRollback){
           this.rollBackBlocks(atBlockNumber-1);
+          logger('Rolled back chain up to block number ', atBlockNumber-1)
           return true;
         }else{
           return false;
@@ -1755,7 +1756,7 @@ class Node {
                 if(success && blockHash){
                  this.minerPaused = true;
                  process.MINER = false;
-                 let isChainValid = this.validateBlockchain()
+                 let isChainValid = this.validateBlockchain(true)
                  if(isChainValid){
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                   
