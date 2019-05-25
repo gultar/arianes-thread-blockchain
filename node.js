@@ -826,9 +826,13 @@ class Node {
          
           let block = this.chain.chain[number];
           if(block){
-            socket.emit('block', block)
-          }else if(number == this.chain.getLatestBlock().blockNumber){
-            socket.emit('block', {end:'SUCCESS: Blockchain successfully updated'});
+            if(number == this.chain.getLatestBlock().blockNumber + 1){ //Is requesting beyond last block
+              socket.emit('block', {end:'SUCCESS: Blockchain successfully updated'});
+            }else{
+              socket.emit('block', block)
+            }
+            
+            
           }else{
             socket.emit('block', {error:'ERROR: block not found'})
           }
