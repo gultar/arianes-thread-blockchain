@@ -96,117 +96,7 @@ class Node {
       app.use(helmet())
       const server = http.createServer(app).listen(this.port);
       this.loadNodeConfig()
-      this.initHTTPAPI(app);
-      this.connectToKeyServer()
-      this.cleanMessageBuffer();
-      this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
-      
-      //Loading blockchain from file
-      initBlockchain()
-        .then(chain => {
-          if(chain){
-            logger('Blockchain successfully loaded')
-            this.chain = chain;
-
-            //Loading transaction Mempool
-            Mempool.loadMempool()
-            .then((mempoolLoaded)=>{
-              if(mempoolLoaded){
-                logger('Loaded transaction mempool');
-                logger('Number of transactions in pool: '+Mempool.sizeOfPool());
-              }else{
-                logger(chalk.red('ERROR: Could not load mempool'))
-              }
-            })
-
-          }else{
-            logger(chalk.red('ERROR: Could not init blockchain'))
-          }
-        })
-
-      //Loading list of known peer addresses
-      this.nodeList.loadNodeList()
-        .then(loaded =>{
-          if(loaded){
-            logger('Loaded list of known nodes')
-          }else{
-            logger(chalk.red('Could not load list of nodes'))
-          }
-        })
-
-      this.accountTable.loadAllAccountsFromFile()
-      .then(loaded =>{
-        if(loaded){
-          logger('Loaded account table');
-        }else{
-          logger(chalk.red('Could not load account table'))
-        }
-      })
-      
-    }catch(e){
-      console.log(chalk.red(e));
-    }
-
-    this.ioServer.on('connection', (socket) => {
-      if(socket){
-         if(socket.handshake.query.token !== undefined){
-             try{
-               socket.on('message', (msg) => { logger('Client:', msg); });
-
-               let peerToken = JSON.parse(socket.handshake.query.token);
-               let peerAddress = peerToken.address;
-               let peerPublicKey = peerToken.publicKey
-               let peerChecksumObj = peerToken.checksum;
-
-               if(peerChecksumObj){
-                let peerTimestamp = peerChecksumObj.timestamp;
-                let peerRandomOrder = peerChecksumObj.randomOrder;
-                let peerChecksum = peerChecksumObj.checksum
-
-                let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
-              
-                if(isValid){
-                  this.peersConnected[peerAddress] = socket;
-                  this.nodeList.addNewAddress(peerAddress);
-                  this.nodeEventHandlers(socket);
-                }else{
-                  socket.emit('message', 'Connected to local node');
-                  this.externalEventHandlers(socket);
-                }
-               }
-               
-
-               
-
-             }catch(e){
-               console.log(chalk.red(e))
-             }
-
-         }else{
-           socket.emit('message', 'Connected to local node')
-           this.externalEventHandlers(socket);
-         }
-      }else{
-        logger(chalk.red('ERROR: Could not create socket'))
-      }
-
-    });
-
-    this.ioServer.on('disconnect', ()=>{ logger('a node has disconnected') })
-
-    this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
-  }startServer(app=express()){
-    try{
-
-      console.log(chalk.cyan('\n******************************************'))
-      console.log(chalk.cyan('*')+' Starting node at '+this.address);
-      console.log(chalk.cyan('******************************************\n'))
-      // const expressWs = require('express-ws')(app);
-      app.use(express.static(__dirname+'/views'));
-      express.json({ limit: '300kb' })
-      app.use(helmet())
-      const server = http.createServer(app).listen(this.port);
-      this.loadNodeConfig()
+      this.initChainInfoAPI(app);
       this.initHTTPAPI(app);
       this.connectToKeyServer()
       this.cleanMessageBuffer();
@@ -510,6 +400,48 @@ class Node {
     }
   }
 
+  initChainInfoAPI(app){
+    app.get('/getWalletBalance', async(req, res)=>{
+      if(isValidWalletBalanceJSON(req.query)){
+        let publicKey = req.query.publicKey;
+        if(publicKey){
+          res.json({ 
+            balance: 
+            this.chain.getBalanceOfAddress(publicKey) 
+            + this.chain.checkFundsThroughPendingTransactions(publicKey)
+          }).end()
+        }else{
+          res.json({error:'ERROR: must provide publicKey'}).end()
+        }
+      }else{
+        res.json({error:'ERROR: Invalid JSON request parameters'}).end()
+      }
+    })
+
+    app.get('/getWalletHistory', async(req, res)=>{
+      if(isValidWalletBalanceJSON(req.query)){
+        let publicKey = req.query.publicKey;
+        if(publicKey){
+          let history = await this.chain.getTransactionHistory(publicKey)
+            res.json({ history:history }).end()
+        }else{
+          res.json({error:'ERROR: must provide publicKey'}).end()
+        }
+      }else{
+        res.json({error:'ERROR: Invalid JSON request parameters'}).end()
+      }
+    })
+
+
+    app.get('/getAddress', (req, res)=>{
+      res.json({ nodes: this.nodeList.addresses }).end();
+    })
+
+    app.get('/getInfo', (req, res)=>{
+      res.json(this.getChainInfo()).end()
+    })
+  }
+
 
   /**
     Internode API that can be used by UIs to get data from blockchain and send transactions
@@ -518,17 +450,14 @@ class Node {
   initHTTPAPI(app){
     try{
 
-      
-      
       let rateLimiter = new RateLimit({
         windowMs: 1000, // 1 hour window 
         max: 100, // start blocking after 100 requests 
         message: "Too many requests per second"
       });
+
       app.use(rateLimiter);
-
       app.use(bodyParser.json());
-
       app.use(function (error, req, res, next) {
         if (error instanceof SyntaxError &&
           error.status >= 400 && error.status < 500 &&
@@ -621,41 +550,7 @@ class Node {
         
       });
 
-      app.get('/getWalletBalance', async(req, res)=>{
-        if(isValidWalletBalanceJSON(req.query)){
-          let publicKey = req.query.publicKey;
-          if(publicKey){
-            res.json({ 
-              balance: 
-              this.chain.getBalanceOfAddress(publicKey) 
-              + this.chain.checkFundsThroughPendingTransactions(publicKey)
-            }).end()
-          }else{
-            res.json({error:'ERROR: must provide publicKey'}).end()
-          }
-        }else{
-          res.json({error:'ERROR: Invalid JSON request parameters'}).end()
-        }
-      })
-
-      app.get('/getWalletHistory', async(req, res)=>{
-        if(isValidWalletBalanceJSON(req.query)){
-          let publicKey = req.query.publicKey;
-          if(publicKey){
-            let history = await this.chain.getTransactionHistory(publicKey)
-              res.json({ history:history }).end()
-          }else{
-            res.json({error:'ERROR: must provide publicKey'}).end()
-          }
-        }else{
-          res.json({error:'ERROR: Invalid JSON request parameters'}).end()
-        }
-      })
-
-  
-      app.get('/getAddress', (req, res)=>{
-        res.json({ nodes: this.nodeList.addresses }).end();
-      })
+      
   
       app.post('/chainLength', (req, res) =>{
         try{
@@ -687,12 +582,6 @@ class Node {
         }
       })
   
-
-
-      app.get('/getInfo', (req, res)=>{
-        res.json(this.getChainInfo()).end()
-      })
-
       app.get('/getBlockHeader',(req, res)=>{
         var blockNumber = req.query.hash;
         if(blockNumber){
@@ -777,13 +666,8 @@ class Node {
      })
 
      socket.on('directMessage', (data)=>{
-      
       var { type, originAddress, targetAddress, messageId, data } = data
       this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
-     })
-
-     socket.on('getPeers', ()=>{
-        socket.emit('address', this.nodeList.addresses);
      })
 
      socket.on('disconnect', ()=>{
@@ -1494,10 +1378,10 @@ class Node {
                   return false
 
                 }else{
-                  // setTimeout(()=>{
+                  setTimeout(()=>{
                     this.fetchBlocks(address)
 
-                  // },50)
+                  },10)
                 }
             }else{
               logger('No block received from '+address)
