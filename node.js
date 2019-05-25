@@ -746,6 +746,10 @@ class Node {
       socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
     })
 
+    socket.on('resolveInvalidChain', ()=>{
+      this.validateBlockchain();
+    })
+
     socket.on('startMiner', ()=>{
       this.minerPaused = false;
       this.updateAndMine();
@@ -1402,9 +1406,20 @@ class Node {
 
   }
 
-  validateBlockchain(){
+  validateBlockchain(allowRollback){
     if(this.chain instanceof Blockchain){
-      this.chain.isChainValid()
+      let isValid = this.chain.isChainValid();
+      if(isValid.conflict){
+        let atBlockNumber = isValid.conflict;
+        if(allowRollback){
+          this.rollBackBlocks(atBlockNumber);
+          return true;
+        }else{
+          return false;
+        }
+      }
+
+      return true;
     }
   }
 
@@ -1421,10 +1436,7 @@ class Node {
           try{
             
 
-            if(headers.headers.length < this.chain.chain.length){
-              logger('This chain is longer than peer chain')
-              return false;
-            }
+           
 
             if(i > 1 && isValidHeaderJSON(header)){
               let isValid = this.chain.validateBlockHeader(header);
@@ -1447,6 +1459,10 @@ class Node {
                 console.log('Timestamp', header.timestamp);
                 console.log('Merkle', header.merkleRoot);
                 console.log('Nonce', header.nonce)
+                return false;
+              }
+              if(headers.headers.length < this.chain.chain.length){
+                logger('This chain is longer than peer chain')
                 return false;
               } 
             }
@@ -1738,41 +1754,42 @@ class Node {
                 if(success && blockHash){
                  this.minerPaused = true;
                  process.MINER = false;
-                 
-                 this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-                 
-                 let newBlockHeight = this.chain.getLatestBlock().blockNumber;
-                 this.chain.isChainValid()
-                 this.chain.saveBlockchain();
+                 let isChainValid = this.validateBlockchain()
+                 if(isChainValid){
+                  this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+                  
+                  let newBlockHeight = this.chain.getLatestBlock().blockNumber;
+                  
+                  this.chain.saveBlockchain();
 
-                 let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
-                 if(coinbase){
-                  this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
+                  let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
+                  if(coinbase){
+                    this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
+                  }else{
+                    logger('ERROR: An error occurred while creating coinbase transaction')
+                  }
+                  
+                  
+                  setTimeout(()=>{
+                    //Leave enough time for the nodes to receive the two messages
+                    //and for this node to not mine the previous, already mined block
+                    this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+                    
+                    logger('Seconds past since last block',this.showBlockTime(newBlockHeight))
+                    this.minerPaused = false;
+                    let newBlockTransactions = this.chain.getLatestBlock().transactions;
+                    let newBlockActions = this.chain.getLatestBlock().actions
+                    Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                    Mempool.deleteActionsFromMinedBlock(newBlockActions);
+                    this.cashInCoinbaseTransactions();
+
+                  },3000)
                  }else{
-                   logger('ERROR: An error occurred while creating coinbase transaction')
+                  this.unwrapBlock(block)
                  }
                  
-                 
-                 setTimeout(()=>{
-                   //Leave enough time for the nodes to receive the two messages
-                   //and for this node to not mine the previous, already mined block
-                   this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-                   
-                   logger('Seconds past since last block',this.showBlockTime(newBlockHeight))
-                   this.minerPaused = false;
-                   let newBlockTransactions = this.chain.getLatestBlock().transactions;
-                   let newBlockActions = this.chain.getLatestBlock().actions
-                   Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-                   Mempool.deleteActionsFromMinedBlock(newBlockActions);
-                   this.cashInCoinbaseTransactions();
-
-                 },3000)
                 }else{
-                   let transactionsOfCancelledBlock = block.transactions;
-                   let actionsOfCancelledBlock = block.actions
-                   Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
-                   Mempool.putbackPendingActions(actionsOfCancelledBlock)
-                   this.cashInCoinbaseTransactions();
+                   this.unwrapBlock(block)
                 }
               })
              }else{
@@ -1782,6 +1799,8 @@ class Node {
            }else{
              //Already started mining
            }
+
+           
           }, 1000)
         }else{
           logger('WARNING: miner already started')
@@ -1789,6 +1808,15 @@ class Node {
         
       
     }
+  }
+
+  unwrapBlock(block){
+    let transactionsOfCancelledBlock = block.transactions;
+    let actionsOfCancelledBlock = block.actions
+    Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
+    Mempool.putbackPendingActions(actionsOfCancelledBlock)
+    this.cashInCoinbaseTransactions();
+    
   }
 
   cashInCoinbaseTransactions(){

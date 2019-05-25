@@ -438,13 +438,13 @@ class Blockchain{
         console.log('currentblock hash does not match the recalculation ');
         console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
         console.log('*******************************************************************');
-        return false;
+        return {conflict:i};
       }else if(currentBlock.previousHash !== previousBlock.hash){
         console.log('*******************************************************************');
         console.log('* currentblock hash does not match previousblock hash *');
         console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
         console.log('*******************************************************************');
-        return false;
+        return {conflict:i};
       }
     }
 
