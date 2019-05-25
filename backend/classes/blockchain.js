@@ -617,6 +617,7 @@ class Blockchain{
             logger('Rejected Transaction:', hash);
             //If contains invalid tx, need to reject block alltogether
             delete block.transactions[hash];
+            // resolve(false)
           }
         })
         resolve(block);
@@ -628,37 +629,12 @@ class Blockchain{
     })
   }
 
-  orderTransactionsByTimestamp(transactions){
-    if(transactions){
-        let txHashes = Object.keys(transactions);
-        let orderedTransaction = {};
-        let txAndTimestamp = {};
-
-        if(txHashes){
-          txHashes.forEach( hash =>{
-            let transaction = transactions[hash];
-            txAndTimestamp[transaction.timestamp] = hash;
-          })
-
-          let timestamps = Object.keys(txAndTimestamp);
-          timestamps.sort(function(a, b){return a-b});
-          timestamps.forEach( timestamp=>{
-            let hash = txAndTimestamp[timestamp];
-            let transaction = transactions[hash];
-            orderedTransaction[hash] = transaction;
-          })
-
-          return orderedTransaction;
-
-        }
-
-    }
-  }
+  
 
   validateTransactionsForMining(transactions){
     return new Promise((resolve, reject)=>{
       if(transactions){
-        let orderedTransaction = this.orderTransactionsByTimestamp(transactions)
+        let orderedTransaction = Mempool.orderTransactionsByTimestamp(transactions)
         let txHashes = Object.keys(orderedTransaction);
         
         let validTransactions = {}

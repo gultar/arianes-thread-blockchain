@@ -168,6 +168,33 @@ class Mempool{
         }
     }
 
+    orderTransactionsByTimestamp(transactions){
+        if(transactions){
+            let txHashes = Object.keys(transactions);
+            let orderedTransaction = {};
+            let txAndTimestamp = {};
+    
+            if(txHashes){
+              txHashes.forEach( hash =>{
+                let transaction = transactions[hash];
+                txAndTimestamp[transaction.timestamp] = hash;
+              })
+    
+              let timestamps = Object.keys(txAndTimestamp);
+              timestamps.sort(function(a, b){return a-b});
+              timestamps.forEach( timestamp=>{
+                let hash = txAndTimestamp[timestamp];
+                let transaction = transactions[hash];
+                orderedTransaction[hash] = transaction;
+              })
+    
+              return orderedTransaction;
+    
+            }
+    
+        }
+      }
+
     async loadMempool(){
         return new Promise((resolve, reject)=>{
             fs.exists('./data/mempool.json', async (exists)=>{

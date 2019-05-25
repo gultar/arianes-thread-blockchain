@@ -295,11 +295,16 @@ class Node {
               if(totalChallenge && bestBlockHeader && length){
                 
                 let thisTotalChallenge = await this.chain.calculateTotalChallenge();
-                
       
                 if(thisTotalChallenge < totalChallenge){
                   logger('Attempting to download missing blocks from peer')
-                  this.openChainSynchronizationChannel(peer, address, bestBlockHeader, length)
+                  let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+                  if(isValidHeader){
+                    
+                    this.requestChainHeaders(peer, address, length)
+                  }else{
+                    logger('ERROR: Last block header from peer is invalid')
+                  }
                 }else if(thisTotalChallenge == totalChallenge){
                   logger('Chain is up to date')
                 }else{
@@ -339,22 +344,6 @@ class Node {
     }
   }
 
-  openChainSynchronizationChannel(peer, address, bestBlockHeader, length){
-    if(peer){
-      let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
-      if(isValidHeader){
-        
-        this.requestChainHeaders(peer, address, length)
-      }else{
-        logger('ERROR: Last block header from peer is invalid')
-      }
-  
-    }else{
-      logger('ERROR: Missing required parameters -> peer, address, bestBlockHeader or length')
-    }
-    
-  }
-
   async requestChainHeaders(peer, address, length){
     if(this.chain instanceof Blockchain && peer && address){
       let headers = [];
@@ -362,7 +351,7 @@ class Node {
       peer.on('blockHeader', async (header)=>{
         if(header.error){
           logger(header.error);
-          // peer.off('blockHeader');
+          peer.off('blockHeader');
           return null;
         }else{
           if(isValidHeaderJSON(header)){
@@ -375,8 +364,6 @@ class Node {
                   logger(isChainValid.error)
                 }else{
                   this.downloadBlockchain(peer, address, length)
-                  // this.fetchBlocks(address)
-                  // peer.off('blockHeader')
                 }
               }
             
@@ -408,6 +395,8 @@ class Node {
   
           if(block.end){
             logger(chalk.green(block.end))
+            peer.off('blockHeader');
+            peer.off('block');
           }
 
           this.receiveNewBlock(block)
@@ -1865,18 +1854,11 @@ class Node {
 
 
   update(){
-    this.sendPeerMessage('getLongestChain');
-    // logger('Querying the network for the longest chain')
-    setTimeout(()=>{
-      if(this.longestChain.peerAddress !== ''){
-          this.fetchBlocks(this.longestChain.peerAddress, ()=>{
-        })
-      }else{
-        
-        return this.update();
-      }
-
-    },3000)
+    let peerAddresses = Object.keys(this.connectionsToPeers);
+    let randomPeerIndex = Math.random() * peerAddresses.length
+    let randomPeerAddress = peerAddresses[randomPeerIndex];
+    let randomPeer = this.connectionsToPeers[randomPeerAddress];
+    randomPeer.emit('getBlockchainStatus');
   }
 
   /**
