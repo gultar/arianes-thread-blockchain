@@ -344,7 +344,7 @@ class Node {
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
                 console.log('OKAY CHECKING CHAIN HEADER REQUEST')
-                this.requestChainHeaders(peer, address)
+                this.requestChainHeaders(peer, address, length)
 
               // }
             }else{
@@ -361,7 +361,7 @@ class Node {
     
   }
 
-  async requestChainHeaders(peer, address){
+  async requestChainHeaders(peer, address, length){
     if(this.chain instanceof Blockchain && peer && address){
       let headers = []
 
@@ -794,7 +794,7 @@ class Node {
 
      socket.on('getBlockHeader', (blockNumber)=>{
        if(blockNumber && typeof blockNumber == 'number'){
-         let header = this.getBlockHeader(blockNumber);
+         let header = this.chain.getBlockHeader(blockNumber);
          if(header){
            socket.emit('blockHeader', header);
          }else{
@@ -810,7 +810,7 @@ class Node {
           let block = this.chain.chain[number];
           if(block){
             socket.emit('block', block)
-          }else if(number == this.getLatestBlock().blockNumber){
+          }else if(number == this.chain.getLatestBlock().blockNumber){
             socket.emit('block', {end:'updated'});
           }else{
             socket.emit('block', {error:'ERROR: block not found'})
