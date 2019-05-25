@@ -365,7 +365,7 @@ class Node {
     if(this.chain instanceof Blockchain && peer && address){
       let headers = []
 
-      peer.on('blockHeaders', (header)=>{
+      peer.on('blockHeader', (header)=>{
         if(header.error){
           logger(header.error);
         }else{
@@ -373,7 +373,7 @@ class Node {
             let isValidHeader = this.chain.validateBlockHeader(header);
             if(isValidHeader){
               headers.push(header);
-              
+              console.log('PUSHING NEW HEADER', header.blockNumber)
             }else{
               logger('ERROR: Is not valid block header')
             }
