@@ -272,7 +272,7 @@ class Node {
               peer.emit('message', 'Connection established by '+ this.address);
               peer.emit('connectionRequest', this.address);
               // this.sendPeerMessage('addressBroadcast');
-              // this.sendDirectMessage('chainLength', address, this.chain.chain.length)
+              // this.sendDirectMessage('chainLength', address, this.chain.chain.length);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
               
@@ -285,7 +285,29 @@ class Node {
               logger('Server: ' + message);
           })
 
-          
+          peer.on('blockchainStatus', async (status)=>{
+            if(this.chain instanceof Blockchain){
+              let { totalChallenge, bestBlockHeader, length } = status;
+      
+              if(totalChallenge && bestBlockHeader && length){
+                
+                let thisTotalChallenge = await this.chain.calculateTotalChallenge();
+                
+      
+                if(thisTotalChallenge < totalChallenge){
+                  logger('Opening up synchronization channel')
+                  this.openChainSynchronizationChannel(peer, address, bestBlockHeader, length)
+                }else if(thisTotalChallenge == totalChallenge){
+                  logger('Chain is up to date')
+                }else{
+                  logger('Peer has a smaller chain')
+                }
+              }else{
+                logger('ERROR: Status object is missing parameters parameters')
+              }
+            }
+            
+          })
 
           peer.on('getAddr', ()=>{
             peer.emit('addr', this.nodeList.addresses);
@@ -314,69 +336,45 @@ class Node {
     }
   }
 
-  // async connectToKeyServer(){
-  //   let socket = await ioClient('http://localhost:3000', {
-  //     'query':
-  //           {
-  //             token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey })
-  //           }
-  //   });
-  //   socket.on('connect', ()=>{
-  //     logger('Connected to key server')
-  //   })
-  //   socket.on('message', message => console.log(message))
-  //   socket.on('wallet', (wallet)=>{  })
-
-  // }
-
-  openChainSynchronizationChannel(peer, address){
+  openChainSynchronizationChannel(peer, address, bestBlockHeader, length){
     if(peer){
-      peer.on('blockchainStatus', async (status)=>{
-        if(this.chain instanceof Blockchain){
-          let { totalChallenge, bestBlockHeader, length } = status;
-  
-          if(totalChallenge && bestBlockHeader && length){
-            console.log('OKAY, ABOUT TO COMPARE CHALLENGE')
-            // let thisTotalChallenge = await this.chain.calculateTotalChallenge();
-            // let peerChainHasMoreWork = thisTotalChallenge < totalChallenge;
-  
-            // if(peerChainHasMoreWork){
-              let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
-              if(isValidHeader){
-                console.log('OKAY CHECKING CHAIN HEADER REQUEST')
-                this.requestChainHeaders(peer, address, length)
-
-              // }
-            }else{
-              //This chain has more work
-            }
-          }else{
-            logger('ERROR: Status object is missing parameters parameters')
-          }
-        }
+      let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+      if(isValidHeader){
         
-      })
+        this.requestChainHeaders(peer, address, length)
+      }
   
+    }else{
+      logger('ERROR: Missing required parameters -> peer, address, bestBlockHeader or length')
     }
     
   }
 
   async requestChainHeaders(peer, address, length){
     if(this.chain instanceof Blockchain && peer && address){
-      let headers = []
+      let headers = [];
 
-      peer.on('blockHeader', (header)=>{
+      peer.on('blockHeader', async (header)=>{
         if(header.error){
           logger(header.error);
+          peer.off('blockHeader');
+          return null;
         }else{
           if(isValidHeaderJSON(header)){
-            let isValidHeader = this.chain.validateBlockHeader(header);
-            if(isValidHeader){
+            
               headers.push(header);
-              console.log('PUSHING NEW HEADER', header.blockNumber)
-            }else{
-              logger('ERROR: Is not valid block header')
-            }
+              
+              if(headers.length == length -1){ // -1 to account for the genesis block being excluded
+                let isChainValid = await this.chain.validateHeadersOfChain(headers)
+                if(isChainValid.error){
+                  logger(isChainValid.error)
+                }else{
+
+                  // this.fetchBlocks(address)
+                  // peer.off('blockHeader')
+                }
+              }
+            
           }else{
             logger('ERROR:Is not valid header json')
           }
@@ -385,25 +383,39 @@ class Node {
       })
 
       for(var i=0; i < length; i++){
-        setTimeout(()=>{
           peer.emit('getBlockHeader', i);
-        },50)
       }
 
-      if(headers.length == length){
-        let isChainValid = await this.chain.validateHeadersOfChain(headers)
-        if(isChainValid.error){
-          logger(isChainValid.error)
-        }else{
-          this.fetchBlocks(address)
-        }
-      }
-
-      
     }else{
       logger('ERROR: Missing parameters to header request function')
     }
             
+  }
+
+  downloadBlockchain(peer, address, length){
+    if(this.chain instanceof Blockchain && peer && address && length){
+      let latestBlock = this.chain.getLatestBlock();
+      peer.on('block', (block)=>{
+        if(block){
+          if(block.error){
+            logger(block.error)
+          }
+  
+          if(block.end){
+            logger(chalk.green(block.end))
+          }
+
+          this.receiveNewBlock(newBlock)
+        }
+
+      })
+
+      for(var i=0; i < length; i++){
+        peer.emit('getBlock', latestBlock.blockNumber + 1)
+      }
+    }else{
+      logger('ERROR: Could not download blockchain. Missing parameters')
+    }
   }
 
 
@@ -792,18 +804,18 @@ class Node {
         
      })
 
-     socket.on('getBlockHeader', (blockNumber)=>{
+     socket.on('getBlockHeader', async (blockNumber)=>{
        if(blockNumber && typeof blockNumber == 'number'){
-         let header = this.chain.getBlockHeader(blockNumber);
+         let header = await this.chain.getBlockHeader(blockNumber);
          if(header){
            socket.emit('blockHeader', header);
          }else{
-           socket.emit('blockHeader', {error:'ERROR: Block not found'})
+           socket.emit('blockHeader', {error:'ERROR: Block header not found'})
          }
        }
      })
 
-     socket.on('downloadChain', (number)=>{
+     socket.on('getBlock', (number)=>{
       if(this.chain instanceof Blockchain){
         if(number && typeof number == 'number'){
          
@@ -811,7 +823,7 @@ class Node {
           if(block){
             socket.emit('block', block)
           }else if(number == this.chain.getLatestBlock().blockNumber){
-            socket.emit('block', {end:'updated'});
+            socket.emit('block', {end:'SUCCESS: Blockchain successfully updated'});
           }else{
             socket.emit('block', {error:'ERROR: block not found'})
           }
@@ -946,7 +958,12 @@ class Node {
       let addr = peers[0]
       let peer = this.connectionsToPeers[addr];
       peer.emit('getBlockchainStatus')
-      this.openChainSynchronizationChannel(peer, addr)
+      
+    })
+
+    socket.on('rollback', ()=>{
+      logger('Rolled back to block 2319')
+      this.rollBackBlocks(2319)
     })
 
     socket.on('dm', (address, message)=>{
@@ -1356,7 +1373,7 @@ class Node {
     @param {Object} $newBlock - Block to be added
   */
   receiveNewBlock(newBlock){
-      if(newBlock != undefined && newBlock != null && typeof newBlock == 'object'){
+      if(typeof newBlock == 'object'){
         let minerOfLastBlock = this.chain.getLatestBlock().minedBy;
         
         var isBlockSynced = this.chain.syncBlock(newBlock);

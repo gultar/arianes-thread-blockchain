@@ -43,9 +43,9 @@ program
     if(program.join){
       setTimeout(()=>{
         node.joinPeers();
-        setTimeout(()=>{
-          node.update();
-        },4000)
+        // setTimeout(()=>{
+        //   node.update();
+        // },4000)
       },4000)
     }
 	

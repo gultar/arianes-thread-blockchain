@@ -468,6 +468,7 @@ class Blockchain{
     - Block has successfully calculated a valid hash
     - Block linked with previous block by including previous hash in its own hash calculation
     - Block difficulty hasn't been tempered with
+    - Total challenge score matches 
     - Chain doesn't already contain this block
     - All transactions are valid
     - No double spend took place in chain
@@ -520,7 +521,7 @@ class Blockchain{
   */
 
   getBlockHeader(blockNumber){
-    if(blockNumber >= 0){
+    if(typeof blockNumber == 'number' && blockNumber >= 0){
 
       var block = this.chain[blockNumber];
 
@@ -551,7 +552,7 @@ class Blockchain{
       
       if(header.hash == RecalculateHash(header)){
         let isNotAlreadyInChain = this.getIndexOfBlockHash(header.hash);
-        if(isNotAlreadyInChain){
+        if(!isNotAlreadyInChain){
           return true;
         }else{
           return false;
