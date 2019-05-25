@@ -1412,7 +1412,7 @@ class Node {
       if(isValid.conflict){
         let atBlockNumber = isValid.conflict;
         if(allowRollback){
-          this.rollBackBlocks(atBlockNumber);
+          this.rollBackBlocks(atBlockNumber-1);
           return true;
         }else{
           return false;
