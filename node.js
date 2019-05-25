@@ -298,7 +298,7 @@ class Node {
                 
       
                 if(thisTotalChallenge < totalChallenge){
-                  logger('Opening up synchronization channel')
+                  logger('Attempting to download missing blocks from peer')
                   this.openChainSynchronizationChannel(peer, address, bestBlockHeader, length)
                 }else if(thisTotalChallenge == totalChallenge){
                   logger('Chain is up to date')
@@ -345,6 +345,8 @@ class Node {
       if(isValidHeader){
         
         this.requestChainHeaders(peer, address, length)
+      }else{
+        logger('ERROR: Last block header from peer is invalid')
       }
   
     }else{
@@ -360,7 +362,7 @@ class Node {
       peer.on('blockHeader', async (header)=>{
         if(header.error){
           logger(header.error);
-          peer.off('blockHeader');
+          // peer.off('blockHeader');
           return null;
         }else{
           if(isValidHeaderJSON(header)){
@@ -372,7 +374,7 @@ class Node {
                 if(isChainValid.error){
                   logger(isChainValid.error)
                 }else{
-
+                  this.downloadBlockchain(peer, address, length)
                   // this.fetchBlocks(address)
                   // peer.off('blockHeader')
                 }
@@ -408,13 +410,13 @@ class Node {
             logger(chalk.green(block.end))
           }
 
-          this.receiveNewBlock(newBlock)
+          this.receiveNewBlock(block)
         }
 
       })
 
-      for(var i=0; i < length; i++){
-        peer.emit('getBlock', latestBlock.blockNumber + 1)
+      for(var i=latestBlock.blockNumber; i < length; i++){
+        peer.emit('getBlock', i + 1)
       }
     }else{
       logger('ERROR: Could not download blockchain. Missing parameters')
