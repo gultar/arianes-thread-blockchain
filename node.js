@@ -273,6 +273,9 @@ class Node {
               peer.emit('connectionRequest', this.address);
               // this.sendPeerMessage('addressBroadcast');
               // this.sendDirectMessage('chainLength', address, this.chain.chain.length);
+              setTimeout(()=>{
+                peer.emit('getBlockchainStatus')
+              },1000);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
               
