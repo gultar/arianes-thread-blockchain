@@ -24,8 +24,6 @@ program
     )
   .option('-j, --join', 'Joins network')
   .option('-m, --mine', 'Starts the node as a miner')
-  .option('-M, --forcemine', 'Force mining even if chain is not updated')
-  .option('-u, --update', 'Updates blockchain by fetching longest chain')
   .option('-s, --seed', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-j, --jsondebug', 'Debugs JSON schema')
@@ -35,7 +33,6 @@ program
   .usage('<address> <port>')
   .description('Starts blockchain node')
   .action((address, port, cmd)=>{
-    //node = new Node(address, port);
     node.address = 'http://'+address+':'+port;
     node.port = port;
     node.startServer()
@@ -43,44 +40,21 @@ program
     if(program.join){
       setTimeout(()=>{
         node.joinPeers();
-        // setTimeout(()=>{
-        //   node.update();
-        // },4000)
       },4000)
-    }
-	
-    if(program.test){
-      setTimeout(()=>{
-        node.rollBackBlocks(program.test);
-        node.save();
-      },5000)
-
     }
 
     if(program.seed){
 
       setTimeout(()=>{
         node.connectToPeer(program.seed)
-        setTimeout(()=>{
-          node.update();
-          console.log(node.knownPeers)
-        },6000)
+       
       },3000)
 
     }
 
     if(program.mine){
-      //Update then mine
-        setTimeout(()=>{
-          node.updateAndMine()
-      },3000)
+      node.startMiner()
 
-    }
-
-    if(program.forcemine){
-      setTimeout(()=>{
-        node.forceMine()
-      },3000)
     }
 
     if(program.update && !program.mine){

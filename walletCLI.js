@@ -144,6 +144,38 @@ const runWalletCLI = async () =>{
               }
           })
 
+        program
+          .command('list')
+          .description('Generates a signature of selected data')
+          .action(async ()=>{
+            
+            let walletNames = []
+            let dir = './wallets';
+            let files = fs.readdirSync(dir);
+            for(var i in files){
+              
+              if (!files.hasOwnProperty(i)) continue;
+              var name = dir+'/'+files[i];
+              if (!fs.statSync(name).isDirectory()){
+                if(files[i] != '.gitignore'){
+                  walletNames.push(name);
+                }
+                  
+              }
+            }
+            
+            walletNames.forEach( async (name)=>{
+              let wallet = await walletManager.loadWallet(name);
+              if(wallet){
+                console.log(wallet);
+              }else{
+                console.log({error:`wallet ${walletName} not found`})
+              }
+            })
+
+          })
+        
+
           
      
       

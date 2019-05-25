@@ -66,6 +66,7 @@ class Node {
     this.peersConnected = {};
     this.connectionsToPeers = {};
     this.nodeList = new NodeList();
+    this.autoUpdate = true;  
     this.messageBuffer = {};
     this.minerStarted = false;
     this.minerPaused = false;
@@ -78,7 +79,8 @@ class Node {
       peerAddress:'',
       totalChallenge:0,
     }
-    this.isDownloading = false;  
+    this.isDownloading = false;
+    
   }
 
 
@@ -921,7 +923,7 @@ class Node {
 
     socket.on('startMiner', ()=>{
       this.minerPaused = false;
-      this.updateAndMine();
+      this.startMiner()
     })
 
     socket.on('stopMining', ()=>{
@@ -941,11 +943,7 @@ class Node {
     })
 
     socket.on('update', (address)=>{
-      if(address){
-        this.fetchBlocks(address)
-      }else{
-        this.update()
-      }
+      this.update();
     })
 
     socket.on('verbose', ()=>{
@@ -1844,23 +1842,6 @@ class Node {
      return receipt;
   }
 
-  updateAndMine(){
-    this.sendPeerMessage('getLongestChain');
-    // logger('Querying the network for the longest chain before starting the miner')
-    setTimeout(()=>{
-      if(this.longestChain.peerAddress !== ''){
-        this.fetchBlocks(this.longestChain.peerAddress, ()=>{
-          logger('Starting miner!')
-          this.outputToUI('Starting miner!')
-          this.startMiner();
-        })
-      }else{
-        return this.updateAndMine()
-      }
-
-    },3000)
-  }
-
   forceMine(){
     logger('Starting miner!')
     this.outputToUI('Starting miner!')
@@ -1873,7 +1854,10 @@ class Node {
     let randomPeerIndex = Math.random() * peerAddresses.length
     let randomPeerAddress = peerAddresses[randomPeerIndex];
     let randomPeer = this.connectionsToPeers[randomPeerAddress];
-    randomPeer.emit('getBlockchainStatus');
+    if(randomPeer){
+      randomPeer.emit('getBlockchainStatus');
+    }
+    
   }
 
   /**
