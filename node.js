@@ -781,7 +781,8 @@ class Node {
         try{
           let status = {
             totalChallenge: this.chain.calculateTotalChallenge(),
-            bestBlockHeader: this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber)
+            bestBlockHeader: this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber),
+            length: this.chain.chain.length
           }
           socket.emit('blockchainStatus', status);
          }catch(e){
