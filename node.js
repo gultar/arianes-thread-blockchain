@@ -75,7 +75,8 @@ class Node {
     this.accountTable = new AccountTable();
     this.longestChain = {
       length:0,
-      peerAddress:''
+      peerAddress:'',
+      totalChallenge:0,
     }  
   }
 
@@ -98,7 +99,6 @@ class Node {
       this.loadNodeConfig()
       this.initChainInfoAPI(app);
       this.initHTTPAPI(app);
-      this.connectToKeyServer()
       this.cleanMessageBuffer();
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
       
@@ -271,8 +271,8 @@ class Node {
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
               peer.emit('connectionRequest', this.address);
-              this.sendPeerMessage('addressBroadcast');
-              
+              // this.sendPeerMessage('addressBroadcast');
+              // this.sendDirectMessage('chainLength', address, this.chain.chain.length)
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
               
@@ -284,6 +284,8 @@ class Node {
           peer.on('message', (message)=>{
               logger('Server: ' + message);
           })
+
+          
 
           peer.on('getAddr', ()=>{
             peer.emit('addr', this.nodeList.addresses);
@@ -312,19 +314,95 @@ class Node {
     }
   }
 
-  async connectToKeyServer(){
-    let socket = await ioClient('http://localhost:3000', {
-      'query':
-            {
-              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey })
-            }
-    });
-    socket.on('connect', ()=>{
-      logger('Connected to key server')
-    })
-    socket.on('message', message => console.log(message))
-    socket.on('wallet', (wallet)=>{  })
+  // async connectToKeyServer(){
+  //   let socket = await ioClient('http://localhost:3000', {
+  //     'query':
+  //           {
+  //             token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey })
+  //           }
+  //   });
+  //   socket.on('connect', ()=>{
+  //     logger('Connected to key server')
+  //   })
+  //   socket.on('message', message => console.log(message))
+  //   socket.on('wallet', (wallet)=>{  })
 
+  // }
+
+  openChainSynchronizationChannel(peer, address){
+    if(peer){
+      peer.on('blockchainStatus', async (status)=>{
+        if(this.chain instanceof Blockchain){
+          let { totalChallenge, bestBlockHeader, length } = status;
+  
+          if(totalChallenge && bestBlockHeader && length){
+            let thisTotalChallenge = await this.chain.calculateTotalChallenge();
+            let peerChainHasMoreWork = thisTotalChallenge < totalChallenge;
+  
+            if(peerChainHasMoreWork){
+              let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+              if(isValidHeader){
+
+                this.requestChainHeaders(peer, address)
+
+              }
+            }else{
+              //This chain has more work
+            }
+          }else{
+            logger('ERROR: Status object is missing parameters parameters')
+          }
+        }
+        
+      })
+  
+    }
+    
+  }
+
+  async requestChainHeaders(peer, address){
+    if(this.chain instanceof Blockchain && peer && address){
+      let headers = []
+
+      peer.on('blockHeaders', (header)=>{
+        if(header.error){
+          logger(header.error);
+        }else{
+          if(isValidHeaderJSON(header)){
+            let isValidHeader = this.chain.validateBlockHeader(header);
+            if(isValidHeader){
+              headers.push(header);
+              
+            }else{
+              logger('ERROR: Is not valid block header')
+            }
+          }else{
+            logger('ERROR:Is not valid header json')
+          }
+        }
+        
+      })
+
+      for(var i=0; i < length; i++){
+        setTimeout(()=>{
+          peer.emit('getBlockHeader', i);
+        },50)
+      }
+
+      if(headers.length == length){
+        let isChainValid = await this.chain.validateHeadersOfChain(headers)
+        if(isChainValid.error){
+          logger(isChainValid.error)
+        }else{
+          this.fetchBlocks(address)
+        }
+      }
+
+      
+    }else{
+      logger('ERROR: Missing parameters to header request function')
+    }
+            
   }
 
 
@@ -347,10 +425,28 @@ class Node {
           })
         }
     }catch(e){
-      console.log(chalk.red(e));
+      console.log(e);
     }
 
   }
+
+  // gossip(eventType, data, moreData=false, fromAddress){
+  //   try{
+  //     if(this.connectionsToPeers){
+  //       let peerAddresses = Object.keys(this.connectionsToPeers);
+  //       let randomSelect = Math.floor(Math.random() * peerAddresses.length);
+  //       let peerAddress = peerAddresses[randomSelect]
+  //       if(!moreData){
+
+  //           this.connectionsToPeers[peerAddress].emit(eventType, data);
+  //       }else{
+  //           this.connectionsToPeers[peerAddress].emit(eventType, data, moreData);
+  //       }
+  //     }
+  //   }catch(e){
+  //     console.log(e)
+  //   }
+  // }
 
 
   /**
@@ -555,11 +651,12 @@ class Node {
       app.post('/chainLength', (req, res) =>{
         try{
           if(isValidChainLengthJSON(req.body)){
-            const { length, peerAddress } = req.body;
+            const { length, peerAddress, totalChallenge } = req.body;
             if(this.longestChain.length < length && this.nodeList.addresses.includes(peerAddress)){
               res.send('OK')
               this.longestChain.length = length;
               this.longestChain.peerAddress = peerAddress
+              this.longestChain.totalChallenge = 
               logger(peerAddress+' has sent its chain length: '+length)
             }else{
               res.send('ERROR: failed to post chain length')
@@ -668,7 +765,7 @@ class Node {
      socket.on('directMessage', (data)=>{
       var { type, originAddress, targetAddress, messageId, data } = data
       this.handleDirectMessage(type, originAddress, targetAddress, messageId, data);
-     })
+     });
 
      socket.on('disconnect', ()=>{
        if(socket.handshake.headers.host){
@@ -676,6 +773,49 @@ class Node {
          delete this.peersConnected[disconnectedAddress]
        }
 
+     });
+
+     socket.on('getBlockchainStatus', ()=>{
+       if(this.chain instanceof Blockchain){
+        try{
+          let status = {
+            totalChallenge: this.chain.calculateTotalChallenge(),
+            bestBlockHeader: this.chain.getBlockHeader(this.getLatestBlock().blockNumber)
+          }
+          socket.emit('blockchainStatus', status);
+         }catch(e){
+           console.log(e)
+         }
+       }
+        
+     })
+
+     socket.on('getBlockHeader', (blockNumber)=>{
+       if(blockNumber && typeof blockNumber == 'number'){
+         let header = this.getBlockHeader(blockNumber);
+         if(header){
+           socket.emit('blockHeader', header);
+         }else{
+           socket.emit('blockHeader', {error:'ERROR: Block not found'})
+         }
+       }
+     })
+
+     socket.on('downloadChain', (number)=>{
+      if(this.chain instanceof Blockchain){
+        if(number && typeof number == 'number'){
+         
+          let block = this.chain.chain[number];
+          if(block){
+            socket.emit('block', block)
+          }else if(number == this.getLatestBlock().blockNumber){
+            socket.emit('block', {end:'updated'});
+          }else{
+            socket.emit('block', {error:'ERROR: block not found'})
+          }
+          
+         }
+      }
      })
 
    }
@@ -729,6 +869,7 @@ class Node {
           valid:block.valid,
           minedBy:block.minedBy,
           challenge:block.challenge,
+          totalChallenge:block.totalChallenge,
           startMineTime:block.startMineTime,
           endMineTime:block.endMineTime,
           totalSumTransited:block.totalSumTransited,
@@ -799,32 +940,7 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      let transactions = this.chain.chain[18].transactions
-      let txHashes = Object.keys(transactions);
-      let fakeTx = { 
-        fromAddress: 'Aj1KMxhTMoPyYX2uKF9fUmCtZ2BMkt50i0yB0XxjjuJ6',
-        toAddress: 'Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG',
-        type: 'FAKE ASS TX',
-        data: '',
-        timestamp: 1558441319935,
-        amount: 10,
-        hash:'',
-        miningFee: 0.0167,
-        signature:
-        'L4zw68CEybVBtas+M/4UZZ8FgkSunjHihqVzYmQ5tV7Aswxl6ktyrLf1/5DY3/dKNsTDWJ7XLqmsc7pqba+YzA==' 
-      }
-      fakeTx.hash = sha256(fakeTx.fromAddress+ fakeTx.toAddress+ fakeTx.amount+ fakeTx.data+ fakeTx.timestamp);
-      console.log(fakeTx.hash)
-      // // fakeTx.hash = 
-      let txSample = {}
-      for(var i=0; i < 10; i++){
-        let hash = txHashes[i];
-        let transaction = transactions[hash];
-        txSample[hash] = transaction
-      }
-      txSample[fakeTx.hash] = fakeTx;
-      let valid = this.chain.validateTransactionsForMining(txSample)
-      console.log(valid)
+      
     })
 
     socket.on('dm', (address, message)=>{
@@ -1096,17 +1212,17 @@ class Node {
             console.log(chalk.red(e))
           }
           break;
-        case 'addressBroadcast':
-          if(originAddress && typeof originAddress == 'string'){
-            if(this.chain instanceof Blockchain){
-              if(!this.chain.ipAddresses.includes(originAddress)){
-                logger('Added '+originAddress+' to known node addresses')
-                this.chain.ipAddresses.push(originAddress);
-              } 
-            }
+        // case 'addressBroadcast':
+        //   if(originAddress && typeof originAddress == 'string'){
+        //     if(this.chain instanceof Blockchain){
+        //       if(!this.chain.ipAddresses.includes(originAddress)){
+        //         logger('Added '+originAddress+' to known node addresses')
+        //         this.chain.ipAddresses.push(originAddress);
+        //       } 
+        //     }
             
-          }
-          break;
+        //   }
+        //   break;
         case 'message':
           logger(chalk.green('['+originAddress+']')+' -> '+data)
           break;

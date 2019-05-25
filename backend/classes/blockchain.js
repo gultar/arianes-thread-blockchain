@@ -33,7 +33,7 @@ class Blockchain{
     this.difficulty = difficulty;
     this.miningReward = 50;
     this.ipAddresses = ipAddresses
-    this.blockSize = 1; //Minimum Number of transactions per block
+    this.blockSize = 5; //Minimum Number of transactions per block
     this.orphanedBlocks = [];
     this.transactionSizeLimit = 100 * 1024;
   }
@@ -116,20 +116,22 @@ class Blockchain{
       let ipAddress = ip
       //this.difficulty = setDifficulty(this.difficulty, this.getLatestBlock().challenge, this.chain.length);
       
-      let miningSuccessful = false;
-      let isMining = this.hasEnoughTransactionsToMine();
+      // let miningSuccessful = false;
+      // let isMining = this.hasEnoughTransactionsToMine();
       
       let lastBlock = this.getLatestBlock();
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
+      
       logger('Current Challenge:', block.challenge)
       logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
-      block.mine(block.difficulty, (miningSuccessful)=>{
+
+      block.mine(block.difficulty, async (miningSuccessful)=>{
         if(miningSuccessful && process.env.END_MINING !== true){
           if(this.validateBlock(block)){
-
+            block.totalChallenge = await this.calculateTotalChallenge() + block.challenge;
             block.minedBy = ipAddress;
             this.chain.push(block);
             
@@ -154,6 +156,15 @@ class Blockchain{
         }
       });
 
+  }
+
+  calculateTotalChallenge(){
+    let total = 0;
+    this.chain.forEach( block=>{
+      total += block.challenge;
+    })
+
+    return total;
   }
 
 
@@ -522,7 +533,10 @@ class Blockchain{
           hash:block.hash,
           nonce:block.nonce,
           merkleRoot:block.merkleRoot,
-          actionMerkleRoot:block.actionMerkleRoot
+          actionMerkleRoot:block.actionMerkleRoot,
+          difficulty:block.difficulty,
+          challenge:block.challenge,
+          totalChallenge:block.totalChallenge,
         }
 
         return header
@@ -533,16 +547,61 @@ class Blockchain{
   }
 
   validateBlockHeader(header){
-    if(header){
+    if(isValidHeaderJSON(header)){
       
       if(header.hash == RecalculateHash(header)){
-        return true;
+        let isNotAlreadyInChain = this.getIndexOfBlockHash(header.hash);
+        if(isNotAlreadyInChain){
+          return true;
+        }else{
+          return false;
+        }
+        
       }else{
         return false;
       }
     }else{
       return false;
     }
+  }
+
+  validateHeadersOfChain(headers){
+    return new Promise((resolve, reject)=>{
+      if(headers){
+        for(var i; i<headers.length; i++){
+          let header = headers[i];
+          if(isValidHeaderJSON(header)){
+        
+            if(header.hash == RecalculateHash(header)){
+              let isAlreadyInChain = this.getIndexOfBlockHash(header.hash);
+  
+              if(isAlreadyInChain){
+                resolve({error:'Chain already contains this block'})
+              }
+  
+              if(i > 0){
+                if(header.previousHash !== headers[i-1].previousHash){
+                  resolve({error:'ERROR:Block is not linked with previous block'}) 
+                }
+  
+                if(header.totalChallenge == headers[i-1].totalChallenge + header.nonce){
+                  resolve({error:'ERROR:Total challenge did not match previous block sum'})
+                }
+              }
+              
+            }else{
+              resolve({error:'ERROR:Hash recalculation did not match block hash'})
+            }
+          }else{
+            resolve({error:'ERROR: Block does not have a valid format'})
+          }
+        }
+  
+        resolve(true);
+      }
+    })
+    
+    
   }
 
   validateBlockTransactions(block){

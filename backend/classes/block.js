@@ -25,7 +25,8 @@ class Block{
     this.nonce = 0;
     this.valid = true;
     this.minedBy = '';
-    this.challenge = 0;
+    this.challenge = 1;
+    this.totalChallenge = 1;
     this.startMineTime = Date.now();
     this.endMineTime = 0;
     this.totalSumTransited = 0;
