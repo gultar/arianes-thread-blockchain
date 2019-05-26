@@ -1994,23 +1994,24 @@ class Node {
                   }
                   
                   this.chain.saveBlockchain();
+                  logger('Seconds past since last block',this.showBlockTime(newBlock.blockNumber))
+                  this.minerPaused = false;
+                  let newBlockTransactions = this.chain.getLatestBlock().transactions;
+                  let newBlockActions = this.chain.getLatestBlock().actions
+                  Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                  Mempool.deleteActionsFromMinedBlock(newBlockActions);
+                  this.cashInCoinbaseTransactions();
 
-                  setTimeout(()=>{
-                    //Leave enough time for the nodes to receive the two messages
-                    //and for this node to not mine the previous, already mined block
-                    // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+                  // setTimeout(()=>{
+                  //   //Leave enough time for the nodes to receive the two messages
+                  //   //and for this node to not mine the previous, already mined block
+                  //   // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                     
                     
                     
-                    logger('Seconds past since last block',this.showBlockTime(newBlock.blockNumber))
-                    this.minerPaused = false;
-                    let newBlockTransactions = this.chain.getLatestBlock().transactions;
-                    let newBlockActions = this.chain.getLatestBlock().actions
-                    Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-                    Mempool.deleteActionsFromMinedBlock(newBlockActions);
-                    this.cashInCoinbaseTransactions();
+                    
 
-                  },500)
+                  // },500)
                  }else{
                   this.unwrapBlock(block)
                  }
