@@ -56,33 +56,44 @@ const openSocket = async (address, runFunction) =>{
     }
 }
 
+program
+.option('-u, --url <nodeURL>', "URL of running node to send transaction to")
 
 program
-.command('getinfo <address>')
+.command('getinfo')
 .description('Requests some general information about the blockchain')
-.action((address)=>{
-    openSocket(address, (socket)=>{
+.action(()=>{
+    if(program.url){
+        openSocket(program.url, (socket)=>{
             socket.emit('getInfo');
             socket.on('chainInfo', (info)=>{
                 console.log(JSON.stringify(info, null, 2))
                 socket.close()
             })
         
-    })
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+    
 })
 
 program
-.command('getblock <address> <blockNumber>')
+.command('getblock <blockNumber>')
 .description('Requests some general information about the blockchain')
-.action((address, blockNumber)=>{
-    openSocket(address, (socket)=>{
-            socket.emit('getBlock', blockNumber);
-            socket.on('block', (block)=>{
-                console.log(JSON.stringify(block, null, 2))
-                socket.close()
-            })
-        
-    })
+.action((blockNumber)=>{
+    if(program.url){
+        openSocket(program.url, (socket)=>{
+                socket.emit('getBlock', blockNumber);
+                socket.on('block', (block)=>{
+                    console.log(JSON.stringify(block, null, 2))
+                    socket.close()
+                })
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
 })
 
 // program
@@ -178,7 +189,6 @@ program
 
     
 // })
-
 
 
 program.parse(process.argv)

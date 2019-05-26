@@ -55,7 +55,7 @@ const fs = require('fs');
 */
 
 class Node {
-  constructor(address, port){
+  constructor(address, port, options){
     this.address = 'http://'+address+':'+port,
     this.port = port
     this.id = sha1(this.address);
@@ -66,6 +66,7 @@ class Node {
     this.peersConnected = {};
     this.connectionsToPeers = {};
     this.nodeList = new NodeList();
+    this.minimumNumberOfPeers = 5
     this.autoUpdate = true;  
     this.messageBuffer = {};
     this.minerStarted = false;
@@ -80,6 +81,10 @@ class Node {
       totalChallenge:0,
     }
     this.isDownloading = false;
+
+    if(options){
+
+    }
     
   }
 
@@ -223,6 +228,18 @@ class Node {
     }
   }
 
+  getNumberOfConnectionsToPeers(){
+    let connections = Object.keys(this.connectionsToPeers);
+    return connections.length
+  }
+
+  seekOtherPeers(){
+    let activePeersAddresses = this.getNumberOfConnectionsToPeers()
+    if(activePeersAddresses.length < this.minimumNumberOfPeers){
+      
+    }
+  }
+
 
   /**
     Basis for P2P connection
@@ -274,8 +291,6 @@ class Node {
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
               peer.emit('connectionRequest', this.address);
-              // this.sendPeerMessage('addressBroadcast');
-              // this.sendDirectMessage('chainLength', address, this.chain.chain.length);
               setTimeout(()=>{
                 peer.emit('getBlockchainStatus')
               },1000);
@@ -312,9 +327,6 @@ class Node {
                     this.isDownloading = false;
                   }
                 }
-                // else if(thisTotalChallenge == totalChallenge){
-                //   logger('Chain is up to date')
-                // }
               }else{
                 logger('ERROR: Status object is missing parameters parameters')
               }
@@ -329,7 +341,6 @@ class Node {
           peer.on('disconnect', () =>{
             logger('connection with peer dropped');
             delete this.connectionsToPeers[address];
-              
             
           })
 
@@ -453,6 +464,28 @@ class Node {
     }
 
   }
+
+  gossip(eventType, data, moreData=false){
+    try{
+      let peerAddresses = Object.keys(this.connectionsToPeers);
+      let randomPeerIndex = Math.floor( Math.random() * peerAddresses.length )
+      let randomPeerAddress = peerAddresses[randomPeerIndex];
+      let randomPeer = this.connectionsToPeers[randomPeerAddress];
+      if(randomPeer){
+        if(moreData){
+          randomPeer.emit(eventType, data, moreData);
+        }else{
+          randomPeer.emit(eventType, data);
+        }
+        
+      }
+    }catch(e){
+      console.log(e);
+    }
+    
+  }
+
+  
 
   // gossip(eventType, data, moreData=false, fromAddress){
   //   try{
@@ -695,7 +728,7 @@ class Node {
       app.get('/getChainHeaders', (req, res)=>{
   
         try{
-            let chainHeaders = this.getAllHeaders();
+            let chainHeaders = this.getAllHeaders(this.address);
             res.json({ chainHeaders:chainHeaders }).end()
   
         }catch(e){
@@ -780,10 +813,14 @@ class Node {
        });
      });
 
-     // Basis for gossip protocol on network
      socket.on('peerMessage', (data)=>{
        var { type, originAddress, messageId, data } = data
        this.handlePeerMessage(type, originAddress, messageId, data);
+     })
+
+     socket.on('gossipMessage', (data)=>{
+      var { type, originAddress, messageId, data } = data
+      this.handleGossipMessage(type, originAddress, messageId, data);
      })
 
      socket.on('directMessage', (data)=>{
@@ -1092,6 +1129,28 @@ class Node {
     }
   }
 
+  spreadGossip(type, data){
+    if(type){
+      try{
+        if(typeof data == 'object')
+          data = JSON.stringify(data);
+        var shaInput = (Math.random() * Date.now()).toString()
+        var messageId = sha256(shaInput);
+        this.messageBuffer[messageId] = messageId;
+        this.gossip('gossipMessage', { 
+          'type':type, 
+          'messageId':messageId, 
+          'originAddress':this.address, 
+          'data':data 
+        });
+
+      }catch(e){
+        console.log(chalk.red(e));
+      }
+
+    }
+  }
+
 
   /**
     @param {String} $type - Peer message type
@@ -1214,14 +1273,9 @@ class Node {
                         logger(valid.error)
                       }
                     })
-                  }else{
-                    //Can't fetch
                   }
                   
-                 
                 }
-              }).catch((e)=>{
-                console.log(chalk.red(e))
               })
             }catch(e){
               console.log(chalk.red(e))
@@ -1231,14 +1285,6 @@ class Node {
         case 'getLongestChain':
           try{
             if(this.chain instanceof Blockchain){
-              // axios.post(originAddress+'/chainLength', {
-              //   length:this.chain.chain.length,
-              //   peerAddress:this.address
-              // }).then((response)=>{
-  
-              // }).catch((e)=>{
-              //   console.log(chalk.red(e))
-              // })
               this.sendDirectMessage('chainLength', originAddress, this.chain.chain.length)
             }
             
@@ -1247,17 +1293,6 @@ class Node {
             console.log(chalk.red(e))
           }
           break;
-        // case 'addressBroadcast':
-        //   if(originAddress && typeof originAddress == 'string'){
-        //     if(this.chain instanceof Blockchain){
-        //       if(!this.chain.ipAddresses.includes(originAddress)){
-        //         logger('Added '+originAddress+' to known node addresses')
-        //         this.chain.ipAddresses.push(originAddress);
-        //       } 
-        //     }
-            
-        //   }
-        //   break;
         case 'message':
           logger(chalk.green('['+originAddress+']')+' -> '+data)
           break;
@@ -1317,34 +1352,17 @@ class Node {
     
   }
 
-
-  getAllHeaders(){
-    
-      try{
-        
-        var blockHashesFromIndex = [];
-        var headers = []
-
-
-          this.chain.chain.forEach((block)=>{
-            blockHashesFromIndex.push(block.hash);
-            headers.push(this.chain.getBlockHeader(block.blockNumber))
-          })
-
-          var chainInfo = {
-            length: this.chain.chain.length,
-            blockHashes:blockHashesFromIndex,
-            headers:headers,
-            address:this.address
-          }
-
-          return chainInfo
-
-      }catch(e){
-        console.log(chalk.red(e))
-      }
-    
+  handleGossipMessage(type, originAddress, targetAddress, messageId, data){
+    switch(type){
+      case '':
+        break;
+      default:
+        break;
+    }
   }
+
+
+  
 
   getChainInfo(){
     let info = {
@@ -1397,7 +1415,6 @@ class Node {
           return true;
         }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
           //Start syncing from the index returned by syncBlock;
-          //this.fetchBlocks(minerOfLastBlock);
           logger('ERROR: Block already present in chain')
           return false;
         }else if(isBlockSynced < 0){
@@ -1850,14 +1867,7 @@ class Node {
 
 
   update(){
-    let peerAddresses = Object.keys(this.connectionsToPeers);
-    let randomPeerIndex = Math.random() * peerAddresses.length
-    let randomPeerAddress = peerAddresses[randomPeerIndex];
-    let randomPeer = this.connectionsToPeers[randomPeerAddress];
-    if(randomPeer){
-      randomPeer.emit('getBlockchainStatus');
-    }
-    
+    this.gossip('getBlockchainStatus')
   }
 
   /**

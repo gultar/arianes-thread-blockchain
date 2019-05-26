@@ -53,14 +53,10 @@ program
     }
 
     if(program.mine){
-      node.startMiner()
-
-    }
-
-    if(program.update && !program.mine){
       setTimeout(()=>{
-        node.update();
-      },6000)
+        node.startMiner()
+      },5000)
+      
     }
 
     if(program.verbose){

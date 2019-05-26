@@ -234,6 +234,8 @@ class Blockchain{
     return false;
   }
 
+  
+
   /**
     Follows the account balance of a given wallet through all blocks
     @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
@@ -547,6 +549,34 @@ class Blockchain{
 
   }
 
+  getAllHeaders(address){
+    
+      try{
+        
+        var blockHashesFromIndex = [];
+        var headers = []
+
+
+          this.chain.forEach((block)=>{
+            blockHashesFromIndex.push(block.hash);
+            headers.push(this.getBlockHeader(block.blockNumber))
+          })
+
+          var chainInfo = {
+            length: this.chain.length,
+            blockHashes:blockHashesFromIndex,
+            headers:headers,
+            address:address
+          }
+
+          return chainInfo
+
+      }catch(e){
+        console.log(chalk.red(e))
+      }
+    
+  }
+
   validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
       
@@ -713,7 +743,7 @@ class Blockchain{
            
             var amountIsNotZero = transaction.amount > 0;
 
-            let hasMiningFee = transaction.miningFee > 0; //check size and fee 
+            let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
             
             var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
               
@@ -747,7 +777,10 @@ class Blockchain{
               resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
             }
 
-            
+            if(!hasMiningFee){
+              logger("REJECTED: Mining fee is insufficient");
+              resolve({error:"REJECTED: Mining fee is insufficient"});
+            }
               
             if(!transactionSizeIsNotTooBig){
               logger('REJECTED: Transaction size is above 10KB');
