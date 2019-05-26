@@ -495,6 +495,7 @@ class Node {
     
             let isSynced = await this.receiveNewBlock(block);
             if(isSynced){
+              this.minerPaused = false;
               peer.off('block');
               resolve(true)
             }
@@ -1985,7 +1986,7 @@ class Node {
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                   let newBlock = this.chain.getLatestBlock();
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
-                  
+                  console.log('New header', newHeader)
 
                   let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
                   if(coinbase){
@@ -2002,7 +2003,7 @@ class Node {
                     // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                     
                     if(newHeader){
-                      this.broadcast('newBlockHeader', newHeader)
+                      this.serverBroadcast('newBlockHeader', newHeader)
                     }else{
                       logger('ERROR: Could not send new block header')
                     }
