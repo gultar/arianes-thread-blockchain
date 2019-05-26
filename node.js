@@ -343,7 +343,7 @@ class Node {
                       this.downloadBlock(peer, header.blockNumber)
                       .then( downloaded=>{
                         if(downloaded){
-                          this.gossip('newBlockHeader', header);
+                          this.serverBroadcast('newBlockHeader', header);
                         }else{
                           logger('ERROR: Could not download new block')
                         }
@@ -564,7 +564,7 @@ class Node {
   }
 
   spreadGossip(eventType, data, moreData=false){
-    let peerAddresses = Object.keys(this.connectionsToPeers);
+    let peerAddresses = Object.keys(this.peersConnected);
     if(peerAddresses){
       let randomNumberOfPeers = Math.floor( Math.random() * peerAddresses.length )
       for(var i=0; i < randomNumberOfPeers; i++){
@@ -2004,7 +2004,7 @@ class Node {
                   let newBlock = this.chain.getLatestBlock();
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
                   if(newHeader){
-                    this.spreadGossip('newBlockHeader', newHeader)
+                    this.serverBroadcast('newBlockHeader', newHeader)
                   }else{
                     logger('ERROR: Could not send new block header')
                   }
