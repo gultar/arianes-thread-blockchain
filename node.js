@@ -361,7 +361,7 @@ class Node {
   async requestChainHeaders(peer, address, length){
     if(this.chain instanceof Blockchain && peer && address){
       let headers = [];
-      let lastBlockNumber = this.getLatestBlock().blockNumber;
+      let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
       peer.on('blockHeader', async (header)=>{
         if(header.error){
           logger(header.error);
