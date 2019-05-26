@@ -334,11 +334,15 @@ class Node {
 
           peer.on('newBlockHeader', (header)=>{
             if(header){
+              console.log('Received header object')
               try{
                 if(this.chain instanceof Blockchain){
+                  console.log('Chain is loaded')
                   if(header.blockNumber > this.chain.getLatestBlock().blockNumber){
+                    console.log('Has higher blocknumber', header.blockNumber)
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
+                      console.log('Is valid header')
                       this.downloadBlock(header.blockNumber)
                       this.serverBroadcast('newBlockHeader', header)
                     }
@@ -461,12 +465,13 @@ class Node {
   }
 
   downloadBlock(peer, blockNumber){
-    if(this.chain instanceof Blockchain && peer && address && length){
+    if(this.chain instanceof Blockchain && peer && blockNumber){
       return new Promise((resolve, reject)=>{
         this.isDownloading = true;
       
         peer.on('block', async (block)=>{
           if(block){
+            console.log('Received block')
             if(block.error){
               logger(block.error)
               this.isDownloading = false;
@@ -497,7 +502,7 @@ class Node {
           }
     
         })
-
+        console.log('Requesting block number', blockNumber)
         peer.emit('getBlock', blockNumber)
 
       })
