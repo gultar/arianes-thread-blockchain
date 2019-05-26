@@ -1922,14 +1922,14 @@ class Node {
               Mempool.pendingTransactions = {};
               Mempool.pendingActions = {};
 
-              this.chain.minePendingTransactions(this.address, block, this.publicKey, async(newBlock, blockHash)=>{
-                if(newBlock && blockHash){
+              this.chain.minePendingTransactions(this.address, block, this.publicKey, async(success, blockHash)=>{
+                if(success && blockHash){
                  this.minerPaused = true;
                  process.MINER = false;
                  let isChainValid = this.validateBlockchain(true)
                  if(isChainValid){
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
-                  
+                  let newBlock = this.chain.getLatestBlock();
                   let newBlockHeight = this.chain.getLatestBlock().blockNumber;
                   
                   this.chain.saveBlockchain();
@@ -1947,8 +1947,9 @@ class Node {
                     //and for this node to not mine the previous, already mined block
                     // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                     let header = this.chain.getBlockHeader(newBlock.blockNumber);
+                    if()
                     this.broadcast('newBlockHeader', header)
-                    
+
                     logger('Seconds past since last block',this.showBlockTime(newBlockHeight))
                     this.minerPaused = false;
                     let newBlockTransactions = this.chain.getLatestBlock().transactions;
