@@ -339,7 +339,7 @@ class Node {
                   if(header.blockNumber > this.chain.getLatestBlock().blockNumber){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
-                      peer.emit('getBlockchainStatus')
+                      this.downloadBlock(header.blockNumber)
                       this.serverBroadcast('newBlockHeader', header)
                     }
                   }
@@ -423,6 +423,7 @@ class Node {
 
   downloadBlockchain(peer, address, length){
     if(this.chain instanceof Blockchain && peer && address && length){
+      
       let latestBlock = this.chain.getLatestBlock();
       peer.on('block', (block)=>{
         if(block){
@@ -457,6 +458,52 @@ class Node {
       logger('ERROR: Could not download blockchain. Missing parameters')
       this.isDownloading = false;
     }
+  }
+
+  downloadBlock(peer, blockNumber){
+    if(this.chain instanceof Blockchain && peer && address && length){
+      return new Promise((resolve, reject)=>{
+        this.isDownloading = true;
+      
+        peer.on('block', async (block)=>{
+          if(block){
+            if(block.error){
+              logger(block.error)
+              this.isDownloading = false;
+              peer.off('block');
+              resolve(false)
+            }
+    
+            if(block.end){
+              logger(chalk.green(block.end))
+              this.isDownloading = false;
+
+              this.chain.saveBlockchain()
+              .then( saved=>{
+                if(saved){
+                  logger('Saved blockchain state')
+                  peer.off('block');
+                  resolve(true)
+                }
+              })
+            }
+    
+            let isSynced = await this.receiveNewBlock(block);
+            if(isSynced){
+              peer.off('block');
+              resolve(true)
+            }
+            
+          }
+    
+        })
+
+        peer.emit('getBlock', blockNumber)
+
+      })
+      
+    }
+    
   }
 
 
