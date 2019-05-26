@@ -343,7 +343,7 @@ class Node {
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       console.log('Is valid header')
-                      this.downloadBlock(header.blockNumber)
+                      this.downloadBlock(peer, header.blockNumber)
                       this.serverBroadcast('newBlockHeader', header)
                     }
                   }
