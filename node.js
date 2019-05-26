@@ -1948,7 +1948,7 @@ class Node {
                     // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                     
                     if(newHeader){
-                      this.broadcast('newBlockHeader', header)
+                      this.broadcast('newBlockHeader', newHeader)
                     }else{
                       logger('ERROR: Could not send new block header')
                     }
