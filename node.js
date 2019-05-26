@@ -498,7 +498,7 @@ class Node {
           }
     
         })
-        
+
         peer.emit('getBlock', blockNumber)
 
       })
@@ -1981,8 +1981,11 @@ class Node {
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                   let newBlock = this.chain.getLatestBlock();
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
-                  console.log('New header', newHeader)
-
+                  if(newHeader){
+                    this.serverBroadcast('newBlockHeader', newHeader)
+                  }else{
+                    logger('ERROR: Could not send new block header')
+                  }
                   let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
                   if(coinbase){
                     this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
@@ -1997,11 +2000,7 @@ class Node {
                     //and for this node to not mine the previous, already mined block
                     // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
                     
-                    if(newHeader){
-                      this.serverBroadcast('newBlockHeader', newHeader)
-                    }else{
-                      logger('ERROR: Could not send new block header')
-                    }
+                    
                     
                     logger('Seconds past since last block',this.showBlockTime(newBlock.blockNumber))
                     this.minerPaused = false;
