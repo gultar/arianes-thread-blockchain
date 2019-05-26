@@ -2010,7 +2010,7 @@ class Node {
                     Mempool.deleteActionsFromMinedBlock(newBlockActions);
                     this.cashInCoinbaseTransactions();
 
-                  },3000)
+                  },500)
                  }else{
                   this.unwrapBlock(block)
                  }
