@@ -332,6 +332,26 @@ class Node {
             
           })
 
+          peer.on('newBlockHeader', (header)=>{
+            if(header){
+              try{
+                if(this.chain instanceof Blockchain){
+                  if(header.blockNumber > this.chain.getLatestBlock().blockNumber){
+                    let isValidHeader = this.chain.validateBlockHeader(header)
+                    if(isValidHeader){
+                      peer.emit('getBlockchainStatus')
+                      this.serverBroadcast('newBlockHeader', header)
+                    }
+                  }
+                  
+                }
+              }catch(e){
+                console.log(e)
+              }
+              
+            }
+           })
+
           peer.on('getAddr', ()=>{
             peer.emit('addr', this.nodeList.addresses);
           })
@@ -884,25 +904,7 @@ class Node {
       }
      })
 
-     socket.on('newBlockHeader', (header)=>{
-      if(header){
-        try{
-          if(this.chain instanceof Blockchain){
-            if(header.blockNumber > this.chain.getLatestBlock().blockNumber){
-              let isValidHeader = this.chain.validateBlockHeader(header)
-              if(isValidHeader){
-                socket.emit('getBlockchainStatus')
-                this.broadcast('newBlockHeader', header)
-              }
-            }
-            
-          }
-        }catch(e){
-          console.log(e)
-        }
-        
-      }
-     })
+
 
 
    }
