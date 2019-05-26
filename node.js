@@ -337,13 +337,13 @@ class Node {
               try{
                 if(this.chain instanceof Blockchain){
                   let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-                  if(!alreadyInChain){
+                  if(!alreadyInChain && !this.isDownloading){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       this.downloadBlock(peer, header.blockNumber)
                       .then( downloaded=>{
                         if(downloaded){
-                          this.serverBroadcast('newBlockHeader', header)
+                          this.gossip('newBlockHeader', header);
                         }else{
                           logger('ERROR: Could not download new block')
                         }
@@ -501,6 +501,7 @@ class Node {
             let isSynced = await this.receiveNewBlock(block);
             if(isSynced){
               this.minerPaused = false;
+              this.isDownloading = false;
               peer.off('block');
               resolve(true)
             }
@@ -544,10 +545,10 @@ class Node {
 
   gossip(eventType, data, moreData=false){
     try{
-      let peerAddresses = Object.keys(this.connectionsToPeers);
+      let peerAddresses = Object.keys(this.peersConnected);
       let randomPeerIndex = Math.floor( Math.random() * peerAddresses.length )
       let randomPeerAddress = peerAddresses[randomPeerIndex];
-      let randomPeer = this.connectionsToPeers[randomPeerAddress];
+      let randomPeer = this.peersConnected[randomPeerAddress];
       if(randomPeer){
         if(moreData){
           randomPeer.emit(eventType, data, moreData);
@@ -2003,7 +2004,7 @@ class Node {
                   let newBlock = this.chain.getLatestBlock();
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
                   if(newHeader){
-                    this.serverBroadcast('newBlockHeader', newHeader)
+                    this.spreadGossip('newBlockHeader', newHeader)
                   }else{
                     logger('ERROR: Could not send new block header')
                   }
