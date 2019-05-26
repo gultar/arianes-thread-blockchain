@@ -161,14 +161,14 @@ class WalletManager{
   }
 
   saveState(){
-    
-    logger('Saving wallet states')
     Object.keys(this.wallets).forEach(pubKey =>{
       let wallet = this.wallets[pubKey];
       if(wallet){
         wallet.saveWallet(`./wallets/${wallet.name}-${sha1(wallet.name)}.json`)
+        
       }
     })
+    logger('Saved wallet states')
   }
 
 

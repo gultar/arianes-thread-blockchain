@@ -141,6 +141,7 @@ class Blockchain{
             console.log(chalk.cyan("* Challenge : "), block.challenge);
             console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
             console.log(chalk.cyan("* Nonce : "), block.nonce)
+            console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
 
@@ -970,11 +971,11 @@ class Blockchain{
   }
 
   validateSignature(transaction){
-    return new Promise((resolve, reject)=>{
+    return new Promise(async (resolve, reject)=>{
       if(transaction){
         if(validatePublicKey(transaction.fromAddress)){
           const publicKey = ECDSA.fromCompressedPublicKey(transaction.fromAddress);
-          resolve(publicKey.verify(transaction.hash, transaction.signature))
+          resolve(await publicKey.verify(transaction.hash, transaction.signature))
         }else{
           resolve(false)
         }

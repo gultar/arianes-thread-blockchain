@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+const ECDSA = require('ecdsa-secp256r1');
 const program = require('commander');
 const fs = require('fs');
 const WalletQueryTool = require('./backend/classes/walletQueryTool');
@@ -174,10 +174,7 @@ const runWalletCLI = async () =>{
             })
 
           })
-        
 
-          
-     
       
       program.parse(process.argv)
 }

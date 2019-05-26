@@ -138,6 +138,7 @@ class Node {
         .then(loaded =>{
           if(loaded){
             logger('Loaded list of known nodes')
+            logger('Number of known nodes:', this.nodeList.addresses.length)
           }else{
             logger(chalk.red('Could not load list of nodes'))
           }
@@ -184,9 +185,6 @@ class Node {
                 }
                }
                
-
-               
-
              }catch(e){
                console.log(chalk.red(e))
              }
@@ -363,7 +361,7 @@ class Node {
   async requestChainHeaders(peer, address, length){
     if(this.chain instanceof Blockchain && peer && address){
       let headers = [];
-
+      let lastBlockNumber = this.getLatestBlock().blockNumber;
       peer.on('blockHeader', async (header)=>{
         if(header.error){
           logger(header.error);
@@ -374,7 +372,7 @@ class Node {
             
               headers.push(header);
               
-              if(headers.length == length -1){ // -1 to account for the genesis block being excluded
+              if(lastBlockNumber + headers.length == length -1){ // -1 to account for the genesis block being excluded
                 let isChainValid = await this.chain.validateHeadersOfChain(headers)
                 if(isChainValid.error){
                   logger(isChainValid.error)
@@ -392,8 +390,9 @@ class Node {
         
       })
 
-      for(var i=0; i < length; i++){
-          peer.emit('getBlockHeader', i);
+      
+      for(var i=lastBlockNumber; i < length; i++){
+          peer.emit('getBlockHeader', i+1);
       }
 
     }else{
@@ -874,7 +873,7 @@ class Node {
             
           }else{
             if(number == this.chain.getLatestBlock().blockNumber + 1){ //Is requesting beyond last block
-              socket.emit('block', {end:'SUCCESS: Blockchain successfully updated'});
+              socket.emit('block', {end:'Blockchain successfully updated'});
             }else{
               socket.emit('block', {error:'ERROR: block not found'})
             }
@@ -884,6 +883,25 @@ class Node {
          }
       }
      })
+
+     socket.on('newBlockHeader', ()=>{
+      if(data){
+        try{
+          if(this.chain instanceof Blockchain){
+            let newBlockHeader = JSON.parse(data);
+            let isValidHeader = this.chain.validateBlockHeader(newBlockHeader)
+            if(isValidHeader){
+              socket.emit('getBlockchainStatus')
+              
+            }
+          }
+        }catch(e){
+          console.log(e)
+        }
+        
+      }
+     })
+
 
    }
   }
@@ -1166,32 +1184,21 @@ class Node {
           if(data){
             try{
               var transaction = JSON.parse(data);
-              if(transaction && this.chain instanceof Blockchain){
-                if(isValidTransactionJSON(transaction)){
-  
-                  this.chain.validateTransaction(transaction)
-                  .then(valid => {
-                    if(!valid.error){
-                      Mempool.addTransaction(transaction);
-                      this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                    }else{
-                      this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                      Mempool.rejectedTransactions[transaction.hash] = transaction;
-                      logger(valid.error)
-                    }
-                  })
-                  
-  
-                }
-              }
+              this.receiveTransaction(transaction);
             }catch(e){
               console.log(chalk.red(e))
             }
           }
 
           break;
+        case 'action':
+            try{
+              let action = JSON.parse(data);
+              this.receiveAction(action);
+            }catch(e){
+              console.log(e)
+            }
+          break
         case 'endMining':
           if(this.minerStarted){
             this.minerPaused = true;
@@ -1199,10 +1206,12 @@ class Node {
               process.MINER.stop();
               process.MINER = false;
               
+             
             }
             
           }
           break;
+        
         case 'newBlock':
           this.fetchBlocks(originAddress, (updated)=>{
             if(this.minerStarted){
@@ -1212,39 +1221,7 @@ class Node {
             }
           });
           break;
-        case 'action':
-         
-            try{
-              let action = JSON.parse(data);
-              if(action && isValidActionJSON(action)){
-                //Check if is owner of contract or has permission
-                let account = this.accountTable.getAccount(action.fromAccount.name)
-                this.chain.validateAction(action, account)
-                .then(isValid =>{
-                  if(isValid){
-                    //Action will be added to Mempool only is valid and if corresponds with contract call
-                    
-                    
-                    let mapsToContractCall = this.handleAction(action);
-                    if(mapsToContractCall){
-                      //Execution success message
-                      //Need to avoid executing call on everynode simultaneously 
-                      //Also need to avoid any security breach when signing actions
-                      if(this.verbose) logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
-                    
-                    }
-                  }else{
-                    logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
-                  }
-                  
-                })
-              }
-            }catch(e){
-              console.log(e)
-            }
-            
-          
-        break
+        
         case 'fetchCoinbaseTransaction':
           if(data && typeof data == 'string'){
             try{
@@ -1350,6 +1327,55 @@ class Node {
       
     }
     
+  }
+
+  receiveTransaction(transaction){
+    if(transaction && this.chain instanceof Blockchain){
+      if(isValidTransactionJSON(transaction)){
+
+        this.chain.validateTransaction(transaction)
+        .then(valid => {
+          if(!valid.error){
+            Mempool.addTransaction(transaction);
+            this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+            if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+          }else{
+            this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
+            if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
+            Mempool.rejectedTransactions[transaction.hash] = transaction;
+            logger(valid.error)
+          }
+        })
+        
+
+      }
+    }
+  }
+
+  receiveAction(action){
+    if(action && isValidActionJSON(action)){
+      //Check if is owner of contract or has permission
+      let account = this.accountTable.getAccount(action.fromAccount.name)
+      this.chain.validateAction(action, account)
+      .then(isValid =>{
+        if(isValid){
+          //Action will be added to Mempool only is valid and if corresponds with contract call
+          
+          
+          let mapsToContractCall = this.handleAction(action);
+          if(mapsToContractCall){
+            //Execution success message
+            //Need to avoid executing call on everynode simultaneously 
+            //Also need to avoid any security breach when signing actions
+            if(this.verbose) logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+          
+          }
+        }else{
+          logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
+        }
+        
+      })
+    }
   }
 
   handleGossipMessage(type, originAddress, targetAddress, messageId, data){
@@ -1729,34 +1755,36 @@ class Node {
   async broadcastNewTransaction(transaction){
     return new Promise( async (resolve, reject)=>{
       try{
-          
-          if(!transaction.signature){
-            logger('Transaction signature failed. Missing signature')
-            resolve({error:'Transaction signature failed. Missing signature'})
-            
-          }else{
-            
-            this.chain.createTransaction(transaction)
-              .then( valid =>{
-                if(!valid.error){
-
-      
-                  Mempool.addTransaction(transaction);
-                  this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-                  if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-                  
-                  this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
-                  resolve(transaction)
-
-                }else{
-
-                  this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
-                  if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                  resolve({error:valid.error});
-
-                }
-              })
+          if(this.chain instanceof Blockchain){
+            if(!transaction.signature){
+              logger('Transaction signature failed. Missing signature')
+              resolve({error:'Transaction signature failed. Missing signature'})
+              
+            }else{
+              
+              this.chain.createTransaction(transaction)
+                .then( valid =>{
+                  if(!valid.error){
+  
+        
+                    Mempool.addTransaction(transaction);
+                    this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                    if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                    
+                    this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                    resolve(transaction)
+  
+                  }else{
+  
+                    this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                    if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                    resolve({error:valid.error});
+  
+                  }
+                })
+            }
           }
+         
         
         
       }catch(e){
@@ -1892,12 +1920,13 @@ class Node {
               Mempool.pendingTransactions = {};
               Mempool.pendingActions = {};
 
-              this.chain.minePendingTransactions(this.address, block, this.publicKey, async(success, blockHash)=>{
-                if(success && blockHash){
+              this.chain.minePendingTransactions(this.address, block, this.publicKey, async(newBlock, blockHash)=>{
+                if(newBlock && blockHash){
                  this.minerPaused = true;
                  process.MINER = false;
                  let isChainValid = this.validateBlockchain(true)
                  if(isChainValid){
+                  let header = this.chain.getBlockHeader(newBlock.blockNumber);
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                   
                   let newBlockHeight = this.chain.getLatestBlock().blockNumber;
@@ -2004,9 +2033,6 @@ class Node {
 
   save(callback){
     
-    logger('Saving known nodes to blockchain file');
-    logger('Number of known nodes:', this.nodeList.addresses.length)
-    
     this.chain.saveBlockchain()
       .then((saved)=>{
         
@@ -2016,7 +2042,7 @@ class Node {
         this.saveNodeConfig()
         this.accountTable.saveTable();
         if(saved == true){
-          logger('Successfully saved blockchain file')
+          logger('Saved blockchain file')
           if(callback) callback(true);
           return true;
         }else{
