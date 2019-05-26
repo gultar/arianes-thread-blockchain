@@ -336,11 +336,20 @@ class Node {
             if(header){
               try{
                 if(this.chain instanceof Blockchain){
-                  if(header.blockNumber > this.chain.getLatestBlock().blockNumber){
+                  let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
+                  if(!alreadyInChain){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       this.downloadBlock(peer, header.blockNumber)
-                      this.serverBroadcast('newBlockHeader', header)
+                      .then( downloaded=>{
+                        if(downloaded){
+                          this.serverBroadcast('newBlockHeader', header)
+                        }else{
+                          logger('ERROR: Could not download new block')
+                        }
+                        
+                      })
+                      
                     }
                   }
                   
@@ -399,6 +408,7 @@ class Node {
                   this.isDownloading = false;
                 }else{
                   this.downloadBlockchain(peer, address, length)
+                  
                 }
               }
             
@@ -548,6 +558,17 @@ class Node {
       }
     }catch(e){
       console.log(e);
+    }
+    
+  }
+
+  spreadGossip(eventType, data, moreData=false){
+    let peerAddresses = Object.keys(this.connectionsToPeers);
+    if(peerAddresses){
+      let randomNumberOfPeers = Math.floor( Math.random() * peerAddresses.length )
+      for(var i=0; i < randomNumberOfPeers; i++){
+        this.gossip(eventType, data, moreData)
+      }
     }
     
   }
