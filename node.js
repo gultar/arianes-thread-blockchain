@@ -1930,9 +1930,8 @@ class Node {
                  if(isChainValid){
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                   let newBlock = this.chain.getLatestBlock();
-                  let newBlockHeight = this.chain.getLatestBlock().blockNumber;
+                  let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
                   
-                  this.chain.saveBlockchain();
 
                   let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
                   if(coinbase){
@@ -1941,16 +1940,20 @@ class Node {
                     logger('ERROR: An error occurred while creating coinbase transaction')
                   }
                   
-                  
+                  this.chain.saveBlockchain();
+
                   setTimeout(()=>{
                     //Leave enough time for the nodes to receive the two messages
                     //and for this node to not mine the previous, already mined block
                     // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-                    let header = this.chain.getBlockHeader(newBlock.blockNumber);
-                    if()
-                    this.broadcast('newBlockHeader', header)
-
-                    logger('Seconds past since last block',this.showBlockTime(newBlockHeight))
+                    
+                    if(newHeader){
+                      this.broadcast('newBlockHeader', header)
+                    }else{
+                      logger('ERROR: Could not send new block header')
+                    }
+                    
+                    logger('Seconds past since last block',this.showBlockTime(newBlock.blockNumber))
                     this.minerPaused = false;
                     let newBlockTransactions = this.chain.getLatestBlock().transactions;
                     let newBlockActions = this.chain.getLatestBlock().actions
