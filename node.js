@@ -63,8 +63,8 @@ class Node {
     this.ioServer = {};
     this.publicKey = '';
     this.userInterfaces = [];
-    this.peersConnected = {};
-    this.connectionsToPeers = {};
+    this.peersConnected = {}; //From ioServer to ioClient
+    this.connectionsToPeers = {}; //From ioClient to ioServer
     this.nodeList = new NodeList();
     this.minimumNumberOfPeers = 5
     this.autoUpdate = true;  
@@ -390,8 +390,7 @@ class Node {
         
       })
 
-      
-      for(var i=lastBlockNumber; i < length; i++){
+      for(var i=lastBlockNumber; i < length-1; i++){
           peer.emit('getBlockHeader', i+1);
       }
 
@@ -426,6 +425,7 @@ class Node {
           }
 
           this.receiveNewBlock(block)
+          //send Blockchain status notification
         }
 
       })
@@ -884,16 +884,18 @@ class Node {
       }
      })
 
-     socket.on('newBlockHeader', ()=>{
-      if(data){
+     socket.on('newBlockHeader', (header)=>{
+      if(header){
         try{
           if(this.chain instanceof Blockchain){
-            let newBlockHeader = JSON.parse(data);
-            let isValidHeader = this.chain.validateBlockHeader(newBlockHeader)
-            if(isValidHeader){
-              socket.emit('getBlockchainStatus')
-              
+            if(header.blockNumber > this.chain.getLatestBlock().blockNumber){
+              let isValidHeader = this.chain.validateBlockHeader(header)
+              if(isValidHeader){
+                socket.emit('getBlockchainStatus')
+                this.broadcast('newBlockHeader', header)
+              }
             }
+            
           }
         }catch(e){
           console.log(e)
@@ -1926,7 +1928,6 @@ class Node {
                  process.MINER = false;
                  let isChainValid = this.validateBlockchain(true)
                  if(isChainValid){
-                  let header = this.chain.getBlockHeader(newBlock.blockNumber);
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
                   
                   let newBlockHeight = this.chain.getLatestBlock().blockNumber;
@@ -1944,7 +1945,9 @@ class Node {
                   setTimeout(()=>{
                     //Leave enough time for the nodes to receive the two messages
                     //and for this node to not mine the previous, already mined block
-                    this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+                    // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
+                    let header = this.chain.getBlockHeader(newBlock.blockNumber);
+                    this.broadcast('newBlockHeader', header)
                     
                     logger('Seconds past since last block',this.showBlockTime(newBlockHeight))
                     this.minerPaused = false;
