@@ -434,8 +434,8 @@ class Node {
                   logger(isChainValid.error)
                   this.isDownloading = false;
                 }else if(isChainValid){
-
-                  this.downloadBlockchain(peer, length)
+                  let currentHeight = this.chain.getLatestBlock().blockNumber
+                  peer.emit('getBlock', currentHeight)
                   
                   
                 }else{
@@ -472,6 +472,7 @@ class Node {
           if(isSynced){
             this.minerPaused = false;
             this.isDownloading = false;
+            peer.emit('getBlock', block.blockNumber + 1)
             resolve(true)
           }        
         }else{
@@ -491,20 +492,20 @@ class Node {
     
   }
 
-  downloadBlockchain(peer, length){
-    if(this.chain instanceof Blockchain){
-      let blockCounter = this.chain.getLatestBlock().blockNumber
-      let download = setInterval(()=>{
-        console.log('Requesting block',blockCounter + 1)
-        peer.emit('getBlock', blockCounter + 1)
-        if(length == blockCounter){
-          clearInterval(download)
-        }else{
-          blockCounter++;
-        }
-      }, 5)
-    }
-  }
+  // downloadBlockchain(peer, length){
+  //   if(this.chain instanceof Blockchain){
+  //     let blockCounter = this.chain.getLatestBlock().blockNumber
+  //     let download = setInterval(()=>{
+  //       console.log('Requesting block',blockCounter + 1)
+        
+  //       if(length == blockCounter){
+  //         clearInterval(download)
+  //       }else{
+  //         blockCounter++;
+  //       }
+  //     }, 5)
+  //   }
+  // }
 
 
   /**
