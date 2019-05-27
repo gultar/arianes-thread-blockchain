@@ -360,7 +360,7 @@ class Node {
 
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              
+              console.log('Received a block ping')
               if(!block.end){
                 this.receiveBlock(block, peer)
                 .then(updated =>{
@@ -416,6 +416,7 @@ class Node {
       let headers = [];
       let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
       peer.on('blockHeader', async (header)=>{
+        console.log('Received a header ping')
         if(header.error){
           logger(header.error);
           peer.off('blockHeader');
