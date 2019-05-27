@@ -316,7 +316,6 @@ class Node {
                   if(isValidHeader){
                     
                     this.requestChainHeaders(peer, address, length)
-                    // this.downloadChain(peer, bestBlockHeader, length);
                   }else{
 
                     logger('ERROR: Last block header from peer is invalid')
@@ -340,8 +339,6 @@ class Node {
                     if(isValidHeader){
                       peer.emit('getBlock', header.blockNumber);
                       this.whisper('newBlockHeader', header, this.address);
-                      
-                      
                       
                     }
                   }
@@ -377,23 +374,6 @@ class Node {
             }
            })
 
-           peer.on('block', async (block)=>{
-            if(this.chain instanceof Blockchain){
-              if(!block.end){
-                this.receiveBlock(block, peer)
-                .then(updated =>{
-                  if(updated){
-                    peer.emit('getBlock', block.blockNumber + 1)
-                    
-                  }
-                  
-                })
-              }
-              
-                
-            }
-             
-           })
 
           peer.on('whisper', (whisper)=>{
             let { type, originAddress, messageId, data, relayPeer }  = whisper;
@@ -426,64 +406,81 @@ class Node {
     }
   }
 
-  async requestChainHeaders(peer, address, length, resolveFork){
-    if(this.chain instanceof Blockchain && peer && address){
-      let headers = [];
-      let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-      peer.on('headerRequested', async (header)=>{
-        console.log('Received a header ping')
-        if(header.error){
-          logger(header.error);
-          peer.off('headerRequested');
-        }else{
-          if(isValidHeaderJSON(header)){
-            
-              headers.push(header);
-              
-              if(lastBlockNumber + headers.length == length -1){ // -1 to account for the genesis block being excluded
-                let isChainValid = await this.chain.validateHeadersOfChain(headers)
-                if(isChainValid.error){
-                  logger(isChainValid.error)
-                  this.isDownloading = false;
-                  peer.off('headerRequested');
-                }else if(isChainValid){
-                  if(resolveFork){
-                    this.resolveBlockFork(headers)
-                  }else{
-                    let currentHeight = this.chain.getLatestBlock().blockNumber
-                    peer.emit('getBlock', currentHeight+1)
+  
+  requestChainHeaders(peer, address, length){
+    return new Promise((resolve, reject)=>{
+      if(this.chain instanceof Blockchain){
+        let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
+        peer.on('blockHeader', (header)=>{
+          if(header){
+            try{
+              if(this.chain instanceof Blockchain){
+                let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
+                if(!alreadyInChain && !this.isDownloading){
+                  let isValidHeader = this.chain.validateBlockHeader(header)
+                  if(isValidHeader){
+                    peer.emit('getBlock', header.blockNumber);
                     
                   }
-                  peer.off('headerRequested');
-                  
-                }else{
-                  logger('ERROR: Invalid Header chain')
-                  peer.off('headerRequested');
                 }
+                
               }
+            }catch(e){
+              console.log(e)
+            }
             
-          }else{
-            logger('ERROR:Is not valid header json')
-            this.isDownloading = false;
-            peer.off('headerRequested');
           }
-        }
-        
-      })
-      let startAt = (lastBlockNumber ? lastBlockNumber : 0);
-      for(var i=startAt; i < length-1; i++){
-          peer.emit('updateRequestingHeader', i+1);
-      }
+         })
 
-    }else{
-      logger('ERROR: Missing parameters to header request function')
-      this.isDownloading = false;
-    }
-            
+         let nextHeader = lastBlockNumber;
+         let downloadHeaders = setInterval(()=>{
+           if(nextHeader == length -1){
+            clearInterval(downloadHeaders);
+            peer.off('blockHeader')
+            console.log('Remaining listener on blockHeader:',peer.listeners('blockHeader'))
+           }else{
+            peer.emit('getBlockHeader', nextHeader)
+            nextHeader++
+           }
+          
+         }, 100)
+
+         
+      }
+    })
   }
+  
 
 
   receiveBlock(block, peer){
+    return new Promise((resolve, reject)=>{
+      if(isValidBlockJSON(block) && this.chain instanceof Blockchain){
+        if(!this.chain.getIndexOfBlockHash(block.hash)){
+          this.isDownloading = true;
+          peer.on('block', async (block)=>{
+              if(!block.end){
+                this.receiveNewBlock(block)
+                .then(updated =>{
+                  if(updated){
+                    
+                    this.minerPaused = false;
+                    this.isDownloading = false;
+                    peer.off('block')
+                    resolve(true)
+                  }
+                  
+                })
+              }
+              
+                
+             
+           })
+        }
+      }
+      
+      
+    })
+    
     return new Promise(async (resolve, reject)=>{
       if(isValidBlockJSON(block)){
         if(!this.chain.getIndexOfBlockHash(block.hash)){
@@ -965,16 +962,6 @@ class Node {
          }
        }
      })
-
-     socket.on('updateRequestingHeader', async (blockNumber)=>{
-      if(blockNumber && typeof blockNumber == 'number'){
-        let header = await this.chain.getBlockHeader(blockNumber);
-        if(header){
-          socket.emit('headerRequested', header)
-        }
-      }
-    })
-     
 
      socket.on('getBlock', (number)=>{
       if(this.chain instanceof Blockchain){
@@ -1972,14 +1959,18 @@ class Node {
                  process.MINER = false;
                  let isChainValid = this.validateBlockchain(true)
                  if(isChainValid){
+
                   this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+                  
                   let newBlock = this.chain.getLatestBlock();
+                  
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
                   if(newHeader){
                     this.whisper('newBlockHeader', newHeader, this.address)
                   }else{
                     logger('ERROR: Could not send new block header')
                   }
+
                   let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
                   if(coinbase){
                     this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
@@ -1987,7 +1978,7 @@ class Node {
                     logger('ERROR: An error occurred while creating coinbase transaction')
                   }
                   
-                  this.chain.saveBlockchain();
+                  
                   logger('Seconds past since last block',this.showBlockTime(newBlock.blockNumber))
                   this.minerPaused = false;
                   let newBlockTransactions = this.chain.getLatestBlock().transactions;
@@ -1995,17 +1986,7 @@ class Node {
                   Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
                   Mempool.deleteActionsFromMinedBlock(newBlockActions);
                   this.cashInCoinbaseTransactions();
-
-                  // setTimeout(()=>{
-                  //   //Leave enough time for the nodes to receive the two messages
-                  //   //and for this node to not mine the previous, already mined block
-                  //   // this.sendPeerMessage('newBlock', blockHash); //Tells other nodes to come and fetch the block to validate it
-                    
-                    
-                    
-                    
-
-                  // },500)
+                  this.chain.saveBlockchain();
                  }else{
                   this.unwrapBlock(block)
                  }
