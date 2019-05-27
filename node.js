@@ -428,8 +428,8 @@ class Node {
         }
         
       })
-
-      for(var i=lastBlockNumber; i < length-1; i++){
+      let startAt = (lastBlockNumber ? lastBlockNumber : 0);
+      for(var i=startAt; i < length-1; i++){
           peer.emit('getBlockHeader', i+1);
       }
 
