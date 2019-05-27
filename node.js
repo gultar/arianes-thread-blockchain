@@ -359,7 +359,7 @@ class Node {
 
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              
+              console.log(block)
               
               this.receiveBlock(block)
               .then(updated =>{
