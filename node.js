@@ -364,21 +364,11 @@ class Node {
                 this.isDownloading = false;
               }
 
-              if(block.end){
-                this.isDownloading = false;
-                logger(chalk.green(block.end))
-                this.isDownloading = false;
-        
-                this.chain.saveBlockchain()
-                .then( saved=>{
-                  if(saved){
-                    logger('Saved blockchain state')
-                  }
-                })
-              }
-
-              this.receiveBlock(block, peer)
+              if(!block.end){
+                this.receiveBlock(block, peer)
               .then(updated =>{})
+              }
+              
                 
             }
              
