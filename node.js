@@ -403,68 +403,75 @@ class Node {
     }
   }
 
-  // downloadChain(peer, peerBestHeader, length){
-  //   if(this.chain instanceof Blockchain && peer && peerBestHeader && length){
-  //     let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-
-  //   }
-    
+  downloadChain(peer, peerBestHeader, length){
+    if(this.chain instanceof Blockchain && peer && peerBestHeader && length){
+      let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
+      let headerRequestCounter = lastBlockNumber;
+      do{
+        setTimeout(()=>{
+          peer.emit('getBlockHeader', headerRequestCounter)
+          headerRequestCounter++
+        }, 100)
+        
+      }while(headerRequestCounter < length - 1)
+    }
+  }
 
   // }
-  async requestChainHeaders(peer, address, length, resolveFork){
-    if(this.chain instanceof Blockchain && peer && address){
-      let headers = [];
-      let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-      peer.on('blockHeader', async (header)=>{
-        console.log('Received a header ping')
-        if(header.error){
-          logger(header.error);
-          peer.off('blockHeader');
-          return null;
-        }else{
-          if(isValidHeaderJSON(header)){
+  // async requestChainHeaders(peer, address, length, resolveFork){
+  //   if(this.chain instanceof Blockchain && peer && address){
+  //     let headers = [];
+  //     let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
+  //     peer.on('blockHeader', async (header)=>{
+  //       console.log('Received a header ping')
+  //       if(header.error){
+  //         logger(header.error);
+  //         peer.off('blockHeader');
+  //         return null;
+  //       }else{
+  //         if(isValidHeaderJSON(header)){
             
-              headers.push(header);
+  //             headers.push(header);
               
-              if(lastBlockNumber + headers.length == length -1){ // -1 to account for the genesis block being excluded
-                let isChainValid = await this.chain.validateHeadersOfChain(headers)
-                if(isChainValid.error){
-                  logger(isChainValid.error)
-                  this.isDownloading = false;
-                  peer.off('blockHeader');
-                }else if(isChainValid){
-                  if(resolveFork){
-                    this.resolveBlockFork(headers)
-                  }else{
-                    let currentHeight = this.chain.getLatestBlock().blockNumber
-                    peer.emit('getBlock', currentHeight+1)
+  //             if(lastBlockNumber + headers.length == length -1){ // -1 to account for the genesis block being excluded
+  //               let isChainValid = await this.chain.validateHeadersOfChain(headers)
+  //               if(isChainValid.error){
+  //                 logger(isChainValid.error)
+  //                 this.isDownloading = false;
+  //                 peer.off('blockHeader');
+  //               }else if(isChainValid){
+  //                 if(resolveFork){
+  //                   this.resolveBlockFork(headers)
+  //                 }else{
+  //                   let currentHeight = this.chain.getLatestBlock().blockNumber
+  //                   peer.emit('getBlock', currentHeight+1)
                     
-                  }
-                  peer.off('blockHeader');
+  //                 }
+  //                 peer.off('blockHeader');
                   
-                }else{
-                  logger('ERROR: Invalid Header chain')
-                }
-              }
+  //               }else{
+  //                 logger('ERROR: Invalid Header chain')
+  //               }
+  //             }
             
-          }else{
-            logger('ERROR:Is not valid header json')
-            this.isDownloading = false;
-          }
-        }
+  //         }else{
+  //           logger('ERROR:Is not valid header json')
+  //           this.isDownloading = false;
+  //         }
+  //       }
         
-      })
-      let startAt = (lastBlockNumber ? lastBlockNumber : 0);
-      for(var i=startAt; i < length-1; i++){
-          peer.emit('getBlockHeader', i+1);
-      }
+  //     })
+  //     let startAt = (lastBlockNumber ? lastBlockNumber : 0);
+  //     for(var i=startAt; i < length-1; i++){
+  //         peer.emit('getBlockHeader', i+1);
+  //     }
 
-    }else{
-      logger('ERROR: Missing parameters to header request function')
-      this.isDownloading = false;
-    }
+  //   }else{
+  //     logger('ERROR: Missing parameters to header request function')
+  //     this.isDownloading = false;
+  //   }
             
-  }
+  // }
 
 
   receiveBlock(block, peer){
