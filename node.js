@@ -438,7 +438,7 @@ class Node {
                   headers.forEach( header=>{
                     setTimeout(()=>{
                       peer.emit('getBlock', header.blockNumber + 1)
-                    }, 100)
+                    }, 500)
                   })
                   // setTimeout(()=>{
                   //   let latestBlock = this.chain.getLatestBlock();
