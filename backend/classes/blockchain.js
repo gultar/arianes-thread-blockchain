@@ -492,7 +492,7 @@ class Blockchain{
           logger('New block received has been orphaned since latest block has been mined before')
           return false;
         }
-
+        console.log(block);
         logger('Current mined block is not linked with previous block. Sending it to orphanedBlocks');
         return this.getIndexOfBlockHash(block.previousHash);
 
