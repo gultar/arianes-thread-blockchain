@@ -341,7 +341,7 @@ class Node {
                   if(!alreadyInChain && !this.isDownloading){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
-                      peer.emit('getBlock', blockNumber);
+                      peer.emit('getBlock', header.blockNumber);
                       this.serverBroadcast('newBlockHeader', header);
                       
                       
