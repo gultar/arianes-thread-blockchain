@@ -430,11 +430,11 @@ class Node {
     if(this.chain instanceof Blockchain && peer && address){
       let headers = [];
       let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-      peer.on('blockHeader', async (header)=>{
+      peer.on('headerRequested', async (header)=>{
         console.log('Received a header ping')
         if(header.error){
           logger(header.error);
-          peer.off('blockHeader');
+          peer.off('headerRequested');
         }else{
           if(isValidHeaderJSON(header)){
             
@@ -445,7 +445,7 @@ class Node {
                 if(isChainValid.error){
                   logger(isChainValid.error)
                   this.isDownloading = false;
-                  peer.off('blockHeader');
+                  peer.off('headerRequested');
                 }else if(isChainValid){
                   if(resolveFork){
                     this.resolveBlockFork(headers)
@@ -454,25 +454,25 @@ class Node {
                     peer.emit('getBlock', currentHeight+1)
                     
                   }
-                  peer.off('blockHeader');
+                  peer.off('headerRequested');
                   
                 }else{
                   logger('ERROR: Invalid Header chain')
-                  peer.off('blockHeader');
+                  peer.off('headerRequested');
                 }
               }
             
           }else{
             logger('ERROR:Is not valid header json')
             this.isDownloading = false;
-            peer.off('blockHeader');
+            peer.off('headerRequested');
           }
         }
         
       })
       let startAt = (lastBlockNumber ? lastBlockNumber : 0);
       for(var i=startAt; i < length-1; i++){
-          peer.emit('getBlockHeader', i+1);
+          peer.emit('updateRequestingHeader', i+1);
       }
 
     }else{
@@ -961,10 +961,20 @@ class Node {
        if(blockNumber && typeof blockNumber == 'number'){
          let header = await this.chain.getBlockHeader(blockNumber);
          if(header){
-           socket.emit('newBlockHeader', header)
+           socket.emit('blockHeader', header)
          }
        }
      })
+
+     socket.on('updateRequestingHeader', async (blockNumber)=>{
+      if(blockNumber && typeof blockNumber == 'number'){
+        let header = await this.chain.getBlockHeader(blockNumber);
+        if(header){
+          socket.emit('headerRequested', header)
+        }
+      }
+    })
+     
 
      socket.on('getBlock', (number)=>{
       if(this.chain instanceof Blockchain){
