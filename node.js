@@ -320,6 +320,7 @@ class Node {
                   if(isValidHeader){
                     
                     this.requestChainHeaders(peer, address, length)
+                    // this.downloadChain(peer, bestBlockHeader, length);
                   }else{
 
                     logger('ERROR: Last block header from peer is invalid')
@@ -359,15 +360,15 @@ class Node {
 
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              if(block.error){
-                logger(block.error)
-                this.isDownloading = false;
-              }
-
+              
               if(!block.end){
                 this.receiveBlock(block, peer)
                 .then(updated =>{
-                  peer.emit('getBlock', block.blockNumber + 1)
+                  if(updated){
+                    peer.emit('getBlock', block.blockNumber + 1)
+                    
+                  }
+                  
                 })
               }
               
@@ -402,6 +403,14 @@ class Node {
     }
   }
 
+  // downloadChain(peer, peerBestHeader, length){
+  //   if(this.chain instanceof Blockchain && peer && peerBestHeader && length){
+  //     let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
+
+  //   }
+    
+
+  // }
   async requestChainHeaders(peer, address, length, resolveFork){
     if(this.chain instanceof Blockchain && peer && address){
       let headers = [];
@@ -469,9 +478,14 @@ class Node {
             resolve(true)
           }else{
             logger('ERROR: Could not sync')
+            resolve(false)
           }        
+        }else{
+          resolve(false)
         }
         
+      }else{
+        resolve(false)
       }
     })
     
@@ -904,10 +918,13 @@ class Node {
        if(blockNumber && typeof blockNumber == 'number'){
          let header = await this.chain.getBlockHeader(blockNumber);
          if(header){
-           socket.emit('blockHeader', header);
-         }else{
-           socket.emit('blockHeader', {error:'ERROR: Block header not found'})
+           socket.emit('newBlockHeader', header)
          }
+        //  if(header){
+        //    socket.emit('blockHeader', header);
+        //  }else{
+        //    socket.emit('blockHeader', {error:'ERROR: Block header not found'})
+        //  }
        }
      })
 
@@ -920,14 +937,15 @@ class Node {
             
             socket.emit('block', block)
             
-          }else{
-            if(number == this.chain.getLatestBlock().blockNumber + 1){ //Is requesting beyond last block
-              socket.emit('block', {end:'Blockchain successfully updated'});
-            }else{
-              socket.emit('block', {error:'ERROR: block not found'})
-            }
-            
           }
+          // else{
+          //   if(number == this.chain.getLatestBlock().blockNumber + 1){ //Is requesting beyond last block
+          //     socket.emit('block', {end:'Blockchain successfully updated'});
+          //   }else{
+          //     socket.emit('block', {error:'ERROR: block not found'})
+          //   }
+            
+          // }
           
          }
       }
@@ -1054,10 +1072,7 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      let peers = Object.keys(this.connectionsToPeers);
-      let addr = peers[0]
-      let peer = this.connectionsToPeers[addr];
-      peer.emit('getBlockchainStatus')
+      this.rollBackBlocks(3400)
       
     })
 
