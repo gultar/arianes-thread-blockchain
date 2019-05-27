@@ -302,7 +302,6 @@ const isValidBlockJSON = (header)=>{
             "nonce", 
             "merkleRoot", 
             "challenge",
-            "totalChallenge",
             "transactions",
             "difficulty"
         ]
