@@ -435,20 +435,7 @@ class Node {
                   this.isDownloading = false;
                 }else if(isChainValid){
 
-                  headers.forEach( header=>{
-                    setTimeout(()=>{
-                      peer.emit('getBlock', header.blockNumber + 1)
-                    }, 500)
-                  })
-                  // setTimeout(()=>{
-                  //   let latestBlock = this.chain.getLatestBlock();
-                  //   for(var i=latestBlock.blockNumber; i < length; i++){
-                  //     console.log('requesting block', i +1)
-                  //     
-                      
-                  //   }
-                  //   this.isDownloading = false;
-                  // }, 3000)
+                 console.log('Chain is valid')
                   
                   
                 }else{
