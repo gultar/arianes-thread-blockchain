@@ -436,7 +436,7 @@ class Node {
                 }else if(isChainValid){
                   let currentHeight = this.chain.getLatestBlock().blockNumber
                   console.log('Requesting', currentHeight)
-                  peer.emit('getBlock', currentHeight)
+                  peer.emit('getBlock', currentHeight+1)
                   
                   
                 }else{
