@@ -373,7 +373,6 @@ class Node {
                 .then( saved=>{
                   if(saved){
                     logger('Saved blockchain state')
-                    resolve(true)
                   }
                 })
               }
@@ -476,33 +475,10 @@ class Node {
           }        
         }
         
-      }else{
-        if(block.error){
-          resolve(block.error)
-        }else if(block.end){
-          resolve(block.end)
-        }else{
-          logger('ERROR: Invalid block format')
-        }
       }
     })
     
   }
-
-  // downloadBlockchain(peer, length){
-  //   if(this.chain instanceof Blockchain){
-  //     let blockCounter = this.chain.getLatestBlock().blockNumber
-  //     let download = setInterval(()=>{
-  //       console.log('Requesting block',blockCounter + 1)
-        
-  //       if(length == blockCounter){
-  //         clearInterval(download)
-  //       }else{
-  //         blockCounter++;
-  //       }
-  //     }, 5)
-  //   }
-  // }
 
 
   /**
