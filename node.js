@@ -516,7 +516,7 @@ class Node {
   serverBroadcast(eventType, data){
     this.ioServer.emit(eventType, data);
   }
-  
+
   /**
     Broadcasts a defined event
     @param {string} $eventType - Event type/name
@@ -1100,8 +1100,7 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      this.rollBackBlocks(3400)
-      
+      this.whisper('message', 'hello muppet', this.address);
     })
 
     socket.on('rollback', ()=>{
@@ -1967,7 +1966,7 @@ class Node {
                   let newBlock = this.chain.getLatestBlock();
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
                   if(newHeader){
-                    this.serverBroadcast('newBlockHeader', newHeader)
+                    this.whisper('newBlockHeader', newHeader, this.address)
                   }else{
                     logger('ERROR: Could not send new block header')
                   }
