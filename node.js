@@ -434,7 +434,7 @@ class Node {
                   logger(isChainValid.error)
                   this.isDownloading = false;
                 }else if(isChainValid){
-                  let currentHeight = this.chain.getLatestBlock()
+                  let currentHeight = this.chain.getLatestBlock().blockNumber
                   console.log('Requesting', currentHeight)
                   peer.emit('getBlock', currentHeight)
                   
@@ -486,10 +486,10 @@ class Node {
       }else{
         if(block.error){
           resolve(block.error)
-        }
-  
-        if(block.end){
+        }else if(block.end){
           resolve(block.end)
+        }else{
+          isValidBlockJSON(block)
         }
       }
     })
