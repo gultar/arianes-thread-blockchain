@@ -381,11 +381,7 @@ class Node {
                     }
                   })
                 }
-
-                if(updated){
-                  peer.emit('getBlock', block.blockNumber + 1)
-                }
-
+                
                 
               })
                 
@@ -441,7 +437,9 @@ class Node {
                 }else{
 
                   let latestBlock = this.chain.getLatestBlock();
-                  peer.emit('getBlock', latestBlock.blockNumber + 1)
+                  for(var i=latestBlock.blockNumber; i < length; i++){
+                    peer.emit('getBlock', i + 1)
+                  }
                   this.isDownloading = false;
                   
                 }
