@@ -785,52 +785,52 @@ class Node {
         }
       })
 
-      app.get('/getNextBlock', (req, res)=>{
+      // app.get('/getNextBlock', (req, res)=>{
         
-        if(isValidGetNextBlockJSON(req.query)){
-          try{
-            var blockHash = req.query.hash;
-            var blockHeader = JSON.parse(req.query.header);
-            if(this.chain instanceof Blockchain && isValidHeaderJSON(blockHeader)){
-              const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
-              const lastBlock = this.chain.getLatestBlock();
-              if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
+      //   if(isValidGetNextBlockJSON(req.query)){
+      //     try{
+      //       var blockHash = req.query.hash;
+      //       var blockHeader = JSON.parse(req.query.header);
+      //       if(this.chain instanceof Blockchain && isValidHeaderJSON(blockHeader)){
+      //         const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
+      //         const lastBlock = this.chain.getLatestBlock();
+      //         if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
     
-                var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
-                if(nextBlock){
-                  res.json(nextBlock).end()
-                }
-                if(blockHash === lastBlock.hash){
-                  res.json( { error:'end of chain' } ).end()
-                }
+      //           var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
+      //           if(nextBlock){
+      //             res.json(nextBlock).end()
+      //           }
+      //           if(blockHash === lastBlock.hash){
+      //             res.json( { error:'end of chain' } ).end()
+      //           }
     
-              }else{
+      //         }else{
     
-                let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
+      //           let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
     
-                if(blockHeader.blockNumber == lastBlock.blockNumber){
-                  if(blockHeader.blockNumber !== 0){
-                    res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
-                  }else{
-                    res.json( { error:'end of chain' } ).end()
-                  }
+      //           if(blockHeader.blockNumber == lastBlock.blockNumber){
+      //             if(blockHeader.blockNumber !== 0){
+      //               res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
+      //             }else{
+      //               res.json( { error:'end of chain' } ).end()
+      //             }
                   
-                }else{
-                  res.json( { error:'no block found' } ).end()
-                }
+      //           }else{
+      //             res.json( { error:'no block found' } ).end()
+      //           }
     
-              }
-            }else{
-              res.json( { error:'invalid request parameters' } ).end()
-            }
-          }catch(e){
-            console.log(chalk.red(e))
-          }
-        }else{
-          res.json({ error: 'invalid block request JSON format' }) 
-        }
+      //         }
+      //       }else{
+      //         res.json( { error:'invalid request parameters' } ).end()
+      //       }
+      //     }catch(e){
+      //       console.log(chalk.red(e))
+      //     }
+      //   }else{
+      //     res.json({ error: 'invalid block request JSON format' }) 
+      //   }
 
-      })
+      // })
 
     }catch(e){
       logger(e)
@@ -1461,9 +1461,9 @@ class Node {
         var isBlockSynced = this.chain.syncBlock(newBlock);
         if(isBlockSynced === true){
           Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-          logger(chalk.blue('* Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
-          logger(chalk.blue('* Number of transactions: ', Object.keys(newBlock.transactions).length))
-          logger(chalk.blue('* By: ', newBlock.minedBy))
+          logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"..."));
+          logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+          logger(chalk.green('* By: '), newBlock.minedBy)
           return true;
         }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
           //Start syncing from the index returned by syncBlock;
@@ -1533,98 +1533,98 @@ class Node {
   }
 
 
-  /**
-    Keeps the sync on the blockchain. Can be launched manually upon creation of node
-    to get in sync with the network.
-    @param {string} $address - Peer address to sync with
-    @param {function} $cb - Optional callback
-  */
-  fetchBlocks(address, cb){
-    try{
-      if(this.chain instanceof Blockchain){
-        const latestBlock = this.chain.getLatestBlock();
-        const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
+  // /**
+  //   Keeps the sync on the blockchain. Can be launched manually upon creation of node
+  //   to get in sync with the network.
+  //   @param {string} $address - Peer address to sync with
+  //   @param {function} $cb - Optional callback
+  // */
+  // fetchBlocks(address, cb){
+  //   try{
+  //     if(this.chain instanceof Blockchain){
+  //       const latestBlock = this.chain.getLatestBlock();
+  //       const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
         
-        axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
-          .then((response) =>{
-            var block = response.data;
+  //       axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
+  //         .then((response) =>{
+  //           var block = response.data;
             
-            if(block){
+  //           if(block){
               
-                var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
-                if(!synced){
-                  if(response.data.error == 'end of chain'){
+  //               var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
+  //               if(!synced){
+  //                 if(response.data.error == 'end of chain'){
                     
-                    logger(chalk.green('Blockchain successfully updated'));
-                    this.chain.isChainValid()
-                    this.chain.saveBlockchain()
+  //                   logger(chalk.green('Blockchain successfully updated'));
+  //                   this.chain.isChainValid()
+  //                   this.chain.saveBlockchain()
 
-                    this.minerPaused = false;
-                    if(cb){
-                      cb(true)
-                    }
-                    return true;
-                  }else if(response.data.error == 'block fork'){
-                    let peerHeader = JSON.parse(response.data.header);
+  //                   this.minerPaused = false;
+  //                   if(cb){
+  //                     cb(true)
+  //                   }
+  //                   return true;
+  //                 }else if(response.data.error == 'block fork'){
+  //                   let peerHeader = JSON.parse(response.data.header);
 
-                    let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
-                    let isBlockConflict = (peerHeader.blockNumber == latestBlock.blockNumber) 
-                                          && (peerHeader.hash !== latestBlock.hash);
-                    let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
+  //                   let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
+  //                   let isBlockConflict = (peerHeader.blockNumber == latestBlock.blockNumber) 
+  //                                         && (peerHeader.hash !== latestBlock.hash);
+  //                   let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
 
-                    logger('Is Header Valid:', isHeaderValid);
-                    logger('Is Block Conflict:', isBlockConflict);
-                    logger('Peer block has more work:', peerBlockHasMoreWork);
+  //                   logger('Is Header Valid:', isHeaderValid);
+  //                   logger('Is Block Conflict:', isBlockConflict);
+  //                   logger('Peer block has more work:', peerBlockHasMoreWork);
 
-                    if(isHeaderValid && isBlockConflict){
-                      if(peerBlockHasMoreWork){
-                        let orphanBlock = this.chain.chain.pop();
-                        this.chain.orphanedBlocks.push(orphanBlock);
-                        this.resolveBlockFork(address);
-                      }else{
-                        logger("The current last block required more work than target peer's")
-                      }
-                    }else{
-                      logger('Header is invalid');
-                    }
+  //                   if(isHeaderValid && isBlockConflict){
+  //                     if(peerBlockHasMoreWork){
+  //                       let orphanBlock = this.chain.chain.pop();
+  //                       this.chain.orphanedBlocks.push(orphanBlock);
+  //                       this.resolveBlockFork(address);
+  //                     }else{
+  //                       logger("The current last block required more work than target peer's")
+  //                     }
+  //                   }else{
+  //                     logger('Header is invalid');
+  //                   }
 
                     
-                  }else if(response.data.error == 'no block found'){
-                    logger(chalk.red(response.data.error));
-                    return false
-                  }else if(response.data.error == 'invalid request parameters'){
-                    logger(chalk.red(response.data.error))
-                    return false
-                  }else if(response.data.error == 'invalid block request JSON format'){
-                    logger(chalk.red(response.data.error))
-                    return false
-                  }
-                  return false
+  //                 }else if(response.data.error == 'no block found'){
+  //                   logger(chalk.red(response.data.error));
+  //                   return false
+  //                 }else if(response.data.error == 'invalid request parameters'){
+  //                   logger(chalk.red(response.data.error))
+  //                   return false
+  //                 }else if(response.data.error == 'invalid block request JSON format'){
+  //                   logger(chalk.red(response.data.error))
+  //                   return false
+  //                 }
+  //                 return false
 
-                }else{
-                  setTimeout(()=>{
-                    this.fetchBlocks(address)
+  //               }else{
+  //                 setTimeout(()=>{
+  //                   this.fetchBlocks(address)
 
-                  },10)
-                }
-            }else{
-              logger('No block received from '+address)
-            }
-          })
-          .catch((error)=>{
-            logger(error)
-            logger(chalk.red('Could not fetch block from '+address))
+  //                 },10)
+  //               }
+  //           }else{
+  //             logger('No block received from '+address)
+  //           }
+  //         })
+  //         .catch((error)=>{
+  //           logger(error)
+  //           logger(chalk.red('Could not fetch block from '+address))
             
-            return false;
-          })
-      }
-    }catch(e){
-      console.log(chalk.red(e));
-      return false;
-    }
+  //           return false;
+  //         })
+  //     }
+  //   }catch(e){
+  //     console.log(chalk.red(e));
+  //     return false;
+  //   }
 
 
-  }
+  // }
 
   validateBlockchain(allowRollback){
     if(this.chain instanceof Blockchain){
