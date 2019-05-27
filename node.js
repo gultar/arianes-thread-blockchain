@@ -502,7 +502,7 @@ class Node {
         }else{
           blockCounter++;
         }
-      }, 100)
+      }, 5)
     }
   }
 
