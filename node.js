@@ -475,6 +475,9 @@ class Node {
             this.isDownloading = false;
             peer.emit('getBlock', block.blockNumber + 1)
             resolve(true)
+          }else{
+            console.log(block)
+            logger('Could not sync')
           }        
         }else{
           logger('ERROR: Already contained in chain')
