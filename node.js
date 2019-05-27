@@ -359,7 +359,10 @@ class Node {
 
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              console.log(block)
+              console.log('*8888888888888888888')
+              console.log(block.blockNumber)
+              console.log(block.hash)
+              
               this.receiveBlock(block)
                 
             }
