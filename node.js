@@ -412,21 +412,25 @@ class Node {
       if(this.chain instanceof Blockchain){
         let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
         peer.on('blockHeader', (header)=>{
+          console.log('received header')
           if(header){
             try{
-              if(this.chain instanceof Blockchain){
                 let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
                 if(!alreadyInChain && !this.isDownloading){
                   let isValidHeader = this.chain.validateBlockHeader(header)
                   if(isValidHeader){
                     peer.emit('getBlock', header.blockNumber);
                     
+                  }else{
+                    logger('ERROR: Is not valid header')
                   }
+                }else{
+                  logger('ERROR: Is already in chain')
                 }
                 
-              }
             }catch(e){
               console.log(e)
+              resolve(false)
             }
             
           }
@@ -438,7 +442,9 @@ class Node {
             clearInterval(downloadHeaders);
             peer.off('blockHeader')
             console.log('Remaining listener on blockHeader:',peer.listeners('blockHeader'))
+            resolve(true)
            }else{
+            console.log('Requesting header number', nextHeader)
             peer.emit('getBlockHeader', nextHeader)
             nextHeader++
            }
