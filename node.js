@@ -441,9 +441,7 @@ class Node {
                 }else{
 
                   let latestBlock = this.chain.getLatestBlock();
-                  for(var i=latestBlock.blockNumber; i < length; i++){
-                    peer.emit('getBlock', i + 1)
-                  }
+                  peer.emit('getBlock', latestBlock.blockNumber + 1)
                   this.isDownloading = false;
                   
                 }
