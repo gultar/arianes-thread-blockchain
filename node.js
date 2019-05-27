@@ -359,15 +359,10 @@ class Node {
 
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              if(isValidBlockJSON(block)){
-                if(!this.chain.getIndexOfBlockHash(block.hash)){
-                  this.receiveBlock(block)
-                }
+              this.receiveBlock(block)
                 
-               } 
             }
              
-            
            })
 
           peer.on('getAddr', ()=>{
@@ -416,7 +411,12 @@ class Node {
                   logger(isChainValid.error)
                   this.isDownloading = false;
                 }else{
-                  this.downloadBlockchain(peer, address, length)
+
+                  let latestBlock = this.chain.getLatestBlock();
+                  for(var i=latestBlock.blockNumber; i < length; i++){
+                    peer.emit('getBlock', i + 1)
+                  }
+                  this.isDownloading = false;
                   
                 }
               }
@@ -440,50 +440,23 @@ class Node {
             
   }
 
-  downloadBlockchain(peer, address, length){
-    if(this.chain instanceof Blockchain && peer && address && length){
-      
-      let latestBlock = this.chain.getLatestBlock();
-      peer.on('block', (block)=>{
-        if(block){
-          if(block.error){
-            logger(block.error)
-            this.isDownloading = false;
-          }
-  
-          if(block.end){
-            logger(chalk.green(block.end))
-            peer.off('blockHeader');
-            peer.off('block');
-            this.isDownloading = false;
-            this.chain.saveBlockchain()
-            .then( saved=>{
-              if(saved){
-                logger('Saved blockchain state')
-              }
-            })
-          }
-
-          
-          this.receiveNewBlock(block);
-          
-        }
-
-      })
-
-      for(var i=latestBlock.blockNumber; i < length; i++){
-        peer.emit('getBlock', i + 1)
-      }
-    }else{
-      logger('ERROR: Could not download blockchain. Missing parameters')
-      this.isDownloading = false;
-    }
-  }
 
   receiveBlock(block){
     return new Promise(async (resolve, reject)=>{
-      if(block){
-        this.isDownloading = true;
+      if(isValidBlockJSON(block)){
+        if(!this.chain.getIndexOfBlockHash(block.hash)){
+          this.isDownloading = true;
+          let isSynced = await this.receiveNewBlock(block);
+          if(isSynced){
+            this.minerPaused = false;
+            this.isDownloading = false;
+            resolve(true)
+          }        
+        }else{
+          logger('ERROR: Already contained in chain')
+        }
+        
+      }else{
         if(block.error){
           logger(block.error)
           this.isDownloading = false;
@@ -502,14 +475,6 @@ class Node {
             }
           })
         }
-  
-        let isSynced = await this.receiveNewBlock(block);
-        if(isSynced){
-          this.minerPaused = false;
-          this.isDownloading = false;
-          resolve(true)
-        }
-        
       }
     })
     
