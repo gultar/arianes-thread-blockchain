@@ -366,7 +366,9 @@ class Node {
 
               if(!block.end){
                 this.receiveBlock(block, peer)
-              .then(updated =>{})
+                .then(updated =>{
+                  peer.emit('getBlock', block.blockNumber + 1)
+                })
               }
               
                 
@@ -400,7 +402,7 @@ class Node {
     }
   }
 
-  async requestChainHeaders(peer, address, length){
+  async requestChainHeaders(peer, address, length, resolveFork){
     if(this.chain instanceof Blockchain && peer && address){
       let headers = [];
       let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
@@ -421,8 +423,13 @@ class Node {
                   this.isDownloading = false;
                   peer.off('blockHeader');
                 }else if(isChainValid){
-                  let currentHeight = this.chain.getLatestBlock().blockNumber
-                  peer.emit('getBlock', currentHeight+1)
+                  if(resolveFork){
+                    this.resolveBlockFork(headers)
+                  }else{
+                    let currentHeight = this.chain.getLatestBlock().blockNumber
+                    peer.emit('getBlock', currentHeight+1)
+                    
+                  }
                   peer.off('blockHeader');
                   
                 }else{
@@ -459,7 +466,6 @@ class Node {
           if(isSynced){
             this.minerPaused = false;
             this.isDownloading = false;
-            peer.emit('getBlock', block.blockNumber + 1)
             resolve(true)
           }else{
             logger('ERROR: Could not sync')
@@ -1649,9 +1655,9 @@ class Node {
     // logger(headers)
     if(this.chain instanceof Blockchain){
       if(headers){
-        for(var i=0; i < headers.headers.length; i++){
+        for(var i=0; i < headers.length; i++){
 
-          var header = headers.headers[i]
+          var header = headers[i]
           var localBlockHeader = this.chain.getBlockHeader(i);
 
           try{
@@ -1668,7 +1674,7 @@ class Node {
               if(!isValid){
                 console.log('Is not valid ', i);
                 console.log(sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce))
-                let block = this.chain.chain[17];
+                
                 console.log('Block Hash:', block.hash);
                 console.log('Header Hash',header.hash);
                 console.log(sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce))
@@ -1679,7 +1685,7 @@ class Node {
                 console.log('Nonce', header.nonce)
                 return false;
               }
-              if(headers.headers.length < this.chain.chain.length){
+              if(headers.length < this.chain.chain.length){
                 logger('This chain is longer than peer chain')
                 return false;
               } 
@@ -1727,11 +1733,8 @@ class Node {
     }
   }
 
-  resolveBlockFork(address){
-    axios.get(address+'/getChainHeaders')
-    .then((response)=>{
-
-      let headers = response.data.chainHeaders
+  resolveBlockFork(headers){
+    if(headers){
       let areValidHeaders = this.compareHeaders(headers)
 
         if(areValidHeaders){
@@ -1756,13 +1759,8 @@ class Node {
         }else{
           logger('Peer headers are not valid')
         }
-
-    })
-    .catch((error)=>{
-      
-      logger(chalk.red('Could not fetch chain headers ', error.address))
-       
-    })
+    }
+    
   }
 
   
