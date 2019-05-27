@@ -360,7 +360,7 @@ class Node {
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
               
-              this.receiveBlock(block)
+              this.receiveBlock(block, peer)
               .then(updated =>{
                 if(updated.error){
                   logger(updated.error)
@@ -464,7 +464,7 @@ class Node {
   }
 
 
-  receiveBlock(block){
+  receiveBlock(block, peer){
     return new Promise(async (resolve, reject)=>{
       if(isValidBlockJSON(block)){
         if(!this.chain.getIndexOfBlockHash(block.hash)){
