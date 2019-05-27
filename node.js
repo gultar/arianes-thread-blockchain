@@ -429,10 +429,11 @@ class Node {
                 if(isChainValid.error){
                   logger(isChainValid.error)
                   this.isDownloading = false;
+                  peer.off('blockHeader');
                 }else if(isChainValid){
                   let currentHeight = this.chain.getLatestBlock().blockNumber
                   peer.emit('getBlock', currentHeight+1)
-                  
+                  peer.off('blockHeader');
                   
                 }else{
                   logger('ERROR: Invalid Header chain')
