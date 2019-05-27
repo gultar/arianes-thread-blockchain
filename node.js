@@ -359,11 +359,35 @@ class Node {
 
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              console.log('*8888888888888888888')
-              console.log(block.blockNumber)
-              console.log(block.hash)
+              
               
               this.receiveBlock(block)
+              .then(updated =>{
+                if(updated.error){
+                  logger(updated.error)
+                  this.isDownloading = false;
+                }
+
+                if(updated.end){
+                  this.isDownloading = false;
+                  logger(chalk.green(block.end))
+                  this.isDownloading = false;
+          
+                  this.chain.saveBlockchain()
+                  .then( saved=>{
+                    if(saved){
+                      logger('Saved blockchain state')
+                      resolve(true)
+                    }
+                  })
+                }
+
+                if(updated){
+                  peer.emit('getBlock', block.blockNumber + 1)
+                }
+
+                
+              })
                 
             }
              
@@ -462,22 +486,11 @@ class Node {
         
       }else{
         if(block.error){
-          logger(block.error)
-          this.isDownloading = false;
-          resolve(false)
+          resolve(block.error)
         }
   
         if(block.end){
-          logger(chalk.green(block.end))
-          this.isDownloading = false;
-  
-          this.chain.saveBlockchain()
-          .then( saved=>{
-            if(saved){
-              logger('Saved blockchain state')
-              resolve(true)
-            }
-          })
+          resolve(block.end)
         }
       }
     })
