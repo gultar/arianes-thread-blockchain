@@ -434,14 +434,16 @@ class Node {
                   logger(isChainValid.error)
                   this.isDownloading = false;
                 }else{
-
-                  let latestBlock = this.chain.getLatestBlock();
-                  for(var i=latestBlock.blockNumber; i < length; i++){
-                    console.log('requesting block', i +1)
-                    peer.emit('getBlock', i + 1)
-                    
-                  }
-                  this.isDownloading = false;
+                  setTimeout(()=>{
+                    let latestBlock = this.chain.getLatestBlock();
+                    for(var i=latestBlock.blockNumber; i < length; i++){
+                      console.log('requesting block', i +1)
+                      peer.emit('getBlock', i + 1)
+                      
+                    }
+                    this.isDownloading = false;
+                  }, 3000)
+                  
                   
                 }
               }
