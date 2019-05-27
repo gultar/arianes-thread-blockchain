@@ -301,10 +301,6 @@ class Node {
             }
           })
 
-          peer.on('message', (message)=>{
-              logger('Server: ' + message);
-          })
-
           peer.on('blockchainStatus', async (status)=>{
             if(this.chain instanceof Blockchain){
               let { totalChallenge, bestBlockHeader, length } = status;
@@ -343,7 +339,7 @@ class Node {
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       peer.emit('getBlock', header.blockNumber);
-                      this.serverBroadcast('newBlockHeader', header);
+                      this.whisper('newBlockHeader', header, this.address);
                       
                       
                       
@@ -358,9 +354,31 @@ class Node {
             }
            })
 
+           
+
+           peer.on('blockHeader', (header)=>{
+            if(header){
+              try{
+                if(this.chain instanceof Blockchain){
+                  let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
+                  if(!alreadyInChain && !this.isDownloading){
+                    let isValidHeader = this.chain.validateBlockHeader(header)
+                    if(isValidHeader){
+                      peer.emit('getBlock', header.blockNumber);
+                      
+                    }
+                  }
+                  
+                }
+              }catch(e){
+                console.log(e)
+              }
+              
+            }
+           })
+
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              console.log('Received a block ping')
               if(!block.end){
                 this.receiveBlock(block, peer)
                 .then(updated =>{
@@ -376,6 +394,11 @@ class Node {
             }
              
            })
+
+          peer.on('whisper', (whisper)=>{
+            let { type, originAddress, messageId, data, relayPeer }  = whisper;
+            this.handleWhisperMessage(type, originAddress, messageId, data, relayPeer);
+          })
 
           peer.on('getAddr', ()=>{
             peer.emit('addr', this.nodeList.addresses);
@@ -403,75 +426,61 @@ class Node {
     }
   }
 
-  downloadChain(peer, peerBestHeader, length){
-    if(this.chain instanceof Blockchain && peer && peerBestHeader && length){
+  async requestChainHeaders(peer, address, length, resolveFork){
+    if(this.chain instanceof Blockchain && peer && address){
+      let headers = [];
       let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-      let headerRequestCounter = lastBlockNumber;
-      do{
-        setTimeout(()=>{
-          peer.emit('getBlockHeader', headerRequestCounter)
-          headerRequestCounter++
-        }, 100)
-        
-      }while(headerRequestCounter < length - 1)
-    }
-  }
-
-  // }
-  // async requestChainHeaders(peer, address, length, resolveFork){
-  //   if(this.chain instanceof Blockchain && peer && address){
-  //     let headers = [];
-  //     let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-  //     peer.on('blockHeader', async (header)=>{
-  //       console.log('Received a header ping')
-  //       if(header.error){
-  //         logger(header.error);
-  //         peer.off('blockHeader');
-  //         return null;
-  //       }else{
-  //         if(isValidHeaderJSON(header)){
+      peer.on('blockHeader', async (header)=>{
+        console.log('Received a header ping')
+        if(header.error){
+          logger(header.error);
+          peer.off('blockHeader');
+        }else{
+          if(isValidHeaderJSON(header)){
             
-  //             headers.push(header);
+              headers.push(header);
               
-  //             if(lastBlockNumber + headers.length == length -1){ // -1 to account for the genesis block being excluded
-  //               let isChainValid = await this.chain.validateHeadersOfChain(headers)
-  //               if(isChainValid.error){
-  //                 logger(isChainValid.error)
-  //                 this.isDownloading = false;
-  //                 peer.off('blockHeader');
-  //               }else if(isChainValid){
-  //                 if(resolveFork){
-  //                   this.resolveBlockFork(headers)
-  //                 }else{
-  //                   let currentHeight = this.chain.getLatestBlock().blockNumber
-  //                   peer.emit('getBlock', currentHeight+1)
+              if(lastBlockNumber + headers.length == length -1){ // -1 to account for the genesis block being excluded
+                let isChainValid = await this.chain.validateHeadersOfChain(headers)
+                if(isChainValid.error){
+                  logger(isChainValid.error)
+                  this.isDownloading = false;
+                  peer.off('blockHeader');
+                }else if(isChainValid){
+                  if(resolveFork){
+                    this.resolveBlockFork(headers)
+                  }else{
+                    let currentHeight = this.chain.getLatestBlock().blockNumber
+                    peer.emit('getBlock', currentHeight+1)
                     
-  //                 }
-  //                 peer.off('blockHeader');
+                  }
+                  peer.off('blockHeader');
                   
-  //               }else{
-  //                 logger('ERROR: Invalid Header chain')
-  //               }
-  //             }
+                }else{
+                  logger('ERROR: Invalid Header chain')
+                  peer.off('blockHeader');
+                }
+              }
             
-  //         }else{
-  //           logger('ERROR:Is not valid header json')
-  //           this.isDownloading = false;
-  //         }
-  //       }
+          }else{
+            logger('ERROR:Is not valid header json')
+            this.isDownloading = false;
+            peer.off('blockHeader');
+          }
+        }
         
-  //     })
-  //     let startAt = (lastBlockNumber ? lastBlockNumber : 0);
-  //     for(var i=startAt; i < length-1; i++){
-  //         peer.emit('getBlockHeader', i+1);
-  //     }
+      })
+      let startAt = (lastBlockNumber ? lastBlockNumber : 0);
+      for(var i=startAt; i < length-1; i++){
+          peer.emit('getBlockHeader', i+1);
+      }
 
-  //   }else{
-  //     logger('ERROR: Missing parameters to header request function')
-  //     this.isDownloading = false;
-  //   }
+    }else{
+      logger('ERROR: Missing parameters to header request function')
+      this.isDownloading = false;
+    }
             
-  // }
+  }
 
 
   receiveBlock(block, peer){
@@ -499,7 +508,15 @@ class Node {
     
   }
 
-
+  /**
+    Broadcast only to this node's connected peers. Does not gossip
+    @param {string} $eventType - Type of node event
+    @param {object} $data - Various data to be broadcasted
+  */
+  serverBroadcast(eventType, data){
+    this.ioServer.emit(eventType, data);
+  }
+  
   /**
     Broadcasts a defined event
     @param {string} $eventType - Event type/name
@@ -524,67 +541,85 @@ class Node {
 
   }
 
-  gossip(eventType, data, moreData=false){
-    try{
-      let peerAddresses = Object.keys(this.peersConnected);
-      let randomPeerIndex = Math.floor( Math.random() * peerAddresses.length )
-      let randomPeerAddress = peerAddresses[randomPeerIndex];
-      let randomPeer = this.peersConnected[randomPeerAddress];
-      if(randomPeer){
-        if(moreData){
-          randomPeer.emit(eventType, data, moreData);
-        }else{
-          randomPeer.emit(eventType, data);
-        }
-        
+  whisper(type, data, relayPeer){
+    if(type){
+      try{
+        if(typeof data == 'object')
+          data = JSON.stringify(data);
+        var shaInput = (Math.random() * Date.now()).toString()
+        var messageId = sha256(shaInput);
+        this.messageBuffer[messageId] = messageId;
+        this.serverBroadcast('whisper', { 
+          'type':type, 
+          'messageId':messageId, 
+          'originAddress':this.address, 
+          'data':data,
+          'relayPeer':relayPeer
+        });
+
+      }catch(e){
+        console.log(chalk.red(e));
       }
-    }catch(e){
-      console.log(e);
+
+    }
+  }
+
+  handleWhisperMessage(type, originAddress, messageId, data, relayPeer){
+    let gossipMessage = { 
+      'type':type, 
+      'originAddress':originAddress, 
+      'messageId':messageId, 
+      'data':data, 
+      'relayPeer':relayPeer 
+    }
+
+    if(!this.messageBuffer[messageId]){
+      switch(type){
+        case 'newBlockHeader':
+          try{
+            let relayingPeer = this.peersConnected[relayPeer];
+            if(relayingPeer){
+              let header = JSON.parse(data)
+              if(header){
+                
+                  if(this.chain instanceof Blockchain){
+                    let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
+                    if(!alreadyInChain && !this.isDownloading){
+                      let isValidHeader = this.chain.validateBlockHeader(header)
+                      if(isValidHeader){
+                        relayingPeer.emit('getBlock', header.blockNumber);
+                        setTimeout(()=>{
+                          this.whisper('newBlockHeader', header, this.address);
+                        },10)
+                        
+                      }
+                    }
+                    
+                  }
+                
+                
+              }else{
+                logger('ERROR: Could not find header')
+              }
+            }else{
+              logger('ERROR: Could not find relaying peer')
+            }
+          }catch(e){
+            console.log(e)
+          }
+          break;
+        case 'message':
+          logger(data)
+          break;
+        default:
+          break;
+      }
+
+        this.messageBuffer[messageId] = gossipMessage;
+        this.whisper('gossip', gossipMessage, this.address)
     }
     
   }
-
-  spreadGossip(eventType, data, moreData=false){
-    let peerAddresses = Object.keys(this.peersConnected);
-    if(peerAddresses){
-      let randomNumberOfPeers = Math.floor( Math.random() * peerAddresses.length )
-      for(var i=0; i < randomNumberOfPeers; i++){
-        this.gossip(eventType, data, moreData)
-      }
-    }
-    
-  }
-
-  
-
-  // gossip(eventType, data, moreData=false, fromAddress){
-  //   try{
-  //     if(this.connectionsToPeers){
-  //       let peerAddresses = Object.keys(this.connectionsToPeers);
-  //       let randomSelect = Math.floor(Math.random() * peerAddresses.length);
-  //       let peerAddress = peerAddresses[randomSelect]
-  //       if(!moreData){
-
-  //           this.connectionsToPeers[peerAddress].emit(eventType, data);
-  //       }else{
-  //           this.connectionsToPeers[peerAddress].emit(eventType, data, moreData);
-  //       }
-  //     }
-  //   }catch(e){
-  //     console.log(e)
-  //   }
-  // }
-
-
-  /**
-    Broadcast only to this node's connected peers. Does not gossip
-    @param {string} $eventType - Type of node event
-    @param {object} $data - Various data to be broadcasted
-  */
-  serverBroadcast(eventType, data){
-    this.ioServer.emit(eventType, data);
-  }
-
 
   /**
     Relays certain console logs to the web UI
@@ -928,11 +963,6 @@ class Node {
          if(header){
            socket.emit('newBlockHeader', header)
          }
-        //  if(header){
-        //    socket.emit('blockHeader', header);
-        //  }else{
-        //    socket.emit('blockHeader', {error:'ERROR: Block header not found'})
-        //  }
        }
      })
 
@@ -946,20 +976,10 @@ class Node {
             socket.emit('block', block)
             
           }
-          // else{
-          //   if(number == this.chain.getLatestBlock().blockNumber + 1){ //Is requesting beyond last block
-          //     socket.emit('block', {end:'Blockchain successfully updated'});
-          //   }else{
-          //     socket.emit('block', {error:'ERROR: block not found'})
-          //   }
-            
-          // }
           
          }
       }
      })
-
-
 
 
    }
@@ -1203,27 +1223,7 @@ class Node {
     }
   }
 
-  spreadGossip(type, data){
-    if(type){
-      try{
-        if(typeof data == 'object')
-          data = JSON.stringify(data);
-        var shaInput = (Math.random() * Date.now()).toString()
-        var messageId = sha256(shaInput);
-        this.messageBuffer[messageId] = messageId;
-        this.gossip('gossipMessage', { 
-          'type':type, 
-          'messageId':messageId, 
-          'originAddress':this.address, 
-          'data':data 
-        });
-
-      }catch(e){
-        console.log(chalk.red(e));
-      }
-
-    }
-  }
+  
 
 
   /**
@@ -1434,14 +1434,7 @@ class Node {
     }
   }
 
-  handleGossipMessage(type, originAddress, targetAddress, messageId, data){
-    switch(type){
-      case '':
-        break;
-      default:
-        break;
-    }
-  }
+  
 
 
   
