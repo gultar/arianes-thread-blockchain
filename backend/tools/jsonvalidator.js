@@ -310,7 +310,6 @@ const isValidBlockJSON = (header)=>{
     if(header){
         v.addSchema(headerSchema, "/block")
         let valid = v.validate(header, headerSchema);
-        console.log(valid.errors)
         if(valid.errors.length == 0){
             return true
         }else{

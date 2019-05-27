@@ -435,7 +435,6 @@ class Node {
                   this.isDownloading = false;
                 }else if(isChainValid){
                   let currentHeight = this.chain.getLatestBlock().blockNumber
-                  console.log('Requesting', currentHeight)
                   peer.emit('getBlock', currentHeight+1)
                   
                   
@@ -476,7 +475,6 @@ class Node {
             peer.emit('getBlock', block.blockNumber + 1)
             resolve(true)
           }else{
-            console.log(block)
             logger('Could not sync')
           }        
         }else{
@@ -489,7 +487,7 @@ class Node {
         }else if(block.end){
           resolve(block.end)
         }else{
-          isValidBlockJSON(block)
+          logger('ERROR: Invalid block format')
         }
       }
     })
