@@ -465,7 +465,7 @@ class Node {
           }
 
           
-          let isSynced = await this.receiveNewBlock(block);
+          this.receiveNewBlock(block);
           
         }
 
