@@ -433,18 +433,26 @@ class Node {
                 if(isChainValid.error){
                   logger(isChainValid.error)
                   this.isDownloading = false;
-                }else{
-                  setTimeout(()=>{
-                    let latestBlock = this.chain.getLatestBlock();
-                    for(var i=latestBlock.blockNumber; i < length; i++){
-                      console.log('requesting block', i +1)
-                      peer.emit('getBlock', i + 1)
+                }else if(isChainValid){
+
+                  headers.forEach( header=>{
+                    setTimeout(()=>{
+                      peer.emit('getBlock', header.blockNumber + 1)
+                    }, 100)
+                  })
+                  // setTimeout(()=>{
+                  //   let latestBlock = this.chain.getLatestBlock();
+                  //   for(var i=latestBlock.blockNumber; i < length; i++){
+                  //     console.log('requesting block', i +1)
+                  //     
                       
-                    }
-                    this.isDownloading = false;
-                  }, 3000)
+                  //   }
+                  //   this.isDownloading = false;
+                  // }, 3000)
                   
                   
+                }else{
+                  logger('ERROR: Invalid Header chain')
                 }
               }
             
