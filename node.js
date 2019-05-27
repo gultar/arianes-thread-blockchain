@@ -437,7 +437,11 @@ class Node {
 
                   let latestBlock = this.chain.getLatestBlock();
                   for(var i=latestBlock.blockNumber; i < length; i++){
-                    peer.emit('getBlock', i + 1)
+                    setTimeout(()=>{
+                      console.log('requesting block', i +1)
+                      peer.emit('getBlock', i + 1)
+                    },100)
+                    
                   }
                   this.isDownloading = false;
                   
