@@ -274,6 +274,52 @@ const isValidHeaderJSON = (header)=>{
     }
 }
 
+const isValidBlockJSON = (header)=>{
+    var v = new Validator();
+    var headerSchema = {
+        "id":"/block",
+        "type":"object",
+        "header":{"type":"object"},
+            "properties":{
+                "blockNumber":{"type":"number"},
+                "timestamp":{"type":"number"},
+                "previousHash":{"type":"string"},
+                "hash":{"type":"string"},
+                "nonce":{"type":"number"},
+                "merkleRoot":{"type":"string"},
+                "actionMerkleRoot":{"type":"string"},
+                "challenge":{"type":"number"},
+                "totalChallenge":{"type":"number"},
+                "transactions":{"type":"object"},
+                "actions":{"type":"object"},
+                "difficulty":{"type":"number"}
+            },
+        "required": [
+            "blockNumber", 
+            "timestamp", 
+            "previousHash", 
+            "hash", 
+            "nonce", 
+            "merkleRoot", 
+            "challenge",
+            "totalChallenge",
+            "transactions",
+            "difficulty"
+        ]
+    }
+
+    if(header){
+        v.addSchema(headerSchema, "/block")
+        let valid = v.validate(header, headerSchema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
 module.exports = { 
     isValidTransactionJSON, 
     isValidChainLengthJSON, 
@@ -285,4 +331,5 @@ module.exports = {
     isValidWalletBalanceJSON,
     isValidActionJSON,
     isValidAccountJSON,
+    isValidBlockJSON,
  };

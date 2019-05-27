@@ -38,7 +38,8 @@ const {
   isValidCreateWalletJSON,
   isValidUnlockWalletJSON,
   isValidWalletBalanceJSON,
-  isValidActionJSON
+  isValidActionJSON,
+  isValidBlockJSON
 } = require('./backend/tools/jsonvalidator')
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
@@ -340,15 +341,10 @@ class Node {
                   if(!alreadyInChain && !this.isDownloading){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
-                      this.downloadBlock(peer, header.blockNumber)
-                      .then( downloaded=>{
-                        if(downloaded){
-                          this.serverBroadcast('newBlockHeader', header);
-                        }else{
-                          logger('ERROR: Could not download new block')
-                        }
-                        
-                      })
+                      peer.emit('getBlock', blockNumber);
+                      this.serverBroadcast('newBlockHeader', header);
+                      
+                      
                       
                     }
                   }
@@ -359,6 +355,19 @@ class Node {
               }
               
             }
+           })
+
+           peer.on('block', async (block)=>{
+            if(this.chain instanceof Blockchain){
+              if(isValidBlockJSON(block)){
+                if(!this.chain.getIndexOfBlockHash(block.hash)){
+                  this.receiveBlock(block)
+                }
+                
+               } 
+            }
+             
+            
            })
 
           peer.on('getAddr', ()=>{
@@ -455,8 +464,9 @@ class Node {
             })
           }
 
-          this.receiveNewBlock(block)
-          //send Blockchain status notification
+          
+          let isSynced = await this.receiveNewBlock(block);
+          
         }
 
       })
@@ -470,51 +480,38 @@ class Node {
     }
   }
 
-  downloadBlock(peer, blockNumber){
-    if(this.chain instanceof Blockchain && peer && blockNumber){
-      return new Promise((resolve, reject)=>{
+  receiveBlock(block){
+    return new Promise(async (resolve, reject)=>{
+      if(block){
         this.isDownloading = true;
-      
-        peer.on('block', async (block)=>{
-          if(block){
-            if(block.error){
-              logger(block.error)
-              this.isDownloading = false;
-              peer.off('block');
-              resolve(false)
-            }
-    
-            if(block.end){
-              logger(chalk.green(block.end))
-              this.isDownloading = false;
-
-              this.chain.saveBlockchain()
-              .then( saved=>{
-                if(saved){
-                  logger('Saved blockchain state')
-                  peer.off('block');
-                  resolve(true)
-                }
-              })
-            }
-    
-            let isSynced = await this.receiveNewBlock(block);
-            if(isSynced){
-              this.minerPaused = false;
-              this.isDownloading = false;
-              peer.off('block');
+        if(block.error){
+          logger(block.error)
+          this.isDownloading = false;
+          resolve(false)
+        }
+  
+        if(block.end){
+          logger(chalk.green(block.end))
+          this.isDownloading = false;
+  
+          this.chain.saveBlockchain()
+          .then( saved=>{
+            if(saved){
+              logger('Saved blockchain state')
               resolve(true)
             }
-            
-          }
-    
-        })
-
-        peer.emit('getBlock', blockNumber)
-
-      })
-      
-    }
+          })
+        }
+  
+        let isSynced = await this.receiveNewBlock(block);
+        if(isSynced){
+          this.minerPaused = false;
+          this.isDownloading = false;
+          resolve(true)
+        }
+        
+      }
+    })
     
   }
 
@@ -1504,14 +1501,13 @@ class Node {
   */
   receiveNewBlock(newBlock){
       if(typeof newBlock == 'object'){
-        let minerOfLastBlock = this.chain.getLatestBlock().minedBy;
         
         var isBlockSynced = this.chain.syncBlock(newBlock);
         if(isBlockSynced === true){
           Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
           logger(chalk.blue('* Synced new block '+newBlock.blockNumber+' with hash : '+ newBlock.hash.substr(0, 25)+"..."));
           logger(chalk.blue('* Number of transactions: ', Object.keys(newBlock.transactions).length))
-          
+          logger(chalk.blue('* By: ', newBlock.minedBy))
           return true;
         }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
           //Start syncing from the index returned by syncBlock;
@@ -1704,9 +1700,6 @@ class Node {
 
           try{
             
-
-           
-
             if(i > 1 && isValidHeaderJSON(header)){
               let isValid = this.chain.validateBlockHeader(header);
               let containsBlock = localBlockHeader.hash == header.hash;
