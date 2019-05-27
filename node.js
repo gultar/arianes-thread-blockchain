@@ -359,30 +359,27 @@ class Node {
 
            peer.on('block', async (block)=>{
             if(this.chain instanceof Blockchain){
-              
-              this.receiveBlock(block, peer)
-              .then(updated =>{
-                if(updated.error){
-                  logger(updated.error)
-                  this.isDownloading = false;
-                }
+              if(block.error){
+                logger(block.error)
+                this.isDownloading = false;
+              }
 
-                if(updated.end){
-                  this.isDownloading = false;
-                  logger(chalk.green(block.end))
-                  this.isDownloading = false;
-          
-                  this.chain.saveBlockchain()
-                  .then( saved=>{
-                    if(saved){
-                      logger('Saved blockchain state')
-                      resolve(true)
-                    }
-                  })
-                }
-                
-                
-              })
+              if(block.end){
+                this.isDownloading = false;
+                logger(chalk.green(block.end))
+                this.isDownloading = false;
+        
+                this.chain.saveBlockchain()
+                .then( saved=>{
+                  if(saved){
+                    logger('Saved blockchain state')
+                    resolve(true)
+                  }
+                })
+              }
+
+              this.receiveBlock(block, peer)
+              .then(updated =>{})
                 
             }
              
@@ -475,10 +472,8 @@ class Node {
             peer.emit('getBlock', block.blockNumber + 1)
             resolve(true)
           }else{
-            logger('Could not sync')
+            logger('ERROR: Could not sync')
           }        
-        }else{
-          logger('ERROR: Already contained in chain')
         }
         
       }else{
