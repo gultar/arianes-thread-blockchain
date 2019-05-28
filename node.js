@@ -475,6 +475,7 @@ class Node {
             peer.off('blockHeader')
             resolve(headers)
            }else{
+            console.log('Fetching header', nextHeader+1)
             peer.emit('getBlockHeader', nextHeader+1)
             nextHeader++;
            }
@@ -494,7 +495,7 @@ class Node {
           
         // }
         // let lastBlockNumber = this.chain.getLatestBlock().blockNumber
-        console.log('Headers length:', headers.length)
+        console.log('Headers length:', headers[headers.length -1])
         headers.forEach( header=>{
           peer.emit('getBlock', header);
         })
