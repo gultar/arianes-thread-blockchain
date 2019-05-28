@@ -308,8 +308,11 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            console.log(this.address + ' Received status')
-            this.receiveBlockchainStatus(peer, status)
+            if(!this.isDownloading){
+              console.log(this.address + ' Received status')
+              this.receiveBlockchainStatus(peer, status)
+            }
+            
             
           })
 
@@ -419,9 +422,10 @@ class Node {
   
   requestChainHeaders(peer, length){
     return new Promise((resolve, reject)=>{
-      if(this.chain instanceof Blockchain){
+      if(this.chain instanceof Blockchain && peer && length){
         let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-        let headers = []
+        let headers = [];
+
         peer.on('blockHeader', async (header)=>{
           if(header){
             try{
@@ -449,6 +453,7 @@ class Node {
         for(var i=lastBlockNum; i <length; i++){
           peer.emit('getBlockHeader', i+1)
         }
+        
         resolve(headers)
          
       }
@@ -462,7 +467,7 @@ class Node {
         for(var i=lastBlockNum; i <length; i++){
           peer.emit('getBlock', i+1);
         }
-
+        this.isDownloading = false;
         resolve(true)
       }
     })
@@ -475,7 +480,9 @@ class Node {
         if(!this.chain.getIndexOfBlockHash(block.hash)){
           let isSynced = await this.receiveNewBlock(block);
           if(isSynced){
-            this.minerPaused = false;
+            if(this.minerStarted){
+              this.minerPaused = false;
+            }
             resolve(true)
           }else{
             logger('ERROR: Could not sync')
@@ -500,7 +507,7 @@ class Node {
         
         let thisTotalChallenge = await this.chain.calculateTotalChallenge();
 
-        if(thisTotalChallenge < totalChallenge && !this.isDownloading){
+        if(thisTotalChallenge < totalChallenge){
           logger('Attempting to download missing blocks from peer')
           
           let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
@@ -509,8 +516,13 @@ class Node {
             this.requestChainHeaders(peer, length)
             .then( headers=>{
               if(headers){
-                this.isDownloading = false;
                 this.downloadBlocks(peer, headers, length)
+                .then( finished=>{
+                  if(finished){
+                    this.isDownloading = false;
+
+                  }
+                })
               }else{
                 logger('ERROR: Headers not found')
               }
@@ -1298,9 +1310,9 @@ class Node {
                 let peerSocket = this.connectionsToPeers[relayPeer]
                 if(peerSocket){
                   peerSocket.emit('getBlock', header.blockNumber);
-                  setTimeout(()=>{
-                    this.minerPaused = false;
-                  },1000)
+                  // setTimeout(()=>{
+                  //   this.minerPaused = false;
+                  // },1000)
                 }
               }else{
                 this.minerPaused = false;
