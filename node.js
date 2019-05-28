@@ -453,6 +453,8 @@ class Node {
                 if(!alreadyInChain){
                   let isValidHeader = this.chain.validateBlockHeader(header)
                   if(isValidHeader){
+                    
+                    console.log('Pushing header', header.blockNumber)
                     headers.push(header)
                   }else{
                     logger('ERROR: Is not valid header')
@@ -475,7 +477,6 @@ class Node {
             peer.off('blockHeader')
             resolve(headers)
            }else{
-            console.log('Fetching header', nextHeader+1)
             peer.emit('getBlockHeader', nextHeader+1)
             nextHeader++;
            }
