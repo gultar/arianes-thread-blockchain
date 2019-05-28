@@ -1291,6 +1291,8 @@ class Node {
         case 'endMining':
           if(this.minerStarted && this.chain instanceof Blockchain){
             this.minerPaused = true;
+            process.ACTIVE_MINER.stop();
+            process.ACTIVE_MINER = false
             let header = JSON.parse(data)
             if(this.chain.validateBlockHeader(header)){
               let peerSocket = this.connectionsToPeers[relayPeer]
