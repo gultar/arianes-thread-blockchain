@@ -490,10 +490,13 @@ class Node {
   downloadBlocks(peer, headers){
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
-        headers.forEach( header=>{
-          console.log('Fetching block',header.blockNumber)
-          peer.emit('getBlock', header.blockNumber);
-        })
+        let lastBlockNumber = this.chain.getLatestBlock().blockNumber
+        for(var i=lastBlockNumber; i <headers.length; i++){
+          peer.emit('getBlock', i+1);
+        }
+        // headers.forEach( header=>{
+          
+        // })
 
         resolve(true)
       }
