@@ -320,7 +320,12 @@ class Node {
                       if(headers){
                         this.isDownloading = false;
                         this.downloadBlocks(peer, headers)
-                        
+                        .then( up=>{
+                          
+                          headers.forEach( header=>{
+                            console.log(header.blockNumber)
+                          })
+                        })
                       }else{
                         logger('ERROR: Headers not found')
                       }
@@ -477,10 +482,8 @@ class Node {
             peer.off('blockHeader')
             resolve(headers)
            }else{
-            
-            
-            nextHeader++;
             peer.emit('getBlockHeader', nextHeader)
+            nextHeader++;
            }
           
          }, 0)
