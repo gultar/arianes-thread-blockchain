@@ -349,7 +349,8 @@ class Node {
                     if(isValidHeader){
                       console.log('Fetching new header', header.blockNumber)
                       peer.emit('getBlock', header.blockNumber);
-                      this.whisper('newBlockHeader', header, this.address);
+                      this.serverBroadcast('newBlockHeader', header)
+                      // this.whisper('newBlockHeader', header, this.address);
                       setTimeout(()=>{
                         this.minerPaused = false;
                       }, 1000)
@@ -593,25 +594,28 @@ class Node {
             if(relayingPeer){
               let header = JSON.parse(data)
               if(header){
-                
+                console.log('Peer offered new header')
+                try{
                   if(this.chain instanceof Blockchain){
                     let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-                    if(!alreadyInChain && !this.isDownloading){
+                    if(!alreadyInChain){
+                      console.log('Header not in chain')
                       let isValidHeader = this.chain.validateBlockHeader(header)
                       if(isValidHeader){
-                        relayingPeer.emit('getBlock', header.blockNumber);
+                        console.log('Fetching new header', header.blockNumber)
+                        peer.emit('getBlock', header.blockNumber);
+                        this.whisper('newBlockHeader', header, this.address);
                         setTimeout(()=>{
-                          this.whisper('newBlockHeader', header, this.address);
-                        },10)
-                        
+                          this.minerPaused = false;
+                        }, 1000)
                       }
                     }
                     
                   }
+                }catch(e){
+                  console.log(e)
+                }
                 
-                
-              }else{
-                logger('ERROR: Could not find header')
               }
             }else{
               logger('ERROR: Could not find relaying peer')
