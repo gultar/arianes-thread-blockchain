@@ -363,26 +363,26 @@ class Node {
 
            
 
-           peer.on('blockHeader', (header)=>{
-            if(header){
-              try{
-                if(this.chain instanceof Blockchain){
-                  let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-                  if(!alreadyInChain && !this.isDownloading){
-                    this.isDownloading = true;
-                    let isValidHeader = this.chain.validateBlockHeader(header)
-                    if(isValidHeader){
-                      this.isDownloading = false;
-                    }
-                  }
+          //  peer.on('blockHeader', (header)=>{
+          //   if(header){
+          //     try{
+          //       if(this.chain instanceof Blockchain){
+          //         let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
+          //         if(!alreadyInChain && !this.isDownloading){
+          //           this.isDownloading = true;
+          //           let isValidHeader = this.chain.validateBlockHeader(header)
+          //           if(isValidHeader){
+          //             this.isDownloading = false;
+          //           }
+          //         }
                   
-                }
-              }catch(e){
-                console.log(e)
-              }
+          //       }
+          //     }catch(e){
+          //       console.log(e)
+          //     }
               
-            }
-           })
+          //   }
+          //  })
 
            peer.on('block', (block)=>{
              
@@ -494,6 +494,7 @@ class Node {
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
         headers.forEach( header=>{
+          console.log('Fetching block',header.blockNumber)
           peer.emit('getBlock', header.blockNumber);
         })
 
