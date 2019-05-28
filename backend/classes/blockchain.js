@@ -127,9 +127,11 @@ class Blockchain{
       
       logger('Current Challenge:', block.challenge)
       logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
-
-      block.mine(block.difficulty, async (miningSuccessful)=>{
-        if(miningSuccessful && process.env.END_MINING !== true){
+      //block.mine
+      block.mineBlock(block.difficulty)
+      .then(async (success)=>{
+        if(success){ //&& process.env.END_MINING !== true
+          block = success;
           if(this.validateBlock(block)){
             block.totalChallenge = await this.calculateTotalChallenge() + block.challenge;
             block.minedBy = ipAddress;
@@ -145,7 +147,7 @@ class Blockchain{
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
 
-            callback(miningSuccessful, block.hash);
+            callback(success, block.hash);
 
           }else{
             logger('Block is not valid');
@@ -155,7 +157,7 @@ class Blockchain{
           logger('Mining aborted. Peer has mined a new block');
           callback(false, false)
         }
-      });
+      })
 
   }
 

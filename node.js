@@ -941,8 +941,8 @@ class Node {
      });
 
      socket.on('peerMessage', (data)=>{
-       var { type, originAddress, messageId, data } = data
-       this.handlePeerMessage(type, originAddress, messageId, data);
+       var { type, originAddress, messageId, data, relayPeer } = data
+       this.handlePeerMessage(type, originAddress, messageId, data, relayPeer);
      })
 
      socket.on('gossipMessage', (data)=>{
@@ -1122,7 +1122,8 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      this.whisper('message', 'hello muppet', this.address);
+      process.ACTIVE_MINER.send({abort:true})
+      this.minerPaused = true
     })
 
     socket.on('rollback', ()=>{
@@ -1211,7 +1212,13 @@ class Node {
         var shaInput = (Math.random() * Date.now()).toString()
         var messageId = sha256(shaInput);
         this.messageBuffer[messageId] = messageId;
-        this.broadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
+        this.broadcast('peerMessage', { 
+          'type':type, 
+          'messageId':messageId, 
+          'originAddress':this.address, 
+          'data':data,
+          'relayPeer':this.address
+         });
 
       }catch(e){
         console.log(chalk.red(e));
@@ -1252,8 +1259,13 @@ class Node {
     @param {String} $originAddress - IP Address of sender
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
-  handlePeerMessage(type, originAddress, messageId, data){
-    let peerMessage = { 'type':type, 'originAddress':originAddress, 'messageId':messageId, 'data':data }
+  handlePeerMessage(type, originAddress, messageId, data, relayPeer){
+    let peerMessage = { 
+      'type':type, 
+      'originAddress':originAddress, 
+      'messageId':messageId, 
+      'data':data,
+      'relayPeer':relayPeer }
 
     if(!this.messageBuffer[messageId]){
       switch(type){
@@ -1277,14 +1289,26 @@ class Node {
             }
           break
         case 'endMining':
-          if(this.minerStarted){
+          if(this.minerStarted && this.chain instanceof Blockchain){
             this.minerPaused = true;
-            if(process.MINER){
-              process.MINER.stop();
-              process.MINER = false;
+            let header = JSON.parse(data)
+            if(this.chain.validateBlockHeader(header)){
+              let peerSocket = this.connectionsToPeers[relayPeer]
+              if(peerSocket){
+                peerSocket.emit('getBlock', header.blockNumber);
+                setTimeout(()=>{
+                  this.minerPaused = false;
+                },1000)
+              }
+            }else{
+              this.minerPaused = false;
+            }
+            // if(process.MINER){
+            //   process.MINER.stop();
+            //   process.MINER = false;
               
              
-            }
+            // }
             
           }
           break;
@@ -1985,11 +2009,12 @@ class Node {
                  let isChainValid = this.validateBlockchain(true)
                  if(isChainValid){
 
-                  this.sendPeerMessage('endMining', blockHash); //Cancels all other nodes' mining operations
+                   //Cancels all other nodes' mining operations
                   
                   let newBlock = this.chain.getLatestBlock();
                   
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
+                  this.sendPeerMessage('endMining', newHeader);
                   let status = {
                     totalChallenge: this.chain.calculateTotalChallenge(),
                     bestBlockHeader: newHeader,
