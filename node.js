@@ -285,6 +285,10 @@ class Node {
               
           })
 
+          peer.on('error', (error)=>{
+            console.log(error)
+          })
+
           peer.on('connect', () =>{
             if(!this.connectionsToPeers.hasOwnProperty(address)){
 
@@ -689,6 +693,32 @@ class Node {
 
     app.get('/getInfo', (req, res)=>{
       res.json(this.getChainInfo()).end()
+    })
+
+    app.get('/getBlock', (req, res)=>{
+      let blockNumber = req.query.blockNumber;
+      if(this.chain instanceof Blockchain && blockNumber){
+        let block = this.chain.chain[blockNumber]
+        if(block){
+          res.json(block).end()
+        }else{
+          res.json({error:'block not found'}).end()
+        }
+        
+      }
+    })
+
+    app.get('/getBlockHeader', (req, res)=>{
+      let blockNumber = req.query.blockNumber;
+      if(this.chain instanceof Blockchain && blockNumber){
+        let header = this.chain.getBlockHeader(blockNumber)
+        if(header){
+          res.json(header).end()
+        }else{
+          res.json({error:'block header not found'}).end()
+        }
+        
+      }
     })
   }
 
