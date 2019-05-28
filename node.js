@@ -470,7 +470,7 @@ class Node {
 
         let nextHeader = lastBlockNumber;
          let downloadHeaders = setInterval(()=>{
-           if(nextHeader == length){
+           if(nextHeader > length){
             clearInterval(downloadHeaders);
             peer.off('blockHeader')
             resolve(headers)
@@ -494,7 +494,7 @@ class Node {
           
         // }
         // let lastBlockNumber = this.chain.getLatestBlock().blockNumber
-        
+        console.log('Headers length:', headers.length)
         headers.forEach( header=>{
           peer.emit('getBlock', header);
         })
