@@ -319,7 +319,7 @@ class Node {
                     .then( headers=>{
                       if(headers){
                         this.isDownloading = false;
-                        this.downloadBlocks(peer, headers)
+                        this.downloadBlocks(peer, headers, length)
                       }else{
                         logger('ERROR: Headers not found')
                       }
@@ -468,31 +468,36 @@ class Node {
           }
          })
 
-        let nextHeader = lastBlockNumber;
-         let downloadHeaders = setInterval(()=>{
-           if(nextHeader > length){
-            clearInterval(downloadHeaders);
-            peer.off('blockHeader')
-            resolve(headers)
-           }else{
-            peer.emit('getBlockHeader', nextHeader+1)
-            nextHeader++;
-           }
+        // let nextHeader = lastBlockNumber;
+        //  let downloadHeaders = setInterval(()=>{
+        //    if(nextHeader > length){
+        //     clearInterval(downloadHeaders);
+        //     peer.off('blockHeader')
+            
+        //    }else{
+        //     peer.emit('getBlockHeader', nextHeader+1)
+        //     nextHeader++;
+        //    }
           
-         }, 0)
+        //  }, 0)
 
+         let lastBlockNum = this.chain.getLatestBlock().blockNumber
+        for(var i=lastBlockNum; i <headers.length; i++){
+          peer.emit('getBlockHeader', i+1)
+        }
+        resolve(headers)
          
       }
     })
   }
   
-  downloadBlocks(peer, headers){
+  downloadBlocks(peer, headers, length){
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
-        console.log('Headers length:', headers[headers.length -1])
-        headers.forEach( header=>{
-          peer.emit('getBlock', header);
-        })
+        let lastBlockNum = this.chain.getLatestBlock().blockNumber
+        for(var i=lastBlockNum; i <headers.length; i++){
+          peer.emit('getBlock', i+1);
+        }
 
         resolve(true)
       }
