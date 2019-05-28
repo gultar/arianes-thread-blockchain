@@ -246,7 +246,7 @@ class Node {
   connectToPeer(address, callback){
 
     if(address && this.address !== address){
-      if(this.connectionsToPeers[address] == undefined){
+      if(!this.connectionsToPeers[address]){
         let connectionAttempts = 0;
         let peer;
         let timestamp = Date.now();
@@ -290,7 +290,7 @@ class Node {
           })
 
           peer.on('connect', () =>{
-            if(!this.connectionsToPeers.hasOwnProperty(address)){
+            if(!this.connectionsToPeers[address]){
 
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
@@ -411,6 +411,7 @@ class Node {
         }
 
       }else{
+        logger('Already initiated peer connection')
       }
 
     }
