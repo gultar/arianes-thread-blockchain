@@ -500,7 +500,7 @@ class Node {
           let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
           if(isValidHeader){
             
-            this.requestChainHeaders(peer, address, length)
+            this.requestChainHeaders(peer, length)
             .then( headers=>{
               if(headers){
                 this.isDownloading = false;
