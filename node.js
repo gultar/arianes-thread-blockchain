@@ -1981,7 +1981,7 @@ class Node {
                   
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
                   if(newHeader){
-                    this.whisper('newBlockHeader', newHeader, this.address)
+                    this.serverBroadcast('newBlockHeader', newHeader, this.address)
                   }else{
                     logger('ERROR: Could not send new block header')
                   }
