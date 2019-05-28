@@ -339,15 +339,20 @@ class Node {
 
           peer.on('newBlockHeader', (header)=>{
             if(header){
+              console.log('Peer offered new header')
               try{
                 if(this.chain instanceof Blockchain){
                   let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-                  if(!alreadyInChain && !this.isDownloading){
+                  if(!alreadyInChain){
+                    console.log('Header not in chain')
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
+                      console.log('Fetching new header', header.blockNumber)
                       peer.emit('getBlock', header.blockNumber);
                       this.whisper('newBlockHeader', header, this.address);
-                      
+                      setTimeout(()=>{
+                        this.minerPaused = false;
+                      }, 1000)
                     }
                   }
                   
