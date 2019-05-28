@@ -256,6 +256,8 @@ class Node {
           peer = ioClient(address, {
             'reconnection limit' : 1000,
             'max reconnection attempts' : 3,
+            'pingInterval': 2000, 
+            'pingTimeout': 10000,
             'query':
             {
               token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey, 'checksum':{
@@ -411,7 +413,7 @@ class Node {
   }
 
   
-  requestChainHeaders(peer, address, length){
+  requestChainHeaders(peer, length){
     return new Promise((resolve, reject)=>{
       if(this.chain instanceof Blockchain){
         let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
