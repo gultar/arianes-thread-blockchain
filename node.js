@@ -1291,26 +1291,23 @@ class Node {
         case 'endMining':
           if(this.minerStarted && this.chain instanceof Blockchain){
             this.minerPaused = true;
-            process.ACTIVE_MINER.stop();
-            process.ACTIVE_MINER = false
-            let header = JSON.parse(data)
-            if(this.chain.validateBlockHeader(header)){
-              let peerSocket = this.connectionsToPeers[relayPeer]
-              if(peerSocket){
-                peerSocket.emit('getBlock', header.blockNumber);
-                setTimeout(()=>{
-                  this.minerPaused = false;
-                },1000)
+            if(process.ACTIVE_MINER){
+              process.ACTIVE_MINER.send({abort:true});
+              let header = JSON.parse(data)
+              if(this.chain.validateBlockHeader(header)){
+                let peerSocket = this.connectionsToPeers[relayPeer]
+                if(peerSocket){
+                  peerSocket.emit('getBlock', header.blockNumber);
+                  setTimeout(()=>{
+                    this.minerPaused = false;
+                  },1000)
+                }
+              }else{
+                this.minerPaused = false;
               }
             }else{
-              this.minerPaused = false;
+              logger('ERROR: Miner cannot be cancelled. Does not run')
             }
-            // if(process.MINER){
-            //   process.MINER.stop();
-            //   process.MINER = false;
-              
-             
-            // }
             
           }
           break;
