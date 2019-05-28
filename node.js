@@ -448,7 +448,6 @@ class Node {
         let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
         let headers = []
         peer.on('blockHeader', async (header)=>{
-          console.log(header)
           if(header){
             try{
                 let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
@@ -473,13 +472,14 @@ class Node {
 
         let nextHeader = lastBlockNumber;
          let downloadHeaders = setInterval(()=>{
-           if(nextHeader == length -1){
+           if(nextHeader == length){
             clearInterval(downloadHeaders);
             peer.off('blockHeader')
             resolve(headers)
            }else{
+            
             peer.emit('getBlockHeader', nextHeader)
-            nextHeader++
+            nextHeader++;
            }
           
          }, 0)
