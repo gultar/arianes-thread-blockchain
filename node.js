@@ -493,10 +493,10 @@ class Node {
         // for(var i=lastBlockNumber; i <headers.length; i++){
           
         // }
-        let lastBlockNumber = this.chain.getLatestBlock().blockNumber
-        peer.emit('getBlock', lastBlockNumber+1)
+        // let lastBlockNumber = this.chain.getLatestBlock().blockNumber
+        
         headers.forEach( header=>{
-          peer.emit('getBlock', header+1);
+          peer.emit('getBlock', header);
         })
 
         resolve(true)
