@@ -345,7 +345,7 @@ class Node {
                   if(!alreadyInChain && !this.isDownloading){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
-                      peer.emit('getBlockchainStatus');
+                      peer.emit('getBlock', header.blockNumber);
                       this.whisper('newBlockHeader', header, this.address);
                       
                     }
@@ -467,19 +467,6 @@ class Node {
             
           }
          })
-
-        // let nextHeader = lastBlockNumber;
-        //  let downloadHeaders = setInterval(()=>{
-        //    if(nextHeader > length){
-        //     clearInterval(downloadHeaders);
-        //     peer.off('blockHeader')
-            
-        //    }else{
-        //     peer.emit('getBlockHeader', nextHeader+1)
-        //     nextHeader++;
-        //    }
-          
-        //  }, 0)
 
          let lastBlockNum = this.chain.getLatestBlock().blockNumber
         for(var i=lastBlockNum; i <length; i++){
