@@ -108,7 +108,7 @@ class Block{
             process.ACTIVE_MINER.kill()
             resolve(block)
           }else if(message.aborted){
-  
+            process.ACTIVE_MINER.kill()
             resolve(false)
           }
   
