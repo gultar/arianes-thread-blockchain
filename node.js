@@ -350,8 +350,12 @@ class Node {
                       console.log('Fetching new header', header.blockNumber)
                       peer.emit('getBlock', header.blockNumber);
                       this.serverBroadcast('newBlockHeader', header)
-                      // this.whisper('newBlockHeader', header, this.address);
-                      this.minerPaused = false;
+                      
+                      setTimeout(()=>{
+                        // this.whisper('newBlockHeader', header, this.address);
+                        this.minerPaused = false;
+                      }, 1000)
+                      
                       
                     }
                   }
