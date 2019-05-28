@@ -347,7 +347,7 @@ class Node {
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       logger('Requesting block ', header.blockNumber)
-                      peer.emit('getBlock', header.blockNumber);
+                      peer.emit('getBlockchainStatus');
                       this.whisper('newBlockHeader', header, this.address);
                       
                     }
