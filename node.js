@@ -339,23 +339,14 @@ class Node {
 
           peer.on('newBlockHeader', (header)=>{
             if(header){
-              console.log('Peer offered new header')
               try{
                 if(this.chain instanceof Blockchain){
                   let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
                   if(!alreadyInChain){
-                    console.log('Header not in chain')
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
-                      console.log('Fetching new header', header.blockNumber)
                       peer.emit('getBlock', header.blockNumber);
                       this.serverBroadcast('newBlockHeader', header)
-
-                      setTimeout(()=>{
-                        // this.whisper('newBlockHeader', header, this.address);
-                        this.minerPaused = false;
-                      }, 1000)
-                      
                       
                     }
                   }
@@ -402,6 +393,7 @@ class Node {
                     this.receiveBlock(block)
                     .then( blockAdded=>{
                       if(blockAdded){
+                        this.minerPaused = false;
                       }
                       
                     })
