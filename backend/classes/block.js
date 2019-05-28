@@ -92,39 +92,39 @@ class Block{
 
   }
 
-  mineBlock(difficulty){
-    if(!process.ACTIVE_MINER){
-      return new Promise((resolve, reject)=>{
-
-        process.ACTIVE_MINER = require('child_process').fork(`./backend/tools/proofOfWork.js`);
-        process.ACTIVE_MINER.send({block:this, difficulty:difficulty})
-        process.ACTIVE_MINER.on('message', (message)=>{
+  mineBlock(difficulty, callback){
+    
+        if(!process.ACTIVE_MINER){
           
-          if(message.message){
-            console.log(message.message)
-          }
-          if(message.success){
-            let block = message.success
-            process.ACTIVE_MINER.kill()
-            resolve(block)
-          }else if(message.aborted){
-            process.ACTIVE_MINER.kill()
-            resolve(false)
-          }
-  
-          
-        })
-        process.ACTIVE_MINER.on('error', function(data) {
-            console.log('stderr: ' + data);
-            resolve(false)
-        });
-        process.ACTIVE_MINER.on('close', function() {
-            console.log('Child process closed')
-        })
-      })
-    }else{
-      logger('ERROR: Already started miner')
-    }
+          process.ACTIVE_MINER = require('child_process').fork(`./backend/tools/proofOfWork.js`);
+          process.ACTIVE_MINER.send({block:this, difficulty:difficulty})
+          process.ACTIVE_MINER.on('message', (message)=>{
+            
+            if(message.message){
+              console.log(message.message)
+            }
+            if(message.success){
+              let block = message.success
+              callback(block)
+            }else if(message.aborted){
+              callback(false)
+              
+            }
+    
+            
+          })
+          process.ACTIVE_MINER.on('error', function(data) {
+              console.log('stderr: ' + data);
+              callback(false)
+          });
+          process.ACTIVE_MINER.on('close', function() {
+              console.log('Child process closed')
+          })
+        }else{
+          logger('ERROR: Already started miner')
+        }
+      // })
+    
     
   }
 

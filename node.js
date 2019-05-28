@@ -1987,7 +1987,7 @@ class Node {
         if(!this.minerStarted){
           this.minerStarted = true;
           setInterval(async ()=>{
-            if(!process.MINER && !this.minerPaused){
+            if(!process.ACTIVE_MINER && !this.minerPaused){
 
              let isMining = this.chain.hasEnoughTransactionsToMine();
              let block = false;
@@ -2041,6 +2041,7 @@ class Node {
                   Mempool.deleteActionsFromMinedBlock(newBlockActions);
                   this.cashInCoinbaseTransactions();
                   this.chain.saveBlockchain();
+                  this.minerPaused = false;
                  }else{
                   this.unwrapBlock(block)
                  }
@@ -2050,17 +2051,17 @@ class Node {
                 }
               })
              }else{
-              //Block is currently being mined
+              // logger('Block is currently being mined')
              }
   
            }else{
-             //Already started mining
+            //  logger('Already started mining')
            }
 
            
           }, 1000)
         }else{
-          logger('WARNING: miner already started')
+          // logger('WARNING: miner already started')
         }
         
       

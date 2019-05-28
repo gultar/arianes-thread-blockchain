@@ -114,11 +114,6 @@ class Blockchain{
   */
   async minePendingTransactions(ip, block , miningRewardAddress, callback){
       let ipAddress = ip
-      //this.difficulty = setDifficulty(this.difficulty, this.getLatestBlock().challenge, this.chain.length);
-      
-      // let miningSuccessful = false;
-      // let isMining = this.hasEnoughTransactionsToMine();
-      
       let lastBlock = this.getLatestBlock();
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
@@ -128,10 +123,10 @@ class Blockchain{
       logger('Current Challenge:', block.challenge)
       logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
       //block.mine
-      block.mineBlock(block.difficulty)
-      .then(async (success)=>{
+      block.mineBlock(block.difficulty, async (success)=>{
         if(success){ //&& process.env.END_MINING !== true
           block = success;
+          
           if(this.validateBlock(block)){
             block.totalChallenge = await this.calculateTotalChallenge() + block.challenge;
             block.minedBy = ipAddress;
@@ -146,17 +141,21 @@ class Blockchain{
             console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
             console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
             console.log(chalk.cyan('********************************************************************\n'))
-
+              
             callback(success, block.hash);
 
           }else{
             logger('Block is not valid');
+            
             callback(false, false)
           }
         }else{
           logger('Mining aborted. Peer has mined a new block');
           callback(false, false)
         }
+        
+        process.ACTIVE_MINER.kill()
+        process.ACTIVE_MINER = false;
       })
 
   }
