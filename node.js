@@ -351,9 +351,8 @@ class Node {
                       peer.emit('getBlock', header.blockNumber);
                       this.serverBroadcast('newBlockHeader', header)
                       // this.whisper('newBlockHeader', header, this.address);
-                      setTimeout(()=>{
-                        this.minerPaused = false;
-                      }, 1000)
+                      this.minerPaused = false;
+                      
                     }
                   }
                   
