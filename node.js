@@ -350,7 +350,7 @@ class Node {
                       console.log('Fetching new header', header.blockNumber)
                       peer.emit('getBlock', header.blockNumber);
                       this.serverBroadcast('newBlockHeader', header)
-                      
+
                       setTimeout(()=>{
                         // this.whisper('newBlockHeader', header, this.address);
                         this.minerPaused = false;
@@ -961,7 +961,7 @@ class Node {
      });
 
      socket.on('getBlockchainStatus', ()=>{
-       if(this.chain instanceof Blockchain){
+      if(this.chain instanceof Blockchain){
         try{
           let status = {
             totalChallenge: this.chain.calculateTotalChallenge(),
@@ -1987,8 +1987,13 @@ class Node {
                   let newBlock = this.chain.getLatestBlock();
                   
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
+                  let status = {
+                    totalChallenge: this.chain.calculateTotalChallenge(),
+                    bestBlockHeader: newHeader,
+                    length: this.chain.chain.length
+                  }
                   if(newHeader){
-                    this.serverBroadcast('newBlockHeader', newHeader, this.address)
+                    this.serverBroadcast('blockchainStatus', status)
                   }else{
                     logger('ERROR: Could not send new block header')
                   }
