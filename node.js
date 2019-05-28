@@ -453,7 +453,6 @@ class Node {
                 if(!alreadyInChain){
                   let isValidHeader = this.chain.validateBlockHeader(header)
                   if(isValidHeader){
-                    console.log('Pushing header', header.blockNumber)
                     headers.push(header)
                   }else{
                     logger('ERROR: Is not valid header')
@@ -490,13 +489,15 @@ class Node {
   downloadBlocks(peer, headers){
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
-        let lastBlockNumber = this.chain.getLatestBlock().blockNumber
-        for(var i=lastBlockNumber; i <headers.length; i++){
-          peer.emit('getBlock', i+1);
-        }
-        // headers.forEach( header=>{
+        
+        // for(var i=lastBlockNumber; i <headers.length; i++){
           
-        // })
+        // }
+        let lastBlockNumber = this.chain.getLatestBlock().blockNumber
+        peer.emit('getBlock', lastBlockNumber+1)
+        headers.forEach( header=>{
+          peer.emit('getBlock', header+1);
+        })
 
         resolve(true)
       }
