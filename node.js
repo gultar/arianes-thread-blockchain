@@ -478,8 +478,9 @@ class Node {
             resolve(headers)
            }else{
             
-            peer.emit('getBlockHeader', nextHeader)
+            
             nextHeader++;
+            peer.emit('getBlockHeader', nextHeader)
            }
           
          }, 0)
