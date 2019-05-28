@@ -486,7 +486,7 @@ class Node {
     
   }
 
-  receiveBlockchainStatus(peer, status){
+  async receiveBlockchainStatus(peer, status){
     if(this.chain instanceof Blockchain && peer && status){
       let { totalChallenge, bestBlockHeader, length } = status;
 
