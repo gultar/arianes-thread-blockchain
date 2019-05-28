@@ -302,38 +302,8 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            if(this.chain instanceof Blockchain){
-              let { totalChallenge, bestBlockHeader, length } = status;
-      
-              if(totalChallenge && bestBlockHeader && length){
-                
-                let thisTotalChallenge = await this.chain.calculateTotalChallenge();
-      
-                if(thisTotalChallenge < totalChallenge && !this.isDownloading){
-                  logger('Attempting to download missing blocks from peer')
-                  
-                  let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
-                  if(isValidHeader){
-                    
-                    this.requestChainHeaders(peer, address, length)
-                    .then( headers=>{
-                      if(headers){
-                        this.isDownloading = false;
-                        this.downloadBlocks(peer, headers, length)
-                      }else{
-                        logger('ERROR: Headers not found')
-                      }
-                    })
-                  }else{
-
-                    logger('ERROR: Last block header from peer is invalid')
-                    this.isDownloading = false;
-                  }
-                }
-              }else{
-                logger('ERROR: Status object is missing parameters parameters')
-              }
-            }
+            console.log(this.address + ' Received status')
+            this.receiveBlockchainStatus(peer, status)
             
           })
 
@@ -516,6 +486,41 @@ class Node {
     
   }
 
+  receiveBlockchainStatus(peer, status){
+    if(this.chain instanceof Blockchain && peer && status){
+      let { totalChallenge, bestBlockHeader, length } = status;
+
+      if(totalChallenge && bestBlockHeader && length){
+        
+        let thisTotalChallenge = await this.chain.calculateTotalChallenge();
+
+        if(thisTotalChallenge < totalChallenge && !this.isDownloading){
+          logger('Attempting to download missing blocks from peer')
+          
+          let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+          if(isValidHeader){
+            
+            this.requestChainHeaders(peer, address, length)
+            .then( headers=>{
+              if(headers){
+                this.isDownloading = false;
+                this.downloadBlocks(peer, headers, length)
+              }else{
+                logger('ERROR: Headers not found')
+              }
+            })
+          }else{
+
+            logger('ERROR: Last block header from peer is invalid')
+            this.isDownloading = false;
+          }
+        }
+      }else{
+        logger('ERROR: Status object is missing parameters parameters')
+      }
+    }
+  }
+
   /**
     Broadcast only to this node's connected peers. Does not gossip
     @param {string} $eventType - Type of node event
@@ -583,41 +588,15 @@ class Node {
 
     if(!this.messageBuffer[messageId]){
       switch(type){
-        case 'newBlockHeader':
+        case 'blockchainStatus':
           try{
-            let relayingPeer = this.peersConnected[relayPeer];
-            if(relayingPeer){
-              let header = JSON.parse(data)
-              if(header){
-                console.log('Peer offered new header')
-                try{
-                  if(this.chain instanceof Blockchain){
-                    let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-                    if(!alreadyInChain){
-                      console.log('Header not in chain')
-                      let isValidHeader = this.chain.validateBlockHeader(header)
-                      if(isValidHeader){
-                        console.log('Fetching new header', header.blockNumber)
-                        peer.emit('getBlock', header.blockNumber);
-                        this.whisper('newBlockHeader', header, this.address);
-                        setTimeout(()=>{
-                          this.minerPaused = false;
-                        }, 1000)
-                      }
-                    }
-                    
-                  }
-                }catch(e){
-                  console.log(e)
-                }
-                
-              }
-            }else{
-              logger('ERROR: Could not find relaying peer')
-            }
+            let relayPeer = this.peersConnected[relayPeer];
+            let status = JSON.parse(data)
+            this.receiveBlockchainStatus(relayPeer, status)
           }catch(e){
             console.log(e)
           }
+          
           break;
         case 'message':
           logger(data)
