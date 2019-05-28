@@ -450,10 +450,10 @@ class Node {
           if(header){
             try{
                 let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
-                if(!alreadyInChain){ //
-                  
+                if(!alreadyInChain){
                   let isValidHeader = this.chain.validateBlockHeader(header)
                   if(isValidHeader){
+                    console.log('Pushing header', header.blockNumber)
                     headers.push(header)
                   }else{
                     logger('ERROR: Is not valid header')
