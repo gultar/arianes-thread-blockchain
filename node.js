@@ -482,7 +482,7 @@ class Node {
         //  }, 0)
 
          let lastBlockNum = this.chain.getLatestBlock().blockNumber
-        for(var i=lastBlockNum; i <headers.length; i++){
+        for(var i=lastBlockNum; i <length; i++){
           peer.emit('getBlockHeader', i+1)
         }
         resolve(headers)
@@ -495,7 +495,7 @@ class Node {
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
         let lastBlockNum = this.chain.getLatestBlock().blockNumber
-        for(var i=lastBlockNum; i <headers.length; i++){
+        for(var i=lastBlockNum; i <length; i++){
           peer.emit('getBlock', i+1);
         }
 
