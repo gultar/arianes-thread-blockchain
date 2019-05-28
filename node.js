@@ -311,11 +311,20 @@ class Node {
       
                 if(thisTotalChallenge < totalChallenge && !this.isDownloading){
                   logger('Attempting to download missing blocks from peer')
-                  this.isDownloading = true;
+                  
                   let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
                   if(isValidHeader){
                     
                     this.requestChainHeaders(peer, address, length)
+                    .then( headers=>{
+                      if(headers){
+                        this.isDownloading = false;
+                        this.downloadBlocks(peer, headers)
+                        
+                      }else{
+                        logger('ERROR: Headers not found')
+                      }
+                    })
                   }else{
 
                     logger('ERROR: Last block header from peer is invalid')
@@ -337,6 +346,7 @@ class Node {
                   if(!alreadyInChain && !this.isDownloading){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
+                      logger('Requesting block ', header.blockNumber)
                       peer.emit('getBlock', header.blockNumber);
                       this.whisper('newBlockHeader', header, this.address);
                       
@@ -359,11 +369,36 @@ class Node {
                 if(this.chain instanceof Blockchain){
                   let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
                   if(!alreadyInChain && !this.isDownloading){
+                    this.isDownloading = true;
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
-                      peer.emit('getBlock', header.blockNumber);
-                      
+                      this.isDownloading = false;
                     }
+                  }
+                  
+                }
+              }catch(e){
+                console.log(e)
+              }
+              
+            }
+           })
+
+           peer.on('block', (block)=>{
+             
+            if(block){
+              try{
+                if(this.chain instanceof Blockchain){
+                  let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
+                  if(!alreadyInChain){ // 
+                    
+                    this.receiveBlock(block)
+                    .then( blockAdded=>{
+                      if(blockAdded){
+                      }
+                      
+                    })
+                    
                   }
                   
                 }
@@ -411,21 +446,21 @@ class Node {
     return new Promise((resolve, reject)=>{
       if(this.chain instanceof Blockchain){
         let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
-        peer.on('blockHeader', (header)=>{
-          console.log('received header')
+        let headers = []
+        peer.on('blockHeader', async (header)=>{
+          console.log(header)
           if(header){
             try{
-                let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-                if(!alreadyInChain && !this.isDownloading){
+                let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
+                if(!alreadyInChain){ //
+                  
                   let isValidHeader = this.chain.validateBlockHeader(header)
                   if(isValidHeader){
-                    peer.emit('getBlock', header.blockNumber);
-                    
+                    headers.push(header)
                   }else{
                     logger('ERROR: Is not valid header')
+                    resolve(false)
                   }
-                }else{
-                  logger('ERROR: Is already in chain')
                 }
                 
             }catch(e){
@@ -436,65 +471,44 @@ class Node {
           }
          })
 
-         let nextHeader = lastBlockNumber;
+        let nextHeader = lastBlockNumber;
          let downloadHeaders = setInterval(()=>{
            if(nextHeader == length -1){
             clearInterval(downloadHeaders);
             peer.off('blockHeader')
-            console.log('Remaining listener on blockHeader:',peer.listeners('blockHeader'))
-            resolve(true)
+            resolve(headers)
            }else{
-            console.log('Requesting header number', nextHeader)
             peer.emit('getBlockHeader', nextHeader)
             nextHeader++
            }
           
-         }, 100)
+         }, 0)
 
          
       }
     })
   }
   
+  downloadBlocks(peer, headers){
+    return new Promise(async (resolve, reject)=>{
+      if(peer && headers){
+        headers.forEach( header=>{
+          peer.emit('getBlock', header.blockNumber);
+        })
 
-
-  receiveBlock(block, peer){
-    return new Promise((resolve, reject)=>{
-      if(isValidBlockJSON(block) && this.chain instanceof Blockchain){
-        if(!this.chain.getIndexOfBlockHash(block.hash)){
-          this.isDownloading = true;
-          peer.on('block', async (block)=>{
-              if(!block.end){
-                this.receiveNewBlock(block)
-                .then(updated =>{
-                  if(updated){
-                    
-                    this.minerPaused = false;
-                    this.isDownloading = false;
-                    peer.off('block')
-                    resolve(true)
-                  }
-                  
-                })
-              }
-              
-                
-             
-           })
-        }
+        resolve(true)
       }
-      
-      
     })
-    
+  }
+
+  receiveBlock(block){
     return new Promise(async (resolve, reject)=>{
       if(isValidBlockJSON(block)){
+        
         if(!this.chain.getIndexOfBlockHash(block.hash)){
-          this.isDownloading = true;
           let isSynced = await this.receiveNewBlock(block);
           if(isSynced){
             this.minerPaused = false;
-            this.isDownloading = false;
             resolve(true)
           }else{
             logger('ERROR: Could not sync')
