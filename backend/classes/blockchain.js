@@ -555,15 +555,15 @@ class Blockchain{
           resolve(false)
         }
 
-        if(rightNumberOfZeros){
-          logger('BLOCK SYNC ERROR: Difficulty does not match leading zero in hash')
-          resolve(false)
-        }
+        // if(rightNumberOfZeros){
+        //   logger('BLOCK SYNC ERROR: Difficulty does not match leading zero in hash')
+        //   resolve(false)
+        // }
 
-        if(difficultyMatchesChallenge){
-          logger('BLOCK SYNC ERROR: Difficulty does not match challenge')
-          resolve(false)
-        }
+        // if(difficultyMatchesChallenge){
+        //   logger('BLOCK SYNC ERROR: Difficulty does not match challenge')
+        //   resolve(false)
+        // }
 
         resolve(true)
       }catch(e){
