@@ -407,6 +407,11 @@ class Node {
             try{
                 if(header.end){
                   logger(header.end)
+                  peer.off('blockHeader')
+                  resolve(headers)
+                }else if(header.error){
+                  logger(header.end)
+                  peer.off('blockHeader')
                   resolve(headers)
                 }else{
                   let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
@@ -435,12 +440,7 @@ class Node {
          
          let lastBlockNum = this.chain.getLatestBlock().blockNumber
          peer.emit('getBlockHeader', lastBlockNum+1)
-        // for(var i=lastBlockNum; i <length; i++){
-          
-        // }
         
-        
-         
       }
     })
   }
@@ -455,7 +455,12 @@ class Node {
               if(block.end){
                 logger(block.end);
                 this.minerPaused = false;
+                peer.off('block')
                 resolve(true)
+              }else if(block.error){
+                logger(block.end)
+                peer.off('block')
+                resolve(false)
               }else{
                 if(this.chain instanceof Blockchain){
                   let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
@@ -1019,6 +1024,8 @@ class Node {
            socket.emit('blockHeader', header)
          }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
            socket.emit('blockHeader', {end:'End of header chain'})
+         }else{
+          socket.emit('blockHeader', {error:'Header not found'})
          }
        }
      })
@@ -1033,7 +1040,9 @@ class Node {
             socket.emit('block', block)
             
           }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
-            socket.emit('blockHeader', {end:'End of blockchain'})
+            socket.emit('block', {end:'End of blockchain'})
+          }else{
+            socket.emit('block', {error:'Block not found'})
           }
           
          }
