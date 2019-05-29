@@ -67,7 +67,7 @@ class Blockchain{
   async syncBlock(newBlock){
       if(newBlock && newBlock.transactions){
         
-      let isValidBlock = await this.validateNewBlock(newBlock);
+      let isValidBlock = await this.validateBlock(newBlock);
       if(isValidBlock){
         this.chain.push(newBlock);
         return true;
@@ -132,7 +132,7 @@ class Blockchain{
       block.mineBlock(block.difficulty, async (success)=>{
         if(success){ 
           block = success;
-          let isValidBlock = await this.validateNewBlock(block)
+          let isValidBlock = await this.validateBlock(block)
           if(isValidBlock){
             //Kill mining process to start another one after block sync       
             block.totalChallenge = await this.calculateTotalChallenge() + block.challenge;
@@ -487,46 +487,60 @@ class Blockchain{
     - No double spend took place in chain
     @param {string} $block - Block to be validated
   */
-  validateBlock(block){
+  async validateBlock(block){
 
-    var containsCurrentBlock = this.checkIfChainHasHash(block.hash);
+    var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
     var isLinked = this.isBlockIsLinked(block.previousHash);
-    var latestBlock = this.getLatestBlock();
-    //Validate transactions using merkle root
-    if(!containsCurrentBlock){
-      
-      if(!isLinked){
+    // var latestBlock = this.getLatestBlock();
+    var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
 
-        if(latestBlock.previousHash == block.previousHash){
-          /*.*/
-          logger('New block received has been orphaned since latest block has been mined before')
-          return false;
-        }
-        // console.log('Num',block.blockNumber);
-        // console.log('Hash',block.hash)
-        // console.log('Prev',block.previousHash)
-        logger('Current mined block is not linked with previous block. Sending it to orphanedBlocks');
-        return this.getIndexOfBlockHash(block.previousHash);
-
-      }else{
-        if(block.difficulty < this.getLatestBlock().difficulty){
-          return false;
-        }
-
-        if(block.difficulty < (block.hash.substring(0, block.difficulty)).length){
-          return false;
-        }
-
-        // if(block.difficulty < Math.floor(Math.log10(block.challenge))-1){
-        //   false
-        // }
-        return true;
-      }
-
-    }else if(containsCurrentBlock){
-      logger('Chain already contains that block')
+    if(chainAlreadyContainsBlock){
+      logger('ERROR: Chain already contains block')
       return false;
+    }else if(!isLinked){
+      logger('ERROR: Block is not linked with previous block')
+      return false;
+    }else if(!transactionsAreValid){
+      logger('ERROR: Not all transactions are valid')
+      return false;
+    }else{
+      return true;
     }
+    //Validate transactions using merkle root
+    // if(!containsCurrentBlock){
+      
+    //   if(!isLinked){
+
+    //     if(latestBlock.previousHash == block.previousHash){
+    //       /*.*/
+    //       logger('New block received has been orphaned since latest block has been mined before')
+    //       return false;
+    //     }
+    //     // console.log('Num',block.blockNumber);
+    //     // console.log('Hash',block.hash)
+    //     // console.log('Prev',block.previousHash)
+    //     logger('Current mined block is not linked with previous block. Sending it to orphanedBlocks');
+    //     return this.getIndexOfBlockHash(block.previousHash);
+
+    //   }else{
+    //     if(block.difficulty < this.getLatestBlock().difficulty){
+    //       return false;
+    //     }
+
+    //     if(block.difficulty < (block.hash.substring(0, block.difficulty)).length){
+    //       return false;
+    //     }
+
+    //     // if(block.difficulty < Math.floor(Math.log10(block.challenge))-1){
+    //     //   false
+    //     // }
+      //   return true;
+      // }
+
+    // }else if(containsCurrentBlock){
+    //   logger('Chain already contains that block')
+    //   return false;
+    // }
 
   }
 
@@ -574,6 +588,8 @@ class Blockchain{
     
     
   }
+
+  
 
 
   /**
