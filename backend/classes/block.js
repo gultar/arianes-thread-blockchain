@@ -39,58 +39,58 @@ class Block{
     this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce + this.actionMerkleRoot).toString();
   }
 
-  //Deprecated
-  isProofValid(difficulty){
+  // //Deprecated
+  // isProofValid(difficulty){
     
-    this.calculateHash()
+  //   this.calculateHash()
 
-    if (this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")) { //hexString.includes('000000', 0)
-      if(this.nonce < this.challenge){
-        logger(chalk.red('BLOCK INVALID: Nonce too small:'+ this.nonce));
-        return false;
-      }
-      return true;
-    }
+  //   if (this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")) { //hexString.includes('000000', 0)
+  //     if(this.nonce < this.challenge){
+  //       logger(chalk.red('BLOCK INVALID: Nonce too small:'+ this.nonce));
+  //       return false;
+  //     }
+  //     return true;
+  //   }
 
-    return false;
-  }
+  //   return false;
+  // }
 
 
-  /**
-    Will mine block hash until a valid hash is found or until another
-    node finds the answer.
-    @param $difficulty - Block mining difficulty set by network
-  */
-  async mine(difficulty, callback){
-    if(!process.MINER){
-      process.MINER = await mineBlock(this, difficulty);
+  // /**
+  //   Will mine block hash until a valid hash is found or until another
+  //   node finds the answer.
+  //   @param $difficulty - Block mining difficulty set by network
+  // */
+  // async mine(difficulty, callback){
+  //   if(!process.MINER){
+  //     process.MINER = await mineBlock(this, difficulty);
       
-      process.MINER
-      .on('started', () => {
-        process.send({message:'Started mining block '+block.blockNumber})
-      })
-      .on('stopped', async () => {
-        if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
+  //     process.MINER
+  //     .on('started', () => {
+  //       process.send({message:'Started mining block '+block.blockNumber})
+  //     })
+  //     .on('stopped', async () => {
+  //       if(this.hash.substring(0, difficulty) === Array(difficulty+1).join("0")){//(this.isProofValid(difficulty)){
           
-          this.endMineTime = Date.now()
-          callback(true);
+  //         this.endMineTime = Date.now()
+  //         callback(true);
 
-        }else{
+  //       }else{
           
-          callback(false);
-        }
-      })
-      .on('error', (err) => {
-        console.log(err)
-      })
-      .start()
-      }else{
-        console.log('Already mining block')
-      }
+  //         callback(false);
+  //       }
+  //     })
+  //     .on('error', (err) => {
+  //       console.log(err)
+  //     })
+  //     .start()
+  //     }else{
+  //       console.log('Already mining block')
+  //     }
     
 
 
-  }
+  // }
 
   mineBlock(difficulty, callback){
     
@@ -118,7 +118,7 @@ class Block{
               callback(false)
           });
           process.ACTIVE_MINER.on('close', function() {
-              console.log('Child process closed')
+              logger('Mining process ended')
           })
         }else{
           logger('ERROR: Already started miner')

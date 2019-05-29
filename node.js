@@ -309,10 +309,8 @@ class Node {
 
           peer.on('blockchainStatus', async (status)=>{
             if(!this.isDownloading){
-              console.log(this.address + ' Received status')
               this.receiveBlockchainStatus(peer, status)
             }
-            
             
           })
 
@@ -337,29 +335,6 @@ class Node {
               
             }
            })
-
-           
-
-          //  peer.on('blockHeader', (header)=>{
-          //   if(header){
-          //     try{
-          //       if(this.chain instanceof Blockchain){
-          //         let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-          //         if(!alreadyInChain && !this.isDownloading){
-          //           this.isDownloading = true;
-          //           let isValidHeader = this.chain.validateBlockHeader(header)
-          //           if(isValidHeader){
-          //             this.isDownloading = false;
-          //           }
-          //         }
-                  
-          //       }
-          //     }catch(e){
-          //       console.log(e)
-          //     }
-              
-          //   }
-          //  })
 
            peer.on('block', (block)=>{
              
@@ -464,6 +439,32 @@ class Node {
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
         let lastBlockNum = this.chain.getLatestBlock().blockNumber
+        // peer.on('block', (block)=>{
+             
+        //   if(block){
+        //     try{
+        //       if(this.chain instanceof Blockchain){
+        //         let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
+        //         if(!alreadyInChain){ // 
+                  
+        //           this.receiveBlock(block)
+        //           .then( blockAdded=>{
+        //             if(blockAdded){
+        //               this.minerPaused = false;
+        //               peer.off('block')
+        //             }
+                    
+        //           })
+                  
+        //         }
+                
+        //       }
+        //     }catch(e){
+        //       console.log(e)
+        //     }
+            
+        //   }
+        //  })
         for(var i=lastBlockNum; i <length; i++){
           peer.emit('getBlock', i+1);
         }
@@ -478,7 +479,7 @@ class Node {
       if(isValidBlockJSON(block)){
         
         if(!this.chain.getIndexOfBlockHash(block.hash)){
-          let isSynced = await this.receiveNewBlock(block);
+          let isSynced = await this.addNewBlock(block);
           if(isSynced){
             if(this.minerStarted){
               this.minerPaused = false;
@@ -508,7 +509,7 @@ class Node {
         let thisTotalChallenge = await this.chain.calculateTotalChallenge();
 
         if(thisTotalChallenge < totalChallenge){
-          logger('Attempting to download missing blocks from peer')
+          logger('Attempting to download blocks from peer')
           
           let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
           if(isValidHeader){
@@ -525,6 +526,7 @@ class Node {
                 })
               }else{
                 logger('ERROR: Headers not found')
+                this.isDownloading = false;
               }
             })
           }else{
@@ -535,6 +537,7 @@ class Node {
         }
       }else{
         logger('ERROR: Status object is missing parameters parameters')
+        this.isDownloading = false;
       }
     }
   }
@@ -1533,54 +1536,63 @@ class Node {
     Validates every block that gets added to blockchain.
     @param {Object} $newBlock - Block to be added
   */
-  receiveNewBlock(newBlock){
-      if(typeof newBlock == 'object'){
+  async addNewBlock(newBlock){
+      if(isValidBlockJSON(newBlock)){ //typeof newBlock == 'object'
         
-        var isBlockSynced = this.chain.syncBlock(newBlock);
-        if(isBlockSynced === true){
+        var isBlockSynced = await this.chain.syncBlock(newBlock);
+        if(isBlockSynced){
           Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
           logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
           logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
           logger(chalk.green('* By: '), newBlock.minedBy)
           return true;
-        }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
-          //Start syncing from the index returned by syncBlock;
-          logger('ERROR: Block already present in chain')
-          return false;
-        }else if(isBlockSynced < 0){
-          logger('ERROR: Could not sync new block')
-          return false;
         }else{
           return false;
         }
+        // if(isBlockSynced === true){
+        //   Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+        //   logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
+        //   logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+        //   logger(chalk.green('* By: '), newBlock.minedBy)
+        //   return true;
+        // }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
+        //   //Start syncing from the index returned by syncBlock;
+        //   logger('ERROR: Block already present in chain')
+        //   return false;
+        // }else if(isBlockSynced < 0){
+        //   logger('ERROR: Could not sync new block')
+        //   return false;
+        // }else{
+        //   return false;
+        // }
       }else{
-        logger('ERROR: New block is undefined');
+        logger('ERROR: Block has invalid format');
         return false;
       }
   }
 
 
-  /**
-    Peer discovery request
-    @param {string} $address - Peer address
-  */
-  requestKnownPeers(address){
-    let peerKnownNodes;
+  // /**
+  //   Peer discovery request
+  //   @param {string} $address - Peer address
+  // */
+  // requestKnownPeers(address){
+  //   let peerKnownNodes;
 
-    axios.get(address+'/getAddress')
-      .then((response) =>{
-        peerKnownNodes = response.data.nodes;
+  //   axios.get(address+'/getAddress')
+  //     .then((response) =>{
+  //       peerKnownNodes = response.data.nodes;
 
-        for(var i=0; i <peerKnownNodes.length; i++){
-          var peer = peerKnownNodes[i];
-          this.nodeList.addNewAddress(peer)
-        }
+  //       for(var i=0; i <peerKnownNodes.length; i++){
+  //         var peer = peerKnownNodes[i];
+  //         this.nodeList.addNewAddress(peer)
+  //       }
 
-      })
-      .catch(function (error) {
-        logger(error);
-      })
-  }
+  //     })
+  //     .catch(function (error) {
+  //       logger(error);
+  //     })
+  // }
 
   fetchTransaction(address, hash){
     if(hash){
@@ -1610,99 +1622,6 @@ class Node {
     }
   }
 
-
-  // /**
-  //   Keeps the sync on the blockchain. Can be launched manually upon creation of node
-  //   to get in sync with the network.
-  //   @param {string} $address - Peer address to sync with
-  //   @param {function} $cb - Optional callback
-  // */
-  // fetchBlocks(address, cb){
-  //   try{
-  //     if(this.chain instanceof Blockchain){
-  //       const latestBlock = this.chain.getLatestBlock();
-  //       const latestBlockHeader = this.chain.getBlockHeader(latestBlock.blockNumber);
-        
-  //       axios.get(address+'/getNextBlock', { params: { hash: latestBlock.hash, header:latestBlockHeader } })
-  //         .then((response) =>{
-  //           var block = response.data;
-            
-  //           if(block){
-              
-  //               var synced = this.receiveNewBlock(block);  //Checks if block is valid and linked. Should technically validate all transactions
-  //               if(!synced){
-  //                 if(response.data.error == 'end of chain'){
-                    
-  //                   logger(chalk.green('Blockchain successfully updated'));
-  //                   this.chain.isChainValid()
-  //                   this.chain.saveBlockchain()
-
-  //                   this.minerPaused = false;
-  //                   if(cb){
-  //                     cb(true)
-  //                   }
-  //                   return true;
-  //                 }else if(response.data.error == 'block fork'){
-  //                   let peerHeader = JSON.parse(response.data.header);
-
-  //                   let isHeaderValid = this.chain.validateBlockHeader(peerHeader);
-  //                   let isBlockConflict = (peerHeader.blockNumber == latestBlock.blockNumber) 
-  //                                         && (peerHeader.hash !== latestBlock.hash);
-  //                   let peerBlockHasMoreWork = (peerHeader.nonce > latestBlock.nonce);
-
-  //                   logger('Is Header Valid:', isHeaderValid);
-  //                   logger('Is Block Conflict:', isBlockConflict);
-  //                   logger('Peer block has more work:', peerBlockHasMoreWork);
-
-  //                   if(isHeaderValid && isBlockConflict){
-  //                     if(peerBlockHasMoreWork){
-  //                       let orphanBlock = this.chain.chain.pop();
-  //                       this.chain.orphanedBlocks.push(orphanBlock);
-  //                       this.resolveBlockFork(address);
-  //                     }else{
-  //                       logger("The current last block required more work than target peer's")
-  //                     }
-  //                   }else{
-  //                     logger('Header is invalid');
-  //                   }
-
-                    
-  //                 }else if(response.data.error == 'no block found'){
-  //                   logger(chalk.red(response.data.error));
-  //                   return false
-  //                 }else if(response.data.error == 'invalid request parameters'){
-  //                   logger(chalk.red(response.data.error))
-  //                   return false
-  //                 }else if(response.data.error == 'invalid block request JSON format'){
-  //                   logger(chalk.red(response.data.error))
-  //                   return false
-  //                 }
-  //                 return false
-
-  //               }else{
-  //                 setTimeout(()=>{
-  //                   this.fetchBlocks(address)
-
-  //                 },10)
-  //               }
-  //           }else{
-  //             logger('No block received from '+address)
-  //           }
-  //         })
-  //         .catch((error)=>{
-  //           logger(error)
-  //           logger(chalk.red('Could not fetch block from '+address))
-            
-  //           return false;
-  //         })
-  //     }
-  //   }catch(e){
-  //     console.log(chalk.red(e));
-  //     return false;
-  //   }
-
-
-  // }
 
   validateBlockchain(allowRollback){
     if(this.chain instanceof Blockchain){
@@ -1999,7 +1918,7 @@ class Node {
         if(!this.minerStarted){
           this.minerStarted = true;
           setInterval(async ()=>{
-            if(!process.ACTIVE_MINER && !this.minerPaused){
+            if(!process.ACTIVE_MINER && !this.minerPaused && !this.isDownloading){
 
              let isMining = this.chain.hasEnoughTransactionsToMine();
              let block = false;

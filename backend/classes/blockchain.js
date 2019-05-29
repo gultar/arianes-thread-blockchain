@@ -6,8 +6,9 @@ const {
   logger, 
   RecalculateHash, 
   writeToFile,
-  validatePublicKey } = require('../tools/utils');
-const { isValidAccountJSON, isValidHeaderJSON } = require('../tools/jsonvalidator');
+  validatePublicKey,
+  merkleRoot } = require('../tools/utils');
+const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
 const Block = require('./block');
 const { setChallenge, setDifficulty } = require('./challenge');
@@ -63,26 +64,31 @@ class Blockchain{
     or the index of the block to which it is linked if valid but out of sync
     @param {object} $newBlock - New block to be added
   */
-  syncBlock(newBlock){
+  async syncBlock(newBlock){
       if(newBlock && newBlock.transactions){
-        var blockStatus;
-
-      blockStatus = this.validateBlock(newBlock);
-
-      if(blockStatus === true){
         
+      let isValidBlock = await this.validateNewBlock(newBlock);
+      if(isValidBlock){
         this.chain.push(newBlock);
         return true;
-      }else if(blockStatus > 0){
-        return blockStatus;
-      }else if(blockStatus === false){
-        return false;
-      }else{
-        return false;
-      }s
       }else{
         return false;
       }
+      // let blockStatus = this.validateBlock(newBlock);
+      // if(blockStatus === true){
+        
+      //   this.chain.push(newBlock);
+      //   return true;
+      // }else if(blockStatus > 0){
+      //   return false;
+      // }else if(blockStatus === false){
+      //   return false;
+      // }else{
+      //   return false;
+      // }
+    }else{
+      return false;
+    }
   }
 
   hasEnoughTransactionsToMine(){
@@ -124,10 +130,11 @@ class Blockchain{
       logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
       //block.mine
       block.mineBlock(block.difficulty, async (success)=>{
-        if(success){ //&& process.env.END_MINING !== true
+        if(success){ 
           block = success;
-          
-          if(this.validateBlock(block)){
+          let isValidBlock = await this.validateNewBlock(block)
+          if(isValidBlock){
+            //Kill mining process to start another one after block sync       
             block.totalChallenge = await this.calculateTotalChallenge() + block.challenge;
             block.minedBy = ipAddress;
             this.chain.push(block);
@@ -153,9 +160,11 @@ class Blockchain{
           logger('Mining aborted. Peer has mined a new block');
           callback(false, false)
         }
-        
+
+         
         process.ACTIVE_MINER.kill()
         process.ACTIVE_MINER = false;
+
       })
 
   }
@@ -521,6 +530,52 @@ class Blockchain{
 
   }
 
+  validateNewBlock(block){
+    return new Promise(async (resolve, reject)=>{
+      try{
+        var containsCurrentBlock = this.checkIfChainHasHash(block.hash);
+        var isLinked = this.isBlockIsLinked(block.previousHash);
+        var latestBlock = this.getLatestBlock();
+        var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
+        var rightNumberOfZeros = block.difficulty < (block.hash.substring(0, block.difficulty)).length;
+        var difficultyMatchesChallenge = block.difficulty < Math.floor(Math.log10(block.challenge))-1
+        //Validate transactions using merkle root
+        if(containsCurrentBlock){
+          logger('BLOCK SYNC ERROR: Chain already contains that block')
+          resolve(false)
+        }
+
+        if(!transactionsAreValid){
+          logger('BLOCK SYNC ERROR: Transactions are not all valid')
+          resolve(false)
+        }
+
+        if(!isLinked){
+          logger('BLOCK SYNC ERROR: Block is not linked with previous block')
+          resolve(false)
+        }
+
+        if(rightNumberOfZeros){
+          logger('BLOCK SYNC ERROR: Difficulty does not match leading zero in hash')
+          resolve(false)
+        }
+
+        if(difficultyMatchesChallenge){
+          logger('BLOCK SYNC ERROR: Difficulty does not match challenge')
+          resolve(false)
+        }
+
+        resolve(true)
+      }catch(e){
+        console.log(e);
+        resolve(false)
+      }
+    })
+    
+    
+  }
+
+
   /**
     @desc Useful for sync requests
     @param {string} $blockNumber - Index of block
@@ -641,7 +696,7 @@ class Blockchain{
 
   validateBlockTransactions(block){
     return new Promise((resolve, reject)=>{
-      if(block){
+      if(isValidBlockJSON(block)){
         let txHashes = Object.keys(block.transactions);
         txHashes.forEach( hash =>{
           let transaction = block.transactions[hash];
@@ -650,10 +705,12 @@ class Blockchain{
             Mempool.rejectTransactions(hash)
             logger('Rejected Transaction:', hash);
             //If contains invalid tx, need to reject block alltogether
-            delete block.transactions[hash];
-            // resolve(false)
+            // delete block.transactions[hash];
+            resolve(false)
           }
         })
+
+        
         resolve(block);
       }else{
         logger('ERROR: Must pass block object')
@@ -695,7 +752,7 @@ class Blockchain{
 
   blockContainsOnlyValidTransactions(block){
     return new Promise((resolve, reject)=>{
-      if(block){
+      if(isValidBlockJSON(block)){
         let txHashes = Object.keys(block.transactions);
         txHashes.forEach( hash =>{
           let transaction = block.transactions[hash];
@@ -703,11 +760,16 @@ class Blockchain{
           if(valid.error){
             Mempool.rejectTransactions(hash)
             logger('Rejected Transaction:', hash);
-            //If contains invalid tx, need to reject block alltogether
             resolve(false)
           }
         })
-        resolve(block);
+
+        let recalculatedMerkleRoot = merkleRoot(block.transactions)
+        if(recalculatedMerkleRoot != block.merkleRoot){
+          resolve(false);
+        }
+
+        resolve(true);
       }else{
         logger('ERROR: Must pass block object')
         resolve(false)
