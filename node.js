@@ -406,8 +406,8 @@ class Node {
             
             try{
                 if(header.end){
-                  resolve(headers)
                   logger(header.end)
+                  resolve(headers)
                 }else{
                   let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
                   if(!alreadyInChain){
@@ -416,7 +416,6 @@ class Node {
                       
                       headers.push(header);
                       peer.emit('getBlockHeader', header.blockNumber+1)
-                      console.log('Requesting ',header.blockNumber+1)
                     }else{
                       logger('ERROR: Is not valid header')
                       resolve(false)
@@ -449,38 +448,46 @@ class Node {
   downloadBlocks(peer, headers, length){
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
-        let lastBlockNum = this.chain.getLatestBlock().blockNumber
+        
         peer.on('block', (block)=>{
-             
           if(block){
             try{
-              if(this.chain instanceof Blockchain){
-                let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
-                if(!alreadyInChain){ // 
-                  
-                  this.receiveBlock(block)
-                  .then( blockAdded=>{
-                    if(blockAdded){
-                      this.minerPaused = false;
-                      peer.emit('getBlock', block.blockNumber+1);
-                    }
+              if(block.end){
+                logger(block.end);
+                this.minerPaused = false;
+                resolve(true)
+              }else{
+                if(this.chain instanceof Blockchain){
+                  let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
+                  if(!alreadyInChain){ // 
                     
-                  })
+                    this.receiveBlock(block)
+                    .then( blockAdded=>{
+                      if(blockAdded.error){
+                        logger(blockAdded.error);
+                        resolve(false)
+                      }
+
+                      if(blockAdded){
+                        peer.emit('getBlock', block.blockNumber+1);
+                      }
+                      
+                    })
+                    
+                  }
                   
                 }
-                
               }
+              
             }catch(e){
               console.log(e)
             }
             
           }
          })
-        for(var i=lastBlockNum; i <length; i++){
-          
-        }
-        this.isDownloading = false;
-        resolve(true)
+         let lastBlockNum = this.chain.getLatestBlock().blockNumber
+         peer.emit('getBlock', lastBlockNum+1);
+        console.log('Sending block request', lastBlockNum+1)
       }
     })
   }
@@ -1016,11 +1023,11 @@ class Node {
        }
      })
 
-     socket.on('getBlock', (number)=>{
+     socket.on('getBlock', (blockNumber)=>{
       if(this.chain instanceof Blockchain){
-        if(number && typeof number == 'number'){
+        if(blockNumber && typeof blockNumber == 'number'){
          
-          let block = this.chain.chain[number];
+          let block = this.chain.chain[blockNumber];
           if(block){
             
             socket.emit('block', block)
