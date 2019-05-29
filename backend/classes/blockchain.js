@@ -132,8 +132,7 @@ class Blockchain{
       block.mineBlock(block.difficulty, async (success)=>{
         if(success){ 
           block = success;
-          let isValidBlock = await this.validateBlock(block)
-          if(isValidBlock){
+          if(this.validateBlock(block)){
             //Kill mining process to start another one after block sync       
             block.totalChallenge = await this.calculateTotalChallenge() + block.challenge;
             block.minedBy = ipAddress;
@@ -491,21 +490,29 @@ class Blockchain{
 
     var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
     var isLinked = this.isBlockIsLinked(block.previousHash);
+    var merkleRootIsValid = this.recalculateMerkleRoot(block);
     // var latestBlock = this.getLatestBlock();
-    var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
-
+    // var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
+    if(!merkleRootIsValid){
+      logger('ERROR: Merkle root of block is invalid')
+    }
+    
     if(chainAlreadyContainsBlock){
       logger('ERROR: Chain already contains block')
       return false;
     }else if(!isLinked){
       logger('ERROR: Block is not linked with previous block')
       return false;
-    }else if(!transactionsAreValid){
-      logger('ERROR: Not all transactions are valid')
-      return false;
     }else{
       return true;
     }
+    
+    // else if(!transactionsAreValid){
+    //   logger('ERROR: Not all transactions are valid')
+    //   return false;
+    // }
+
+
     //Validate transactions using merkle root
     // if(!containsCurrentBlock){
       
@@ -792,6 +799,20 @@ class Blockchain{
       }
       
     })
+  }
+
+  recalculateMerkleRoot(block){
+    if(isValidBlockJSON(block)){
+      let recalculatedMerkleRoot = merkleRoot(block.transactions);
+      if(recalculatedMerkleRoot == block.merkleRoot){
+        return true;
+      }else{
+        return false;
+      }
+    }else{
+      return false;
+    }
+   
   }
 
   /**
