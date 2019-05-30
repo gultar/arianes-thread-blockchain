@@ -109,6 +109,7 @@ class Blockchain{
   async minePendingTransactions(ip, block , miningRewardAddress, callback){
       let ipAddress = ip
       let lastBlock = this.getLatestBlock();
+      block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);

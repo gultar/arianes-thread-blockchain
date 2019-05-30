@@ -34,9 +34,9 @@ class Miner{
 
                         this.isMining = true;
                         let block = await this.buildNewBlock()
-                        block.blockNumber = this.chain.length;
+                        
 
-                        logger(`Mining block number ${this.chain.length}...`);
+                        logger('Mining block number'+this.chain.chain.length+'...');
                         logger('Number of pending transactions:', Mempool.sizeOfPool());
 
                         if(block){
