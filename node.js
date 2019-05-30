@@ -1326,22 +1326,26 @@ class Node {
             let action = JSON.parse(data);
             this.receiveAction(action);
             break
-          case 'endMining':
+          case 'newBlockFound':
             if(this.chain instanceof Blockchain){
-              if(process.ACTIVE_MINER){
-                let header = JSON.parse(data);
-                if(this.chain.validateBlockHeader(header)){
-                  this.minerPaused = true;
+
+              let header = JSON.parse(data);
+              if(this.chain.validateBlockHeader(header)){
+                
+                if(process.ACTIVE_MINER){
                   process.ACTIVE_MINER.send({abort:true});
-                  let peerSocket = this.connectionsToPeers[relayPeer]
-                  if(peerSocket){
-                    this.downloadBlocks(peerSocket, [header], 1)
-                    .then( downloaded=>{
-                      this.minerPaused = false;
-                    })
-                  }
+                  this.minerPaused = true;
+                }
+
+                let peerSocket = this.connectionsToPeers[relayPeer]
+                if(peerSocket){
+                  this.downloadBlocks(peerSocket, [header], 1)
+                  .then( downloaded=>{
+                    this.createMiner()
+                  })
                 }
               }
+              
               
             }
             break;
@@ -1846,7 +1850,7 @@ class Node {
 
       miner.start((block)=>{
         let newHeader = this.chain.getBlockHeader(block.blockNumber);
-        this.sendPeerMessage('endMining', newHeader);
+        this.sendPeerMessage('newBlockFound', newHeader);
         // let status = {
         //   totalChallenge: this.chain.calculateWorkDone(),
         //   bestBlockHeader: newHeader,
@@ -1892,7 +1896,7 @@ class Node {
                   let newBlock = this.chain.getLatestBlock();
                   
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
-                  this.sendPeerMessage('endMining', newHeader);
+                  this.sendPeerMessage('newBlockFound', newHeader);
                   let status = {
                     totalChallenge: this.chain.calculateWorkDone(),
                     bestBlockHeader: newHeader,
