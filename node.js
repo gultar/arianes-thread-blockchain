@@ -1327,7 +1327,7 @@ class Node {
             this.receiveAction(action);
             break
           case 'endMining':
-            if(this.minerStarted && this.chain instanceof Blockchain){
+            if(this.chain instanceof Blockchain){
               if(process.ACTIVE_MINER){
                 let header = JSON.parse(data)
                 if(this.chain.validateBlockHeader(header)){
