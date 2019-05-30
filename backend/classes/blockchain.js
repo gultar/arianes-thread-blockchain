@@ -198,12 +198,12 @@ class Blockchain{
             resolve(success);
 
           }else{
-            logger('Block is not valid');
+            // logger('Block is not valid');
             resolve(false)
             
           }
         }else{
-          logger('Mining aborted. Peer has mined a new block');
+          // logger('Mining aborted. Peer has mined a new block');
           resolve(false)
         }
 
