@@ -459,7 +459,7 @@ class Node {
                 peer.off('block')
                 resolve(true)
               }else if(block.error){
-                logger(block.end)
+                logger(block.error)
                 peer.off('block')
                 resolve(false)
               }else{
@@ -1844,16 +1844,16 @@ class Node {
       miner.start((block)=>{
         let newHeader = this.chain.getBlockHeader(block.blockNumber);
         this.sendPeerMessage('endMining', newHeader);
-        let status = {
-          totalChallenge: this.chain.calculateWorkDone(),
-          bestBlockHeader: newHeader,
-          length: this.chain.chain.length
-        }
-        if(newHeader){
-          this.serverBroadcast('blockchainStatus', status)
-        }else{
-          logger('ERROR: Could not send new block header')
-        }
+        // let status = {
+        //   totalChallenge: this.chain.calculateWorkDone(),
+        //   bestBlockHeader: newHeader,
+        //   length: this.chain.chain.length
+        // }
+        // if(newHeader){
+        //   this.serverBroadcast('blockchainStatus', status)
+        // }else{
+        //   logger('ERROR: Could not send new block header')
+        // }
       });
     }
   }
