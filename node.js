@@ -1334,7 +1334,6 @@ class Node {
                 
                 if(process.ACTIVE_MINER){
                   process.ACTIVE_MINER.send({abort:true});
-                  this.minerPaused = true;
                 }
 
                 let peerSocket = this.connectionsToPeers[relayPeer]
@@ -1851,16 +1850,9 @@ class Node {
       miner.start((block)=>{
         let newHeader = this.chain.getBlockHeader(block.blockNumber);
         this.sendPeerMessage('newBlockFound', newHeader);
-        // let status = {
-        //   totalChallenge: this.chain.calculateWorkDone(),
-        //   bestBlockHeader: newHeader,
-        //   length: this.chain.chain.length
-        // }
-        // if(newHeader){
-        //   this.serverBroadcast('blockchainStatus', status)
-        // }else{
-        //   logger('ERROR: Could not send new block header')
-        // }
+        setTimeout(()=>{ 
+          // To see if it creates opportunity for other node to mine
+         },200)
       });
     }
   }
