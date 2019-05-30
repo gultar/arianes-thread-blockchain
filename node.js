@@ -1124,8 +1124,7 @@ class Node {
     })
 
     socket.on('startMiner', ()=>{
-      this.minerPaused = false;
-      this.startMiner()
+      this.createMiner()
     })
 
     socket.on('stopMining', ()=>{
@@ -1338,7 +1337,9 @@ class Node {
                 if(peerSocket){
                   this.downloadBlocks(peerSocket, [header], 1)
                   .then( downloaded=>{
-                    this.createMiner()
+                    if(this.minerStarted){
+                      this.createMiner()
+                    }
                   })
                 }
               }
@@ -1837,7 +1838,7 @@ class Node {
   */
   createMiner(){
     if(this.chain instanceof Blockchain){
-
+      this.minerStarted = true
       let miner = new Miner({
         chain:this.chain,
         address:this.address,
@@ -1848,98 +1849,10 @@ class Node {
       miner.start((block)=>{
         let newHeader = this.chain.getBlockHeader(block.blockNumber);
         this.sendPeerMessage('newBlockFound', newHeader);
-        setTimeout(()=>{ 
-          // To see if it creates opportunity for other node to mine
-         },200)
+
       });
     }
   }
-
-  // startMiner(){
-  //   if(this.chain instanceof Blockchain){
-  //       if(!this.minerStarted){
-  //         this.minerStarted = true;
-  //         setInterval(async ()=>{
-  //           if(!process.ACTIVE_MINER && !this.minerPaused && !this.isDownloading){
-
-  //            let isMining = this.chain.hasEnoughTransactionsToMine();
-  //            let block = false;
-             
-  //            if(isMining && !block){
-  //             let transactionsGathered = Mempool.gatherTransactionsForBlock();
-  //             let validatedTransactions = await this.chain.validateTransactionsForMining(transactionsGathered);
-  //             let block = new Block(Date.now(), validatedTransactions, Mempool.gatherActionsForBlock());
-  //             logger('Mining next block...');
-  //             logger('Number of pending transactions:', Mempool.sizeOfPool());
-  //             Mempool.pendingTransactions = {};
-  //             Mempool.pendingActions = {};
-
-  //             this.chain.minePendingTransactions(this.address, block, this.publicKey, async(success, blockHash)=>{
-  //               if(success && blockHash){
-  //                this.minerPaused = true;
-  //                process.MINER = false;
-  //                let isChainValid = this.validateBlockchain(true)
-  //                if(isChainValid){
-
-  //                  //Cancels all other nodes' mining operations
-                  
-  //                 let newBlock = this.chain.getLatestBlock();
-                  
-  //                 let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
-  //                 this.sendPeerMessage('newBlockFound', newHeader);
-  //                 let status = {
-  //                   totalChallenge: this.chain.calculateWorkDone(),
-  //                   bestBlockHeader: newHeader,
-  //                   length: this.chain.chain.length
-  //                 }
-  //                 if(newHeader){
-  //                   this.serverBroadcast('blockchainStatus', status)
-  //                 }else{
-  //                   logger('ERROR: Could not send new block header')
-  //                 }
-
-  //                 let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
-  //                 if(coinbase){
-  //                   this.chain.getLatestBlock().coinbaseTransactionHash = coinbase.hash;
-  //                 }else{
-  //                   logger('ERROR: An error occurred while creating coinbase transaction')
-  //                 }
-                  
-                  
-  //                 logger('Seconds past since last block',this.showBlockTime(newBlock.blockNumber))
-  //                 this.minerPaused = false;
-  //                 let newBlockTransactions = this.chain.getLatestBlock().transactions;
-  //                 let newBlockActions = this.chain.getLatestBlock().actions
-  //                 Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-  //                 Mempool.deleteActionsFromMinedBlock(newBlockActions);
-  //                 this.cashInCoinbaseTransactions();
-  //                 this.chain.saveBlockchain();
-  //                 this.minerPaused = false;
-  //                }else{
-  //                 this.unwrapBlock(block)
-  //                }
-                 
-  //               }else{
-  //                  this.unwrapBlock(block)
-  //               }
-  //             })
-  //            }else{
-  //             // logger('Block is currently being mined')
-  //            }
-  
-  //          }else{
-  //           //  logger('Already started mining')
-  //          }
-
-           
-  //         }, 1000)
-  //       }else{
-  //         // logger('WARNING: miner already started')
-  //       }
-        
-      
-  //   }
-  // }
 
   unwrapBlock(block){
     if(isValidBlockJSON(block)){
