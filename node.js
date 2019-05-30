@@ -1336,6 +1336,9 @@ class Node {
                   let peerSocket = this.connectionsToPeers[relayPeer]
                   if(peerSocket){
                     this.downloadBlocks(peerSocket, [header], 1)
+                    .then( downloaded=>{
+                      this.minerPaused = false;
+                    })
                   }
                 }
               }
