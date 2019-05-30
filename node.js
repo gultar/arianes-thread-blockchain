@@ -1132,21 +1132,20 @@ class Node {
       logger('Mining stopped')
       this.UILog('Mining stopped')
       this.minerPaused = true;
-      if(process.MINER){
+      if(process.ACTIVE_MINER){
         
-        process.MINER.stop();
-        process.MINER = false;
+        process.ACTIVE_MINER.send({abort:true});
         
       }
     })
 
     socket.on('isChainValid', ()=>{
-      this.validateBlockchain();
+      let isValidChain = this.validateBlockchain();
+      if(isValidChain){
+        logger('Blockchain is valid')
+      }
     })
 
-    socket.on('update', (address)=>{
-      this.update();
-    })
 
     socket.on('verbose', ()=>{
       

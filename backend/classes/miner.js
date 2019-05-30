@@ -17,9 +17,7 @@ class Miner{
         this.minerStarted = false;
         this.isMining = false;
         this.minerPaused = false;
-        this.nodeIsDownloading = false;
         this.minerLoop = '';
-        
     }
 
     start(callback){
@@ -27,7 +25,7 @@ class Miner{
           if(!this.minerStarted){
             this.minerStarted = true;
             this.minerLoop = setInterval(async ()=>{
-                if(!process.MINER && !this.minerPaused && !this.isDownloading){
+                if(!process.MINER && !this.minerPaused){
                     let enoughTransactions = this.chain.hasEnoughTransactionsToMine();
                     
                     if(enoughTransactions && !this.isMining){
@@ -36,7 +34,7 @@ class Miner{
                         let block = await this.buildNewBlock()
                         
 
-                        logger('Mining block number'+this.chain.chain.length+'...');
+                        logger('Mining block number '+chalk.green(this.chain.chain.length)+'...');
                         logger('Number of pending transactions:', Mempool.sizeOfPool());
 
                         if(block){

@@ -139,12 +139,12 @@ class Blockchain{
             callback(success, block.hash);
 
           }else{
-            logger('Block is not valid');
+            // logger('Block is not valid');
             
             callback(false, false)
           }
         }else{
-          logger('Mining aborted. Peer has mined a new block');
+          // logger('Mining aborted. Peer has mined a new block');
           callback(false, false)
         }
 
