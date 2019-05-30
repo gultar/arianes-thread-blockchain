@@ -1329,17 +1329,13 @@ class Node {
           case 'endMining':
             if(this.chain instanceof Blockchain){
               if(process.ACTIVE_MINER){
-                console.log('Received order to stop')
                 let header = JSON.parse(data);
-                console.log('Header:', header.hash)
                 if(this.chain.validateBlockHeader(header)){
-                  console.log('Is Valid hash')
                   this.minerPaused = true;
                   process.ACTIVE_MINER.send({abort:true});
                   let peerSocket = this.connectionsToPeers[relayPeer]
                   if(peerSocket){
-                    console.log('Peer socket found:',relayPeer)
-                    peerSocket.emit('getBlock', header.blockNumber);
+                    this.downloadBlocks(peerSocket, [header], 1)
                   }
                 }
               }
@@ -1470,26 +1466,26 @@ class Node {
   }
 
 
-  /**
-    Response to a getLongestChain, to determine from which peer to update
-    @param {string} $address - Requesting peer address
-  */
-  sendChainLength(address){
-    if(address){
-      try{
+  // /**
+  //   Response to a getLongestChain, to determine from which peer to update
+  //   @param {string} $address - Requesting peer address
+  // */
+  // sendChainLength(address){
+  //   if(address){
+  //     try{
 
-        axios.post(peerAddress+'/chainLength', {
-          chainLength:this.chain.chain.length,
-          peerAddress:this.address
-        })
-        .then((response)=>{ logger(response.data); })
-        .catch((err)=>{ logger('Could not send length of chain to peer', err.errno) })
+  //       axios.post(peerAddress+'/chainLength', {
+  //         chainLength:this.chain.chain.length,
+  //         peerAddress:this.address
+  //       })
+  //       .then((response)=>{ logger(response.data); })
+  //       .catch((err)=>{ logger('Could not send length of chain to peer', err.errno) })
 
-      }catch(e){
-        console.log(chalk.red(e));
-      }
-    }
-  }
+  //     }catch(e){
+  //       console.log(chalk.red(e));
+  //     }
+  //   }
+  // }
 
 
   /**
@@ -1516,33 +1512,33 @@ class Node {
   }
 
 
-  fetchTransaction(address, hash){
-    if(hash){
-      axios.get(address+'/transaction', {
-        params:{
-          hash:hash
-        }
-      })
-      .then(async (response) =>{
-        let transaction = response.data;
-        if(isValidTransactionJSON(transaction)){
-          let isValid = await this.chain.validateTransaction(transaction);
-          if(!isValid.error){
-            Mempool.addTransaction(transaction)
-          }else{
-            logger(isValid.error);
-          }
-        }else{
-          logger('ERROR: Received invalid transaction data format');
-        }
+  // fetchTransaction(address, hash){
+  //   if(hash){
+  //     axios.get(address+'/transaction', {
+  //       params:{
+  //         hash:hash
+  //       }
+  //     })
+  //     .then(async (response) =>{
+  //       let transaction = response.data;
+  //       if(isValidTransactionJSON(transaction)){
+  //         let isValid = await this.chain.validateTransaction(transaction);
+  //         if(!isValid.error){
+  //           Mempool.addTransaction(transaction)
+  //         }else{
+  //           logger(isValid.error);
+  //         }
+  //       }else{
+  //         logger('ERROR: Received invalid transaction data format');
+  //       }
         
 
-      })
-      .catch(function (error) {
-        logger(error);
-      })
-    }
-  }
+  //     })
+  //     .catch(function (error) {
+  //       logger(error);
+  //     })
+  //   }
+  // }
 
 
   validateBlockchain(allowRollback){
