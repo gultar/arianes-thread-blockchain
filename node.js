@@ -1329,12 +1329,16 @@ class Node {
           case 'endMining':
             if(this.chain instanceof Blockchain){
               if(process.ACTIVE_MINER){
-                let header = JSON.parse(data)
+                console.log('Received order to stop')
+                let header = JSON.parse(data);
+                console.log('Header:', header.hash)
                 if(this.chain.validateBlockHeader(header)){
+                  console.log('Is Valid hash')
                   this.minerPaused = true;
                   process.ACTIVE_MINER.send({abort:true});
                   let peerSocket = this.connectionsToPeers[relayPeer]
                   if(peerSocket){
+                    console.log('Peer socket found:',relayPeer)
                     peerSocket.emit('getBlock', header.blockNumber);
                   }
                 }
