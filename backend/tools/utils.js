@@ -39,7 +39,7 @@ function RecalculateHash(block){
 
 function merkleRoot(dataSets){
 
-  if(dataSets != undefined){
+  if(typeof dataSets == 'object'){
     var hashes = Object.keys(dataSets);
 
 

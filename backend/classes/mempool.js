@@ -15,7 +15,6 @@ class Mempool{
             if(transaction && transaction.hasOwnProperty('hash')){
                 if(!this.pendingTransactions[transaction.hash]){
                     this.pendingTransactions[transaction.hash] = transaction;
-                    // Object.freeze(this.pendingTransactions[transaction.hash]);
                 }
             }
             
@@ -136,40 +135,64 @@ class Mempool{
     
 
     deleteTransactionsFromMinedBlock(transactions){
-        let txHashes = Object.keys(transactions);
         
-        for(var hash of txHashes){
-            if(this.pendingTransactions.hasOwnProperty(hash)){
-                delete this.pendingTransactions[hash];
+        if(typeof transactions == 'object'){
+            let txHashes = Object.keys(transactions);
+        
+            for(var hash of txHashes){
+                if(this.pendingTransactions.hasOwnProperty(hash)){
+                    delete this.pendingTransactions[hash];
+                }
             }
+        }else{
+            logger('ERROR: Transactions to delete are undefined')
         }
+        
     }
 
     deleteActionsFromMinedBlock(actions){
-        let actionHashes = Object.keys(actions);
         
-        for(var hash of actionHashes){
-            if(this.pendingActions.hasOwnProperty(hash)){
-                console.log('Deleting action: ', hash)
-                delete this.pendingActions[hash];
+        if(typeof actions == 'object'){
+            let actionHashes = Object.keys(actions);
+        
+            for(var hash of actionHashes){
+                if(this.pendingActions.hasOwnProperty(hash)){
+                    console.log('Deleting action: ', hash)
+                    delete this.pendingActions[hash];
+                }
             }
+        }else{
+            logger('ERROR: Actions to delete are undefined')
         }
+        
     }
 
     putbackPendingTransactions(transactions){
-        for(var txHash of Object.keys(transactions)){
-            this.pendingTransactions[txHash] = transactions[txHash];
+        
+        if(typeof transactions == 'object'){
+            for(var txHash of Object.keys(transactions)){
+                this.pendingTransactions[txHash] = transactions[txHash];
+            }
+        }else{
+            logger('ERROR: Transactions to putback are undefined')
         }
+        
     }
 
     putbackPendingActions(actions){
-        for(var actionHash of Object.keys(actions)){
-            this.pendingActions[actionHash] = actions[actionHash];
+        
+        if(typeof transactions == 'object'){
+            for(var actionHash of Object.keys(actions)){
+                this.pendingActions[actionHash] = actions[actionHash];
+            }
+        }else{
+            logger('ERROR: Actions to putback are undefined')
         }
+        
     }
 
     orderTransactionsByTimestamp(transactions){
-        if(transactions){
+        if(typeof transactions == 'object'){
             let txHashes = Object.keys(transactions);
             let orderedTransaction = {};
             let txAndTimestamp = {};

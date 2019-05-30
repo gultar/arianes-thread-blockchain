@@ -20,7 +20,8 @@ const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountCreator = require('./backend/classes/accountCreator');
-const AccountTable = require('./backend/classes/accountTable')
+const AccountTable = require('./backend/classes/accountTable');
+const Miner = require('./backend/classes/miner')
 /*************Smart Contract VM************** */
 const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
@@ -492,7 +493,6 @@ class Node {
          })
          let lastBlockNum = this.chain.getLatestBlock().blockNumber
          peer.emit('getBlock', lastBlockNum+1);
-        console.log('Sending block request', lastBlockNum+1)
       }
     })
   }
@@ -529,7 +529,7 @@ class Node {
 
       if(totalChallenge && bestBlockHeader && length){
         
-        let thisTotalChallenge = await this.chain.calculateTotalChallenge();
+        let thisTotalChallenge = await this.chain.calculateWorkDone();
 
         if(thisTotalChallenge < totalChallenge){
           logger('Attempting to download blocks from peer')
@@ -1005,7 +1005,7 @@ class Node {
       if(this.chain instanceof Blockchain){
         try{
           let status = {
-            totalChallenge: this.chain.calculateTotalChallenge(),
+            totalChallenge: this.chain.calculateWorkDone(),
             bestBlockHeader: this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber),
             length: this.chain.chain.length
           }
@@ -1168,8 +1168,7 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      process.ACTIVE_MINER.send({abort:true})
-      this.minerPaused = true
+      this.createMiner();
     })
 
     socket.on('rollback', ()=>{
@@ -1306,123 +1305,54 @@ class Node {
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
   handlePeerMessage(type, originAddress, messageId, data, relayPeer){
-    let peerMessage = { 
-      'type':type, 
-      'originAddress':originAddress, 
-      'messageId':messageId, 
-      'data':data,
-      'relayPeer':relayPeer }
-
-    if(!this.messageBuffer[messageId]){
-      switch(type){
-        case 'transaction':
-          if(data){
-            try{
-              var transaction = JSON.parse(data);
-              this.receiveTransaction(transaction);
-            }catch(e){
-              console.log(chalk.red(e))
-            }
-          }
-
-          break;
-        case 'action':
-            try{
-              let action = JSON.parse(data);
-              this.receiveAction(action);
-            }catch(e){
-              console.log(e)
-            }
-          break
-        case 'endMining':
-          if(this.minerStarted && this.chain instanceof Blockchain){
-            this.minerPaused = true;
-            if(process.ACTIVE_MINER){
-              process.ACTIVE_MINER.send({abort:true});
-              let header = JSON.parse(data)
-              if(this.chain.validateBlockHeader(header)){
-                let peerSocket = this.connectionsToPeers[relayPeer]
-                if(peerSocket){
-                  peerSocket.emit('getBlock', header.blockNumber);
-                  // setTimeout(()=>{
-                  //   this.minerPaused = false;
-                  // },1000)
-                }
-              }else{
-                this.minerPaused = false;
-              }
-            }else{
-              logger('ERROR: Miner cannot be cancelled. Does not run')
-            }
-            
-          }
-          break;
-        
-        case 'newBlock':
-          this.fetchBlocks(originAddress, (updated)=>{
-            if(this.minerStarted){
-              this.minerPaused = false;
-              process.MINER = false;
-              this.startMiner();
-            }
-          });
-          break;
-        
-        case 'fetchCoinbaseTransaction':
-          if(data && typeof data == 'string'){
-            try{
-              
-              axios.get(originAddress+'/transaction', {
-                params:{
-                  hash:data
-                }
-              }).then((response)=>{
-                if(response.data){
-                  let transaction = response.data;
-                  if(transaction && !transaction.error){
-                    
-                    this.chain.validateTransaction(transaction)
-                    .then(valid => {
-                      if(!valid.error && !valid.pending){
-                        Mempool.addTransaction(transaction);
-                        this.UILog('<-'+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
-                        if(this.verbose) logger(chalk.blue('<-')+' Received valid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      }else if(valid.pending && !valid.error){
-                        //logger('Coinbase transaction from peer needs to wait five blocks')
-                      }else{
-                        this.UILog('!!!'+' Received invalid coinbase transaction : '+ transaction.hash.substr(0, 15)+"...")
-                        if(this.verbose) logger(chalk.red('!!!'+' Received invalid coinbase transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                        Mempool.rejectedTransactions[transaction.hash] = transaction;
-                        logger(valid.error)
-                      }
-                    })
-                  }
-                  
-                }
-              })
-            }catch(e){
-              console.log(chalk.red(e))
-            }
-          }
-          break;
-        case 'getLongestChain':
-          try{
-            if(this.chain instanceof Blockchain){
-              this.sendDirectMessage('chainLength', originAddress, this.chain.chain.length)
-            }
-            
-            
-          }catch(e){
-            console.log(chalk.red(e))
-          }
-          break;
-        case 'message':
-          logger(chalk.green('['+originAddress+']')+' -> '+data)
-          break;
+    try{
+      let peerMessage = { 
+        'type':type, 
+        'originAddress':originAddress, 
+        'messageId':messageId, 
+        'data':data,
+        'relayPeer':relayPeer 
       }
 
-      this.messageBuffer[messageId] = peerMessage;
-      this.broadcast('peerMessage', peerMessage)
+      if(!this.messageBuffer[messageId]){
+        switch(type){
+          case 'transaction':
+            if(data){
+              var transaction = JSON.parse(data);
+              this.receiveTransaction(transaction);
+            }
+            break;
+          case 'action':
+            let action = JSON.parse(data);
+            this.receiveAction(action);
+            break
+          case 'endMining':
+            if(this.minerStarted && this.chain instanceof Blockchain){
+              if(process.ACTIVE_MINER){
+                let header = JSON.parse(data)
+                if(this.chain.validateBlockHeader(header)){
+                  this.minerPaused = true;
+                  process.ACTIVE_MINER.send({abort:true});
+                  let peerSocket = this.connectionsToPeers[relayPeer]
+                  if(peerSocket){
+                    peerSocket.emit('getBlock', header.blockNumber);
+                  }
+                }
+              }
+              
+            }
+            break;
+          case 'message':
+            logger(chalk.green('['+originAddress+']')+' -> '+data)
+            break;
+        }
+
+        this.messageBuffer[messageId] = peerMessage;
+        this.broadcast('peerMessage', peerMessage)
+        
+      }
+    }catch(e){
+      console.log(chalk.red(e))
     }
   }
 
@@ -1524,11 +1454,6 @@ class Node {
     }
   }
 
-  
-
-
-  
-
   getChainInfo(){
     let info = {
       chainLength:this.chain.chain.length,
@@ -1580,50 +1505,12 @@ class Node {
         }else{
           return false;
         }
-        // if(isBlockSynced === true){
-        //   Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-        //   logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-        //   logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-        //   logger(chalk.green('* By: '), newBlock.minedBy)
-        //   return true;
-        // }else if(typeof isBlockSynced === 'number' && isBlockSynced > 0){
-        //   //Start syncing from the index returned by syncBlock;
-        //   logger('ERROR: Block already present in chain')
-        //   return false;
-        // }else if(isBlockSynced < 0){
-        //   logger('ERROR: Could not sync new block')
-        //   return false;
-        // }else{
-        //   return false;
-        // }
       }else{
         logger('ERROR: Block has invalid format');
         return false;
       }
   }
 
-
-  // /**
-  //   Peer discovery request
-  //   @param {string} $address - Peer address
-  // */
-  // requestKnownPeers(address){
-  //   let peerKnownNodes;
-
-  //   axios.get(address+'/getAddress')
-  //     .then((response) =>{
-  //       peerKnownNodes = response.data.nodes;
-
-  //       for(var i=0; i <peerKnownNodes.length; i++){
-  //         var peer = peerKnownNodes[i];
-  //         this.nodeList.addNewAddress(peer)
-  //       }
-
-  //     })
-  //     .catch(function (error) {
-  //       logger(error);
-  //     })
-  // }
 
   fetchTransaction(address, hash){
     if(hash){
@@ -1944,6 +1831,33 @@ class Node {
   /**
     @desc Miner loop can be launched via the web UI or upon Node boot up
   */
+  createMiner(){
+    if(this.chain instanceof Blockchain){
+
+      let miner = new Miner({
+        chain:this.chain,
+        address:this.address,
+        publicKey:this.publicKey,
+        verbose:this.verbose,
+      })
+
+      miner.start((block)=>{
+        let newHeader = this.chain.getBlockHeader(block.blockNumber);
+        this.sendPeerMessage('endMining', newHeader);
+        let status = {
+          totalChallenge: this.chain.calculateWorkDone(),
+          bestBlockHeader: newHeader,
+          length: this.chain.chain.length
+        }
+        if(newHeader){
+          this.serverBroadcast('blockchainStatus', status)
+        }else{
+          logger('ERROR: Could not send new block header')
+        }
+      });
+    }
+  }
+
   startMiner(){
     if(this.chain instanceof Blockchain){
         if(!this.minerStarted){
@@ -1977,7 +1891,7 @@ class Node {
                   let newHeader = this.chain.getBlockHeader(newBlock.blockNumber);
                   this.sendPeerMessage('endMining', newHeader);
                   let status = {
-                    totalChallenge: this.chain.calculateTotalChallenge(),
+                    totalChallenge: this.chain.calculateWorkDone(),
                     bestBlockHeader: newHeader,
                     length: this.chain.chain.length
                   }
@@ -2031,11 +1945,14 @@ class Node {
   }
 
   unwrapBlock(block){
-    let transactionsOfCancelledBlock = block.transactions;
-    let actionsOfCancelledBlock = block.actions
-    Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
-    Mempool.putbackPendingActions(actionsOfCancelledBlock)
-    this.cashInCoinbaseTransactions();
+    if(isValidBlockJSON(block)){
+      let transactionsOfCancelledBlock = block.transactions;
+      let actionsOfCancelledBlock = block.actions
+      Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
+      Mempool.putbackPendingActions(actionsOfCancelledBlock)
+      this.cashInCoinbaseTransactions();
+    }
+    
     
   }
 
@@ -2053,7 +1970,7 @@ class Node {
               if(readyToMove && !readyToMove.error && !readyToMove.pending){
                 
                 Mempool.moveCoinbaseTransactionToPool(transaction.hash);
-                this.sendPeerMessage(transaction);
+                this.sendPeerMessage('transaction',transaction);
                 resolve(true);
                 
               }else{

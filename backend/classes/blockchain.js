@@ -47,7 +47,7 @@ class Blockchain{
       'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
       'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
     }, {});
-    genesisBlock.challenge = 1000 * 1000//10 * 1000 * 1000; //average 150 000 nonce/sec
+    genesisBlock.challenge = 5 * 1000 * 1000//10 * 1000 * 1000; //average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
     genesisBlock.calculateHash();
     genesisBlock.difficulty = 1;
@@ -74,18 +74,6 @@ class Blockchain{
       }else{
         return false;
       }
-      // let blockStatus = this.validateBlock(newBlock);
-      // if(blockStatus === true){
-        
-      //   this.chain.push(newBlock);
-      //   return true;
-      // }else if(blockStatus > 0){
-      //   return false;
-      // }else if(blockStatus === false){
-      //   return false;
-      // }else{
-      //   return false;
-      // }
     }else{
       return false;
     }
@@ -121,7 +109,6 @@ class Blockchain{
   async minePendingTransactions(ip, block , miningRewardAddress, callback){
       let ipAddress = ip
       let lastBlock = this.getLatestBlock();
-      block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
       block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
@@ -134,7 +121,7 @@ class Blockchain{
           block = success;
           if(this.validateBlock(block)){
             //Kill mining process to start another one after block sync       
-            block.totalChallenge = await this.calculateTotalChallenge() + block.challenge;
+            block.totalChallenge = await this.calculateWorkDone() + block.nonce;
             block.minedBy = ipAddress;
             this.chain.push(block);
             
@@ -168,7 +155,66 @@ class Blockchain{
 
   }
 
-  calculateTotalChallenge(){
+  async mineNextBlock(block, ipAddress, verbose){
+    return new Promise((resolve)=>{
+      let lastBlock = this.getLatestBlock();
+      block.blockNumber = this.chain.length;
+      block.previousHash = lastBlock.hash;
+      block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
+      block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
+      
+      logger('Current Challenge:', block.challenge)
+      logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
+      block.mine(block.difficulty)
+      .then(async (success)=>{
+        
+        process.ACTIVE_MINER.kill()
+        process.ACTIVE_MINER = false;
+        
+        if(success){ 
+          block = success;
+          if(this.validateBlock(block)){
+            //Kill mining process to start another one after block sync       
+            block.totalChallenge = await this.calculateWorkDone() + block.nonce;
+            block.minedBy = ipAddress;
+            this.chain.push(block);
+            if(!verbose){
+              console.log(chalk.cyan('\n********************************************************************'))
+              console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
+              console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+              console.log(chalk.cyan("* Challenge : "), block.challenge);
+              console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+              console.log(chalk.cyan("* Nonce : "), block.nonce)
+              console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
+              console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
+              console.log(chalk.cyan('********************************************************************\n'))
+
+            }else{
+              let header = this.getBlockHeader(block.blockNumber)
+              console.log(chalk.cyan(JSON.stringify(header, null, 2)))
+            }
+            
+            resolve(success);
+
+          }else{
+            logger('Block is not valid');
+            resolve(false)
+            
+          }
+        }else{
+          logger('Mining aborted. Peer has mined a new block');
+          resolve(false)
+        }
+
+        
+
+      })
+    })
+    
+
+  }
+
+  calculateWorkDone(){
     let total = 0;
     this.chain.forEach( block=>{
       total += block.challenge;
@@ -622,6 +668,7 @@ class Blockchain{
           difficulty:block.difficulty,
           challenge:block.challenge,
           totalChallenge:block.totalChallenge,
+          minedBy:block.minedBy,
         }
 
         return header
@@ -713,6 +760,47 @@ class Blockchain{
         resolve(true);
       }
     })
+    
+    
+  }
+
+  validateBlockchain(allowRollback){
+    
+      let isValid = this.isChainValid();
+      if(isValid.conflict){
+        let atBlockNumber = isValid.conflict;
+        //Need to replace with side chain algorithm
+        if(allowRollback){
+          this.rollBackBlocks(atBlockNumber-1);
+          logger('Rolled back chain up to block number ', atBlockNumber-1)
+          return true;
+        }else{
+          return false;
+        }
+      }
+
+      return true;
+  }
+
+  rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon
+    if(typeof blockIndex == 'number'){
+      var sideChain = [];
+      sideChain = this.chain.splice(blockIndex);
+      sideChain.forEach((block)=>{
+        this.unwrapBlock(block);
+      })
+
+      return sideChain;
+    }
+  }
+
+  unwrapBlock(block){
+    if(isValidBlockJSON(block)){
+      let transactionsOfCancelledBlock = block.transactions;
+      let actionsOfCancelledBlock = block.actions
+      Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
+      Mempool.putbackPendingActions(actionsOfCancelledBlock)
+    }
     
     
   }

@@ -54,7 +54,7 @@ program
 
     if(program.mine){
       setTimeout(()=>{
-        node.startMiner()
+        node.createMiner()
       },5000)
       
     }
@@ -69,14 +69,10 @@ program.parse(process.argv)
 process.on('SIGINT', () => {
   logger('Shutting down node and saving state');
   
-  node.minerStarted = false;
-  node.minerPaused = true;
-  
 
   if(process.MINER){
     logger('Stopping miner');
-    process.MINER.stop();
-    
+    process.ACTIVE_MINER.kill()
   }
   
   node.save((saved)=>{
