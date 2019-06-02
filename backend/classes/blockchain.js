@@ -724,6 +724,8 @@ class Blockchain{
       
       if(header.hash == RecalculateHash(header)){
         let recalculatedMerkleRoot = merkleRoot(header.transactions);
+        console.log(recalculatedMerkleRoot);
+        console.log(header.merkleRoot);
         if(header.merkleRoot == recalculatedMerkleRoot){
           return true;
         }else{
