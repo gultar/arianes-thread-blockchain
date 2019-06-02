@@ -1323,7 +1323,10 @@ class Node {
                       if(this.minerStarted){
                         this.isDownloading = false
                         this.minerPaused = false;
-                        this.createMiner()
+                        this.createMiner();
+                        peerMessage.relayPeer = this.address
+                        this.messageBuffer[messageId] = peerMessage;
+                        this.broadcast('peerMessage', peerMessage)
                       }else if(downloaded.error){
                         this.isDownloading = false
                       }
