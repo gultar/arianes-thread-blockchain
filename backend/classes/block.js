@@ -76,43 +76,6 @@ class Block{
 
   }
 
-  // mineBlock(difficulty, callback){
-    
-  //       if(!process.ACTIVE_MINER){
-          
-  //         process.ACTIVE_MINER = require('child_process').fork(`./backend/tools/proofOfWork.js`);
-  //         process.ACTIVE_MINER.send({block:this, difficulty:difficulty})
-  //         process.ACTIVE_MINER.on('message', (message)=>{
-            
-  //           if(message.message){
-  //             console.log(message.message)
-  //           }
-  //           if(message.success){
-  //             let block = message.success
-  //             callback(block)
-  //           }else if(message.aborted){
-  //             callback(false)
-              
-  //           }
-    
-            
-  //         })
-  //         process.ACTIVE_MINER.on('error', function(data) {
-  //             console.log('stderr: ' + data);
-  //             callback(false)
-  //         });
-  //         process.ACTIVE_MINER.on('close', function() {
-  //             logger('Mining process ended')
-  //         })
-  //       }else{
-  //         logger('ERROR: Already started miner')
-  //       }
-  //     // })
-    
-    
-  // }
-
-
   createMerkleRoot(transactions){
 
   	if(transactions != undefined){

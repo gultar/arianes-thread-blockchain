@@ -29,7 +29,7 @@ const Mempool = require('./backend/classes/mempool'); //Instance not class
 
 
 /****************Tools*************************/
-const { displayTime, displayDate, logger, writeToFile, readFile } = require('./backend/tools/utils');
+const { displayTime, displayDate, logger, writeToFile, readFile, isHashPartOfMerkleTree } = require('./backend/tools/utils');
 const {
   isValidTransactionJSON,
   isValidChainLengthJSON,
@@ -401,7 +401,7 @@ class Node {
       if(this.chain instanceof Blockchain && peer && length){
         let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
         let headers = [];
-
+        this.isDownloading = true;
         peer.on('blockHeader', async (header)=>{
           if(header){
             
@@ -411,21 +411,23 @@ class Node {
                   peer.off('blockHeader')
                   resolve(headers)
                 }else if(header.error){
-                  logger(header.end)
+                  logger(header.error)
                   peer.off('blockHeader')
-                  resolve(headers)
+                  resolve(header.error)
                 }else{
                   let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
                   if(!alreadyInChain){
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
-                      
                       headers.push(header);
                       peer.emit('getBlockHeader', header.blockNumber+1)
+                      
                     }else{
                       logger('ERROR: Is not valid header')
                       resolve(false)
                     }
+                  }else{
+                    //Insert sidechain creation and validation here
                   }
                 }
 
@@ -449,19 +451,18 @@ class Node {
   downloadBlocks(peer, headers, length){
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
-        
+        this.isDownloading = true
         peer.on('block', (block)=>{
           if(block){
             try{
               if(block.end){
                 logger(block.end);
-                this.minerPaused = false;
                 peer.off('block')
                 resolve(true)
               }else if(block.error){
                 logger(block.error)
                 peer.off('block')
-                resolve(false)
+                resolve(block.error)
               }else{
                 if(this.chain instanceof Blockchain){
                   let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
@@ -471,7 +472,7 @@ class Node {
                     .then( blockAdded=>{
                       if(blockAdded.error){
                         logger(blockAdded.error);
-                        resolve(false)
+                        resolve(blockAdded.error)
                       }
 
                       if(blockAdded){
@@ -544,6 +545,9 @@ class Node {
                 .then( finished=>{
                   if(finished){
                     this.isDownloading = false;
+                    this.minerPaused = false;
+
+                  }else if(finished.error){
 
                   }
                 })
@@ -1165,7 +1169,10 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      this.createMiner();
+      let transactions = this.chain.chain[30].transactions;
+      let hashes = Object.keys(transactions);
+      let txToVerif = hashes[2];
+      isHashPartOfMerkleTree(txToVerif, transactions);
     })
 
     socket.on('rollback', ()=>{
@@ -1337,8 +1344,12 @@ class Node {
                 if(peerSocket){
                   this.downloadBlocks(peerSocket, [header], 1)
                   .then( downloaded=>{
-                    if(this.minerStarted){
+                    if(this.minerStarted && downloaded){
+                      this.isDownloading = false
+                      this.minerPaused = false;
                       this.createMiner()
+                    }else if(downloaded.error){
+                      this.isDownloading = false
                     }
                   })
                 }

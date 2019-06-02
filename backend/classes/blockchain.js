@@ -13,6 +13,7 @@ const Transaction = require('./transaction');
 const Block = require('./block');
 const { setChallenge, setDifficulty } = require('./challenge');
 const chalk = require('chalk');
+const merkle = require('merkle');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
 let _ = require('private-parts').createKey();
@@ -707,14 +708,25 @@ class Blockchain{
     
   }
 
+  isHeaderLinkedToPreviousBlock(header){
+    if(header){
+      let previousBlock = this.chain[header.blockNumber - 1];
+      if(previousBlock.hash == header.previousHash){
+        return true;
+      }else{
+        return false;
+      }
+    }
+  }
+
   validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
       
       if(header.hash == RecalculateHash(header)){
-        let isNotAlreadyInChain = this.getIndexOfBlockHash(header.hash);
-        if(!isNotAlreadyInChain){
+        if(header.merkleRoot == merkleRoot(header.transactions)){
           return true;
         }else{
+          logger('HEADER ERROR: Merkle root invalid')
           return false;
         }
         
@@ -806,6 +818,8 @@ class Blockchain{
     
   }
 
+  
+
   validateBlockTransactions(block){
     return new Promise((resolve, reject)=>{
       if(isValidBlockJSON(block)){
@@ -861,7 +875,7 @@ class Blockchain{
       
     })
   }
-
+  
   blockContainsOnlyValidTransactions(block){
     return new Promise((resolve, reject)=>{
       if(isValidBlockJSON(block)){
@@ -877,6 +891,7 @@ class Blockchain{
         })
 
         let recalculatedMerkleRoot = merkleRoot(block.transactions)
+        
         if(recalculatedMerkleRoot != block.merkleRoot){
           resolve(false);
         }

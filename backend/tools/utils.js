@@ -49,6 +49,52 @@ function merkleRoot(dataSets){
 
 }
 
+function isHashPartOfMerkleTree(hash, dataSet){
+  if(typeof hash == 'string' && typeof dataSet == 'object'){
+    let hashes = Object.keys(dataSet);
+    console.log(hashes)
+    console.log('SHA!')
+    console.log(sha256('E3E9FA0EA45581251902CF02D558942F8D0C5BCCD798BB648AD46014DA9810A98BF72744026AC653499F3C45487DEFEBC1750623C0A6F3F905708225A8BF8764'))
+
+    let merkleTree = merkle('sha256').sync(hashes);
+    let levels = merkleTree.depth();
+    
+    // for(var i=0; i <=levels; i++){
+    //   // console.log(merkleTree.level(i));
+    //   console.log('LEVEL ', i)
+    //   console.log(merkleTree.getProofPath(i))
+    //   console.log('************************************')
+    // }
+
+    for(var i=0; i <17; i++){
+      // console.log(merkleTree.level(i));
+      console.log('LEVEL ', i)
+      console.log(merkleTree.getProofPath(i))
+      console.log('************************************')
+    }
+
+    // for(var i=0; i <=levels; i++){
+    //   // console.log(merkleTree.level(i));
+    //   console.log(merkleTree.getProofPath(i))
+    // }
+
+  }
+}
+
+function merkleRoot(dataSet){
+
+  if(typeof dataSet == 'object'){
+    var hashes = Object.keys(dataSet);
+
+
+    let merkleTree = merkle('sha256').sync(hashes);
+    return merkleTree.root();
+  }
+
+}
+
+
+
 const encrypt = (text, password) =>{
   var cipher = crypto.createCipher(algorithm,password)
   var crypted = cipher.update(text,'utf8','hex')
@@ -258,7 +304,8 @@ module.exports = {
   displayDate,
   logger, 
   RecalculateHash, 
-  merkleRoot, 
+  merkleRoot,
+  isHashPartOfMerkleTree, 
   encrypt, 
   decrypt,
   readFile,
