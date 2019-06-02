@@ -723,16 +723,7 @@ class Blockchain{
     if(isValidHeaderJSON(header)){
       
       if(header.hash == RecalculateHash(header)){
-        let recalculatedMerkleRoot = merkleRoot(header.transactions);
-        console.log(recalculatedMerkleRoot);
-        console.log(header.merkleRoot);
-        if(header.merkleRoot == recalculatedMerkleRoot){
-          return true;
-        }else{
-          logger('HEADER ERROR: Merkle root invalid')
-          return false;
-        }
-        
+        return true;
       }else{
         return false;
       }
