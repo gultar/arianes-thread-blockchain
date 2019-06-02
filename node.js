@@ -417,7 +417,7 @@ class Node {
                 }else{
                   let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
                   if(!alreadyInChain){
-                    let isLinked = header.previousHash == this.chain[header.blockNumber - 1].hash
+                    let isLinked = header.previousHash == this.chain.chain[header.blockNumber - 1].hash
                     if(isLinked){
                       logger(`${header.blockNumber} is linked with previous block`)
                     }else{
