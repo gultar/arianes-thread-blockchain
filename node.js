@@ -1319,7 +1319,7 @@ class Node {
                   this.downloadBlocks(peerSocket, [header], 1)
                   .then( downloaded=>{
                     if(downloaded){
-                      peerMessage.relayPeer = this.address
+                      
                       if(this.minerStarted){
                         this.isDownloading = false
                         this.minerPaused = false;
@@ -1340,7 +1340,7 @@ class Node {
             logger(chalk.green('['+originAddress+']')+' -> '+data)
             break;
         }
-
+        peerMessage.relayPeer = this.address
         this.messageBuffer[messageId] = peerMessage;
         this.broadcast('peerMessage', peerMessage)
         
