@@ -41,7 +41,7 @@ const {
   isValidWalletBalanceJSON,
   isValidActionJSON,
   isValidBlockJSON
-} = require('./backend/tools/jsonvalidator')
+} = require('./backend/tools/jsonvalidator');
 const sha256 = require('./backend/tools/sha256');
 const sha1 = require('sha1')
 const axios = require('axios');
@@ -398,6 +398,7 @@ class Node {
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       headers.push(header);
+                      
                       peer.emit('getBlockHeader', header.blockNumber+1)
                     }else{
                       logger('ERROR: Is not valid header')
