@@ -407,7 +407,7 @@ class Node {
             
             try{
                 if(header.end){
-                  logger(header.end)
+                  if(this.verbose) logger(header.end)
                   peer.off('blockHeader')
                   resolve(headers)
                 }else if(header.error){
@@ -417,12 +417,14 @@ class Node {
                 }else{
                   let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
                   if(!alreadyInChain){
-                    // let isLinked = header.previousHash == this.chain.chain[header.blockNumber - 1].hash
-                    // if(isLinked){
-                    //   logger(`${header.blockNumber} is linked with previous block`)
-                    // }else{
-                    //   logger(`${header.blockNumber} is NOT linked with previous block`)
-                    // }
+                    if(headers.length > 1){
+                      let isLinked = header.previousHash == headers[header.blockNumber - 1].hash;
+                      if(isLinked){
+                        logger(`Header ${header.blockNumber} is linked to previous block`)
+                      }else{
+                        logger(`Header ${header.blockNumber} is not linked to previous block`)
+                      }
+                    }
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       headers.push(header);
@@ -462,7 +464,7 @@ class Node {
           if(block){
             try{
               if(block.end){
-                logger(block.end);
+                logger('Blockchain updated');
                 peer.off('block')
                 resolve(true)
               }else if(block.error){
