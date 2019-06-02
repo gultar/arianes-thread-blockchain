@@ -1306,35 +1306,47 @@ class Node {
             break
           case 'newBlockFound':
             if(this.chain instanceof Blockchain){
-
               let header = JSON.parse(data);
-              if(this.chain.validateBlockHeader(header)){
+              if(!this.chain.getIndexOfBlockHash(header.hash)){
                 
-                if(process.ACTIVE_MINER){
-                  process.ACTIVE_MINER.send({abort:true});
-                }
-
-                let peerSocket = this.connectionsToPeers[relayPeer]
-                if(peerSocket){
-                  this.downloadBlocks(peerSocket, [header], 1)
-                  .then( downloaded=>{
-                    if(downloaded){
-                      peerMessage.relayPeer = this.address
-                      this.messageBuffer[messageId] = peerMessage;
-                      this.broadcast('peerMessage', peerMessage)
-                      if(this.minerStarted){
-                        this.isDownloading = false
-                        this.minerPaused = false;
-                        this.createMiner();
-
-                      }else if(downloaded.error){
-                        this.isDownloading = false
+                if(this.chain.validateBlockHeader(header)){
+                  
+                  if(process.ACTIVE_MINER){
+                    process.ACTIVE_MINER.send({abort:true});
+                  }
+  
+                  let peerSocket = this.connectionsToPeers[relayPeer]
+                  if(peerSocket){
+                    this.downloadBlocks(peerSocket, [header], 1)
+                    .then( downloaded=>{
+                      if(downloaded){
+  
+                        // this.broadcast('peerMessage', { 
+                        //   'type':peerMessage.type, 
+                        //   'messageId':messageId, 
+                        //   'originAddress':peerMessage.originAddress, 
+                        //   'data':data,
+                        //   'relayPeer':this.address
+                        //  });
+                        this.sendPeerMessage('newBlockFound', header)
+                        
+                        if(this.minerStarted){
+                          this.isDownloading = false
+                          this.minerPaused = false;
+                          this.createMiner();
+  
+                        }else if(downloaded.error){
+                          this.isDownloading = false
+                        }
                       }
-                    }
-                    
-                  })
+                      
+                    })
+                  }
                 }
+              }else{
+                logger('ERROR: Block is already present in chain')
               }
+
               
               
             }
@@ -1343,7 +1355,6 @@ class Node {
             logger(chalk.green('['+originAddress+']')+' -> '+data)
             break;
         }
-        peerMessage.relayPeer = this.address
         this.messageBuffer[messageId] = peerMessage;
         this.broadcast('peerMessage', peerMessage)
         
