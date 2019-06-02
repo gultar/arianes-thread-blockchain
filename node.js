@@ -1339,16 +1339,10 @@ class Node {
                           this.isDownloading = false
                         }
                       }
-                      
                     })
                   }
                 }
-              }else{
-                logger('ERROR: Block is already present in chain')
               }
-
-              
-              
             }
             break;
           case 'message':
