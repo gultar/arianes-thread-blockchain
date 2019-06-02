@@ -315,44 +315,18 @@ class Node {
             
           })
 
-          peer.on('newBlockHeader', (header)=>{
-            if(header){
-              try{
-                if(this.chain instanceof Blockchain){
-                  let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-                  if(!alreadyInChain){
-                    let isValidHeader = this.chain.validateBlockHeader(header)
-                    if(isValidHeader){
-                      peer.emit('getBlock', header.blockNumber);
-                      this.serverBroadcast('newBlockHeader', header)
-                      
-                    }
-                  }
-                  
-                }
-              }catch(e){
-                console.log(e)
-              }
-              
-            }
-           })
-
-          //  peer.on('block', (block)=>{
-             
-          //   if(block){
+          // peer.on('newBlockHeader', (header)=>{
+          //   if(header){
           //     try{
           //       if(this.chain instanceof Blockchain){
-          //         let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
-          //         if(!alreadyInChain){ // 
-                    
-          //           this.receiveBlock(block)
-          //           .then( blockAdded=>{
-          //             if(blockAdded){
-          //               this.minerPaused = false;
-          //             }
+          //         let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
+          //         if(!alreadyInChain){
+          //           let isValidHeader = this.chain.validateBlockHeader(header)
+          //           if(isValidHeader){
+          //             peer.emit('getBlock', header.blockNumber);
+          //             this.serverBroadcast('newBlockHeader', header)
                       
-          //           })
-                    
+          //           }
           //         }
                   
           //       }
@@ -407,13 +381,17 @@ class Node {
             
             try{
                 if(header.end){
+
                   if(this.verbose) logger('Headers fully synced')
                   peer.off('blockHeader')
                   resolve(headers)
+
                 }else if(header.error){
+
                   logger(header.error)
                   peer.off('blockHeader')
                   resolve(header.error)
+
                 }else{
                   let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
                   if(!alreadyInChain){
@@ -421,7 +399,6 @@ class Node {
                     if(isValidHeader){
                       headers.push(header);
                       peer.emit('getBlockHeader', header.blockNumber+1)
-                      
                     }else{
                       logger('ERROR: Is not valid header')
                       resolve(false)
@@ -430,9 +407,6 @@ class Node {
                     //Insert sidechain creation and validation here
                   }
                 }
-
-                
-                
             }catch(e){
               console.log(e)
               resolve(false)
@@ -1344,13 +1318,17 @@ class Node {
                 if(peerSocket){
                   this.downloadBlocks(peerSocket, [header], 1)
                   .then( downloaded=>{
-                    if(this.minerStarted && downloaded){
-                      this.isDownloading = false
-                      this.minerPaused = false;
-                      this.createMiner()
-                    }else if(downloaded.error){
-                      this.isDownloading = false
+                    if(downloaded){
+                      peerMessage.relayPeer = this.address
+                      if(this.minerStarted){
+                        this.isDownloading = false
+                        this.minerPaused = false;
+                        this.createMiner()
+                      }else if(downloaded.error){
+                        this.isDownloading = false
+                      }
                     }
+                    
                   })
                 }
               }
