@@ -75,8 +75,6 @@ class Node {
     this.autoUpdate = true;  
     this.messageBuffer = {};
     this.miner = {}
-    this.minerStarted = false;
-    this.minerPaused = false;
     this.verbose = false;
     this.walletManager = new WalletManager(this.address);
     this.accountCreator = new AccountCreator();
@@ -466,9 +464,6 @@ class Node {
         if(!this.chain.getIndexOfBlockHash(block.hash)){
           let isSynced = await this.addNewBlock(block);
           if(isSynced){
-            if(this.minerStarted){
-              this.minerPaused = false;
-            }
             resolve(true)
           }else{
             //Sidechain goes here
@@ -1323,11 +1318,8 @@ class Node {
                       if(downloaded){
   
                         this.sendPeerMessage('newBlockFound', header)
-                        
-                        if(this.minerStarted){
-                          this.pauseMiner(false)
-                          
-                        }
+                        this.pauseMiner(false)
+
                       }else if(downloaded.error){
                         logger(downloaded.error)
                       }
@@ -1775,7 +1767,6 @@ class Node {
   */
   createMiner(){
     if(this.chain instanceof Blockchain){
-      this.minerStarted = true
       this.miner = new Miner({
         chain:this.chain,
         address:this.address,
@@ -1783,7 +1774,7 @@ class Node {
         verbose:this.verbose,
       })
 
-      miner.start((block)=>{
+      this.miner.start((block)=>{
         let newHeader = this.chain.getBlockHeader(block.blockNumber);
         this.sendPeerMessage('newBlockFound', newHeader);
 
