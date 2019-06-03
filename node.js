@@ -357,7 +357,7 @@ class Node {
         this.isDownloading = true;
         let bar = Progress({
           total:length,
-          finishMessage:'Fetched all block headers of blockchain!'
+          finishMessage:'Fetched all block headers of blockchain!\n\n'
         })
         peer.on('blockHeader', async (header)=>{
           if(header){
@@ -477,8 +477,7 @@ class Node {
           let isSynced = await this.addNewBlock(block);
           if(isSynced){
             resolve(true)
-          }else{
-            //Sidechain goes here
+          }else if(isSynced.fork){
             let blockForkState = await this.createBlockFork(block);
             if(blockForkState.forked){
               resolve(blockForkState.forked)
@@ -487,7 +486,8 @@ class Node {
             }else{
               resolve(false);
             }
-            
+          }else{
+            resolve(false)
           }        
         }else{
           resolve(false)
@@ -503,16 +503,14 @@ class Node {
   createBlockFork(block){
     return new Promise(async (resolve) =>{
       if(block){
-        if(this.chain.blockFork){
-          let isResolvedFork = await this.resolveBlockFork(block);
-          if(isResolvedFork){
-            resolve({resolved:true});
-          }else{
-            resolve(false);
-          }   
-          
-        }else{
-          if(this.chain.getLatestBlock().previousHash == block.previousHash){
+        if(!this.chain.blockFork){
+
+          let lastBlockNum = this.chain.getLatestBlock().blockNumber
+          if(this.chain.chain[lastBlockNum].previousHash == block.previousHash){
+            this.chain.blockFork = block;
+            logger(`Created block fork at number ${block.blockNumber}`);
+            resolve({forked:block})
+          }else if(this.chain.chain[lastBlockNum - 1].previousHash == block.previousHash){
             this.chain.blockFork = block;
             logger(`Created block fork at number ${block.blockNumber}`);
             resolve({forked:block})
@@ -520,6 +518,15 @@ class Node {
             logger('Block fork does not match last current block');
             resolve(false)
           }
+
+        }else{
+
+          let isResolvedFork = await this.resolveBlockFork(block);
+          if(isResolvedFork){
+            resolve({resolved:true});
+          }else{
+            resolve(false);
+          }   
           
         }
       }
@@ -535,9 +542,11 @@ class Node {
           let lastBlock = this.chain.chain.splice(-1, 1);
           this.unwrapBlock(lastBlock);
           this.chain.orphanedBlocks.push(lastBlock)
-          this.broadcast('getBlockchainStatus')
-          // let isBlockForkSynced = await this.addNewBlock(this.chain.blockFork);
-          // if(isBlockForkSynced){
+          let isBlockForkSynced = await this.addNewBlock(this.chain.blockFork);
+          if(isBlockForkSynced){
+
+          }
+          
           //   let isNewBlockSynced = await this.addNewBlock(block);
           //   if(isNewBlockSynced){
           //     logger('Successfully switched blockchain branch');
@@ -1378,7 +1387,7 @@ class Node {
               let header = JSON.parse(data);
               if(!this.chain.getIndexOfBlockHash(header.hash)){
                 
-                if(this.chain.validateBlockHeader(header)){
+                if(this.chain.validateBlockHeader(headcreateer)){
                   
                   if(this.miner){
                     clearInterval(this.miner.minerLoop);
@@ -1549,11 +1558,12 @@ class Node {
           logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
           logger(chalk.green('* By: '), newBlock.minedBy)
           return true;
+        }else if(isBlockSynced.fork){
+          return {fork:true};
         }else{
           return false;
         }
       }else{
-        console.log(newBlock)
         logger('ERROR: Block has invalid format');
         return false;
       }

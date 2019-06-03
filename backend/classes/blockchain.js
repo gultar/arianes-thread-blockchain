@@ -73,6 +73,8 @@ class Blockchain{
       if(isValidBlock){
         this.chain.push(newBlock);
         return true;
+      }else if(isValidBlock.fork){
+        return {fork:true};
       }else{
         return false;
       }
@@ -552,7 +554,7 @@ class Blockchain{
     }
     else if(!isLinked){
       logger('ERROR: Block is not linked with previous block')
-      return false;
+      return {fork:true};
     }
     else{
       return true;
