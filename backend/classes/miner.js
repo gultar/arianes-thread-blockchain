@@ -38,9 +38,10 @@ class Miner{
 
                         if(block){
                           let success = await this.chain.mineNextBlock(block, this.address, this.verbose);
+                          this.minerPaused = true;
                           if(success){
 
-                              this.minerPaused = true;
+                              
                               let newBlock = success;
                               let isChainValid = this.chain.validateBlockchain();
                               
@@ -51,7 +52,9 @@ class Miner{
                                   Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
                                   Mempool.deleteActionsFromMinedBlock(newBlockActions);
                                   this.chain.saveBlockchain();
+                                  
                                   let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
+                                  
                                   if(coinbase){
                                       block.coinbaseTransactionHash = coinbase.hash;
                                   }else{
