@@ -375,6 +375,7 @@ class Node {
                   peer.off('blockHeader')
                   this.isDownloading = false;
                   bar = null;
+                  
                   resolve(headers)
 
                 }else if(header.error){
@@ -428,6 +429,7 @@ class Node {
       if(peer && headers){
 
         this.isDownloading = true
+        if(this.miner) this.miner.nodeIsDownloading = true;
         
         peer.on('block', (block)=>{
           if(block){
@@ -435,12 +437,14 @@ class Node {
               if(block.end){
                 logger('Blockchain updated');
                 peer.off('block');
-                this.isDownloading = false
+                this.isDownloading = false;
+                if(this.miner) this.miner.nodeIsDownloading = false;
                 resolve(true)
               }else if(block.error){
                 logger(block.error)
                 peer.off('block');
                 this.isDownloading = false
+                if(this.miner) this.miner.nodeIsDownloading = false;
                 resolve(block.error)
               }else{
                 if(this.chain instanceof Blockchain){
