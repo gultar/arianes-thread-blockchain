@@ -71,7 +71,7 @@ class Blockchain{
         
       let isValidBlock = await this.validateBlock(newBlock);
       if(isValidBlock){
-        var isLinked = this.isBlockLinked(newBlock.previousHash);
+        var isLinked = this.isBlockLinked(newBlock);
         if(isLinked){
           this.chain.push(newBlock);
           return true;
@@ -292,12 +292,15 @@ class Blockchain{
     return false;
   }
 
-  isBlockLinked(previousHash){
-    var lastBlock = this.getLatestBlock();
-    if(lastBlock.hash === previousHash){
-      return true;
+  isBlockLinked(block){
+    if(block){
+      var lastBlock = this.getLatestBlock();
+      if(lastBlock.hash === block.previousHash){
+        return true;
+      }
+      return false;
     }
-    return false;
+    
   }
 
   
@@ -608,7 +611,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       try{
         var containsCurrentBlock = this.checkIfChainHasHash(block.hash);
-        var isLinked = this.isBlockLinked(block.previousHash);
+        var isLinked = this.isBlockLinked(block);
         var latestBlock = this.getLatestBlock();
         var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
         var rightNumberOfZeros = block.difficulty < (block.hash.substring(0, block.difficulty)).length;
