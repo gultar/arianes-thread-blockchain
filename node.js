@@ -1380,6 +1380,11 @@ class Node {
                   
                   if(process.ACTIVE_MINER){
                     process.ACTIVE_MINER.send({abort:true});
+                    
+                  }
+
+                  if(this.miner){
+                    clearInterval(this.miner.minerLoop)
                   }
   
                   let peerSocket = this.connectionsToPeers[relayPeer]
@@ -1390,6 +1395,7 @@ class Node {
   
                         this.sendPeerMessage('newBlockFound', header)
                         this.pauseMiner(false)
+                        this.createMiner()
 
                       }else if(downloaded.error){
                         logger(downloaded.error)
