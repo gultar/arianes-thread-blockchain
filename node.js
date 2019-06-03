@@ -74,6 +74,7 @@ class Node {
     this.minimumNumberOfPeers = 5
     this.autoUpdate = true;  
     this.messageBuffer = {};
+    this.miner = {}
     this.minerStarted = false;
     this.minerPaused = false;
     this.verbose = false;
@@ -408,7 +409,6 @@ class Node {
       if(peer && headers){
 
         this.isDownloading = true
-        this.pauseMiner(true);
 
         peer.on('block', (block)=>{
           if(block){
@@ -416,12 +416,12 @@ class Node {
               if(block.end){
                 logger('Blockchain updated');
                 peer.off('block');
-                this.pauseMiner(false);
+                this.isDownloading = false
                 resolve(true)
               }else if(block.error){
                 logger(block.error)
                 peer.off('block');
-                this.pauseMiner(false);
+                this.isDownloading = false
                 resolve(block.error)
               }else{
                 if(this.chain instanceof Blockchain){
@@ -1304,15 +1304,16 @@ class Node {
             this.receiveAction(action);
             break
           case 'newBlockFound':
-            if(this.chain instanceof Blockchain){
+            if(this.chain instanceof Blockchain && data){
               let header = JSON.parse(data);
               if(!this.chain.getIndexOfBlockHash(header.hash)){
                 
                 if(this.chain.validateBlockHeader(header)){
                   
+                  this.pauseMiner(true)
+                  
                   if(process.ACTIVE_MINER){
                     process.ACTIVE_MINER.send({abort:true});
-                    this.pauseMiner(true);
                   }
   
                   let peerSocket = this.connectionsToPeers[relayPeer]
@@ -1324,12 +1325,11 @@ class Node {
                         this.sendPeerMessage('newBlockFound', header)
                         
                         if(this.minerStarted){
-                          this.isDownloading = false
                           this.pauseMiner(false)
-  
-                        }else if(downloaded.error){
-                          this.isDownloading = false
+                          
                         }
+                      }else if(downloaded.error){
+                        logger(downloaded.error)
                       }
                     })
                   }
@@ -1346,7 +1346,7 @@ class Node {
         
       }
     }catch(e){
-      console.log(chalk.red(e))
+      console.log(e)
     }
   }
 
@@ -1776,7 +1776,7 @@ class Node {
   createMiner(){
     if(this.chain instanceof Blockchain){
       this.minerStarted = true
-      let miner = new Miner({
+      this.miner = new Miner({
         chain:this.chain,
         address:this.address,
         publicKey:this.publicKey,
@@ -1792,8 +1792,8 @@ class Node {
   }
 
   pauseMiner(state){
-    if(process.ACTIVE_MINER && typeof state == 'boolean'){
-      process.ACTIVE_MINER.minerPaused = state;
+    if(this.miner && typeof state == 'boolean'){
+      this.miner.minerPaused = state;
     }
   }
 
