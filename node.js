@@ -1401,7 +1401,7 @@ class Node {
             if(this.chain instanceof Blockchain && data){
               let header = JSON.parse(data);
               if(!this.chain.getIndexOfBlockHash(header.hash)){
-                if(this.chain.isBlockIsLinked(header)){
+                if(this.chain.isBlockLinked(header)){
                   if(this.chain.validateBlockHeader(header)){
                   
                     if(this.miner){
@@ -1433,7 +1433,6 @@ class Node {
                           this.createMiner()
                         }
   
-                        
                       }
                       )
                     }else{
@@ -1443,7 +1442,8 @@ class Node {
                     logger('New block is invalid')
                   }
                 }else{
-                  logger('New block is not linked to current blockchain')
+                  logger('New block is not linked to current blockchain');
+
                 }
    
               }

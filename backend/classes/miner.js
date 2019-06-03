@@ -16,6 +16,7 @@ class Miner{
         this.serverBroadcast = params.serverBroadcast
         this.minerStarted = false;
         this.isMining = false;
+        this.nodeIsDownloading = false;
         this.minerPaused = false;
         this.minerLoop = '';
     }
@@ -25,62 +26,64 @@ class Miner{
           if(!this.minerStarted){
             this.minerStarted = true;
             this.minerLoop = setInterval(async ()=>{
-                
-                    let enoughTransactions = this.chain.hasEnoughTransactionsToMine();
+                    if(!this.nodeIsDownloading){
+                      let enoughTransactions = this.chain.hasEnoughTransactionsToMine();
                     
-                    if(enoughTransactions && !this.isMining){
-                        
-                        this.isMining = true;
-                        let block = await this.buildNewBlock();
-
-                        clearInterval(this.minerLoop);
-
-                        logger(chalk.green('Mining block number ')+this.chain.chain.length);
-                        logger('Number of pending transactions:', Mempool.sizeOfPool());
-
-                        if(block){
-                          let success = await this.chain.mineNextBlock(block, this.address, this.verbose);
-                          this.minerPaused = true;
-                          if(success){
-
-                              let newBlock = success;
-                              let isChainValid = this.chain.validateBlockchain();
-                              
-                              if(isChainValid){
-
-                                  let newBlockTransactions = newBlock.transactions;
-                                  let newBlockActions = newBlock.actions
-                                  Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-                                  Mempool.deleteActionsFromMinedBlock(newBlockActions);
-                                  this.chain.saveBlockchain();
-                                  
-                                  let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
-                                  
-                                  if(coinbase){
-                                      block.coinbaseTransactionHash = coinbase.hash;
-                                  }else{
-                                      logger('ERROR: An error occurred while creating coinbase transaction')
-                                  }
-                                  
-                                  callback(block)
-
-                              }else{
-                                logger('ERROR: Chain is invalid')
-                                this.unwrapBlock(block);
-                                callback(false)
-                              }
-                              
+                      if(enoughTransactions && !this.isMining){
+                          
+                          this.isMining = true;
+                          let block = await this.buildNewBlock();
+  
+                          clearInterval(this.minerLoop);
+  
+                          logger(chalk.green('Mining block number ')+this.chain.chain.length);
+                          logger('Number of pending transactions:', Mempool.sizeOfPool());
+  
+                          if(block){
+                            let success = await this.chain.mineNextBlock(block, this.address, this.verbose);
+                            this.minerPaused = true;
+                            if(success){
+  
+                                let newBlock = success;
+                                let isChainValid = this.chain.validateBlockchain();
+                                
+                                if(isChainValid){
+  
+                                    let newBlockTransactions = newBlock.transactions;
+                                    let newBlockActions = newBlock.actions
+                                    Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                                    Mempool.deleteActionsFromMinedBlock(newBlockActions);
+                                    this.chain.saveBlockchain();
+                                    
+                                    let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
+                                    
+                                    if(coinbase){
+                                        block.coinbaseTransactionHash = coinbase.hash;
+                                    }else{
+                                        logger('ERROR: An error occurred while creating coinbase transaction')
+                                    }
+                                    
+                                    callback(block)
+  
+                                }else{
+                                  logger('ERROR: Chain is invalid')
+                                  this.unwrapBlock(block);
+                                  callback(false)
+                                }
+                                
+                            }else{
+                              logger('Mining unsuccessful')
+                              this.unwrapBlock(block);
+                              callback(false)
+                            }
                           }else{
-                            logger('Mining unsuccessful')
-                            this.unwrapBlock(block);
+                            logger('ERROR: Block is undefined is invalid');
                             callback(false)
                           }
-                        }else{
-                          logger('ERROR: Block is undefined is invalid');
-                          callback(false)
-                        }
-                        
+                          
+                      }
                     }
+
                    
             }, 1000)
         }
