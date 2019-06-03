@@ -29,7 +29,7 @@ class Miner{
                     let enoughTransactions = this.chain.hasEnoughTransactionsToMine();
                     
                     if(enoughTransactions && !this.isMining){
-
+                        clearInterval(this.minerLoop);
                         this.isMining = true;
                         let block = await this.buildNewBlock()
                         

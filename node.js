@@ -1864,7 +1864,7 @@ class Node {
       this.miner.start((block)=>{
         let newHeader = this.chain.getBlockHeader(block.blockNumber);
         this.sendPeerMessage('newBlockFound', newHeader);
-
+        this.createMiner();
       });
     }
   }
