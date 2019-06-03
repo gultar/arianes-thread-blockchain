@@ -541,7 +541,7 @@ class Node {
       if(this.chain.blockFork){
         let forkSize = this.chain.blockFork.length
         let latestBlockInFork = this.chain.blockFork[forkSize - 1];
-        if(latestBlockInFork.totalChallenge > this.getLatestBlock().totalChallenge){
+        if(latestBlockInFork.totalChallenge > this.chain.getLatestBlock().totalChallenge){
 
           let blocksToOrphan = this.chain.chain.splice(-1, forkSize);
 
