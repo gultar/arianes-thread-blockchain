@@ -502,8 +502,13 @@ class Node {
     return new Promise(async (resolve) =>{
       if(block){
         if(this.chain.blockFork){
-          let isResolvedFork = await this.resolveBlockFork(block);   
-          resolve(isResolvedFork);
+          let isResolvedFork = await this.resolveBlockFork(block);
+          if(isResolvedFork){
+            resolve({resolved:true});
+          }else{
+            resolve(false);
+          }   
+          
         }else{
           if(this.chain.getLatestBlock().previousHash == block.previousHash){
             this.chain.blockFork = block;
@@ -521,7 +526,7 @@ class Node {
   }
 
   resolveBlockFork(block){
-    return new Promise(resolve =>{
+    return new Promise(async (resolve) =>{
       if(block){
         if(this.chain.blockFork.hash = block.previousHash){
           logger('Resolving block fork by switching to the forked block')
