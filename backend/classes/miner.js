@@ -33,7 +33,6 @@ class Miner{
                         this.isMining = true;
                         let block = await this.buildNewBlock()
                         
-
                         logger('Mining block number '+chalk.green(this.chain.chain.length)+'...');
                         logger('Number of pending transactions:', Mempool.sizeOfPool());
 
@@ -47,7 +46,6 @@ class Miner{
                               
                               if(isChainValid){
 
-                                  
                                   let newBlockTransactions = newBlock.transactions;
                                   let newBlockActions = newBlock.actions
                                   Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
@@ -60,22 +58,24 @@ class Miner{
                                       logger('ERROR: An error occurred while creating coinbase transaction')
                                   }
                                   
-                                  
-
                                   this.resetMiner()
                                   callback(block)
 
                               }else{
                                 logger('ERROR: Chain is invalid')
                                 this.unwrapBlock(block);
+                                callback(false)
                               }
                               
                           }else{
                             logger('Mining unsuccessful')
+                            this.resetMiner()
                             this.unwrapBlock(block);
+                            callback(false)
                           }
                         }else{
                           logger('ERROR: Block is undefined is invalid')
+                          callback(false)
                         }
                         
                     }

@@ -1,4 +1,5 @@
 const { bgWhite } = require("chalk");
+var readline = require('readline');
 
 module.exports = class ProgressBar {
 	constructor() {
@@ -29,8 +30,8 @@ module.exports = class ProgressBar {
 		const empty_bar = this.get_bar(empty_bar_length, "-");
 		const percentage_progress = (current_progress * 100).toFixed(2);
 
-		process.stdout.clearLine();
-		process.stdout.cursorTo(0);
+		readline.clearLine(process.stdout, 0)
+		readline.cursorTo(process.stdout, 0, null);
 		process.stdout.write(
 			`Current progress: [${filled_bar}${empty_bar}] | ${percentage_progress}%`
 		);

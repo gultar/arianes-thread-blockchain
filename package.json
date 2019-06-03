@@ -26,6 +26,7 @@
     "merkle": "^0.6.0",
     "net": "^1.0.2",
     "node-fetch": "^2.3.0",
+    "pace": "0.0.4",
     "private-parts": "^0.4.1",
     "sha1": "^1.1.1",
     "socket.io": "^2.2.0",
@@ -38,10 +39,10 @@
     "blockchain": "command.js",
     "wallet": "walletCLI.js",
     "keyserver": "keyServer.js",
-    "chain":"chainCLI.js",
-    "action":"actionCLI.js",
-    "txgen":"txgen.js",
-    "sendTx":"txCLI.js"
+    "chain": "chainCLI.js",
+    "action": "actionCLI.js",
+    "txgen": "txgen.js",
+    "sendTx": "txCLI.js"
   },
   "scripts": {
     "test": "node test.js",

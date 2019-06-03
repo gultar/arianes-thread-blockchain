@@ -800,7 +800,7 @@ function initSocketConnection(nodeAddress){
         socket.on('connect', function(){
           console.log('Connected to node ', nodeAddress);
           setTimeout(()=>{
-            fetchBlockchainFromServer();
+            // fetchBlockchainFromServer();
             isConnected = true;
           }, 2000)
         })

@@ -43,10 +43,12 @@ const {
   isValidBlockJSON
 } = require('./backend/tools/jsonvalidator');
 const sha256 = require('./backend/tools/sha256');
+const ProgressBar = require('./backend/tools/ProgressBar')
 const sha1 = require('sha1')
 const axios = require('axios');
 const chalk = require('chalk');
 const fs = require('fs');
+let Progress = require('pace');
 
 
 /**
@@ -62,6 +64,7 @@ class Node {
     this.port = port
     this.id = sha1(this.address);
     this.chain = {};
+    this.blockFork = [];
     this.ioServer = {};
     this.publicKey = '';
     this.userInterfaces = [];
@@ -315,29 +318,6 @@ class Node {
             
           })
 
-          // peer.on('newBlockHeader', (header)=>{
-          //   if(header){
-          //     try{
-          //       if(this.chain instanceof Blockchain){
-          //         let alreadyInChain = this.chain.getIndexOfBlockHash(header.hash);
-          //         if(!alreadyInChain){
-          //           let isValidHeader = this.chain.validateBlockHeader(header)
-          //           if(isValidHeader){
-          //             peer.emit('getBlock', header.blockNumber);
-          //             this.serverBroadcast('newBlockHeader', header)
-                      
-          //           }
-          //         }
-                  
-          //       }
-          //     }catch(e){
-          //       console.log(e)
-          //     }
-              
-          //   }
-          //  })
-
-
           peer.on('whisper', (whisper)=>{
             let { type, originAddress, messageId, data, relayPeer }  = whisper;
             this.handleWhisperMessage(type, originAddress, messageId, data, relayPeer);
@@ -426,22 +406,28 @@ class Node {
   downloadBlocks(peer, headers, length){
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
+
         this.isDownloading = true
+        this.pauseMiner(true);
+
         peer.on('block', (block)=>{
           if(block){
             try{
               if(block.end){
                 logger('Blockchain updated');
-                peer.off('block')
+                peer.off('block');
+                this.pauseMiner(false);
                 resolve(true)
               }else if(block.error){
                 logger(block.error)
-                peer.off('block')
+                peer.off('block');
+                this.pauseMiner(false);
                 resolve(block.error)
               }else{
                 if(this.chain instanceof Blockchain){
+
                   let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
-                  if(!alreadyInChain){ // 
+                  if(!alreadyInChain){ 
                     
                     this.receiveBlock(block)
                     .then( blockAdded=>{
@@ -485,6 +471,7 @@ class Node {
             }
             resolve(true)
           }else{
+            //Sidechain goes here
             logger('ERROR: Could not sync')
             resolve(false)
           }        
@@ -1144,10 +1131,21 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      let transactions = this.chain.chain[30].transactions;
-      let hashes = Object.keys(transactions);
-      let txToVerif = hashes[2];
-      isHashPartOfMerkleTree(txToVerif, transactions);
+      // let transactions = this.chain.chain[30].transactions;
+      // let hashes = Object.keys(transactions);
+      // let txToVerif = hashes[2];
+      // isHashPartOfMerkleTree(txToVerif, transactions);
+      let pace = new Progress()
+      this.chain.chain.forEach( block=>{
+        for(var i=0; i<10; i++){
+          pace.op();
+        }
+        
+      })
+      pace = null;
+    
+      
+
     })
 
     socket.on('rollback', ()=>{
@@ -1314,6 +1312,7 @@ class Node {
                   
                   if(process.ACTIVE_MINER){
                     process.ACTIVE_MINER.send({abort:true});
+                    this.pauseMiner(true);
                   }
   
                   let peerSocket = this.connectionsToPeers[relayPeer]
@@ -1322,19 +1321,11 @@ class Node {
                     .then( downloaded=>{
                       if(downloaded){
   
-                        // this.broadcast('peerMessage', { 
-                        //   'type':peerMessage.type, 
-                        //   'messageId':messageId, 
-                        //   'originAddress':peerMessage.originAddress, 
-                        //   'data':data,
-                        //   'relayPeer':this.address
-                        //  });
                         this.sendPeerMessage('newBlockFound', header)
                         
                         if(this.minerStarted){
                           this.isDownloading = false
-                          this.minerPaused = false;
-                          this.createMiner();
+                          this.pauseMiner(false)
   
                         }else if(downloaded.error){
                           this.isDownloading = false
@@ -1468,29 +1459,6 @@ class Node {
     return info
   }
 
-
-  // /**
-  //   Response to a getLongestChain, to determine from which peer to update
-  //   @param {string} $address - Requesting peer address
-  // */
-  // sendChainLength(address){
-  //   if(address){
-  //     try{
-
-  //       axios.post(peerAddress+'/chainLength', {
-  //         chainLength:this.chain.chain.length,
-  //         peerAddress:this.address
-  //       })
-  //       .then((response)=>{ logger(response.data); })
-  //       .catch((err)=>{ logger('Could not send length of chain to peer', err.errno) })
-
-  //     }catch(e){
-  //       console.log(chalk.red(e));
-  //     }
-  //   }
-  // }
-
-
   /**
     Validates every block that gets added to blockchain.
     @param {Object} $newBlock - Block to be added
@@ -1513,35 +1481,6 @@ class Node {
         return false;
       }
   }
-
-
-  // fetchTransaction(address, hash){
-  //   if(hash){
-  //     axios.get(address+'/transaction', {
-  //       params:{
-  //         hash:hash
-  //       }
-  //     })
-  //     .then(async (response) =>{
-  //       let transaction = response.data;
-  //       if(isValidTransactionJSON(transaction)){
-  //         let isValid = await this.chain.validateTransaction(transaction);
-  //         if(!isValid.error){
-  //           Mempool.addTransaction(transaction)
-  //         }else{
-  //           logger(isValid.error);
-  //         }
-  //       }else{
-  //         logger('ERROR: Received invalid transaction data format');
-  //       }
-        
-
-  //     })
-  //     .catch(function (error) {
-  //       logger(error);
-  //     })
-  //   }
-  // }
 
 
   validateBlockchain(allowRollback){
@@ -1849,6 +1788,12 @@ class Node {
         this.sendPeerMessage('newBlockFound', newHeader);
 
       });
+    }
+  }
+
+  pauseMiner(state){
+    if(process.ACTIVE_MINER && typeof state == 'boolean'){
+      process.ACTIVE_MINER.minerPaused = state;
     }
   }
 
