@@ -443,8 +443,9 @@ class Node {
                       if(blockAdded){
                         peer.emit('getBlock', block.blockNumber+1);
                       }else{
-                        logger('ERROR: Blockchain download could not be completed:')
-                        logger('  Block could not be synced')
+                        // logger('ERROR: Blockchain download could not be completed:')
+                        // logger('  Block could not be synced');
+                        this.createBlockFork(block);
                       }
                       
                     })
