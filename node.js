@@ -515,7 +515,7 @@ class Node {
           if(this.chain.getLatestBlock().previousHash == block.previousHash){
             this.chain.blockFork = block;
             logger(`Created block fork at number ${block.blockNumber}`);
-            resolve({forked:block.blockNumber})
+            resolve({forked:block})
           }else{
             logger('Block fork does not match last current block');
             resolve(false)
@@ -1402,7 +1402,7 @@ class Node {
                       }else if(downloaded.error){
                         logger(downloaded.error)
                       }else{
-
+                        logger('Sync block with main blockchain')
                       }
 
                       this.createMiner()
