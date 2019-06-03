@@ -1387,7 +1387,7 @@ class Node {
               let header = JSON.parse(data);
               if(!this.chain.getIndexOfBlockHash(header.hash)){
                 
-                if(this.chain.validateBlockHeader(headcreateer)){
+                if(this.chain.validateBlockHeader(header)){
                   
                   if(this.miner){
                     clearInterval(this.miner.minerLoop);
