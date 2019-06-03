@@ -62,7 +62,6 @@ class Miner{
                                       logger('ERROR: An error occurred while creating coinbase transaction')
                                   }
                                   
-                                  this.resetMiner()
                                   callback(block)
 
                               }else{
@@ -73,13 +72,11 @@ class Miner{
                               
                           }else{
                             logger('Mining unsuccessful')
-                            this.resetMiner()
                             this.unwrapBlock(block);
                             callback(false)
                           }
                         }else{
                           logger('ERROR: Block is undefined is invalid');
-                          this.resetMiner()
                           callback(false)
                         }
                         

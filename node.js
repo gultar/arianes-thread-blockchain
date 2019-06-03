@@ -408,6 +408,8 @@ class Node {
          
          peer.emit('getBlockHeader', lastBlockNum+1)
         
+      }else{
+        logger('Missing parameter')
       }
     })
   }
@@ -585,8 +587,8 @@ class Node {
           
           let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
           if(isValidHeader){
-            let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
-            this.requestChainHeaders(peer, length, currentLastBlockNumber)
+            // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
+            this.requestChainHeaders(peer, length, this.chain.getLatestBlock().blockNumber)
             .then( headers=>{
               if(headers){
                 this.downloadBlocks(peer, headers, length)
