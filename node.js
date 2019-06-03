@@ -360,6 +360,7 @@ class Node {
         let headers = [];
 
         this.isDownloading = true;
+        if(this.miner) this.miner.nodeIsDownloading = true;
         let bar = Progress({
           total:length,
           finishMessage:'Fetched all block headers of blockchain!\n\n'
@@ -374,6 +375,7 @@ class Node {
                   if(this.verbose) logger('Headers fully synced')
                   peer.off('blockHeader')
                   this.isDownloading = false;
+                  if(this.miner) this.miner.nodeIsDownloading = false;
                   bar = null;
                   
                   resolve(headers)
@@ -383,6 +385,7 @@ class Node {
                   logger(header.error)
                   peer.off('blockHeader')
                   this.isDownloading = false;
+                  if(this.miner) this.miner.nodeIsDownloading = false;
                   bar = null;
                   resolve(header.error)
 
