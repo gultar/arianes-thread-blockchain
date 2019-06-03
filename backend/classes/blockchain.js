@@ -706,15 +706,20 @@ class Blockchain{
   }
 
   isLinkedToBlockFork(block){
-    this.blockFork.forEach( forkedBlock=>{
-      if(forkedBlock.hash == block.previousHash){
-        return forkedBlock.blockNumber
-      }else if(forkedBlock.previousHash == block.previousHash){
-        return forkedBlock.blockNumber - 1
-      }
-    })
+    return new Promise( resolve=>{
+      console.log('Block:', block.hash)
+      console.log(`Check if ${block.blockNumber} is linked to block ${block.previousHash}`)
+      this.blockFork.forEach( forkedBlock=>{
+        if(forkedBlock.hash == block.previousHash){
+         resolve(forkedBlock.blockNumber)
+        }else if(forkedBlock.previousHash == block.previousHash){
+          resolve(forkedBlock.blockNumber - 1)
+        }
+      })
 
-    return false;
+      resolve(false)
+    })
+    
   }
 
   isHeaderLinkedToPreviousBlock(header){

@@ -30,11 +30,11 @@ class Miner{
                     
                     if(enoughTransactions && !this.isMining){
                         
-                        clearInterval(this.minerLoop);
-                        
                         this.isMining = true;
-                        let block = await this.buildNewBlock()
-                        
+                        let block = await this.buildNewBlock();
+
+                        clearInterval(this.minerLoop);
+
                         logger('Mining block number '+chalk.green(this.chain.chain.length)+'...');
                         logger('Number of pending transactions:', Mempool.sizeOfPool());
 
@@ -43,7 +43,6 @@ class Miner{
                           this.minerPaused = true;
                           if(success){
 
-                              
                               let newBlock = success;
                               let isChainValid = this.chain.validateBlockchain();
                               

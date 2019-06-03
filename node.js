@@ -494,7 +494,7 @@ class Node {
   createBlockFork(block){
     return new Promise(async (resolve) =>{
       if(block){
-        let isLinkedToBlockFork = this.chain.isLinkedToBlockFork(block)
+        let isLinkedToBlockFork = await this.chain.isLinkedToBlockFork(block)
         if(isLinkedToBlockFork){
 
           if(isLinkedToBlockFork >= this.chain.getLatestBlock().blockNumber){
@@ -502,11 +502,11 @@ class Node {
             .then( result =>{
               if(result){
                 if(result.side){
-                  
+                  logger('Switched to another blockchain')
                 }
   
                 if(result.main){
-  
+                  logger('Stayed on the main blockchain')
                 }
               }
               
@@ -564,6 +564,8 @@ class Node {
           resolve({ main:this.chain.getLatestBlock().hash })
 
         }
+      }else{
+
       }
         
     })
@@ -1408,14 +1410,16 @@ class Node {
                         this.sendPeerMessage('newBlockFound', header)
                         this.pauseMiner(false)
                         
-
+                        this.createMiner()
                       }else if(downloaded.error){
                         logger(downloaded.error)
+                        this.createMiner()
                       }else{
                         logger('Sync block with main blockchain')
+                        this.createMiner()
                       }
 
-                      this.createMiner()
+                      
                     }
                     )
                   }
