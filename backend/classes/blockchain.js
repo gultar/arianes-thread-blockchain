@@ -71,8 +71,15 @@ class Blockchain{
         
       let isValidBlock = await this.validateBlock(newBlock);
       if(isValidBlock){
-        this.chain.push(newBlock);
-        return true;
+        var isLinked = this.isBlockLinked(block.previousHash);
+        if(isLinked){
+          this.chain.push(newBlock);
+          return true;
+        }else{
+          logger('ERROR: Block is not linked with previous block')
+          return false;
+        }
+        
       }else{
         return false;
       }
@@ -285,7 +292,7 @@ class Blockchain{
     return false;
   }
 
-  isBlockIsLinked(previousHash){
+  isBlockLinked(previousHash){
     var lastBlock = this.getLatestBlock();
     if(lastBlock.hash === previousHash){
       return true;
@@ -538,7 +545,6 @@ class Blockchain{
   async validateBlock(block){
 
     var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
-    var isLinked = this.isBlockIsLinked(block.previousHash);
     var merkleRootIsValid = this.recalculateMerkleRoot(block);
     // var latestBlock = this.getLatestBlock();
     // var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
@@ -548,10 +554,6 @@ class Blockchain{
     
     if(chainAlreadyContainsBlock){
       logger('ERROR: Chain already contains block')
-      return false;
-    }
-    else if(!isLinked){
-      logger('ERROR: Block is not linked with previous block')
       return false;
     }
     else{
@@ -606,7 +608,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       try{
         var containsCurrentBlock = this.checkIfChainHasHash(block.hash);
-        var isLinked = this.isBlockIsLinked(block.previousHash);
+        var isLinked = this.isBlockLinked(block.previousHash);
         var latestBlock = this.getLatestBlock();
         var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
         var rightNumberOfZeros = block.difficulty < (block.hash.substring(0, block.difficulty)).length;

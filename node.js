@@ -1401,41 +1401,51 @@ class Node {
             if(this.chain instanceof Blockchain && data){
               let header = JSON.parse(data);
               if(!this.chain.getIndexOfBlockHash(header.hash)){
-                
-                if(this.chain.validateBlockHeader(header)){
+                if(this.chain.isBlockIsLinked(header)){
+                  if(this.chain.validateBlockHeader(header)){
                   
-                  if(this.miner){
-                    clearInterval(this.miner.minerLoop);
-                    this.miner = null;
-                    if(process.ACTIVE_MINER){
-                      process.ACTIVE_MINER.send({abort:true});
+                    if(this.miner){
+                      clearInterval(this.miner.minerLoop);
                       
-                    }
-                  }
-  
-                  let peerSocket = this.connectionsToPeers[relayPeer]
-                  if(peerSocket){
-                    this.downloadBlocks(peerSocket, [header], 1)
-                    .then( downloaded=>{
-                      if(downloaded){
-  
-                        this.sendPeerMessage('newBlockFound', header)
-                        this.pauseMiner(false)
+                      if(process.ACTIVE_MINER){
+                        process.ACTIVE_MINER.send({abort:true});
                         
-                        this.createMiner()
-                      }else if(downloaded.error){
-                        logger(downloaded.error)
-                        this.createMiner()
-                      }else{
-                        logger('Sync block with main blockchain')
-                        this.createMiner()
                       }
-
-                      
+  
+                      delete this.miner;
                     }
-                    )
+    
+                    let peerSocket = this.connectionsToPeers[relayPeer]
+                    if(peerSocket){
+                      this.downloadBlocks(peerSocket, [header], 1)
+                      .then( downloaded=>{
+                        if(downloaded){
+    
+                          this.sendPeerMessage('newBlockFound', header)
+                          this.createMiner();
+  
+                        }else if(downloaded.error){
+                          logger(downloaded.error)
+                          this.createMiner()
+  
+                        }else{
+                          logger('Sync block with main blockchain')
+                          this.createMiner()
+                        }
+  
+                        
+                      }
+                      )
+                    }else{
+                      logger('Relay peer could not be found')
+                    }
+                  }else{
+                    logger('New block is invalid')
                   }
+                }else{
+                  logger('New block is not linked to current blockchain')
                 }
+   
               }
             }
             break;

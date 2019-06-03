@@ -25,7 +25,7 @@ class Miner{
           if(!this.minerStarted){
             this.minerStarted = true;
             this.minerLoop = setInterval(async ()=>{
-                if(!process.MINER && !this.minerPaused){
+                
                     let enoughTransactions = this.chain.hasEnoughTransactionsToMine();
                     
                     if(enoughTransactions && !this.isMining){
@@ -35,7 +35,7 @@ class Miner{
 
                         clearInterval(this.minerLoop);
 
-                        logger('Mining block number '+chalk.green(this.chain.chain.length)+'...');
+                        logger(chalk.green('Mining block number ')+this.chain.chain.length);
                         logger('Number of pending transactions:', Mempool.sizeOfPool());
 
                         if(block){
@@ -81,8 +81,7 @@ class Miner{
                         }
                         
                     }
-                    
-                }
+                   
             }, 1000)
         }
       }
