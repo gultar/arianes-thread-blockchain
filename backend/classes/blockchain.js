@@ -32,6 +32,7 @@ class Blockchain{
   constructor(chain=false, difficulty=1, ipAddresses=[]){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
+    this.blockFork = {}
     this.difficulty = difficulty;
     this.miningReward = 50;
     this.ipAddresses = ipAddresses

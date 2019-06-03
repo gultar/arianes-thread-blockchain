@@ -355,20 +355,28 @@ class Node {
         let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
         let headers = [];
         this.isDownloading = true;
+        let bar = Progress({
+          total:length,
+          finishMessage:'Fetched all block headers of blockchain!'
+        })
         peer.on('blockHeader', async (header)=>{
           if(header){
-            
+            bar.op()
             try{
                 if(header.end){
 
                   if(this.verbose) logger('Headers fully synced')
                   peer.off('blockHeader')
+                  this.isDownloading = false;
+                  bar = null;
                   resolve(headers)
 
                 }else if(header.error){
 
                   logger(header.error)
                   peer.off('blockHeader')
+                  this.isDownloading = false;
+                  bar = null;
                   resolve(header.error)
 
                 }else{
@@ -377,11 +385,13 @@ class Node {
                     let isValidHeader = this.chain.validateBlockHeader(header)
                     if(isValidHeader){
                       headers.push(header);
-                      
                       peer.emit('getBlockHeader', header.blockNumber+1)
                     }else{
                       logger('ERROR: Is not valid header')
-                      resolve(false)
+                      peer.off('blockHeader')
+                      this.isDownloading = false;
+                      bar = null;
+                      resolve({error:'ERROR: Is not valid header'})
                     }
                   }else{
                     //Insert sidechain creation and validation here
@@ -407,7 +417,7 @@ class Node {
       if(peer && headers){
 
         this.isDownloading = true
-
+        
         peer.on('block', (block)=>{
           if(block){
             try{
@@ -467,8 +477,15 @@ class Node {
             resolve(true)
           }else{
             //Sidechain goes here
-            logger('ERROR: Could not sync')
-            resolve(false)
+            let blockForkState = await this.createBlockFork(block);
+            if(blockForkState.forked){
+              resolve(blockForkState.forked)
+            }else if(blockForkState.resolved){
+              resolve(true);
+            }else{
+              resolve(false);
+            }
+            
           }        
         }else{
           resolve(false)
@@ -476,6 +493,59 @@ class Node {
         
       }else{
         resolve(false)
+      }
+    })
+    
+  }
+
+  createBlockFork(block){
+    return new Promise(async (resolve) =>{
+      if(block){
+        if(this.chain.blockFork){
+          let isResolvedFork = await this.resolveBlockFork(block);   
+          resolve(isResolvedFork);
+        }else{
+          if(this.chain.getLatestBlock().previousHash == block.previousHash){
+            this.chain.blockFork = block;
+            logger(`Created block fork at number ${block.blockNumber}`);
+            resolve({forked:block.blockNumber})
+          }else{
+            logger('Block fork does not match last current block');
+            resolve(false)
+          }
+          
+        }
+      }
+    })
+   
+  }
+
+  resolveBlockFork(block){
+    return new Promise(resolve =>{
+      if(block){
+        if(this.chain.blockFork.hash = block.previousHash){
+          logger('Resolving block fork by switching to the forked block')
+          let lastBlock = this.chain.chain.splice(-1, 1);
+          this.unwrapBlock(lastBlock);
+          let isBlockForkSynced = await this.addNewBlock(this.chain.blockFork);
+          if(isBlockForkSynced){
+            let isNewBlockSynced = await this.addNewBlock(block);
+            if(isNewBlockSynced){
+              logger('Successfully switched blockchain branch');
+              resolve(true);
+            }else{
+              logger('Could not sync new block')
+              resolve(false)
+            }
+          }else{
+            logger('Could not sync forked block')
+            resolve(false)
+          }
+    
+        }else{
+          logger('Block received does not match block fork')
+          resolve(false)
+        }
       }
     })
     
@@ -500,12 +570,8 @@ class Node {
               if(headers){
                 this.downloadBlocks(peer, headers, length)
                 .then( finished=>{
-                  if(finished){
-                    this.isDownloading = false;
-                    this.minerPaused = false;
-
-                  }else if(finished.error){
-
+                  if(finished.error){
+                    logger(finished.error)
                   }
                 })
               }else{
