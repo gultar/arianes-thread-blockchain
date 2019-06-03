@@ -1380,15 +1380,13 @@ class Node {
                 
                 if(this.chain.validateBlockHeader(header)){
                   
-                  this.pauseMiner(true)
-                  
-                  if(process.ACTIVE_MINER){
-                    process.ACTIVE_MINER.send({abort:true});
-                    
-                  }
-
                   if(this.miner){
-                    clearInterval(this.miner.minerLoop)
+                    clearInterval(this.miner.minerLoop);
+                    this.miner = null;
+                    if(process.ACTIVE_MINER){
+                      process.ACTIVE_MINER.send({abort:true});
+                      
+                    }
                   }
   
                   let peerSocket = this.connectionsToPeers[relayPeer]
@@ -1854,6 +1852,7 @@ class Node {
   */
   createMiner(){
     if(this.chain instanceof Blockchain){
+
       this.miner = new Miner({
         chain:this.chain,
         address:this.address,

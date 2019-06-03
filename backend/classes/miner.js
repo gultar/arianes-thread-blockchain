@@ -29,7 +29,9 @@ class Miner{
                     let enoughTransactions = this.chain.hasEnoughTransactionsToMine();
                     
                     if(enoughTransactions && !this.isMining){
+                        
                         clearInterval(this.minerLoop);
+                        
                         this.isMining = true;
                         let block = await this.buildNewBlock()
                         
@@ -77,7 +79,8 @@ class Miner{
                             callback(false)
                           }
                         }else{
-                          logger('ERROR: Block is undefined is invalid')
+                          logger('ERROR: Block is undefined is invalid');
+                          this.resetMiner()
                           callback(false)
                         }
                         
