@@ -1553,6 +1553,7 @@ class Node {
           return false;
         }
       }else{
+        console.log(newBlock)
         logger('ERROR: Block has invalid format');
         return false;
       }
