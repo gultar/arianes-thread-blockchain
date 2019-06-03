@@ -352,14 +352,19 @@ class Node {
   
   requestChainHeaders(peer, length, lastBlockNum){
     return new Promise((resolve, reject)=>{
-      if(this.chain instanceof Blockchain && peer && length && lastBlockNum){
+      
+      
+
+      if(this.chain instanceof Blockchain && peer && length){
         
         let headers = [];
+
         this.isDownloading = true;
         let bar = Progress({
           total:length,
           finishMessage:'Fetched all block headers of blockchain!\n\n'
         })
+
         peer.on('blockHeader', async (header)=>{
           if(header){
             bar.op()
@@ -405,16 +410,20 @@ class Node {
             
           }
          })
+
+         if(!lastBlockNum){
+          lastBlockNum = this.chain.getLatestBlock().blockNumber
+         }
          
          peer.emit('getBlockHeader', lastBlockNum+1)
         
       }else{
-        logger('Missing parameter')
+        logger('ERROR: Header Request failed: Missing parameter');
       }
     })
   }
   
-  downloadBlocks(peer, headers, length){
+  downloadBlocks(peer, headers){
     return new Promise(async (resolve, reject)=>{
       if(peer && headers){
 
@@ -588,7 +597,8 @@ class Node {
           let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
           if(isValidHeader){
             // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
-            this.requestChainHeaders(peer, length, this.chain.getLatestBlock().blockNumber)
+            let lastBlockNum = this.chain.getLatestBlock().blockNumber;
+            this.requestChainHeaders(peer, length, lastBlockNum)
             .then( headers=>{
               if(headers){
                 this.downloadBlocks(peer, headers, length)
@@ -609,7 +619,7 @@ class Node {
           }
         }
       }else{
-        logger('ERROR: Status object is missing parameters parameters')
+        logger('ERROR: Status object is missing parameters')
         this.isDownloading = false;
       }
     }
