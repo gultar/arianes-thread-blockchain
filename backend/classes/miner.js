@@ -84,7 +84,7 @@ class Miner{
                     }
                     
                 }
-            }, 200)
+            }, 1000)
         }
       }
           
@@ -129,7 +129,6 @@ class Miner{
         let actionsOfCancelledBlock = block.actions
         Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
         Mempool.putbackPendingActions(actionsOfCancelledBlock)
-        this.cashInCoinbaseTransactions();
       }
       
       
