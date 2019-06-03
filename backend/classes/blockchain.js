@@ -549,10 +549,12 @@ class Blockchain{
     if(chainAlreadyContainsBlock){
       logger('ERROR: Chain already contains block')
       return false;
-    }else if(!isLinked){
+    }
+    else if(!isLinked){
       logger('ERROR: Block is not linked with previous block')
       return false;
-    }else{
+    }
+    else{
       return true;
     }
     

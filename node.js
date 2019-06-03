@@ -450,6 +450,8 @@ class Node {
                       
                     })
                     
+                  }else{
+
                   }
                   
                 }
@@ -1395,12 +1397,17 @@ class Node {
   
                         this.sendPeerMessage('newBlockFound', header)
                         this.pauseMiner(false)
-                        this.createMiner()
+                        
 
                       }else if(downloaded.error){
                         logger(downloaded.error)
+                      }else{
+
                       }
-                    })
+
+                      this.createMiner()
+                    }
+                    )
                   }
                 }
               }
@@ -1653,35 +1660,35 @@ class Node {
     }
   }
 
-  resolveBlockFork(headers){
-    if(headers){
-      let areValidHeaders = this.compareHeaders(headers)
+  // resolveBlockFork(headers){
+  //   if(headers){
+  //     let areValidHeaders = this.compareHeaders(headers)
 
-        if(areValidHeaders){
-          if(typeof areValidHeaders == 'number'){
+  //       if(areValidHeaders){
+  //         if(typeof areValidHeaders == 'number'){
 
-            var conflictIndex = areValidHeaders;
-            var numberOfForkingBlocks = this.chain.chain.length - conflictIndex;
+  //           var conflictIndex = areValidHeaders;
+  //           var numberOfForkingBlocks = this.chain.chain.length - conflictIndex;
 
-            logger('Conflicting block at index:', conflictIndex)
-            logger('Num. of forking blocks',numberOfForkingBlocks);
-            logger('Chain length:', this.chain.chain.length)
+  //           logger('Conflicting block at index:', conflictIndex)
+  //           logger('Num. of forking blocks',numberOfForkingBlocks);
+  //           logger('Chain length:', this.chain.chain.length)
 
-            for(var i=0;i<=numberOfForkingBlocks;i++ ){
-              let orphanBlocks = this.chain.chain.pop();
-              this.chain.orphanedBlocks.push(orphanBlocks);
-            }
+  //           for(var i=0;i<=numberOfForkingBlocks;i++ ){
+  //             let orphanBlocks = this.chain.chain.pop();
+  //             this.chain.orphanedBlocks.push(orphanBlocks);
+  //           }
 
-            this.update();
-          }else{
-            logger('Headers are of at least the same length')
-          }
-        }else{
-          logger('Peer headers are not valid')
-        }
-    }
+  //           this.update();
+  //         }else{
+  //           logger('Headers are of at least the same length')
+  //         }
+  //       }else{
+  //         logger('Peer headers are not valid')
+  //       }
+  //   }
     
-  }
+  // }
 
   
 
