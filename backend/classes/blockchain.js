@@ -71,7 +71,7 @@ class Blockchain{
         
       let isValidBlock = await this.validateBlock(newBlock);
       if(isValidBlock){
-        var isLinked = this.isBlockLinked(block.previousHash);
+        var isLinked = this.isBlockLinked(newBlock.previousHash);
         if(isLinked){
           this.chain.push(newBlock);
           return true;
