@@ -82,6 +82,8 @@ class Miner{
                           }
                           
                       }
+                    }else{
+                      logger('Node is downloading')
                     }
 
                    

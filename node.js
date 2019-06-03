@@ -361,6 +361,7 @@ class Node {
 
         this.isDownloading = true;
         if(this.miner) this.miner.nodeIsDownloading = true;
+        
         let bar = Progress({
           total:length,
           finishMessage:'Fetched all block headers of blockchain!\n\n'
