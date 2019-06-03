@@ -534,20 +534,22 @@ class Node {
           logger('Resolving block fork by switching to the forked block')
           let lastBlock = this.chain.chain.splice(-1, 1);
           this.unwrapBlock(lastBlock);
-          let isBlockForkSynced = await this.addNewBlock(this.chain.blockFork);
-          if(isBlockForkSynced){
-            let isNewBlockSynced = await this.addNewBlock(block);
-            if(isNewBlockSynced){
-              logger('Successfully switched blockchain branch');
-              resolve(true);
-            }else{
-              logger('Could not sync new block')
-              resolve(false)
-            }
-          }else{
-            logger('Could not sync forked block')
-            resolve(false)
-          }
+          this.chain.orphanedBlocks.push(lastBlock)
+          this.broadcast('getBlockchainStatus')
+          // let isBlockForkSynced = await this.addNewBlock(this.chain.blockFork);
+          // if(isBlockForkSynced){
+          //   let isNewBlockSynced = await this.addNewBlock(block);
+          //   if(isNewBlockSynced){
+          //     logger('Successfully switched blockchain branch');
+          //     resolve(true);
+          //   }else{
+          //     logger('Could not sync new block')
+          //     resolve(false)
+          //   }
+          // }else{
+          //   logger('Could not sync forked block')
+          //   resolve(false)
+          // }
     
         }else{
           logger('Block received does not match block fork')
