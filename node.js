@@ -71,7 +71,8 @@ class Node {
     this.peersConnected = {}; //From ioServer to ioClient
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.nodeList = new NodeList();
-    this.minimumNumberOfPeers = 5
+    this.minimumNumberOfPeers = 5;
+    this.minimumUnconfirmedBlocks = 1;
     this.autoUpdate = true;  
     this.messageBuffer = {};
     this.miner = {}
@@ -349,10 +350,10 @@ class Node {
   }
 
   
-  requestChainHeaders(peer, length){
+  requestChainHeaders(peer, length, lastBlockNum){
     return new Promise((resolve, reject)=>{
-      if(this.chain instanceof Blockchain && peer && length){
-        let lastBlockNumber = this.chain.getLatestBlock().blockNumber;
+      if(this.chain instanceof Blockchain && peer && length && lastBlockNum){
+        
         let headers = [];
         this.isDownloading = true;
         let bar = Progress({
@@ -405,7 +406,6 @@ class Node {
           }
          })
          
-         let lastBlockNum = this.chain.getLatestBlock().blockNumber
          peer.emit('getBlockHeader', lastBlockNum+1)
         
       }
@@ -439,13 +439,12 @@ class Node {
                     
                     this.receiveBlock(block)
                     .then( blockAdded=>{
-                      if(blockAdded.error){
-                        logger(blockAdded.error);
-                        resolve(blockAdded.error)
-                      }
-
+                      
                       if(blockAdded){
                         peer.emit('getBlock', block.blockNumber+1);
+                      }else{
+                        logger('ERROR: Blockchain download could not be completed:')
+                        logger('  Block could not be synced')
                       }
                       
                     })
@@ -477,15 +476,6 @@ class Node {
           let isSynced = await this.addNewBlock(block);
           if(isSynced){
             resolve(true)
-          }else if(isSynced.fork){
-            let blockForkState = await this.createBlockFork(block);
-            if(blockForkState.forked){
-              resolve(blockForkState.forked)
-            }else if(blockForkState.resolved){
-              resolve(true);
-            }else{
-              resolve(false);
-            }
           }else{
             resolve(false)
           }        
@@ -503,68 +493,73 @@ class Node {
   createBlockFork(block){
     return new Promise(async (resolve) =>{
       if(block){
-        if(!this.chain.blockFork){
+        let isLinkedToBlockFork = this.chain.isLinkedToBlockFork(block)
+        if(isLinkedToBlockFork){
 
-          let lastBlockNum = this.chain.getLatestBlock().blockNumber
-          if(this.chain.chain[lastBlockNum].previousHash == block.previousHash){
-            this.chain.blockFork = block;
-            logger(`Created block fork at number ${block.blockNumber}`);
-            resolve({forked:block})
-          }else if(this.chain.chain[lastBlockNum - 1].previousHash == block.previousHash){
-            this.chain.blockFork = block;
-            logger(`Created block fork at number ${block.blockNumber}`);
-            resolve({forked:block})
+          if(isLinkedToBlockFork >= this.chain.getLatestBlock().blockNumber){
+            this.resolveBlockFork()
           }else{
-            logger('Block fork does not match last current block');
-            resolve(false)
+            this.chain.blockFork.push(block);
           }
 
         }else{
-
-          let isResolvedFork = await this.resolveBlockFork(block);
-          if(isResolvedFork){
-            resolve({resolved:true});
-          }else{
-            resolve(false);
-          }   
           
+          let lastBlockNum = this.chain.getLatestBlock().blockNumber;
+
+          if(block.blockNumber >= lastBlockNum - this.minimumUnconfirmedBlocks){
+            this.chain.blockFork.push(block);
+          }else{
+            //too low in the chain
+          }
+
         }
+
       }
     })
    
   }
 
-  resolveBlockFork(block){
+  resolveBlockFork(){
     return new Promise(async (resolve) =>{
-      if(block){
-        if(this.chain.blockFork.hash = block.previousHash){
-          logger('Resolving block fork by switching to the forked block')
-          let lastBlock = this.chain.chain.splice(-1, 1);
-          this.unwrapBlock(lastBlock);
-          this.chain.orphanedBlocks.push(lastBlock)
-          let isBlockForkSynced = await this.addNewBlock(this.chain.blockFork);
-          if(isBlockForkSynced){
+      if(this.chain.blockFork){
+        let forkSize = this.chain.blockFork.length
+        let latestBlockInFork = this.chain.blockFork[forkSize - 1];
+        if(latestBlockInFork.totalChallenge > this.getLatestBlock().totalChallenge){
 
-          }
           
-          //   let isNewBlockSynced = await this.addNewBlock(block);
-          //   if(isNewBlockSynced){
-          //     logger('Successfully switched blockchain branch');
-          //     resolve(true);
-          //   }else{
-          //     logger('Could not sync new block')
-          //     resolve(false)
-          //   }
-          // }else{
-          //   logger('Could not sync forked block')
-          //   resolve(false)
-          // }
-    
+          let blocksToOrphan = this.chain.chain.splice(-1, forkSize);
+
+          blocksToOrphan.forEach( block=>{
+            logger(`Remove block ${block.blockNumber} from main chain`)
+            this.unwrapBlock(block);
+          })
+
+          this.chain.blockFork.forEach( block=>{
+            this.addNewBlock(block)
+          })
+
+          resolve({
+            resolved:{
+              result:'Switched to block fork',
+              lastBlockhash:this.getLatestBlock().hash
+            }
+          })
+
         }else{
-          logger('Block received does not match block fork')
-          resolve(false)
+
+          this.chain.blockFork.forEach( block=>{
+            logger(`Orphaned block ${block.blockNumber} from fork`)
+            this.chain.orphanedBlocks.push(block)
+          })
+
+          resolve({resolved:{
+            result:'Stayed on main chain',
+            lastBlockhash:this.getLatestBlock().hash
+          }})
+
         }
       }
+        
     })
     
   }
@@ -582,8 +577,8 @@ class Node {
           
           let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
           if(isValidHeader){
-            
-            this.requestChainHeaders(peer, length)
+            let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
+            this.requestChainHeaders(peer, length, currentLastBlockNumber)
             .then( headers=>{
               if(headers){
                 this.downloadBlocks(peer, headers, length)
@@ -935,16 +930,16 @@ class Node {
         }
       })
 
-      app.get('/getChainHeaders', (req, res)=>{
+      // app.get('/getChainHeaders', (req, res)=>{
   
-        try{
-            let chainHeaders = this.getAllHeaders(this.address);
-            res.json({ chainHeaders:chainHeaders }).end()
+      //   try{
+      //       let chainHeaders = this.getAllHeaders(this.address);
+      //       res.json({ chainHeaders:chainHeaders }).end()
   
-        }catch(e){
-          console.log(chalk.red(e));
-        }
-      })
+      //   }catch(e){
+      //     console.log(chalk.red(e));
+      //   }
+      // })
   
       app.get('/getBlockHeader',(req, res)=>{
         var blockNumber = req.query.hash;
@@ -1558,8 +1553,6 @@ class Node {
           logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
           logger(chalk.green('* By: '), newBlock.minedBy)
           return true;
-        }else if(isBlockSynced.fork){
-          return {fork:true};
         }else{
           return false;
         }

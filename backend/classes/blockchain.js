@@ -32,7 +32,7 @@ class Blockchain{
   constructor(chain=false, difficulty=1, ipAddresses=[]){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
-    this.blockFork = {}
+    this.blockFork = [];
     this.difficulty = difficulty;
     this.miningReward = 50;
     this.ipAddresses = ipAddresses
@@ -73,8 +73,6 @@ class Blockchain{
       if(isValidBlock){
         this.chain.push(newBlock);
         return true;
-      }else if(isValidBlock.fork){
-        return {fork:true};
       }else{
         return false;
       }
@@ -554,7 +552,7 @@ class Blockchain{
     }
     else if(!isLinked){
       logger('ERROR: Block is not linked with previous block')
-      return {fork:true};
+      return false;
     }
     else{
       return true;
@@ -694,23 +692,29 @@ class Blockchain{
 
 
           this.chain.forEach((block)=>{
-            blockHashesFromIndex.push(block.hash);
-            headers.push(this.getBlockHeader(block.blockNumber))
+            if(block.blockNumber > 0){
+              headers.push(this.getBlockHeader(block.blockNumber))
+            }
           })
 
-          var chainInfo = {
-            length: this.chain.length,
-            blockHashes:blockHashesFromIndex,
-            headers:headers,
-            address:address
-          }
-
-          return chainInfo
+          return headers
 
       }catch(e){
         console.log(chalk.red(e))
       }
     
+  }
+
+  isLinkedToBlockFork(block){
+    this.blockFork.forEach( forkedBlock=>{
+      if(forkedBlock.hash == block.previousHash){
+        return forkedBlock.blockNumber
+      }else if(forkedBlock.previousHash == block.previousHash){
+        return forkedBlock.blockNumber - 1
+      }
+    })
+
+    return false;
   }
 
   isHeaderLinkedToPreviousBlock(header){
