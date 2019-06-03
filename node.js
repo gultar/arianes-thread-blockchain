@@ -498,6 +498,18 @@ class Node {
 
           if(isLinkedToBlockFork >= this.chain.getLatestBlock().blockNumber){
             this.resolveBlockFork()
+            .then( result =>{
+              if(result){
+                if(result.side){
+                  
+                }
+  
+                if(result.main){
+  
+                }
+              }
+              
+            })
           }else{
             this.chain.blockFork.push(block);
           }
@@ -507,8 +519,10 @@ class Node {
           let lastBlockNum = this.chain.getLatestBlock().blockNumber;
 
           if(block.blockNumber >= lastBlockNum - this.minimumUnconfirmedBlocks){
+            logger(`Created new fork with block hash ${block.hash.substr(0, 15)}...`)
             this.chain.blockFork.push(block);
           }else{
+            logger(`Block hash ${block.hash.substr(0, 15)}... is too low in chain`)
             //too low in the chain
           }
 
@@ -526,7 +540,6 @@ class Node {
         let latestBlockInFork = this.chain.blockFork[forkSize - 1];
         if(latestBlockInFork.totalChallenge > this.getLatestBlock().totalChallenge){
 
-          
           let blocksToOrphan = this.chain.chain.splice(-1, forkSize);
 
           blocksToOrphan.forEach( block=>{
@@ -538,12 +551,7 @@ class Node {
             this.addNewBlock(block)
           })
 
-          resolve({
-            resolved:{
-              result:'Switched to block fork',
-              lastBlockhash:this.getLatestBlock().hash
-            }
-          })
+          resolve({ side:this.chain.getLatestBlock().hash })
 
         }else{
 
@@ -552,10 +560,7 @@ class Node {
             this.chain.orphanedBlocks.push(block)
           })
 
-          resolve({resolved:{
-            result:'Stayed on main chain',
-            lastBlockhash:this.getLatestBlock().hash
-          }})
+          resolve({ main:this.chain.getLatestBlock().hash })
 
         }
       }
