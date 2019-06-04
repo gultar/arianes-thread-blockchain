@@ -350,11 +350,9 @@ class Node {
   }
 
   
-  requestChainHeaders(peer, length, lastBlockNum){
+  requestChainHeaders(peer, length, startAt){
     return new Promise((resolve, reject)=>{
       
-      
-
       if(this.chain instanceof Blockchain && peer && length){
         
         let headers = [];
@@ -362,14 +360,14 @@ class Node {
         this.isDownloading = true;
         if(this.miner) this.miner.nodeIsDownloading = true;
 
-        let bar = Progress({
-          total:length,
-          finishMessage:'Fetched all block headers of blockchain!\n\n'
-        })
+        // let bar = Progress({
+        //   total:length,
+        //   finishMessage:'Fetched all block headers of blockchain!\n\n'
+        // })
 
         peer.on('blockHeader', async (header)=>{
           if(header){
-            bar.op()
+            // bar.op()
             try{
                 if(header.end){
 
@@ -377,7 +375,7 @@ class Node {
                   peer.off('blockHeader')
                   this.isDownloading = false;
                   if(this.miner) this.miner.nodeIsDownloading = false;
-                  bar = null;
+                  // bar = null;
                   
                   resolve(headers)
 
@@ -387,7 +385,7 @@ class Node {
                   peer.off('blockHeader')
                   this.isDownloading = false;
                   if(this.miner) this.miner.nodeIsDownloading = false;
-                  bar = null;
+                  // bar = null;
                   resolve(header.error)
 
                 }else{
@@ -401,7 +399,7 @@ class Node {
                       logger('ERROR: Is not valid header')
                       peer.off('blockHeader')
                       this.isDownloading = false;
-                      bar = null;
+                      // bar = null;
                       resolve({error:'ERROR: Is not valid header'})
                     }
                   }else{
@@ -416,11 +414,11 @@ class Node {
           }
          })
 
-         if(!lastBlockNum){
-          lastBlockNum = this.chain.getLatestBlock().blockNumber
+         if(!startAt){
+          startAt = this.chain.getLatestBlock().blockNumber
          }
          
-         peer.emit('getBlockHeader', lastBlockNum+1)
+         peer.emit('getBlockHeader', startAt+1)
         
       }else{
         logger('ERROR: Header Request failed: Missing parameter');
@@ -1509,24 +1507,23 @@ class Node {
               let header = JSON.parse(data);
               if(!this.chain.getIndexOfBlockHash(header.hash)){
 
-
-                
                   if(this.chain.validateBlockHeader(header)){
-                  
-                    if(this.miner){
-                      clearInterval(this.miner.minerLoop);
-                      
-                      if(process.ACTIVE_MINER){
-                        process.ACTIVE_MINER.send({abort:true});
-                        
-                      }
-  
-                      delete this.miner;
-                    }
-    
+                    
                     let peerSocket = this.connectionsToPeers[relayPeer]
                     if(peerSocket){
                       if(this.chain.isBlockLinked(header)){
+
+                        if(this.miner){
+                          clearInterval(this.miner.minerLoop);
+                          
+                          if(process.ACTIVE_MINER){
+                            process.ACTIVE_MINER.send({abort:true});
+                            
+                          }
+      
+                          delete this.miner;
+                        }
+
                         this.downloadBlocks(peerSocket, [header], 1)
                         .then( downloaded=>{
                           if(downloaded){
@@ -1538,6 +1535,7 @@ class Node {
                           }
                           this.createMiner()
                         })
+                        
                       }else{
                         logger('New block is not linked to current blockchain');
                         this.forkBlockchain(peerSocket, header);
@@ -1552,8 +1550,6 @@ class Node {
                   }
                 
 
-
-   
               }
             }
             break;
