@@ -481,17 +481,17 @@ class Node {
         
         peer.emit('getBlockFromHash', hash);
 
-        peer.on('block', (block)=>{
+        peer.on('blockFromHash', (block)=>{
           if(block){
 
             if(block.error){
               logger(block.error)
-              peer.off('block');
+              peer.off('blockFromHash');
               this.isDownloading = false
               resolve(block.error)
             }
 
-            peer.off('block');
+            peer.off('blockFromHash');
             resolve(block)
 
           }else{
@@ -1623,26 +1623,28 @@ class Node {
 
                 let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
                 if(newBlock){
+
                   if(this.chain.isBlockLinked(newBlock)){
+
                     this.sendPeerMessage('newBlockFound', header);
                     let addedToChain = await this.addNewBlock(newBlock);
                     if(addedToChain.error){
                       logger(addedToChain.error)
                     }
+
                   }else{
                     logger('New block is not linked to current blockchain');
                     this.forkBlockchain(peerSocket, newBlock);
-                    this.createMiner()
+                    
                   }
                   
                 }else if(newBlock.error){
                   logger(newBlock.error)
                 }else{
-                  logger('Sync block with main blockchain')
+                  logger('Could not fetch block from peer')
                 }
-                this.createMiner()
 
-              
+                this.createMiner()
 
             }else{
               logger('Relay peer could not be found')
