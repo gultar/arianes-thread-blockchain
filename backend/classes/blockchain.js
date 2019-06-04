@@ -77,7 +77,7 @@ class Blockchain{
           return true;
         }else{
           logger('ERROR: Block is not linked with previous block')
-          return false;
+          return {fork:newBlock.hash};
         }
         
       }else{

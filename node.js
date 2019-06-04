@@ -539,6 +539,13 @@ class Node {
             this.unwrapBlock(blockSwap)
             this.chain.orphanedBlocks.push(blockSwap)
             this.chain.blockFork.push(block);
+
+            this.chain.blockFork.forEach(async (block)=>{
+              let blockSynced = await this.addNewBlock(block)
+              if(blockSynced.error){
+
+              }
+            })
             
           }else if(this.chain.blockFork[forkLength - 1].previousHash == block.previousHash){
 
@@ -1417,90 +1424,45 @@ class Node {
     @param {String} $originAddress - IP Address of sender
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
-  handlePeerMessage(type, originAddress, messageId, data, relayPeer){
-    try{
-      let peerMessage = { 
-        'type':type, 
-        'originAddress':originAddress, 
-        'messageId':messageId, 
-        'data':data,
-        'relayPeer':relayPeer 
-      }
-
-      if(!this.messageBuffer[messageId]){
-        switch(type){
-          case 'transaction':
-            if(data){
+  async handlePeerMessage(type, originAddress, messageId, data, relayPeer){
+    if(data){
+      try{
+        let peerMessage = { 
+          'type':type, 
+          'originAddress':originAddress, 
+          'messageId':messageId, 
+          'data':data,
+          'relayPeer':relayPeer 
+        }
+  
+        if(!this.messageBuffer[messageId]){
+          
+          switch(type){
+            case 'transaction':
               var transaction = JSON.parse(data);
               this.receiveTransaction(transaction);
-            }
-            break;
-          case 'action':
-            let action = JSON.parse(data);
-            this.receiveAction(action);
-            break
-          case 'newBlockFound':
-            if(this.chain instanceof Blockchain && data){
-              let header = JSON.parse(data);
-              if(!this.chain.getIndexOfBlockHash(header.hash)){
-
-                  if(this.chain.validateBlockHeader(header)){
-                    
-                    let peerSocket = this.connectionsToPeers[relayPeer]
-                    if(peerSocket){
-                      if(this.chain.isBlockLinked(header)){
-
-                        if(this.miner){
-                          clearInterval(this.miner.minerLoop);
-                          
-                          if(process.ACTIVE_MINER){
-                            process.ACTIVE_MINER.send({abort:true});
-                            
-                          }
-      
-                          delete this.miner;
-                        }
-
-                        this.downloadBlocks(peerSocket, [header], 1)
-                        .then( downloaded=>{
-                          if(downloaded){
-                            this.sendPeerMessage('newBlockFound', header)
-                          }else if(downloaded.error){
-                            logger(downloaded.error)
-                          }else{
-                            logger('Sync block with main blockchain')
-                          }
-                          this.createMiner()
-                        })
-
-                      }else{
-                        logger('New block is not linked to current blockchain');
-                        this.forkBlockchain(peerSocket, header);
-                        this.createMiner()
-                      }
-
-                    }else{
-                      logger('Relay peer could not be found')
-                    }
-                  }else{
-                    logger('New block is invalid')
-                  }
-                
-
-              }
-            }
-            break;
-          case 'message':
-            logger(chalk.green('['+originAddress+']')+' -> '+data)
-            break;
+              break;
+            case 'action':
+              
+              let action = JSON.parse(data);
+              this.receiveAction(action);
+              break
+            case 'newBlockFound':
+              this.handleNewBlockFound(data, relayPeer)
+              break;
+            case 'message':
+              logger(chalk.green('['+originAddress+']')+' -> '+data)
+              break;
+          }
+          this.messageBuffer[messageId] = peerMessage;
+          this.broadcast('peerMessage', peerMessage)
+          
         }
-        this.messageBuffer[messageId] = peerMessage;
-        this.broadcast('peerMessage', peerMessage)
-        
-      }
-    }catch(e){
-      console.log(e)
+      }catch(e){
+        console.log(e)
+      }  
     }
+    
   }
 
   handleDirectMessage(type, originAddress, targetAddress, messageId, data){
@@ -1626,6 +1588,9 @@ class Node {
           logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
           logger(chalk.green('* By: '), newBlock.minedBy)
           return true;
+        }else if(isBlockSynced.fork){
+          //Handle forks
+          return {fork:true}
         }else{
           return false;
         }
@@ -1633,6 +1598,62 @@ class Node {
         logger('ERROR: Block has invalid format');
         return false;
       }
+  }
+
+  async handleNewBlockFound(data, relayPeer){
+    if(this.chain instanceof Blockchain && data){
+      let header = JSON.parse(data);
+      if(!this.chain.getIndexOfBlockHash(header.hash)){
+
+          if(this.chain.validateBlockHeader(header)){
+            
+            let peerSocket = this.connectionsToPeers[relayPeer]
+            if(peerSocket){
+              
+                if(this.miner){
+                  clearInterval(this.miner.minerLoop);
+                  
+                  if(process.ACTIVE_MINER){
+                    process.ACTIVE_MINER.send({abort:true});
+                    
+                  }
+
+                  delete this.miner;
+                }
+
+                let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
+                if(newBlock){
+                  if(this.chain.isBlockLinked(newBlock)){
+                    this.sendPeerMessage('newBlockFound', header);
+                    let addedToChain = await this.addNewBlock(newBlock);
+                    if(addedToChain.error){
+                      logger(addedToChain.error)
+                    }
+                  }else{
+                    logger('New block is not linked to current blockchain');
+                    this.forkBlockchain(peerSocket, newBlock);
+                    this.createMiner()
+                  }
+                  
+                }else if(newBlock.error){
+                  logger(newBlock.error)
+                }else{
+                  logger('Sync block with main blockchain')
+                }
+                this.createMiner()
+
+              
+
+            }else{
+              logger('Relay peer could not be found')
+            }
+          }else{
+            logger('New block is invalid')
+          }
+        
+
+      }
+    }
   }
 
 
