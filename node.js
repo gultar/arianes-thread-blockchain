@@ -603,17 +603,17 @@ class Node {
                 
                 let lastBlockNum = this.chain.getLatestBlock().blockNumber;
       
-                if(block.blockNumber >= lastBlockNum - this.minimumUnconfirmedBlocks){
-                  logger(`Created new fork with block hash ${block.hash.substr(0, 15)}...`)
+                if(header.blockNumber >= lastBlockNum - this.minimumUnconfirmedBlocks){
+                  logger(`Created new fork with block hash ${header.hash.substr(0, 15)}...`)
                   if(this.chain.blockFork){
                     this.chain.blockFork = [];
-                    this.chain.blockFork.push(block);
+                    this.chain.blockFork.push(header);
                   }else{
-                    this.chain.blockFork.push(block);
+                    this.chain.blockFork.push(header);
                   }
                   
                 }else{
-                  logger(`Block hash ${block.hash.substr(0, 15)}... is too low in chain`)
+                  logger(`Block hash ${header.hash.substr(0, 15)}... is too low in chain`)
                   //too low in the chain
                 }
       
