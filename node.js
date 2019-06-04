@@ -462,9 +462,9 @@ class Node {
                       if(blockAdded){
                         peer.emit('getBlock', block.blockNumber+1);
                       }else{
-                        // logger('ERROR: Blockchain download could not be completed:')
-                        // logger('  Block could not be synced');
-                        this.createBlockFork(block);
+                        logger('ERROR: Blockchain download could not be completed:')
+                        logger('  Block could not be synced');
+                        // this.createBlockFork(block);
                       }
                       
                     })
@@ -482,8 +482,72 @@ class Node {
             
           }
          })
+
          let lastBlockNum = this.chain.getLatestBlock().blockNumber
-         peer.emit('getBlock', lastBlockNum+1);
+          peer.emit('getBlock', lastBlockNum+1);
+         
+      }
+    })
+  }
+
+  downloadBlocksFromHash(peer, headers){
+    return new Promise(async (resolve, reject)=>{
+      if(peer && headers){
+
+        this.isDownloading = true
+        if(this.miner) this.miner.nodeIsDownloading = true;
+        
+        peer.on('block', (block)=>{
+          if(block){
+            try{
+              if(block.end){
+                logger('Blockchain updated');
+                peer.off('block');
+                this.isDownloading = false;
+                if(this.miner) this.miner.nodeIsDownloading = false;
+                resolve(true)
+              }else if(block.error){
+                logger(block.error)
+                peer.off('block');
+                this.isDownloading = false
+                if(this.miner) this.miner.nodeIsDownloading = false;
+                resolve(block.error)
+              }else{
+                if(this.chain instanceof Blockchain){
+
+                  let alreadyInChain = this.chain.getIndexOfBlockHash(block.hash)
+                  if(!alreadyInChain){ 
+                    
+                    this.receiveBlock(block)
+                    .then( blockAdded=>{
+                      
+                      if(blockAdded){
+                        peer.emit('getBlockFromHash', block.hash);
+                      }else{
+                        logger('ERROR: Blockchain download could not be completed:')
+                        logger('  Block could not be synced');
+                        // this.createBlockFork(block);
+                      }
+                      
+                    })
+                    
+                  }else{
+
+                  }
+                  
+                }
+              }
+              
+            }catch(e){
+              console.log(e)
+            }
+            
+          }
+         })
+         headers.forEach( header=>{
+          peer.emit('getBlockFromHash', header.blockNumber);
+         })
+         
       }
     })
   }
@@ -510,48 +574,61 @@ class Node {
     
   }
 
-  createBlockFork(block){
-    return new Promise(async (resolve) =>{
-      if(block){
-        let isLinkedToBlockFork = await this.chain.isLinkedToBlockFork(block)
-        if(isLinkedToBlockFork){
-
-          if(isLinkedToBlockFork >= this.chain.getLatestBlock().blockNumber){
-            this.resolveBlockFork()
-            .then( result =>{
-              if(result){
-                if(result.side){
-                  logger('Switched to another blockchain')
+  forkBlockchain(peer, header){
+    return new Promise( async(resolve)=>{
+      if(header){
+              let isLinkedToBlockFork = await this.chain.isLinkedToBlockFork(header)
+              if(isLinkedToBlockFork){
+      
+                if(isLinkedToBlockFork >= this.chain.getLatestBlock().blockNumber){
+                  this.resolveBlockFork()
+                  .then( result =>{
+                    if(result){
+      
+                      if(result.side){
+                        this.downloadBlocks(peer, this.chain.blockFork);
+                      }
+        
+                      if(result.main){
+                        logger('Stayed on the main blockchain')
+                      }
+                    }
+                    
+                  })
+                }else{
+                  this.chain.blockFork.push(header);
                 }
-  
-                if(result.main){
-                  logger('Stayed on the main blockchain')
+      
+              }else{
+                
+                let lastBlockNum = this.chain.getLatestBlock().blockNumber;
+      
+                if(block.blockNumber >= lastBlockNum - this.minimumUnconfirmedBlocks){
+                  logger(`Created new fork with block hash ${block.hash.substr(0, 15)}...`)
+                  if(this.chain.blockFork){
+                    this.chain.blockFork = [];
+                    this.chain.blockFork.push(block);
+                  }else{
+                    this.chain.blockFork.push(block);
+                  }
+                  
+                }else{
+                  logger(`Block hash ${block.hash.substr(0, 15)}... is too low in chain`)
+                  //too low in the chain
                 }
+      
               }
-              
-            })
-          }else{
-            this.chain.blockFork.push(block);
-          }
-
-        }else{
-          
-          let lastBlockNum = this.chain.getLatestBlock().blockNumber;
-
-          if(block.blockNumber >= lastBlockNum - this.minimumUnconfirmedBlocks){
-            logger(`Created new fork with block hash ${block.hash.substr(0, 15)}...`)
-            this.chain.blockFork.push(block);
-          }else{
-            logger(`Block hash ${block.hash.substr(0, 15)}... is too low in chain`)
-            //too low in the chain
-          }
-
-        }
-
-      }
+      
+            }
     })
-   
   }
+
+  // createBlockFork(block){
+  //   return new Promise(async (resolve) =>{
+  //     
+  //   })
+   
+  // }
 
   resolveBlockFork(){
     return new Promise(async (resolve) =>{
@@ -565,10 +642,7 @@ class Node {
           blocksToOrphan.forEach( block=>{
             logger(`Remove block ${block.blockNumber} from main chain`)
             this.unwrapBlock(block);
-          })
-
-          this.chain.blockFork.forEach( block=>{
-            this.addNewBlock(block)
+            this.chain.orphanedBlocks.push(block);
           })
 
           resolve({ side:this.chain.getLatestBlock().hash })
@@ -1117,6 +1191,26 @@ class Node {
       }
      })
 
+     socket.on('getBlockFromHash', (hash)=>{
+      if(this.chain instanceof Blockchain){
+        if(hash && typeof hash == 'string'){
+         
+          let blockIndex = this.chain.getIndexOfBlockHash(hash);
+          let block = this.chain.chain[blockIndex];
+          if(block){
+            
+            socket.emit('blockFromHash', block)
+            
+          }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
+            socket.emit('blockFromHash', {end:'End of blockchain'})
+          }else{
+            socket.emit('blockFromHash', {error:'Block not found'})
+          }
+          
+         }
+      }
+     })
+
 
    }
   }
@@ -1411,52 +1505,48 @@ class Node {
               if(!this.chain.getIndexOfBlockHash(header.hash)){
 
 
-                if(this.chain.isBlockLinked(header)){
+                
+                  if(this.chain.validateBlockHeader(header)){
                   
-                }else{
-                  logger('New block is not linked to current blockchain');
-
-                }
-
-                if(this.chain.validateBlockHeader(header)){
-                  
-                  if(this.miner){
-                    clearInterval(this.miner.minerLoop);
-                    
-                    if(process.ACTIVE_MINER){
-                      process.ACTIVE_MINER.send({abort:true});
+                    if(this.miner){
+                      clearInterval(this.miner.minerLoop);
                       
+                      if(process.ACTIVE_MINER){
+                        process.ACTIVE_MINER.send({abort:true});
+                        
+                      }
+  
+                      delete this.miner;
                     }
-
-                    delete this.miner;
-                  }
-  
-                  let peerSocket = this.connectionsToPeers[relayPeer]
-                  if(peerSocket){
-                    this.downloadBlocks(peerSocket, [header], 1)
-                    .then( downloaded=>{
-                      if(downloaded){
-  
-                        this.sendPeerMessage('newBlockFound', header)
-                        this.createMiner();
-
-                      }else if(downloaded.error){
-                        logger(downloaded.error)
-                        this.createMiner()
-
+    
+                    let peerSocket = this.connectionsToPeers[relayPeer]
+                    if(peerSocket){
+                      if(this.chain.isBlockLinked(header)){
+                        this.downloadBlocks(peerSocket, [header], 1)
+                        .then( downloaded=>{
+                          if(downloaded){
+                            this.sendPeerMessage('newBlockFound', header)
+                          }else if(downloaded.error){
+                            logger(downloaded.error)
+                          }else{
+                            logger('Sync block with main blockchain')
+                          }
+                          this.createMiner()
+                        })
                       }else{
-                        logger('Sync block with main blockchain')
-                        this.createMiner()
+                        logger('New block is not linked to current blockchain');
+                        this.forkBlockchain(peerSocket, header);
                       }
 
+                    }else{
+                      logger('Relay peer could not be found')
                     }
-                    )
                   }else{
-                    logger('Relay peer could not be found')
+                    logger('New block is invalid')
                   }
-                }else{
-                  logger('New block is invalid')
-                }
+                
+
+
    
               }
             }
