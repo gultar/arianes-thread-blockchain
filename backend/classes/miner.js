@@ -36,7 +36,7 @@ class Miner{
   
                           clearInterval(this.minerLoop);
   
-                          logger(chalk.green('Mining block number ')+this.chain.chain.length);
+                          logger('Mining block number '+chalk.green(this.chain.chain.length));
                           logger('Number of pending transactions:', Mempool.sizeOfPool());
   
                           if(block){
