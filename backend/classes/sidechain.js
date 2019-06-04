@@ -1,4 +1,4 @@
-const { isValidBlockJSON } = require('./backend/tools/jsonvalidator')
+const { isValidBlockJSON } = require('../tools/jsonvalidator')
 
 class Sidechain{
     constructor(mainChain){
@@ -6,15 +6,14 @@ class Sidechain{
         this.sideChain = sideChain;
     }
 
-    async compareWork(mainChain, sideChain){
-        let mainWorkDone = await this.calculateWorkDone(mainChain);
-        let sideWorkDone = await this.calculateWorkDone(sideChain);
+    async compareWork(){
+        let mainWorkDone = await this.calculateWorkDone(this.mainChain);
+        let sideWorkDone = await this.calculateWorkDone(this.sideChain);
         if(mainWorkDone && sideWorkDone){
-            return (sideWorkDone > mainWorkDone ? {sideChain:sideChain} : {mainChain:mainChain})
+            return (sideWorkDone > mainWorkDone ? {sideChain:this.sideChain} : {mainChain:this.mainChain})
         }else{
             return false;
         }
-        
         
     }
 
@@ -39,3 +38,5 @@ class Sidechain{
         
     }
 }
+
+module.exports = Sidechain;

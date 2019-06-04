@@ -697,9 +697,9 @@ class Blockchain{
 
 
           this.chain.forEach((block)=>{
-            if(block.blockNumber > 0){
+            // if(block.blockNumber > 0){
               headers.push(this.getBlockHeader(block.blockNumber))
-            }
+            // }
           })
 
           return headers
