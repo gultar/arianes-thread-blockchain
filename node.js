@@ -1196,16 +1196,21 @@ class Node {
         if(hash && typeof hash == 'string'){
          
           let blockIndex = this.chain.getIndexOfBlockHash(hash);
-          let block = this.chain.chain[blockIndex];
-          if(block){
-            
-            socket.emit('blockFromHash', block)
-            
-          }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
-            socket.emit('blockFromHash', {end:'End of blockchain'})
+          if(blockIndex){
+            let block = this.chain.chain[blockIndex];
+            if(block){
+              
+              socket.emit('blockFromHash', block)
+              
+            }else if(blockIndex == this.chain.getLatestBlock().blockNumber + 1){
+              socket.emit('blockFromHash', {end:'End of blockchain'})
+            }else{
+              socket.emit('blockFromHash', {error:'Block not found'})
+            }
           }else{
             socket.emit('blockFromHash', {error:'Block not found'})
           }
+          
           
          }
       }
@@ -1536,6 +1541,7 @@ class Node {
                       }else{
                         logger('New block is not linked to current blockchain');
                         this.forkBlockchain(peerSocket, header);
+                        this.createMiner()
                       }
 
                     }else{
