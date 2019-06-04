@@ -497,18 +497,18 @@ class Node {
         this.isDownloading = true
         if(this.miner) this.miner.nodeIsDownloading = true;
         
-        peer.on('block', (block)=>{
+        peer.on('blockFromHash', (block)=>{
           if(block){
             try{
               if(block.end){
                 logger('Blockchain updated');
-                peer.off('block');
+                peer.off('blockFromHash');
                 this.isDownloading = false;
                 if(this.miner) this.miner.nodeIsDownloading = false;
                 resolve(true)
               }else if(block.error){
                 logger(block.error)
-                peer.off('block');
+                peer.off('blockFromHash');
                 this.isDownloading = false
                 if(this.miner) this.miner.nodeIsDownloading = false;
                 resolve(block.error)
@@ -586,7 +586,7 @@ class Node {
                     if(result){
       
                       if(result.side){
-                        this.downloadBlocks(peer, this.chain.blockFork);
+                        this.downloadBlocksFromHash(peer, this.chain.blockFork);
                       }
         
                       if(result.main){
