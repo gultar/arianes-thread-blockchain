@@ -43,40 +43,32 @@ class Miner{
                             let success = await this.chain.mineNextBlock(block, this.address, this.verbose);
                             this.minerPaused = true;
                             if(success){
-                                let isLinked = this.chain.isBlockLinked(block);
-                                if(isLinked){
-                                  let newBlock = success;
-                                  let isChainValid = this.chain.validateBlockchain();
-                                  
-                                  if(isChainValid){
-                                    
-                                      let newBlockTransactions = newBlock.transactions;
-                                      let newBlockActions = newBlock.actions
-                                      Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
-                                      Mempool.deleteActionsFromMinedBlock(newBlockActions);
-                                      this.chain.saveBlockchain();
-                                      
-                                      let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
-                                      
-                                      if(coinbase){
-                                          block.coinbaseTransactionHash = coinbase.hash;
-                                      }else{
-                                          logger('ERROR: An error occurred while creating coinbase transaction')
-                                      }
-                                      
-                                      callback(block)
-                                }else{
-                                  logger('ERROR: Block not linked to previousBlock')
-                                  this.unwrapBlock(block);
-                                  callback(false)
-                                }
+                              let newBlock = success;
+                              let isChainValid = this.chain.validateBlockchain();
+                              
+                              if(isChainValid){
                                 
-  
-                                }else{
-                                  logger('ERROR: Chain is invalid')
-                                  this.unwrapBlock(block);
-                                  callback(false)
-                                }
+                                  let newBlockTransactions = newBlock.transactions;
+                                  let newBlockActions = newBlock.actions
+                                  Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);
+                                  Mempool.deleteActionsFromMinedBlock(newBlockActions);
+                                  this.chain.saveBlockchain();
+                                  
+                                  let coinbase = await this.chain.createCoinbaseTransaction(this.publicKey, this.chain.getLatestBlock().hash)
+                                  
+                                  if(coinbase){
+                                      block.coinbaseTransactionHash = coinbase.hash;
+                                  }else{
+                                      logger('ERROR: An error occurred while creating coinbase transaction')
+                                  }
+                                  
+                                  callback(block);
+                                  
+                              }else{
+                                logger('ERROR: Chain is invalid')
+                                this.unwrapBlock(block);
+                                callback(false)
+                              }
                                 
                             }else{
                               logger('Mining unsuccessful')

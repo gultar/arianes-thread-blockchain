@@ -276,7 +276,7 @@ class Node {
 
           peer.heartbeatTimeout = 120000;
 
-          logger('Requesting connection to '+ address+ ' ...');
+          if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
           this.UILog('Requesting connection to '+ address+ ' ...');
 
           peer.on('connect_timeout', (timeout)=>{
