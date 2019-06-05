@@ -85,7 +85,7 @@ class Node {
       peerAddress:'',
       totalChallenge:0,
     }
-    this.isDownloading = false;
+    // this.miner.nodeIsDownloading = false;
 
     if(options){
 
@@ -312,7 +312,7 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            if(!this.isDownloading){
+            if(!this.miner.nodeIsDownloading){
               this.receiveBlockchainStatus(peer, status)
             }
             
@@ -352,12 +352,14 @@ class Node {
   
   requestChainHeaders(peer, startAt=0, length=0){
     return new Promise((resolve, reject)=>{
-      if(!this.isDownloading){
+      if(!this.miner.nodeIsDownloading){
         if(this.chain instanceof Blockchain && peer){
         
           let headers = [];
-  
-          this.isDownloading = true;
+          
+          this.miner.nodeIsDownloading = true;
+
+          logger(chalk.cyan('Fetching block headers from peer...'))
   
           peer.emit('getBlockHeader', startAt+1)
   
@@ -374,7 +376,7 @@ class Node {
   
                     logger(header.error)
                     peer.off('blockHeader')
-                    this.isDownloading = false;
+                    this.miner.nodeIsDownloading = false;
                     if(this.miner) this.miner.nodeIsDownloading = false;
                     bar = null;
                     resolve({error:header.error})
@@ -385,7 +387,7 @@ class Node {
   
                     if(this.verbose) logger('Headers fully synced')
                     peer.off('blockHeader')
-                    this.isDownloading = false;
+                    this.miner.nodeIsDownloading = false;
                     if(this.miner) this.miner.nodeIsDownloading = false;
                     bar = null;
                     
@@ -424,9 +426,9 @@ class Node {
 
   downloadBlockchain(peer, startAtIndex=0, length){
     return new Promise(async (resolve)=>{
-      if(!this.isDownloading){
+      if(!this.miner.nodeIsDownloading){
         if(peer){
-          this.isDownloading = true;
+          this.miner.nodeIsDownloading = true;
           let blocks = [];
           logger(chalk.cyan('Downloading blockchain from remote peer...'))
           let bar = Progress({
@@ -442,14 +444,14 @@ class Node {
               if(block.error){
                 logger(block.error)
                 peer.off('block');
-                this.isDownloading = false;
+                this.miner.nodeIsDownloading = false;
                 bar = null;
                 resolve(block.error)
               }
   
               if(block.end){
                   peer.off('block');
-                  this.isDownloading = false;
+                  this.miner.nodeIsDownloading = false;
                   bar = null;
                   resolve(blocks)
               }else{
@@ -483,7 +485,7 @@ class Node {
   getBlockFromHash(peer, hash){
     return new Promise(async (resolve)=>{
       if(peer && hash){
-        this.isDownloading = true;
+        this.miner.nodeIsDownloading = true;
         
         peer.emit('getBlockFromHash', hash);
 
@@ -493,7 +495,7 @@ class Node {
             if(block.error){
               logger(block.error)
               peer.off('blockFromHash');
-              this.isDownloading = false
+              this.miner.nodeIsDownloading = false
               resolve(block.error)
             }
 
@@ -508,27 +510,7 @@ class Node {
     })
   }
 
-  // receiveBlock(block){
-  //   return new Promise(async (resolve, reject)=>{
-  //     if(isValidBlockJSON(block)){
-        
-  //       if(!this.chain.getIndexOfBlockHash(block.hash)){
-  //         let isSynced = await this.chain.syncBlock(block);
-  //         if(isSynced){
-  //           resolve(true)
-  //         }else{
-  //           resolve(false)
-  //         }        
-  //       }else{
-  //         resolve(false)
-  //       }
-        
-  //     }else{
-  //       resolve(false)
-  //     }
-  //   })
-    
-  // }
+  
 
   createBlockFork(block){
     return new Promise(async (resolve) =>{
@@ -570,41 +552,6 @@ class Node {
     })
   }
 
-  // resolveBlockFork(){
-  //   return new Promise(async (resolve) =>{
-  //     if(this.chain.blockFork){
-  //       let forkSize = this.chain.blockFork.length
-  //       let latestBlockInFork = this.chain.blockFork[forkSize - 1];
-  //       if(latestBlockInFork.totalChallenge > this.chain.getLatestBlock().totalChallenge){
-
-  //         let blocksToOrphan = this.chain.chain.splice(-1, forkSize);
-
-  //         blocksToOrphan.forEach( block=>{
-  //           logger(`Remove block ${block.blockNumber} from main chain`)
-  //           this.unwrapBlock(block);
-  //           this.chain.orphanedBlocks.push(block);
-  //         })
-
-  //         resolve({ side:this.chain.getLatestBlock().hash })
-
-  //       }else{
-
-  //         this.chain.blockFork.forEach( block=>{
-  //           logger(`Orphaned block ${block.blockNumber} from fork`)
-  //           this.chain.orphanedBlocks.push(block)
-  //         })
-
-  //         resolve({ main:this.chain.getLatestBlock().hash })
-
-  //       }
-  //     }else{
-  //       logger('No block fork found')
-  //       resolve(false)
-  //     }
-        
-  //   })
-    
-  // }
 
   async receiveBlockchainStatus(peer, status){
     if(this.chain instanceof Blockchain && peer && status){
@@ -621,6 +568,7 @@ class Node {
           if(isValidHeader){
             // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
             let lastBlockNum = this.chain.getLatestBlock().blockNumber;
+            this.miner.nodeIsDownloading = true;
             let headers = await this.requestChainHeaders(peer, lastBlockNum, length)
             if(headers){
 
@@ -647,18 +595,19 @@ class Node {
 
             }else{
               logger('ERROR: Headers not found')
-              this.isDownloading = false;
+              this.miner.nodeIsDownloading = false;
             }
           }else{
 
             logger('ERROR: Last block header from peer is invalid')
-            this.isDownloading = false;
+            this.miner.nodeIsDownloading = false;
           }
         }
       }else{
         logger('ERROR: Status object is missing parameters')
-        this.isDownloading = false;
+        this.miner.nodeIsDownloading = false;
       }
+      this.miner.nodeIsDownloading = true;
     }
   }
 
@@ -965,92 +914,12 @@ class Node {
         
       });
 
-      
-  
-      app.post('/chainLength', (req, res) =>{
-        try{
-          if(isValidChainLengthJSON(req.body)){
-            const { length, peerAddress, totalChallenge } = req.body;
-            if(this.longestChain.length < length && this.nodeList.addresses.includes(peerAddress)){
-              res.send('OK')
-              this.longestChain.length = length;
-              this.longestChain.peerAddress = peerAddress
-              this.longestChain.totalChallenge = 
-              logger(peerAddress+' has sent its chain length: '+length)
-            }else{
-              res.send('ERROR: failed to post chain length')
-            }
-          }
-          
-        }catch(e){
-          logger(chalk.red("ERROR: Could not receive chainLength response", e.errno));
-        }
-      })
-
-      // app.get('/getChainHeaders', (req, res)=>{
-  
-      //   try{
-      //       let chainHeaders = this.getAllHeaders(this.address);
-      //       res.json({ chainHeaders:chainHeaders }).end()
-  
-      //   }catch(e){
-      //     console.log(chalk.red(e));
-      //   }
-      // })
-  
       app.get('/getBlockHeader',(req, res)=>{
         var blockNumber = req.query.hash;
         if(blockNumber){
           res.json(this.chain.getBlockHeader(blockNumber)).end()
         }
       })
-
-      // app.get('/getNextBlock', (req, res)=>{
-        
-      //   if(isValidGetNextBlockJSON(req.query)){
-      //     try{
-      //       var blockHash = req.query.hash;
-      //       var blockHeader = JSON.parse(req.query.header);
-      //       if(this.chain instanceof Blockchain && isValidHeaderJSON(blockHeader)){
-      //         const indexOfCurrentPeerBlock = this.chain.getIndexOfBlockHash(blockHash);
-      //         const lastBlock = this.chain.getLatestBlock();
-      //         if(indexOfCurrentPeerBlock || indexOfCurrentPeerBlock === 0){
-    
-      //           var nextBlock = this.chain.chain[indexOfCurrentPeerBlock+1];
-      //           if(nextBlock){
-      //             res.json(nextBlock).end()
-      //           }
-      //           if(blockHash === lastBlock.hash){
-      //             res.json( { error:'end of chain' } ).end()
-      //           }
-    
-      //         }else{
-    
-      //           let lastBlockHeader = this.chain.getBlockHeader(lastBlock.blockNumber);
-    
-      //           if(blockHeader.blockNumber == lastBlock.blockNumber){
-      //             if(blockHeader.blockNumber !== 0){
-      //               res.json( { error:'block fork', header:JSON.stringify(lastBlockHeader) } ).end()
-      //             }else{
-      //               res.json( { error:'end of chain' } ).end()
-      //             }
-                  
-      //           }else{
-      //             res.json( { error:'no block found' } ).end()
-      //           }
-    
-      //         }
-      //       }else{
-      //         res.json( { error:'invalid request parameters' } ).end()
-      //       }
-      //     }catch(e){
-      //       console.log(chalk.red(e))
-      //     }
-      //   }else{
-      //     res.json({ error: 'invalid block request JSON format' }) 
-      //   }
-
-      // })
 
     }catch(e){
       logger(e)
@@ -1949,6 +1818,7 @@ class Node {
   */
   createMiner(){
     if(this.chain instanceof Blockchain){
+
       this.minerStarted = true;
 
       this.miner = new Miner({
@@ -2052,8 +1922,6 @@ class Node {
       .catch((e)=>{
         console.log(chalk.red(e))
       })
-
-    
     
   }
 
@@ -2101,7 +1969,6 @@ class Node {
     var that = this;
     setInterval(()=>{
       that.messageBuffer = {};
-      this.isDownloading = false; //In case it is stuck
       
     }, 30000)
   }
@@ -2158,12 +2025,7 @@ class Node {
       return false;
     }
     
-    
-
   }
-
-
-
 
 }
 
