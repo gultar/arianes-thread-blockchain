@@ -94,8 +94,8 @@ class Blockchain{
       if(this.blockFork[block.previousBlock]){
         let branch = [this.blockFork[block.previousBlock], block];
         this.rollBackBlocks(branch[0].blockNumber);
-        logger(`Selected working branch of block ${this.fork[0].hash.substr(0, 25)}`);
-        logger(`All blocks from index ${this.fork[0].blockNumber} have been orphaned`);
+        logger(`Selected working branch of block ${branch[0].hash.substr(0, 25)}`);
+        logger(`All blocks from index ${branch[0].blockNumber} have been orphaned`);
         branch.forEach( block=>{
           this.syncBlock(block);
         })
