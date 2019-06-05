@@ -632,7 +632,7 @@ class Node {
 
               if(blocks){
                 blocks.forEach( async(block)=>{
-                  let addedBlock = await this.addBlock(block);
+                  let addedBlock = await this.addNewBlock(block);
                   if(!addedBlock){
                     logger('ERROR: Could not add block')
                   }
