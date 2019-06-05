@@ -1946,7 +1946,7 @@ class Node {
   createMiner(){
     if(this.chain instanceof Blockchain){
       this.minerStarted = true;
-      
+
       this.miner = new Miner({
         chain:this.chain,
         address:this.address,

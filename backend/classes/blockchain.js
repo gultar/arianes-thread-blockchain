@@ -132,7 +132,7 @@ class Blockchain{
 
         logger(`Created new branch at index ${block.blockNumber}`);
         logger(`with hash ${block.hash.substr(0, 25)}`);
-        this.fork[block.blockNumber].push(block);
+        this.fork.push(block);
 
         
       }else{
