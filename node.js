@@ -1636,8 +1636,11 @@ class Node {
               }else{
                 logger('ERROR:Could not fetch block from peer')
               }
-
-              this.createMiner()
+              
+              if(this.miner){
+                this.createMiner()
+              }
+              
 
           }else{
             logger('ERROR:Relay peer could not be found')

@@ -128,7 +128,7 @@ class Blockchain{
 
   createChainFork(block){
     if(block){
-      if(!this.fork.length == 0){
+      if(this.fork.length == 0){
 
         logger(`Created new branch at index ${block.blockNumber}`);
         logger(`with hash ${block.hash.substr(0, 25)}`);
@@ -137,18 +137,15 @@ class Blockchain{
         
       }else{
         
-        allForkIndexes.forEach(index=>{
-          console.log('Loops over forks')
-          let chain = this.fork;
-          let lastBlock = chain[chain.length-1];
+          let lastBlock = this.fork[this.fork.length-1];
           if(lastBlock.hash == block.previousHash){
 
-            chain.push(block)
-            this.rollBackBlocks(chain[0].blockNumber);
-            logger(`Selected working branch of block ${chain[0].hash.substr(0, 25)}`);
-            logger(`All blocks from index ${chain[0].blockNumber} have been orphaned`);
+            this.fork.push(block)
+            this.rollBackBlocks(this.fork[0].blockNumber);
+            logger(`Selected working branch of block ${this.fork[0].hash.substr(0, 25)}`);
+            logger(`All blocks from index ${this.fork[0].blockNumber} have been orphaned`);
             
-            chain.forEach( block=>{
+            this.fork.forEach( block=>{
               this.syncBlock(block);
             })
 
@@ -157,7 +154,6 @@ class Blockchain{
           }else{
             logger('ERROR: Block is not linked with forked chain')
           }
-        })
       }
       
       
