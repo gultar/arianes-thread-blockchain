@@ -1281,21 +1281,8 @@ class Node {
     })
     
     socket.on('test', ()=>{
-      // let transactions = this.chain.chain[30].transactions;
-      // let hashes = Object.keys(transactions);
-      // let txToVerif = hashes[2];
-      // isHashPartOfMerkleTree(txToVerif, transactions);
-      let pace = new Progress()
-      this.chain.chain.forEach( block=>{
-        for(var i=0; i<10; i++){
-          pace.op();
-        }
-        
-      })
-      pace = null;
+     this.chain.fork = []
     
-      
-
     })
 
     socket.on('rollback', ()=>{

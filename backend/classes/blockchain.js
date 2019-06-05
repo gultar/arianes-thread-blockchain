@@ -33,7 +33,7 @@ class Blockchain{
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
     this.blockFork = [];
-    this.forks = {}
+    this.fork = []
     this.difficulty = difficulty;
     this.miningReward = 50;
     this.ipAddresses = ipAddresses
@@ -89,13 +89,57 @@ class Blockchain{
     }
   }
 
+  // createChainFork(block){
+  //   if(block){
+  //     if(Object.keys(this.fork)){
+  //       let allForkIndexes = Object.keys(this.fork);
+  //       allForkIndexes.forEach(index=>{
+  //         console.log('Loops over forks')
+  //         let chain = this.fork[index];
+  //         let lastBlock = chain[chain.length-1];
+  //         if(lastBlock.hash == block.previousHash){
+
+  //           chain.push(block)
+  //           this.rollBackBlocks(chain[0].blockNumber);
+  //           logger(`Selected working branch of block ${chain[0].hash.substr(0, 25)}`);
+  //           logger(`All blocks from index ${chain[0].blockNumber} have been orphaned`);
+            
+  //           chain.forEach( block=>{
+  //             this.syncBlock(block);
+  //           })
+
+  //           delete this.fork[index];
+
+  //         }else{
+  //           logger('ERROR: Block is not linked with forked chain')
+  //         }
+  //       })
+  //     }else{
+  //       logger(`Created new branch at index ${block.blockNumber}`);
+  //       logger(`with hash ${block.hash.substr(0, 25)}`);
+  //       this.fork[block.blockNumber].push(block);
+  //     }
+      
+      
+  //   }else{
+  //     logger('ERROR: Block not found')
+  //   }
+  // }
+
   createChainFork(block){
     if(block){
-      if(Object.keys(this.forks)){
-        let allForkIndexes = Object.keys(this.forks);
+      if(!this.fork.length == 0){
+
+        logger(`Created new branch at index ${block.blockNumber}`);
+        logger(`with hash ${block.hash.substr(0, 25)}`);
+        this.fork[block.blockNumber].push(block);
+
+        
+      }else{
+        
         allForkIndexes.forEach(index=>{
           console.log('Loops over forks')
-          let chain = this.forks[index];
+          let chain = this.fork;
           let lastBlock = chain[chain.length-1];
           if(lastBlock.hash == block.previousHash){
 
@@ -108,16 +152,12 @@ class Blockchain{
               this.syncBlock(block);
             })
 
-            delete this.forks[index];
+            this.fork = [];
 
           }else{
             logger('ERROR: Block is not linked with forked chain')
           }
         })
-      }else{
-        logger(`Created new branch at index ${block.blockNumber}`);
-        logger(`with hash ${block.hash.substr(0, 25)}`);
-        this.forks[block.blockNumber].push(block);
       }
       
       
