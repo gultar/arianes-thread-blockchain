@@ -1610,7 +1610,7 @@ class Node {
   async handleNewBlockFound(data, relayPeer){
     if(this.chain instanceof Blockchain && data){
       let header = JSON.parse(data);
-      if(!this.chain.getIndexOfBlockHash(header.hash)){
+      // if(!this.chain.getIndexOfBlockHash(header.hash)){
 
           if(this.chain.validateBlockHeader(header)){
             
@@ -1661,9 +1661,9 @@ class Node {
           }
         
 
-      }else{
-        logger('ERROR:Block already present in chain')
-      }
+      // }else{
+      //   logger('ERROR:Block already present in chain')
+      // }
     }
   }
 

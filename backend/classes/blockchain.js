@@ -97,7 +97,7 @@ class Blockchain{
           let chain = this.forks[index];
           let lastBlock = chain[chain.length-1];
           if(lastBlock.hash == block.previousHash){
-            
+
             chain.push(block)
             this.rollBackBlocks(chain[0].blockNumber);
             logger(`Selected working branch of block ${chain[0].hash.substr(0, 25)}`);
@@ -110,7 +110,7 @@ class Blockchain{
             delete this.forks[index];
 
           }else{
-
+            logger('ERROR: Block is not linked with forked chain')
           }
         })
       }else{
