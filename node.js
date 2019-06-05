@@ -1610,11 +1610,7 @@ class Node {
   async handleNewBlockFound(data, relayPeer){
     if(this.chain instanceof Blockchain && data && relayPeer){
       let header = JSON.parse(data);
-      if(this.chain.getIndexOfBlockHash(header.hash)){
-        logger('ERROR:Block already present in chain')
-      }else{
-        
-
+      if(!this.chain.getIndexOfBlockHash(header.hash)){
         if(this.chain.validateBlockHeader(header)){
             
           let peerSocket = this.connectionsToPeers[relayPeer]
@@ -1644,12 +1640,11 @@ class Node {
 
                 }else{
                   logger('ERROR:New block is not linked to current blockchain');
+                  console.log(newBlock)
                   this.chain.createChainFork(newBlock);
                   
                 }
 
-                
-                
               }else if(newBlock.error){
                 logger(newBlock.error)
               }else{
@@ -1664,7 +1659,6 @@ class Node {
         }else{
           logger('ERROR:New block is invalid')
         }
-      
       }
     }
   }

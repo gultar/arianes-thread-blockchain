@@ -92,8 +92,10 @@ class Blockchain{
   createChainFork(block){
     if(block){
       if(this.forks){
+        console.log('Has a fork')
         let allForkIndexes = Object.keys(this.forks);
         allForkIndexes.forEach(index=>{
+          console.log('Loops over forks')
           let chain = this.forks[index];
           let lastBlock = chain[chain.length-1];
           if(lastBlock.hash == block.previousHash){
