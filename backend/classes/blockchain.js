@@ -91,8 +91,7 @@ class Blockchain{
 
   createChainFork(block){
     if(block){
-      if(this.forks){
-        console.log('Has a fork')
+      if(Object.keys(this.forks)){
         let allForkIndexes = Object.keys(this.forks);
         allForkIndexes.forEach(index=>{
           console.log('Loops over forks')

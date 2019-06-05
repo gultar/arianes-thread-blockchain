@@ -1640,7 +1640,6 @@ class Node {
 
                 }else{
                   logger('ERROR:New block is not linked to current blockchain');
-                  console.log(newBlock)
                   this.chain.createChainFork(newBlock);
                   
                 }
