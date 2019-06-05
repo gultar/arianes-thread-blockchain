@@ -46,9 +46,14 @@ class Miner{
   
                                 let newBlock = success;
                                 let isChainValid = this.chain.validateBlockchain();
-                                
+                                let isLinked = this.chain.isBlockLinked(block);
+                                if(!isLinked){
+                                  logger('ERROR: Block not linked to previousBlock')
+                                  this.unwrapBlock(block);
+                                  callback(false)
+                                }
                                 if(isChainValid){
-  
+                                  
                                     let newBlockTransactions = newBlock.transactions;
                                     let newBlockActions = newBlock.actions
                                     Mempool.deleteTransactionsFromMinedBlock(newBlockTransactions);

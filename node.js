@@ -1608,7 +1608,7 @@ class Node {
   }
 
   async handleNewBlockFound(data, relayPeer){
-    if(this.chain instanceof Blockchain && data){
+    if(this.chain instanceof Blockchain && data && relayPeer){
       let header = JSON.parse(data);
       // if(!this.chain.getIndexOfBlockHash(header.hash)){
 
