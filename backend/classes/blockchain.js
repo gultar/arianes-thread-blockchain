@@ -33,6 +33,7 @@ class Blockchain{
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
     this.blockFork = [];
+    this.forks = {}
     this.difficulty = difficulty;
     this.miningReward = 50;
     this.ipAddresses = ipAddresses
@@ -85,6 +86,40 @@ class Blockchain{
       }
     }else{
       return false;
+    }
+  }
+
+  createChainFork(block){
+    if(block){
+      if(this.forks){
+        let allForkIndexes = Object.keys(this.forks);
+        allForkIndexes.forEach(index=>{
+          let chain = this.forks[index];
+          let lastBlock = chain[chain.length-1];
+          if(lastBlock.hash == block.previousHash){
+            
+            chain.push(block)
+            this.rollBackBlocks(chain[0].blockNumber);
+            logger(`Selected working branch of block ${chain[0].hash.substr(0, 25)}`);
+            logger(`All blocks from index ${chain[0].blockNumber} have been orphaned`);
+            
+            chain.forEach( block=>{
+              this.syncBlock(block);
+            })
+
+            delete this.forks[index];
+
+          }else{
+
+          }
+        })
+      }else{
+        logger(`Created new branch at index ${block.blockNumber}`);
+        logger(`with hash ${block.hash.substr(0, 25)}`);
+        this.forks[block.blockNumber].push(block);
+      }
+      
+      
     }
   }
 
@@ -710,22 +745,6 @@ class Blockchain{
     
   }
 
-  isLinkedToBlockFork(block){
-    return new Promise( resolve=>{
-      console.log('Block:', block.hash)
-      console.log(`Check if ${block.blockNumber} is linked to block ${block.previousHash}`)
-      this.blockFork.forEach( forkedBlock=>{
-        if(forkedBlock.hash == block.previousHash){
-         resolve(forkedBlock.blockNumber)
-        }else if(forkedBlock.previousHash == block.previousHash){
-          resolve(forkedBlock.blockNumber - 1)
-        }
-      })
-
-      resolve(false)
-    })
-    
-  }
 
   isHeaderLinkedToPreviousBlock(header){
     if(header){
@@ -810,13 +829,13 @@ class Blockchain{
 
   rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon
     if(typeof blockIndex == 'number'){
-      var sideChain = [];
-      sideChain = this.chain.splice(blockIndex);
-      sideChain.forEach((block)=>{
+      var orphanedBlocks = [];
+      orphanedBlocks = this.chain.splice(blockIndex);
+      orphanedBlocks.forEach((block)=>{
         this.unwrapBlock(block);
       })
 
-      return sideChain;
+      return orphanedBlocks;
     }
   }
 

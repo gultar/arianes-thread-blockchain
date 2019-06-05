@@ -502,32 +502,36 @@ class Node {
     })
   }
 
-  receiveBlock(block){
-    return new Promise(async (resolve, reject)=>{
-      if(isValidBlockJSON(block)){
+  // receiveBlock(block){
+  //   return new Promise(async (resolve, reject)=>{
+  //     if(isValidBlockJSON(block)){
         
-        if(!this.chain.getIndexOfBlockHash(block.hash)){
-          let isSynced = await this.addNewBlock(block);
-          if(isSynced){
-            resolve(true)
-          }else{
-            resolve(false)
-          }        
-        }else{
-          resolve(false)
-        }
+  //       if(!this.chain.getIndexOfBlockHash(block.hash)){
+  //         let isSynced = await this.addNewBlock(block);
+  //         if(isSynced){
+  //           resolve(true)
+  //         }else{
+  //           resolve(false)
+  //         }        
+  //       }else{
+  //         resolve(false)
+  //       }
         
-      }else{
-        resolve(false)
-      }
-    })
+  //     }else{
+  //       resolve(false)
+  //     }
+  //   })
     
-  }
+  // }
 
   createBlockFork(block){
     return new Promise(async (resolve) =>{
       if(block){
+
+        let isStemOfFork
+
         if(this.chain.blockFork){
+
           let forkLength = this.chain.blockFork.length;
           
           let isLinkedToFork = this.chain.blockFork[forkLength - 1].hash == block.previousHash;
@@ -1633,27 +1637,29 @@ class Node {
                     }
 
                   }else{
-                    logger('New block is not linked to current blockchain');
-                    this.forkBlockchain(peerSocket, newBlock);
+                    logger('ERROR:New block is not linked to current blockchain');
+                    this.chain.createChainFork(newBlock);
                     
                   }
                   
                 }else if(newBlock.error){
                   logger(newBlock.error)
                 }else{
-                  logger('Could not fetch block from peer')
+                  logger('ERROR:Could not fetch block from peer')
                 }
 
                 this.createMiner()
 
             }else{
-              logger('Relay peer could not be found')
+              logger('ERROR:Relay peer could not be found')
             }
           }else{
-            logger('New block is invalid')
+            logger('ERROR:New block is invalid')
           }
         
 
+      }else{
+        logger('ERROR:Block already present in chain')
       }
     }
   }
