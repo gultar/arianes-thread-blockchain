@@ -120,6 +120,8 @@ class Blockchain{
       }
       
       
+    }else{
+      logger('ERROR: Block not found')
     }
   }
 

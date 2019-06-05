@@ -1610,60 +1610,62 @@ class Node {
   async handleNewBlockFound(data, relayPeer){
     if(this.chain instanceof Blockchain && data && relayPeer){
       let header = JSON.parse(data);
-      // if(!this.chain.getIndexOfBlockHash(header.hash)){
-
-          if(this.chain.validateBlockHeader(header)){
-            
-            let peerSocket = this.connectionsToPeers[relayPeer]
-            if(peerSocket){
-              
-                if(this.miner){
-                  clearInterval(this.miner.minerLoop);
-                  
-                  if(process.ACTIVE_MINER){
-                    process.ACTIVE_MINER.send({abort:true});
-                    
-                  }
-
-                  delete this.miner;
-                }
-
-                let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
-                if(newBlock){
-
-                  if(this.chain.isBlockLinked(newBlock)){
-
-                    this.sendPeerMessage('newBlockFound', header);
-                    let addedToChain = await this.addNewBlock(newBlock);
-                    if(addedToChain.error){
-                      logger(addedToChain.error)
-                    }
-
-                  }else{
-                    logger('ERROR:New block is not linked to current blockchain');
-                    this.chain.createChainFork(newBlock);
-                    
-                  }
-                  
-                }else if(newBlock.error){
-                  logger(newBlock.error)
-                }else{
-                  logger('ERROR:Could not fetch block from peer')
-                }
-
-                this.createMiner()
-
-            }else{
-              logger('ERROR:Relay peer could not be found')
-            }
-          }else{
-            logger('ERROR:New block is invalid')
-          }
+      if(this.chain.getIndexOfBlockHash(header.hash)){
+        logger('ERROR:Block already present in chain')
+      }else{
         
 
-      // }else{
-      //   logger('ERROR:Block already present in chain')
-      // }
+        if(this.chain.validateBlockHeader(header)){
+            
+          let peerSocket = this.connectionsToPeers[relayPeer]
+          if(peerSocket){
+            
+              if(this.miner){
+                clearInterval(this.miner.minerLoop);
+                
+                if(process.ACTIVE_MINER){
+                  process.ACTIVE_MINER.send({abort:true});
+                  
+                }
+
+                delete this.miner;
+              }
+
+              let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
+              if(newBlock){
+
+                if(this.chain.isBlockLinked(newBlock)){
+
+                  this.sendPeerMessage('newBlockFound', header);
+                  let addedToChain = await this.addNewBlock(newBlock);
+                  if(addedToChain.error){
+                    logger(addedToChain.error)
+                  }
+
+                }else{
+                  logger('ERROR:New block is not linked to current blockchain');
+                  this.chain.createChainFork(newBlock);
+                  
+                }
+
+                
+                
+              }else if(newBlock.error){
+                logger(newBlock.error)
+              }else{
+                logger('ERROR:Could not fetch block from peer')
+              }
+
+              this.createMiner()
+
+          }else{
+            logger('ERROR:Relay peer could not be found')
+          }
+        }else{
+          logger('ERROR:New block is invalid')
+        }
+      
+      }
     }
   }
 
