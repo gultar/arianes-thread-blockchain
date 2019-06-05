@@ -26,7 +26,7 @@ class Miner{
           if(!this.minerStarted){
             this.minerStarted = true;
             this.minerLoop = setInterval(async ()=>{
-                    if(!this.nodeIsDownloading){
+                    if(!process.NODE_IS_DOWNLOADING){
                       let enoughTransactions = this.chain.hasEnoughTransactionsToMine();
                     
                       if(enoughTransactions && !this.isMining){

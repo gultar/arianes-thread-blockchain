@@ -568,7 +568,7 @@ class Node {
           if(isValidHeader){
             // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
             let lastBlockNum = this.chain.getLatestBlock().blockNumber;
-            if(this.miner) this.miner.nodeIsDownloading = true; 
+            process.NODE_IS_DOWNLOADING = true;
             let headers = await this.requestChainHeaders(peer, lastBlockNum, length)
             if(headers){
 
@@ -591,7 +591,7 @@ class Node {
                     logger('ERROR: Could not add block')
                   }
                 })
-                if(this.miner) this.miner.nodeIsDownloading = false;
+                process.NODE_IS_DOWNLOADING = false;
               }
 
             }else{
