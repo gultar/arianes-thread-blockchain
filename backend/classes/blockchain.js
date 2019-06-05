@@ -91,8 +91,8 @@ class Blockchain{
 
   createBlockBranch(block){
     if(block){
-      if(this.blockFork[block.previousBlock]){
-        let branch = [this.blockFork[block.previousBlock], block];
+      if(this.blockFork[block.previousHash]){
+        let branch = [this.blockFork[block.previousHash], block];
         this.rollBackBlocks(branch[0].blockNumber);
         logger(`Selected working branch of block ${branch[0].hash.substr(0, 25)}`);
         logger(`All blocks from index ${branch[0].blockNumber} have been orphaned`);
@@ -100,7 +100,7 @@ class Blockchain{
           this.syncBlock(block);
         })
 
-        delete this.blockFork[block.previousBlock];
+        delete this.blockFork[block.previousHash];
       }else{
         logger(`Created new branch at index ${block.blockNumber}`);
         logger(`with hash ${block.hash.substr(0, 25)}`);
