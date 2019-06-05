@@ -1626,9 +1626,7 @@ class Node {
                   }
 
                 }else{
-                  logger('ERROR:New block is not linked to current blockchain');
-                  this.chain.createChainFork(newBlock);
-                  
+                  this.chain.createBlockBranch(newBlock);
                 }
 
               }else if(newBlock.error){

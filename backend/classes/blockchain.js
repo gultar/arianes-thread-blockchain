@@ -32,7 +32,7 @@ class Blockchain{
   constructor(chain=false, difficulty=1, ipAddresses=[]){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.sideChain = [];
-    this.blockFork = [];
+    this.blockFork = {};
     this.fork = []
     this.difficulty = difficulty;
     this.miningReward = 50;
@@ -89,42 +89,27 @@ class Blockchain{
     }
   }
 
-  // createChainFork(block){
-  //   if(block){
-  //     if(Object.keys(this.fork)){
-  //       let allForkIndexes = Object.keys(this.fork);
-  //       allForkIndexes.forEach(index=>{
-  //         console.log('Loops over forks')
-  //         let chain = this.fork[index];
-  //         let lastBlock = chain[chain.length-1];
-  //         if(lastBlock.hash == block.previousHash){
+  createBlockBranch(block){
+    if(block){
+      if(this.blockFork[block.previousBlock]){
+        let branch = [this.blockFork[block.previousBlock], block];
+        this.rollBackBlocks(branch[0].blockNumber);
+        logger(`Selected working branch of block ${this.fork[0].hash.substr(0, 25)}`);
+        logger(`All blocks from index ${this.fork[0].blockNumber} have been orphaned`);
+        branch.forEach( block=>{
+          this.syncBlock(block);
+        })
 
-  //           chain.push(block)
-  //           this.rollBackBlocks(chain[0].blockNumber);
-  //           logger(`Selected working branch of block ${chain[0].hash.substr(0, 25)}`);
-  //           logger(`All blocks from index ${chain[0].blockNumber} have been orphaned`);
-            
-  //           chain.forEach( block=>{
-  //             this.syncBlock(block);
-  //           })
-
-  //           delete this.fork[index];
-
-  //         }else{
-  //           logger('ERROR: Block is not linked with forked chain')
-  //         }
-  //       })
-  //     }else{
-  //       logger(`Created new branch at index ${block.blockNumber}`);
-  //       logger(`with hash ${block.hash.substr(0, 25)}`);
-  //       this.fork[block.blockNumber].push(block);
-  //     }
-      
-      
-  //   }else{
-  //     logger('ERROR: Block not found')
-  //   }
-  // }
+        delete this.blockFork[block.previousBlock];
+      }else{
+        logger(`Created new branch at index ${block.blockNumber}`);
+        logger(`with hash ${block.hash.substr(0, 25)}`);
+        this.blockFork[block.hash] = block;
+      }
+    }else{
+      logger('ERROR: Block not found')
+    }
+  }
 
   createChainFork(block){
     if(block){
