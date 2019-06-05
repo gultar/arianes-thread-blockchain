@@ -352,12 +352,12 @@ class Node {
   
   requestChainHeaders(peer, startAt=0, length=0){
     return new Promise((resolve, reject)=>{
-      if(!this.miner.nodeIsDownloading){
+      // if(!this.miner.nodeIsDownloading){
         if(this.chain instanceof Blockchain && peer){
         
           let headers = [];
           
-          this.miner.nodeIsDownloading = true;
+          // this.miner.nodeIsDownloading = true;
 
           logger(chalk.cyan('Fetching block headers from peer...'))
   
@@ -376,8 +376,8 @@ class Node {
   
                     logger(header.error)
                     peer.off('blockHeader')
-                    this.miner.nodeIsDownloading = false;
-                    if(this.miner) this.miner.nodeIsDownloading = false;
+                    // this.miner.nodeIsDownloading = false;
+                    
                     bar = null;
                     resolve({error:header.error})
   
@@ -387,8 +387,8 @@ class Node {
   
                     if(this.verbose) logger('Headers fully synced')
                     peer.off('blockHeader')
-                    this.miner.nodeIsDownloading = false;
-                    if(this.miner) this.miner.nodeIsDownloading = false;
+                    // this.miner.nodeIsDownloading = false;
+                    // if(this.miner) this.miner.nodeIsDownloading = false;
                     bar = null;
                     
                     resolve(headers)
@@ -419,16 +419,16 @@ class Node {
         }else{
           logger('ERROR: Header Request failed: Missing parameter');
         }
-      }
+      // }
       
     })
   }
 
   downloadBlockchain(peer, startAtIndex=0, length){
     return new Promise(async (resolve)=>{
-      if(!this.miner.nodeIsDownloading){
+      // if(!this.miner.nodeIsDownloading){
         if(peer){
-          this.miner.nodeIsDownloading = true;
+          // this.miner.nodeIsDownloading = true;
           let blocks = [];
           logger(chalk.cyan('Downloading blockchain from remote peer...'))
           let bar = Progress({
@@ -444,14 +444,14 @@ class Node {
               if(block.error){
                 logger(block.error)
                 peer.off('block');
-                this.miner.nodeIsDownloading = false;
+                // this.miner.nodeIsDownloading = false;
                 bar = null;
                 resolve(block.error)
               }
   
               if(block.end){
                   peer.off('block');
-                  this.miner.nodeIsDownloading = false;
+                  // this.miner.nodeIsDownloading = false;
                   bar = null;
                   resolve(blocks)
               }else{
@@ -473,9 +473,9 @@ class Node {
               logger('ERROR: No block received')
             }
           })
-        }else{
-          logger('WARNING: Already downloading')
-        }
+        // }else{
+        //   logger('WARNING: Already downloading')
+        // }
       }
       
     })
@@ -568,7 +568,7 @@ class Node {
           if(isValidHeader){
             // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
             let lastBlockNum = this.chain.getLatestBlock().blockNumber;
-            this.miner.nodeIsDownloading = true;
+            if(this.miner) this.miner.nodeIsDownloading = true; 
             let headers = await this.requestChainHeaders(peer, lastBlockNum, length)
             if(headers){
 
@@ -591,23 +591,20 @@ class Node {
                     logger('ERROR: Could not add block')
                   }
                 })
+                if(this.miner) this.miner.nodeIsDownloading = false;
               }
 
             }else{
               logger('ERROR: Headers not found')
-              this.miner.nodeIsDownloading = false;
             }
           }else{
 
             logger('ERROR: Last block header from peer is invalid')
-            this.miner.nodeIsDownloading = false;
           }
         }
       }else{
         logger('ERROR: Status object is missing parameters')
-        this.miner.nodeIsDownloading = false;
       }
-      this.miner.nodeIsDownloading = true;
     }
   }
 
