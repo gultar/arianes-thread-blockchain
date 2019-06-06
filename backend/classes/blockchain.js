@@ -128,7 +128,7 @@ class Blockchain{
 
   createBlockBranch(newBlock){
     return new Promise(async( resolve)=>{
-      let isBlockFork = this.getLatestBlock().previousHash == newBlock.previousHash;
+      let isBlockFork = this.getLatestBlock().previousHash == newBlock.previousHash && this.getLatestBlock().hash != newBlock.hash;
       if(isBlockFork){
         logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
         logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));

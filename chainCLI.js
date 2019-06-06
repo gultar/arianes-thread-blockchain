@@ -96,6 +96,24 @@ program
     }
 })
 
+program
+.command('getheader <blockNumber>')
+.description('Requests some general information about the blockchain')
+.action((blockNumber)=>{
+    if(program.url){
+        openSocket(program.url, (socket)=>{
+                socket.emit('getBlockHeader', blockNumber);
+                socket.on('header', (block)=>{
+                    console.log(JSON.stringify(block, null, 2))
+                    socket.close()
+                })
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
 // program
 // .command('createaccount <address> <accountName> <walletName> <password>')
 // .description('Requests some general information about the blockchain')

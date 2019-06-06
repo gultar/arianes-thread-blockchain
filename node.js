@@ -544,7 +544,7 @@ class Node {
 
             this.chain.blockFork.forEach(async (block)=>{
               let blockSynced = await this.chain.pushBlock(block)
-              
+
               if(blockSynced.error){
                 logger(blockSynced.error);
               }
@@ -1110,7 +1110,7 @@ class Node {
       socket.emit('chainInfo', this.getChainInfo());
     })
 
-    socket.on('getBlock', (blockNumber)=>{
+    socket.on('getBlockHeader', (blockNumber)=>{
       let block = this.chain.chain[blockNumber];
       let blockInfo = {}
       if(block){
@@ -1133,10 +1133,20 @@ class Node {
         }
       }else{
         blockInfo = {
-          error: 'block not found'
+          error: 'header not found'
         }
       }
-      socket.emit('block', blockInfo)
+      socket.emit('header', blockInfo)
+    })
+
+    socket.on('getBlock', (blockNumber)=>{
+      let block = this.chain.chain[blockNumber];
+      if(block){
+        socket.emit('block', block)
+      }else{
+        socket.emit('block', {error:'ERROR: Block not found'})
+      }
+      
     })
 
     socket.on('getBlockSize', (number)=>{
@@ -1543,19 +1553,14 @@ class Node {
                     if(addedToChain.error){
                       resolve({error:addedToChain.error})
                     }
-
-                    // if(this.chain.isBlockLinked(newBlock)){
-  
-                    //   // this.sendPeerMessage('newBlockFound', header);
-                      
-  
-                    // }else{
-                    //   let received = this.chain.getIndexOfBlockHash(header.hash)
-                    //   if(!received){
-                    //     this.chain.createBlockBranch(newBlock);
-                    //   }
-                      
-                    // }
+      
+                    if(addedToChain.fork){
+                      logger(addedToChain.fork)
+                    }
+      
+                    if(addedToChain.resolved){
+                      logger(addedToChain.resolved)
+                    }
       
       
                     if(this.minerStarted && !this.miner){
