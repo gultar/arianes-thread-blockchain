@@ -1555,11 +1555,15 @@ class Node {
                     }
       
                     if(addedToChain.fork){
-                      logger(addedToChain.fork)
+                      let display = JSON.stringify(addedToChain.fork, null, 2)
+                      logger(display)
+                      resolve(addedToChain.fork)
                     }
       
                     if(addedToChain.resolved){
-                      logger(addedToChain.resolved)
+                      let display = JSON.stringify(addedToChain.resolved, null, 2)
+                      logger(display)
+                      resolve(addedToChain.resolved);
                     }
       
       
