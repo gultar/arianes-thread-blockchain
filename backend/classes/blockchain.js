@@ -294,16 +294,17 @@ class Blockchain{
             if(!verbose){
 
               console.log(chalk.cyan('\n********************************************************************'))
-              console.log(chalk.cyan('* Block number ')+block.blockNumber+"...")
-              console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25))
-              console.log(chalk.cyan("* Mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+              console.log(chalk.cyan('* Block number ')+block.blockNumber);
+              console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
+              console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
+              console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
               console.log(chalk.cyan("* Challenge : "), block.challenge);
               console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
               console.log(chalk.cyan("* Nonce : "), block.nonce)
               console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
               console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
               console.log(chalk.cyan('********************************************************************\n'))
-
+              
             }else{
               let header = this.getBlockHeader(block.blockNumber)
               console.log(chalk.cyan(JSON.stringify(header, null, 2)))
