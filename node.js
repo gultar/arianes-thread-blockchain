@@ -312,7 +312,7 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            if(!this.miner.nodeIsDownloading){
+            if(!this.isDownloading){
               let updated = await this.receiveBlockchainStatus(peer, status);
             }
             
@@ -543,10 +543,20 @@ class Node {
             this.chain.blockFork.push(block);
 
             this.chain.blockFork.forEach(async (block)=>{
-              let blockSynced = await this.chain.syncBlock(block)
+              let blockSynced = await this.chain.pushBlock(block)
+              
               if(blockSynced.error){
-
+                logger(blockSynced.error);
               }
+
+              if(blockSynced.fork){
+                logger(blockSynced.fork)
+              }
+
+              if(blockSynced.resolved){
+                logger(blockSynced.resolved)
+              }
+
             })
             
           }else if(this.chain.blockFork[forkLength - 1].previousHash == block.previousHash){
@@ -597,7 +607,7 @@ class Node {
   
                 if(blocks){
                   blocks.forEach( async(block)=>{
-                    let addedBlock = await this.chain.syncBlock(block);
+                    let addedBlock = await this.chain.pushBlock(block);
                     if(!addedBlock){
                       logger('ERROR: Could not add block')
                     }
@@ -1138,6 +1148,7 @@ class Node {
     })
 
     socket.on('startMiner', ()=>{
+      this.minerStarted = true;
       this.createMiner()
     })
 
@@ -1179,7 +1190,9 @@ class Node {
     })
     
     socket.on('test', ()=>{
-     this.chain.fork = []
+      var os = require('os'),
+      cpuCount = os.cpus().length;
+      console.log('CPU: ', cpuCount)
     
     })
 
@@ -1480,7 +1493,7 @@ class Node {
   async addNewBlock(newBlock){
       if(isValidBlockJSON(newBlock)){ //typeof newBlock == 'object'
         
-        var isBlockSynced = await this.chain.syncBlock(newBlock);
+        var isBlockSynced = await this.chain.pushBlock(newBlock);
         if(isBlockSynced){
           Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
           logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
@@ -1526,24 +1539,26 @@ class Node {
                     resolve({error:newBlock.error})
                   }else{
 
-                    if(this.chain.isBlockLinked(newBlock)){
-  
-                      // this.sendPeerMessage('newBlockFound', header);
-                      let addedToChain = await this.chain.syncBlock(newBlock);
-                      if(addedToChain.error){
-                        resolve({error:addedToChain.error})
-                      }
-  
-                    }else{
-                      let received = this.chain.getIndexOfBlockHash(header.hash)
-                      if(!received){
-                        this.chain.createBlockBranch(newBlock);
-                      }
-                      
+                    let addedToChain = await this.chain.pushBlock(newBlock);
+                    if(addedToChain.error){
+                      resolve({error:addedToChain.error})
                     }
+
+                    // if(this.chain.isBlockLinked(newBlock)){
+  
+                    //   // this.sendPeerMessage('newBlockFound', header);
+                      
+  
+                    // }else{
+                    //   let received = this.chain.getIndexOfBlockHash(header.hash)
+                    //   if(!received){
+                    //     this.chain.createBlockBranch(newBlock);
+                    //   }
+                      
+                    // }
       
       
-                    if(this.minerStarted){
+                    if(this.minerStarted && !this.miner){
                       this.createMiner()
                     }
                     

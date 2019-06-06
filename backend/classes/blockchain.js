@@ -38,6 +38,7 @@ class Blockchain{
     this.miningReward = 50;
     this.ipAddresses = ipAddresses
     this.blockSize = 5; //Minimum Number of transactions per block
+    this.maxDepthForUncleBlocks = 3;
     this.orphanedBlocks = [];
     this.transactionSizeLimit = 100 * 1024;
   }
@@ -82,8 +83,9 @@ class Blockchain{
           Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
           return true;
         }else{
-          logger('WARNING: Block is not linked with previous block');
-          this.createBlockchainBranch()
+          // logger('WARNING: Block is not linked with previous block');
+          // console.log(this.extractHeader(newBlock))
+          this.createBlockBranch(newBlock)
         }
         
       }else{
@@ -94,57 +96,132 @@ class Blockchain{
     }
   }
 
-  createBlockBranch(block){
-    if(block && !this.blockFork[block.hash] && !this.getBlockFromHash(block.hash)){
-      //Resolving the conflict
-      if(this.blockFork[block.previousHash]){
-
-        let branch = [this.blockFork[block.previousHash], block];
-        
-        this.rollBackBlocks(branch[0].blockNumber);
-        
-        logger(`Selected working branch of block ${branch[0].hash.substr(0, 25)}`);
-        logger(`All blocks from index ${branch[0].blockNumber} have been orphaned`);
-        
-        branch.forEach( block=>{
-          this.syncBlock(block);
-        })
-
-        this.blockFork = {}
-
-      }else{
-        //Creating the blockchain branch
-        let originBlock = this.getBlockFromHash(block.previousHash);
-        if(originBlock && originBlock.hash == block.previousHash){
-          let currentBlock = this.chain[block.blockNumber];
-          if(currentBlock){
-            logger('* Block collision!')
-            logger(`* Branch A : ${currentBlock.hash.substr(0, 25)}`);
-            logger(`* Total Challenge A : ${currentBlock.totalChallenge}`);
-            logger(`* Branch B : ${block.hash.substr(0, 25)}`);
-            logger(`* Total Challenge B : ${block.totalChallenge}`);
+  pushBlock(newBlock){
+    return new Promise(async (resolve)=>{
+      if(isValidBlockJSON(newBlock)){
+        let isValidBlock = await this.validateBlock(newBlock);
+        if(isValidBlock){
+          var isLinked = this.isBlockLinked(newBlock);
+          if(isLinked){
+            this.chain.push(newBlock);
+            logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
+            logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+            logger(chalk.green('* By: '), newBlock.minedBy)
             
-            this.blockFork[block.hash] = block;
+            Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+            resolve(true);
+            
           }else{
-            logger('ERROR: Current block not found')
+            let isBlockFork = await this.createBlockBranch(newBlock)
+            resolve(isBlockFork);
           }
+          
         }else{
-          logger('ERROR: Forked block is not linked with the chain')
+          resolve({error:'Invalid block'})
         }
-        
-        
-        
+      }else{
+        resolve({error:'ERROR: New block undefined'})
       }
-    }
+    })
+
   }
 
-  // handleBlockchainFork(block){
-  //   if(this.blockFork[block.previousHash]){
-  //     this.resolveBlockchainBranch(block);
-  //   }else{
-  //     this.createBlockchainBranch(block);
+  createBlockBranch(newBlock){
+    return new Promise(async( resolve)=>{
+      let isBlockFork = this.getLatestBlock().previousHash == newBlock.previousHash;
+      if(isBlockFork){
+        logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+        logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+        this.chain[newBlock.blockNumber].blockFork = {
+          [newBlock.hash]:newBlock
+        }
+        resolve(
+        {
+          fork:{
+            blockNumber:newBlock.blockNumber,
+            hash:newBlock.hash,
+            previousHash:newBlock.previousHash,
+
+          }
+        })
+      }else{
+        let forkedBlock = this.getLatestBlock().blockFork[newBlock.hash]
+        let isLinkedToForkedBlock = forkedBlock.hash == newBlock.previousHash;
+        if(isLinkedToForkedBlock){
+          let orphanedLatestBlock = this.chain.splice(-1, 1);
+          this.chain.push(forkedBlock);
+          this.chain.push(newBlock);
+          logger(chalk.green(`* Resolved block conflict!`))
+          logger(chalk.green(`* Replaced block ${orphanedLatestBlock.blockNumber} with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
+          logger(chalk.green(`* By block with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
+          
+          logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
+          logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+          logger(chalk.green('* By: '), newBlock.minedBy)
+          
+          Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+          resolve({
+            resolved:{
+              blockNumber:newBlock.blockNumber,
+              replaced:orphanedLatestBlock.hash,
+              by:forkedBlock.hash,
+              added:newBlock.hash,
+            }
+          });
+        }else{
+          resolve({error:'ERROR: Block is too low to be added to chain'})
+        }
+      }
+      
+     
+    })
+  }
+
+  // createBlockBranch(block){
+  //   if(block && !this.blockFork[block.hash] && !this.getBlockFromHash(block.hash)){
+  //     //Resolving the conflict
+  //     if(this.blockFork[block.previousHash]){
+
+  //       let branch = [this.blockFork[block.previousHash], block];
+        
+  //       this.rollBackBlocks(branch[0].blockNumber);
+        
+  //       logger(`Selected working branch of block ${branch[0].hash.substr(0, 25)}`);
+  //       logger(`All blocks from index ${branch[0].blockNumber} have been orphaned`);
+        
+  //       branch.forEach( block=>{
+  //         this.syncBlock(block);
+  //       })
+
+  //       this.blockFork = {}
+
+  //     }else{
+  //       //Creating the blockchain branch
+  //       let originBlock = this.getBlockFromHash(block.previousHash);
+  //       if(originBlock && originBlock.hash == block.previousHash){
+  //         let currentBlock = this.chain[block.blockNumber];
+  //         if(currentBlock){
+  //           logger('* Block collision!')
+  //           logger(`* Branch A : ${currentBlock.hash.substr(0, 25)}`);
+  //           logger(`* Total Challenge A : ${currentBlock.totalChallenge}`);
+  //           logger(`* Branch B : ${block.hash.substr(0, 25)}`);
+  //           logger(`* Total Challenge B : ${block.totalChallenge}`);
+            
+  //           this.blockFork[block.hash] = block;
+  //         }else{
+  //           logger('ERROR: Current block not found')
+  //         }
+  //       }else{
+  //         logger('ERROR: Forked block is not linked with the chain')
+  //       }
+        
+        
+        
+  //     }
   //   }
   // }
+
+  
 
   // createBlockchainBranch(block){
   //   if(block){
@@ -805,6 +882,32 @@ class Blockchain{
         return header
       }
 
+    }
+
+  }
+
+  extractHeader(block){
+    if(isValidBlockJSON(block)){
+        
+        var header = {
+          blockNumber:block.blockNumber,
+          timestamp:block.timestamp,
+          previousHash:block.previousHash,
+          hash:block.hash,
+          nonce:block.nonce,
+          merkleRoot:block.merkleRoot,
+          actionMerkleRoot:block.actionMerkleRoot,
+          difficulty:block.difficulty,
+          challenge:block.challenge,
+          totalChallenge:block.totalChallenge,
+          minedBy:block.minedBy,
+        }
+
+        return header
+      
+
+    }else{
+      logger('ERROR: Invalid block format')
     }
 
   }
