@@ -1333,18 +1333,24 @@ class Node {
             case 'transaction':
               var transaction = JSON.parse(data);
               this.receiveTransaction(transaction);
+              this.messageBuffer[messageId] = peerMessage;
+              this.broadcast('peerMessage', peerMessage)
               break;
             case 'action':
-              
               let action = JSON.parse(data);
               this.receiveAction(action);
+              this.messageBuffer[messageId] = peerMessage;
+              this.broadcast('peerMessage', peerMessage)
               break
             case 'newBlockFound':
-              this.handleNewBlockFound(data, relayPeer)
+              let added = await this.handleNewBlockFound(data, relayPeer);
+              if(added.error) logger(added.error);
+              this.messageBuffer[messageId] = peerMessage;
+              this.broadcast('peerMessage', peerMessage)
               break;
-            case 'message':
-              logger(chalk.green('['+originAddress+']')+' -> '+data)
-              break;
+            // case 'message':
+            //   logger(chalk.green('['+originAddress+']')+' -> '+data)
+            //   break;
           }
           this.messageBuffer[messageId] = peerMessage;
           this.broadcast('peerMessage', peerMessage)
@@ -1493,59 +1499,72 @@ class Node {
   }
 
   async handleNewBlockFound(data, relayPeer){
-    if(this.chain instanceof Blockchain && data && relayPeer){
-      let header = JSON.parse(data);
-      if(!this.chain.getIndexOfBlockHash(header.hash)){
-        if(this.chain.validateBlockHeader(header)){
-            
-          let peerSocket = this.connectionsToPeers[relayPeer]
-          if(peerSocket){
-            
-              if(this.miner){
-                clearInterval(this.miner.minerLoop);
+    return new Promise( (resolve)=>{
+      if(this.chain instanceof Blockchain && data && relayPeer){
+        try{
+          let header = JSON.parse(data);
+          let alreadyReceived = this.chain.getIndexOfBlockHash(header.hash)
+          if(!alreadyReceived){
+            if(this.chain.validateBlockHeader(header)){
                 
-                if(process.ACTIVE_MINER){
-                  process.ACTIVE_MINER.send({abort:true});
-                  
-                }
-
-                delete this.miner;
-              }
-
-              let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
-              if(newBlock){
-
-                if(this.chain.isBlockLinked(newBlock)){
-
-                  this.sendPeerMessage('newBlockFound', header);
-                  let addedToChain = await this.chain.syncBlock(newBlock);
-                  if(addedToChain.error){
-                    logger(addedToChain.error)
+              let peerSocket = this.connectionsToPeers[relayPeer]
+              if(peerSocket){
+                
+                  if(this.miner){
+                    clearInterval(this.miner.minerLoop);
+                    
+                    if(process.ACTIVE_MINER){
+                      process.ACTIVE_MINER.send({abort:true});
+                      
+                    }
+    
+                    delete this.miner;
                   }
+    
+                  let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
+                  if(newBlock){
+    
+                    if(this.chain.isBlockLinked(newBlock)){
+    
+                      this.sendPeerMessage('newBlockFound', header);
+                      let addedToChain = await this.chain.syncBlock(newBlock);
+                      if(addedToChain.error){
+                        resolve({error:addedToChain.error})
+                      }
 
-                }else{
-                  this.chain.createBlockBranch(newBlock);
-                }
+                    }else{
+                      this.chain.createBlockBranch(newBlock);
+                    }
+    
+                  }else if(newBlock.error){
+                    resolve({error:newBlock.error})
+                  }else{
+                    resolve({error:'ERROR:Could not fetch block from peer'})
+                  }
+    
+                  if(this.minerStarted){
+                    this.createMiner()
+                  }
+                  
+                  resolve(true);
 
-              }else if(newBlock.error){
-                logger(newBlock.error)
               }else{
-                logger('ERROR:Could not fetch block from peer')
+                resolve({error:'ERROR:Relay peer could not be found'})
               }
-
-              if(this.minerStarted){
-                this.createMiner()
-              }
-              
-
-          }else{
-            logger('ERROR:Relay peer could not be found')
+            }else{
+              resolve({error:'ERROR:New block is invalid'})
+            }
           }
-        }else{
-          logger('ERROR:New block is invalid')
+        }catch(e){
+          console.log(e);
+          resolve({error:e})
         }
+ 
+      }else{
+        resolve({error:'ERROR: Missing parameters'})
       }
-    }
+    })
+    
   }
 
 
