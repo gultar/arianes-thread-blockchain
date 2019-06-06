@@ -53,9 +53,13 @@ program
     }
 
     if(program.mine){
-      setTimeout(()=>{
-        node.createMiner()
-      },5000)
+      let startMiner = setInterval(()=>{
+        if(node.updated){
+          node.minerStarted = true;
+          node.createMiner()
+          clearInterval(startMiner)
+        }
+      },1000)
       
     }
 

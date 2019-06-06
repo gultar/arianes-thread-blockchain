@@ -74,7 +74,7 @@ class Node {
     this.minimumNumberOfPeers = 5;
     this.maximumUnconfirmedBlocks = 1;
     this.messageBuffer = {};
-    this.updatedBlockchain = false;
+    this.updated = false;
     this.minerStarted = false;
     this.miner = {};
     this.verbose = false;
@@ -603,10 +603,7 @@ class Node {
                     }
                   })
 
-                  if(this.minerStarted){
-                    this.createMiner();
-                  }
-
+                  this.updated = true;
                   resolve(true)
                 }
   
@@ -618,11 +615,16 @@ class Node {
               this.isDownloading = false;
 
             }else{
-  
               logger('ERROR: Last block header from peer is invalid')
               resolve(false)
             }
+          }else{
+            logger('Blockchain is up to date with peer')
+            this.updated = true;
           }
+
+          
+
         }else{
           logger('ERROR: Status object is missing parameters')
           resolve(false)
