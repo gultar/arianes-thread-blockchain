@@ -1345,6 +1345,7 @@ class Node {
             case 'newBlockFound':
               let added = await this.handleNewBlockFound(data, relayPeer);
               if(added.error) logger(added.error);
+              peerMessage.relayPeer = this.address;
               this.messageBuffer[messageId] = peerMessage;
               this.broadcast('peerMessage', peerMessage)
               break;
@@ -1352,8 +1353,8 @@ class Node {
             //   logger(chalk.green('['+originAddress+']')+' -> '+data)
             //   break;
           }
-          this.messageBuffer[messageId] = peerMessage;
-          this.broadcast('peerMessage', peerMessage)
+          // this.messageBuffer[messageId] = peerMessage;
+          // this.broadcast('peerMessage', peerMessage)
           
         }
       }catch(e){
