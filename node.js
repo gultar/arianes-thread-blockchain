@@ -579,7 +579,7 @@ class Node {
             if(isValidHeader){
               // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
               let lastBlockNum = this.chain.getLatestBlock().blockNumber;
-              this.isDownloading = true;  
+                
               let headers = await this.requestChainHeaders(peer, lastBlockNum, length)
               if(headers){
                 
@@ -612,7 +612,7 @@ class Node {
                 resolve(false)
               }
 
-              this.isDownloading = false;
+              
 
             }else{
               logger('ERROR: Last block header from peer is invalid')
