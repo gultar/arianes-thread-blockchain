@@ -73,9 +73,10 @@ class Node {
     this.nodeList = new NodeList();
     this.minimumNumberOfPeers = 5;
     this.maximumUnconfirmedBlocks = 1;
-    this.autoUpdate = true;  
     this.messageBuffer = {};
-    this.miner = {}
+    this.updatedBlockchain = false;
+    this.minerStarted = false;
+    this.miner = {};
     this.verbose = false;
     this.walletManager = new WalletManager(this.address);
     this.accountCreator = new AccountCreator();
@@ -85,7 +86,6 @@ class Node {
       peerAddress:'',
       totalChallenge:0,
     }
-    // this.miner.nodeIsDownloading = false;
 
     if(options){
 
@@ -313,7 +313,7 @@ class Node {
 
           peer.on('blockchainStatus', async (status)=>{
             if(!this.miner.nodeIsDownloading){
-              this.receiveBlockchainStatus(peer, status)
+              let updated = await this.receiveBlockchainStatus(peer, status);
             }
             
           })
@@ -352,90 +352,104 @@ class Node {
   
   requestChainHeaders(peer, startAt=0, length=0){
     return new Promise((resolve, reject)=>{
-      // if(!this.miner.nodeIsDownloading){
-        if(this.chain instanceof Blockchain && peer){
-        
-          let headers = [];
-          
-          // this.miner.nodeIsDownloading = true;
+        if(peer){
+          if(!this.isDownloading){
+            let headers = [];
+            this.isDownloading = true;
+            logger(chalk.cyan('Fetching block headers from peer...'))
+    
+            peer.emit('getBlockHeader', startAt+1)
+    
+            let bar = Progress({
+              total:length - startAt,
+              finishMessage:'Fetched all block headers of blockchain!\n\n'
+            })
 
-          logger(chalk.cyan('Fetching block headers from peer...'))
-  
-          peer.emit('getBlockHeader', startAt+1)
-  
-          let bar = Progress({
-            total:length - startAt,
-            finishMessage:'Fetched all block headers of blockchain!\n\n'
-          })
-  
-          peer.on('blockHeader', async (header)=>{
-            if(header){
-              bar.op()
-              try{
-                  if(header.error){
-  
-                    logger(header.error)
-                    peer.off('blockHeader')
-                    // this.miner.nodeIsDownloading = false;
-                    
-                    bar = null;
-                    resolve({error:header.error})
-  
-                  }
-  
-                  if(header.end){
-  
-                    if(this.verbose) logger('Headers fully synced')
-                    peer.off('blockHeader')
-                    // this.miner.nodeIsDownloading = false;
-                    // if(this.miner) this.miner.nodeIsDownloading = false;
-                    bar = null;
-                    
-                    resolve(headers)
-  
-                  }else {
-                    let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
-                    if(alreadyInChain){
-                      logger('ERROR: Header already in chain');
-                    }else{
-                      let isValidHeader = this.chain.validateBlockHeader(header)
-                      if(!isValidHeader){
-                        logger('ERROR: Is not valid header')
-                      }else{
-                        headers.push(header);
-                      }
-                    }
-                    peer.emit('getBlockHeader', header.blockNumber+1)
-                    
-                  }
-              }catch(e){
-                console.log(e)
-                resolve({error:e})
-              }
-              
+            const closeDownloadChannel = (peer, bar) =>{
+              peer.off('block');
+              bar = null;
+              this.isDownloading = false;
             }
-           })
+    
+            peer.on('blockHeader', async (header)=>{
+              if(header){
+                bar.op()
+                try{
+                    if(header.error){
+    
+                      logger(header.error)
+                      closeDownloadChannel(peer, bar)
+                      resolve({error:header.error})
+    
+                    }
+    
+                    if(header.end){
+    
+                      if(this.verbose) logger('Headers fully synced')
+                      closeDownloadChannel(peer, bar)
+                      resolve(headers)
+    
+                    }else {
+                      if(this.chain instanceof Blockchain){
+                        let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
+                        if(alreadyInChain){
+                          logger('ERROR: Header already in chain');
+                        }else{
+                          let isValidHeader = this.chain.validateBlockHeader(header)
+                          if(!isValidHeader){
+                            logger('ERROR: Is not valid header')
+                          }else{
+                            headers.push(header);
+                          }
+                        }
+                        peer.emit('getBlockHeader', header.blockNumber+1)
+                      }else{
+                        logger('ERROR: Blockchain not yet loaded')
+                        closeDownloadChannel(peer, bar)
+                        resolve({error:'ERROR: Blockchain not yet loaded'})
+                      }
+                      
+                      
+                    }
+                }catch(e){
+                  console.log(e)
+                  closeDownloadChannel(peer, bar)
+                  resolve({error:e})
+                }
+                
+              } 
+             })
+
+          }//If is already downloading, do nothing
+
   
         }else{
           logger('ERROR: Header Request failed: Missing parameter');
+          closeDownloadChannel(peer, bar)
+          resolve({error:'ERROR: Header Request failed: Missing parameter'})
         }
-      // }
       
     })
   }
 
   downloadBlockchain(peer, startAtIndex=0, length){
     return new Promise(async (resolve)=>{
-      // if(!this.miner.nodeIsDownloading){
         if(peer){
-          // this.miner.nodeIsDownloading = true;
           let blocks = [];
           logger(chalk.cyan('Downloading blockchain from remote peer...'))
+
           let bar = Progress({
             total:length - startAtIndex,
             finishMessage:'Fetched all block headers of blockchain!\n\n'
           })
-  
+          this.isDownloading = true;
+
+          const closeDownloadChannel = (peer, bar) =>{
+            peer.off('block');
+            bar = null;
+            this.isDownloading = false;
+          }
+
           peer.emit('getBlock', startAtIndex+1);
   
           peer.on('block', (block)=>{
@@ -443,16 +457,12 @@ class Node {
               bar.op()
               if(block.error){
                 logger(block.error)
-                peer.off('block');
-                // this.miner.nodeIsDownloading = false;
-                bar = null;
-                resolve(block.error)
+                closeDownloadChannel(peer, bar)
+                resolve({error:block.error})
               }
   
               if(block.end){
-                  peer.off('block');
-                  // this.miner.nodeIsDownloading = false;
-                  bar = null;
+                  closeDownloadChannel(peer, bar)
                   resolve(blocks)
               }else{
                 if(this.chain instanceof Blockchain){
@@ -465,17 +475,21 @@ class Node {
                   peer.emit('getBlock', block.blockNumber+1);
                 }else{
                   logger('ERROR: Blockchain not yet loaded')
+                  closeDownloadChannel(peer, bar)
+                  resolve({error:'ERROR: Blockchain not yet loaded'})
                 }
               }
     
-              
             }else{
               logger('ERROR: No block received')
+              closeDownloadChannel(peer, bar)
+              resolve({error:'ERROR: No block received'})
             }
           })
-        // }else{
-        //   logger('WARNING: Already downloading')
-        // }
+      }else{
+        logger('ERROR: Could not find peer to download from')
+        closeDownloadChannel(peer, bar)
+        resolve({error:'ERROR: Could not find peer to download from'})
       }
       
     })
@@ -485,7 +499,6 @@ class Node {
   getBlockFromHash(peer, hash){
     return new Promise(async (resolve)=>{
       if(peer && hash){
-        this.miner.nodeIsDownloading = true;
         
         peer.emit('getBlockFromHash', hash);
 
@@ -495,7 +508,6 @@ class Node {
             if(block.error){
               logger(block.error)
               peer.off('blockFromHash');
-              this.miner.nodeIsDownloading = false
               resolve(block.error)
             }
 
@@ -509,8 +521,6 @@ class Node {
       }
     })
   }
-
-  
 
   createBlockFork(block){
     return new Promise(async (resolve) =>{
@@ -553,59 +563,73 @@ class Node {
   }
 
 
-  async receiveBlockchainStatus(peer, status){
-    if(this.chain instanceof Blockchain && peer && status){
-      let { totalChallenge, bestBlockHeader, length } = status;
-
-      if(totalChallenge && bestBlockHeader && length){
-        
-        let thisTotalChallenge = await this.chain.calculateWorkDone();
-
-        if(thisTotalChallenge < totalChallenge){
-          logger('Attempting to download blocks from peer')
+  receiveBlockchainStatus(peer, status){
+    return new Promise(async (resolve) =>{
+      if(this.chain instanceof Blockchain && peer && status){
+        let { totalChallenge, bestBlockHeader, length } = status;
+  
+        if(totalChallenge && bestBlockHeader && length){
           
-          let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
-          if(isValidHeader){
-            // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
-            let lastBlockNum = this.chain.getLatestBlock().blockNumber;
-            process.NODE_IS_DOWNLOADING = true;
-            let headers = await this.requestChainHeaders(peer, lastBlockNum, length)
-            if(headers){
+          let thisTotalChallenge = await this.chain.calculateWorkDone();
+  
+          if(thisTotalChallenge < totalChallenge){
+            logger('Attempting to download blocks from peer')
+            
+            let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+            if(isValidHeader){
+              // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
+              let lastBlockNum = this.chain.getLatestBlock().blockNumber;
+              this.isDownloading = true;  
+              let headers = await this.requestChainHeaders(peer, lastBlockNum, length)
+              if(headers){
+                
+                if(headers.error){
+                  logger(headers.error);
+                  resolve(false)
+                }
+  
+                let blocks = await this.downloadBlockchain(peer, lastBlockNum, length)
+  
+                if(blocks.error){
+                  logger(blocks.error);
+                  resolve(false)
+                }
+  
+                if(blocks){
+                  blocks.forEach( async(block)=>{
+                    let addedBlock = await this.chain.syncBlock(block);
+                    if(!addedBlock){
+                      logger('ERROR: Could not add block')
+                    }
+                  })
 
-              if(headers.error){
-                logger(headers.error);
-                return false;
-              }
-
-              let blocks = await this.downloadBlockchain(peer, lastBlockNum, length)
-
-              if(blocks.error){
-                logger(blocks.error);
-                return false;
-              }
-
-              if(blocks){
-                blocks.forEach( async(block)=>{
-                  let addedBlock = await this.chain.syncBlock(block);
-                  if(!addedBlock){
-                    logger('ERROR: Could not add block')
+                  if(this.minerStarted){
+                    this.createMiner();
                   }
-                })
-                process.NODE_IS_DOWNLOADING = false;
+
+                  resolve(true)
+                }
+  
+              }else{
+                logger('ERROR: Headers not found')
+                resolve(false)
               }
+
+              this.isDownloading = false;
 
             }else{
-              logger('ERROR: Headers not found')
+  
+              logger('ERROR: Last block header from peer is invalid')
+              resolve(false)
             }
-          }else{
-
-            logger('ERROR: Last block header from peer is invalid')
           }
+        }else{
+          logger('ERROR: Status object is missing parameters')
+          resolve(false)
         }
-      }else{
-        logger('ERROR: Status object is missing parameters')
       }
-    }
+    })
+    
   }
 
   /**
@@ -1624,38 +1648,6 @@ class Node {
     }
   }
 
-  // resolveBlockFork(headers){
-  //   if(headers){
-  //     let areValidHeaders = this.compareHeaders(headers)
-
-  //       if(areValidHeaders){
-  //         if(typeof areValidHeaders == 'number'){
-
-  //           var conflictIndex = areValidHeaders;
-  //           var numberOfForkingBlocks = this.chain.chain.length - conflictIndex;
-
-  //           logger('Conflicting block at index:', conflictIndex)
-  //           logger('Num. of forking blocks',numberOfForkingBlocks);
-  //           logger('Chain length:', this.chain.chain.length)
-
-  //           for(var i=0;i<=numberOfForkingBlocks;i++ ){
-  //             let orphanBlocks = this.chain.chain.pop();
-  //             this.chain.orphanedBlocks.push(orphanBlocks);
-  //           }
-
-  //           this.update();
-  //         }else{
-  //           logger('Headers are of at least the same length')
-  //         }
-  //       }else{
-  //         logger('Peer headers are not valid')
-  //       }
-  //   }
-    
-  // }
-
-  
-
 
   /**
     @desc Emits all transactions as peerMessages.
@@ -1814,9 +1806,7 @@ class Node {
     @desc Miner loop can be launched via the web UI or upon Node boot up
   */
   createMiner(){
-    if(this.chain instanceof Blockchain){
-
-      this.minerStarted = true;
+    if(this.chain instanceof Blockchain && this.minerStarted){
 
       this.miner = new Miner({
         chain:this.chain,
@@ -1833,6 +1823,8 @@ class Node {
         }
         
       });
+    }else{
+      logger('ERROR: Could not start miner')
     }
   }
 
