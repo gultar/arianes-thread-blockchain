@@ -95,7 +95,7 @@ class Blockchain{
   }
 
   createBlockBranch(block){
-    if(block){
+    if(block && !this.blockFork[block.hash]){
       //Resolving the conflict
       if(this.blockFork[block.previousHash]){
 
@@ -118,7 +118,7 @@ class Blockchain{
         if(originBlock && originBlock.hash == block.previousHash){
           let currentBlock = this.chain[block.blockNumber];
           if(currentBlock){
-            
+            logger('* Block collision!')
             logger(`* Branch A : ${currentBlock.hash.substr(0, 25)}`);
             logger(`* Total Challenge A : ${currentBlock.totalChallenge}`);
             logger(`* Branch B : ${block.hash.substr(0, 25)}`);
@@ -135,8 +135,6 @@ class Blockchain{
         
         
       }
-    }else{
-      logger('ERROR: Block not found')
     }
   }
 

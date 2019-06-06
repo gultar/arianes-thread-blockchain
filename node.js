@@ -1504,7 +1504,8 @@ class Node {
         try{
           let header = JSON.parse(data);
           let alreadyReceived = this.chain.getIndexOfBlockHash(header.hash)
-          if(!alreadyReceived){
+          let alreadyIsInActiveFork = this.chain.blockFork[header.hash];
+          if(!alreadyReceived && !alreadyIsInActiveFork){
             if(this.chain.validateBlockHeader(header)){
                 
               let peerSocket = this.connectionsToPeers[relayPeer]
@@ -1512,41 +1513,38 @@ class Node {
                 
                   if(this.miner){
                     clearInterval(this.miner.minerLoop);
-                    
                     if(process.ACTIVE_MINER){
                       process.ACTIVE_MINER.send({abort:true});
                       
                     }
-    
                     delete this.miner;
                   }
     
                   let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
-                  if(newBlock){
-    
+                  if(newBlock.error){
+                    resolve({error:newBlock.error})
+                  }else{
                     if(this.chain.isBlockLinked(newBlock)){
-    
+  
                       this.sendPeerMessage('newBlockFound', header);
                       let addedToChain = await this.chain.syncBlock(newBlock);
                       if(addedToChain.error){
                         resolve({error:addedToChain.error})
                       }
-
+  
                     }else{
                       this.chain.createBlockBranch(newBlock);
                     }
-    
-                  }else if(newBlock.error){
-                    resolve({error:newBlock.error})
-                  }else{
-                    resolve({error:'ERROR:Could not fetch block from peer'})
+      
+      
+                    if(this.minerStarted){
+                      this.createMiner()
+                    }
+                    
+                    resolve(true);
                   }
-    
-                  if(this.minerStarted){
-                    this.createMiner()
-                  }
+
                   
-                  resolve(true);
 
               }else{
                 resolve({error:'ERROR:Relay peer could not be found'})
