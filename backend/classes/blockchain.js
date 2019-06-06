@@ -95,7 +95,7 @@ class Blockchain{
   }
 
   createBlockBranch(block){
-    if(block && !this.blockFork[block.hash]){
+    if(block && !this.blockFork[block.hash] && !this.getBlockFromHash(block.hash)){
       //Resolving the conflict
       if(this.blockFork[block.previousHash]){
 
@@ -247,7 +247,9 @@ class Blockchain{
             this.chain.push(block);
             
             console.log(chalk.cyan('\n********************************************************************'))
-            console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
+            console.log(chalk.cyan('* Block number ')+block.blockNumber);
+            console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
+            console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
             console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
             console.log(chalk.cyan("* Challenge : "), block.challenge);
             console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
