@@ -550,11 +550,13 @@ class Node {
               }
 
               if(blockSynced.fork){
-                logger(blockSynced.fork)
+                let display = JSON.stringify(blockSynced.fork, null, 2)
+                logger(display)
               }
 
               if(blockSynced.resolved){
-                logger(blockSynced.resolved)
+                let display = JSON.stringify(blockSynced.resolved, null, 2)
+                logger(display)
               }
 
             })

@@ -292,9 +292,11 @@ class Blockchain{
             block.minedBy = ipAddress;
             this.chain.push(block);
             if(!verbose){
+
               console.log(chalk.cyan('\n********************************************************************'))
-              console.log(chalk.cyan('* Block number ')+block.blockNumber+chalk.cyan(' mined with hash : ')+ block.hash.substr(0, 25)+"...")
-              console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+              console.log(chalk.cyan('* Block number ')+block.blockNumber+"...")
+              console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25))
+              console.log(chalk.cyan("* Mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
               console.log(chalk.cyan("* Challenge : "), block.challenge);
               console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
               console.log(chalk.cyan("* Nonce : "), block.nonce)
