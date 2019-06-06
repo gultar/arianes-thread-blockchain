@@ -145,137 +145,50 @@ class Blockchain{
           }
         })
       }else{
-        let forkedBlock = this.getLatestBlock().blockFork[newBlock.hash]
-        let isLinkedToForkedBlock = forkedBlock.hash == newBlock.previousHash;
-        if(isLinkedToForkedBlock){
-          let orphanedLatestBlock = this.chain.splice(-1, 1);
-          this.chain.push(forkedBlock);
-          this.chain.push(newBlock);
-          logger(chalk.green(`* Resolved block conflict!`))
-          logger(chalk.green(`* Replaced block ${orphanedLatestBlock.blockNumber} with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
-          logger(chalk.green(`* By block with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
-          
-          logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-          logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-          logger(chalk.green('* By: '), newBlock.minedBy)
-          
-          Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-          resolve({
-            resolved:{
-              blockNumber:newBlock.blockNumber,
-              replaced:orphanedLatestBlock.hash,
-              by:forkedBlock.hash,
-              added:newBlock.hash,
+        if(this.getLatestBlock().blockFork){
+          let forkedBlock = this.getLatestBlock().blockFork[newBlock.hash];
+          if(forkedBlock){
+            let isLinkedToForkedBlock = forkedBlock.hash == newBlock.previousHash;
+            if(isLinkedToForkedBlock){
+              let orphanedLatestBlock = this.chain.splice(-1, 1);
+              this.chain.push(forkedBlock);
+              this.chain.push(newBlock);
+    
+              logger(chalk.green(`* Resolved block conflict!`))
+              logger(chalk.green(`* Replaced block ${orphanedLatestBlock.blockNumber} with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
+              logger(chalk.green(`* By block with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
+              
+              logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
+              logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+              logger(chalk.green('* By: '), newBlock.minedBy)
+              
+              Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+              resolve({
+                resolved:{
+                  blockNumber:newBlock.blockNumber,
+                  replaced:orphanedLatestBlock.hash,
+                  by:forkedBlock.hash,
+                  added:newBlock.hash,
+                }
+              });
+            }else{
+              resolve({error:'ERROR: Block is too low to be added to chain'})
             }
-          });
+          }else{
+            resolve({error:'ERROR: Forked block not found'})
+          }
+          
         }else{
-          resolve({error:'ERROR: Block is too low to be added to chain'})
+          resolve({error:'ERROR: Could not resolve chain, head block has not been forked'})
         }
+       
       }
       
      
     })
   }
 
-  // createBlockBranch(block){
-  //   if(block && !this.blockFork[block.hash] && !this.getBlockFromHash(block.hash)){
-  //     //Resolving the conflict
-  //     if(this.blockFork[block.previousHash]){
 
-  //       let branch = [this.blockFork[block.previousHash], block];
-        
-  //       this.rollBackBlocks(branch[0].blockNumber);
-        
-  //       logger(`Selected working branch of block ${branch[0].hash.substr(0, 25)}`);
-  //       logger(`All blocks from index ${branch[0].blockNumber} have been orphaned`);
-        
-  //       branch.forEach( block=>{
-  //         this.syncBlock(block);
-  //       })
-
-  //       this.blockFork = {}
-
-  //     }else{
-  //       //Creating the blockchain branch
-  //       let originBlock = this.getBlockFromHash(block.previousHash);
-  //       if(originBlock && originBlock.hash == block.previousHash){
-  //         let currentBlock = this.chain[block.blockNumber];
-  //         if(currentBlock){
-  //           logger('* Block collision!')
-  //           logger(`* Branch A : ${currentBlock.hash.substr(0, 25)}`);
-  //           logger(`* Total Challenge A : ${currentBlock.totalChallenge}`);
-  //           logger(`* Branch B : ${block.hash.substr(0, 25)}`);
-  //           logger(`* Total Challenge B : ${block.totalChallenge}`);
-            
-  //           this.blockFork[block.hash] = block;
-  //         }else{
-  //           logger('ERROR: Current block not found')
-  //         }
-  //       }else{
-  //         logger('ERROR: Forked block is not linked with the chain')
-  //       }
-        
-        
-        
-  //     }
-  //   }
-  // }
-
-  
-
-  // createBlockchainBranch(block){
-  //   if(block){
-      
-     
-  //     let originBlock = this.getBlockFromHash(block.previousHash);
-  //     if(originBlock && originBlock.hash == block.previousHash){
-  //       let currentBlock = this.chain[block.blockNumber];
-  //       if(currentBlock){
-
-  //         logger(`* Created new branch at index ${block.blockNumber}`);
-  //         logger(`* Fork origin: ${originBlock.hash.substr(0, 25)}`);
-  //         logger(`* Branch A : ${currentBlock.hash.substr(0, 25)}`);
-  //         logger(`* Total Challenge A : ${currentBlock.totalChallenge}`);
-  //         logger(`* Branch B : ${block.hash.substr(0, 25)}`);
-  //         logger(`* Total Challenge B : ${block.totalChallenge}`);
-  //         this.blockFork[originBlock.hash] = originBlock;
-  //         this.blockFork[currentBlock.hash] = currentBlock;
-  //         this.blockFork[block.hash] = block;
-
-  //       }else{
-  //         logger('ERROR: No current block found')
-  //         this.syncBlock(block);
-  //       }
-        
-
-  //     }else{
-  //       logger('ERROR: Forked block is not linked with latest block')
-  //     }
-
-  //     if(this.blockFork[block.previousHash]){
-
-  //       let branch = [this.blockFork[block.previousHash], block];
-        
-  //       this.rollBackBlocks(branch[0].blockNumber);
-        
-  //       logger(`Selected working branch of block ${branch[0].hash.substr(0, 25)}`);
-  //       logger(`All blocks from index ${branch[0].blockNumber} have been orphaned`);
-        
-  //       branch.forEach( block=>{
-  //         this.syncBlock(block);
-  //       })
-
-  //       this.blockFork = {}
-
-  //     }else{
-        
-  //     }
-  //   }else{
-  //     logger('ERROR: Block not found')
-  //   }
-  // }
-
-  
   hasEnoughTransactionsToMine(){
     if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
       return true
