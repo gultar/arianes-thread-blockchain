@@ -1351,25 +1351,24 @@ class Node {
         }
   
         if(!this.messageBuffer[messageId]){
-          
+
+          this.messageBuffer[messageId] = peerMessage;
+
           switch(type){
             case 'transaction':
               var transaction = JSON.parse(data);
               this.receiveTransaction(transaction);
-              this.messageBuffer[messageId] = peerMessage;
               this.broadcast('peerMessage', peerMessage)
               break;
             case 'action':
               let action = JSON.parse(data);
               this.receiveAction(action);
-              this.messageBuffer[messageId] = peerMessage;
               this.broadcast('peerMessage', peerMessage)
               break
             case 'newBlockFound':
               let added = await this.handleNewBlockFound(data, relayPeer);
               if(added.error) logger(added.error);
               peerMessage.relayPeer = this.address;
-              this.messageBuffer[messageId] = peerMessage;
               this.broadcast('peerMessage', peerMessage)
               break;
             // case 'message':
@@ -1531,7 +1530,6 @@ class Node {
           let alreadyIsInActiveFork = this.chain.blockFork[header.hash];
           if(!alreadyReceived && !alreadyIsInActiveFork){
             if(this.chain.validateBlockHeader(header)){
-                
               let peerSocket = this.connectionsToPeers[relayPeer]
               if(peerSocket){
                 
