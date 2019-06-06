@@ -1498,8 +1498,8 @@ class Node {
       }
   }
 
-  async handleNewBlockFound(data, relayPeer){
-    return new Promise( (resolve)=>{
+  handleNewBlockFound(data, relayPeer){
+    return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data && relayPeer){
         try{
           let header = JSON.parse(data);
