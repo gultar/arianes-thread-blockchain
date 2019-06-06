@@ -496,7 +496,7 @@ class Node {
     
   }
 
-  getBlockFromHash(peer, hash){
+  downloadBlockFromHash(peer, hash){
     return new Promise(async (resolve)=>{
       if(peer && hash){
         
@@ -1520,20 +1520,25 @@ class Node {
                     delete this.miner;
                   }
     
-                  let newBlock = await this.getBlockFromHash(peerSocket, header.hash)
+                  let newBlock = await this.downloadBlockFromHash(peerSocket, header.hash)
                   if(newBlock.error){
                     resolve({error:newBlock.error})
                   }else{
+
                     if(this.chain.isBlockLinked(newBlock)){
   
-                      this.sendPeerMessage('newBlockFound', header);
+                      // this.sendPeerMessage('newBlockFound', header);
                       let addedToChain = await this.chain.syncBlock(newBlock);
                       if(addedToChain.error){
                         resolve({error:addedToChain.error})
                       }
   
                     }else{
-                      this.chain.createBlockBranch(newBlock);
+                      let received = this.chain.getIndexOfBlockHash(header.hash)
+                      if(!received){
+                        this.chain.createBlockBranch(newBlock);
+                      }
+                      
                     }
       
       
@@ -1543,9 +1548,6 @@ class Node {
                     
                     resolve(true);
                   }
-
-                  
-
               }else{
                 resolve({error:'ERROR:Relay peer could not be found'})
               }
