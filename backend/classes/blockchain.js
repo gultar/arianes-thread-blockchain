@@ -150,7 +150,8 @@ class Blockchain{
           if(forkedBlock){
             let isLinkedToForkedBlock = forkedBlock.hash == newBlock.previousHash;
             if(isLinkedToForkedBlock){
-              let orphanedLatestBlock = this.chain.splice(-1, 1);
+
+              let orphanedLatestBlock = this.chain.pop()
 
               this.chain.push(forkedBlock);
               
