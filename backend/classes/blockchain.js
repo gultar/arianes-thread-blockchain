@@ -151,8 +151,9 @@ class Blockchain{
             let isLinkedToForkedBlock = forkedBlock.hash == newBlock.previousHash;
             if(isLinkedToForkedBlock){
               let orphanedLatestBlock = this.chain.splice(-1, 1);
+
               this.chain.push(forkedBlock);
-              this.chain.push(newBlock);
+              
     
               logger(chalk.green(`* Resolved block conflict!`))
               logger(chalk.green(`* Replaced block ${orphanedLatestBlock.blockNumber} with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
@@ -163,6 +164,9 @@ class Blockchain{
               logger(chalk.green('* By: '), newBlock.minedBy)
               
               Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+
+              this.pushBlock(newBlock);
+
               resolve({
                 resolved:{
                   blockNumber:newBlock.blockNumber,
@@ -171,14 +175,18 @@ class Blockchain{
                   added:newBlock.hash,
                 }
               });
+
             }else{
+              console.log(this.extractHeader(newBlock))
               resolve({error:'ERROR: Block is too low to be added to chain'})
             }
           }else{
+            console.log(this.extractHeader(newBlock))
             resolve({error:'ERROR: Forked block not found'})
           }
           
         }else{
+          console.log(this.extractHeader(newBlock))
           resolve({error:'ERROR: Could not resolve chain, head block has not been forked'})
         }
        
