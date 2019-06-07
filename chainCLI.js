@@ -2,6 +2,7 @@
 
 const program = require('commander');
 const ioClient = require('socket.io-client');
+const ECDSA = require('ecdsa-secp256r1');
 // const axios = require('axios');
 // const AccountCreator = require('./backend/classes/accountCreator');
 // const WalletManager = require('./backend/classes/walletManager');
@@ -114,6 +115,28 @@ program
     }
 })
 
+program
+.command('testSign <wallet> <password>')
+.description('Requests some general information about the blockchain')
+.action((walletname, password)=>{
+    walletManager.unlockWallet(walletName, password)
+    .then(async (unlocked)=>{
+        
+        if(unlocked){
+            let signature = await wallet.sign('Je ne sais pas pourquoi il rejette ma transaction')
+            if(signature){
+                
+            }else{
+                console.log('ERROR: Could not sign action')
+            }
+            
+
+        }else{
+            console.log('ERROR: Could not unlock wallet')
+        }
+    })
+})
+
 // program
 // .command('createaccount <address> <accountName> <walletName> <password>')
 // .description('Requests some general information about the blockchain')
@@ -207,6 +230,7 @@ program
 
     
 // })
+
 
 
 program.parse(process.argv)

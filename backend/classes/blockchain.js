@@ -96,7 +96,7 @@ class Blockchain{
     }
   }
 
-  pushBlock(newBlock){
+  pushBlock(newBlock, verbose=true){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
         let isValidBlock = await this.validateBlock(newBlock);
@@ -104,16 +104,29 @@ class Blockchain{
           var isLinked = this.isBlockLinked(newBlock);
           if(isLinked){
             this.chain.push(newBlock);
-            logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-            logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-            logger(chalk.green('* By: '), newBlock.minedBy)
+
+            if(verbose){
+              logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
+              logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+              logger(chalk.green('* By: '), newBlock.minedBy)
+            }
+            
             
             Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
             resolve(true);
             
           }else{
             let isBlockFork = await this.createBlockBranch(newBlock)
-            resolve(isBlockFork);
+            if(isBlockFork.error){
+              let findForkDepth = await this.findForkInChain(newBlock);
+              if(findForkDepth){
+                resolve({outOfSync:findForkDepth})
+              }else{
+                resolve(false)
+              }
+              
+            }
+            resolve(true)
           }
           
         }else{
@@ -154,6 +167,8 @@ class Blockchain{
               let orphanedLatestBlock = this.chain.pop()
 
               this.chain.push(forkedBlock);
+
+              this.getLatestBlock().blockFork = orphanedLatestBlock;
               
     
               logger(chalk.yellow(`* Resolved block conflict!`))
@@ -175,18 +190,15 @@ class Blockchain{
 
             }else{
               console.log('ERROR: Block is too low to be added to chain')
-              console.log(this.extractHeader(newBlock))
               resolve({error:'ERROR: Block is too low to be added to chain'})
             }
           }else{
             console.log('ERROR: Forked block not found')
-            console.log(this.extractHeader(newBlock))
             resolve({error:'ERROR: Forked block not found'})
           }
           
         }else{
           console.log('ERROR: Could not resolve chain, head block has not been forked')
-          console.log(this.extractHeader(newBlock))
           resolve({error:'ERROR: Could not resolve chain, head block has not been forked'})
         }
        
@@ -195,6 +207,59 @@ class Blockchain{
      
     })
   }
+
+  findForkInChain(newBlock){
+    return new Promise((resolve)=>{
+      if(block){
+        this.chain.forEach( block=>{
+          if(block.hash == newBlock.previousHash){
+            resolve({block:block.blockNumber})
+          }else if(block.blockFork && block.blockFork.hash == newBlock.previousHash){
+            resolve({blockFork:block.blockNumber})
+          }
+        })
+
+        resolve(false);
+      }else{
+        resolve(false)
+      }
+    })
+    
+  }
+
+  compareHeaders(headers){
+    // logger(headers)
+    if(this.chain instanceof Blockchain){
+      if(headers){
+        if(headers.length >= this.chain.length){
+          let missingBlocks = [];
+          headers.forEach( header=>{
+            let correspondingBlock = this.chain[header.blockNumber];
+            if(correspondingBlock){
+              if(header.hash != correspondingBlock.hash){
+                resolve({fork:header.blockNumber})
+              }
+            }else{
+              missingBlocks.push(header);
+            }
+            
+          })
+
+          if(missingBlocks){
+            resolve({missingBlocks:missingBlocks})
+          }else{
+            resolve(true);
+          }
+
+        }else{
+
+        }
+        
+        
+      }
+    }
+  }
+
 
 
   hasEnoughTransactionsToMine(){
@@ -215,70 +280,85 @@ class Blockchain{
       delete block.transactions[txHash];
     }
   }
-  /**
-    Gathers all transactions in transaction pool and attempts to mine a block
-    If a peer mines block before reaching the correct hash, the mining operation
-    is cancelled and the peer's hash will be validated then the block will be fetched
-    and added to the chain
-    @param {string} $ip - IP of mining node
-    @param {string} $miningRewardAddress - Public key of mining node
-    @param {function} $callback - Sends result of mining operation
-  */
-  async minePendingTransactions(ip, block , miningRewardAddress, callback){
-      let ipAddress = ip
-      let lastBlock = this.getLatestBlock();
-      block.blockNumber = this.chain.length;
-      block.previousHash = lastBlock.hash;
-      block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
-      block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
+  // /**
+  //   Gathers all transactions in transaction pool and attempts to mine a block
+  //   If a peer mines block before reaching the correct hash, the mining operation
+  //   is cancelled and the peer's hash will be validated then the block will be fetched
+  //   and added to the chain
+  //   @param {string} $ip - IP of mining node
+  //   @param {string} $miningRewardAddress - Public key of mining node
+  //   @param {function} $callback - Sends result of mining operation
+  // */
+  // async minePendingTransactions(ip, block , miningRewardAddress, callback){
+  //     let ipAddress = ip
+  //     let lastBlock = this.getLatestBlock();
+  //     block.blockNumber = this.chain.length;
+  //     block.previousHash = lastBlock.hash;
+  //     block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
+  //     block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
       
-      logger('Current Challenge:', block.challenge)
-      logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
-      //block.mine
-      block.mineBlock(block.difficulty, async (success)=>{
-        if(success){ 
-          block = success;
-          if(this.validateBlock(block)){
-            //Kill mining process to start another one after block sync       
-            block.totalChallenge = await this.calculateWorkDone() + block.nonce;
-            block.minedBy = ipAddress;
-            this.chain.push(block);
+  //     logger('Current Challenge:', block.challenge)
+  //     logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
+  //     //block.mine
+  //     block.mineBlock(block.difficulty, async (success)=>{
+  //       if(success){ 
+  //         block = success;
+  //         if(this.validateBlock(block)){
+  //           //Kill mining process to start another one after block sync       
+  //           block.totalChallenge = await this.calculateWorkDone() + block.nonce;
+  //           block.minedBy = ipAddress;
+  //           this.chain.push(block);
             
-            console.log(chalk.cyan('\n********************************************************************'))
-            console.log(chalk.cyan('* Block number ')+block.blockNumber);
-            console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
-            console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
-            console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-            console.log(chalk.cyan("* Challenge : "), block.challenge);
-            console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
-            console.log(chalk.cyan("* Nonce : "), block.nonce)
-            console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
-            console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
-            console.log(chalk.cyan('********************************************************************\n'))
+  //           console.log(chalk.cyan('\n********************************************************************'))
+  //           console.log(chalk.cyan('* Block number ')+block.blockNumber);
+  //           console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
+  //           console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
+  //           console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+  //           console.log(chalk.cyan("* Challenge : "), block.challenge);
+  //           console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+  //           console.log(chalk.cyan("* Nonce : "), block.nonce)
+  //           console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
+  //           console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
+  //           console.log(chalk.cyan('********************************************************************\n'))
               
-            callback(success, block.hash);
+  //           callback(success, block.hash);
 
-          }else{
-            // logger('Block is not valid');
+  //         }else{
+  //           // logger('Block is not valid');
             
-            callback(false, false)
-          }
-        }else{
-          // logger('Mining aborted. Peer has mined a new block');
-          callback(false, false)
-        }
+  //           callback(false, false)
+  //         }
+  //       }else{
+  //         // logger('Mining aborted. Peer has mined a new block');
+  //         callback(false, false)
+  //       }
 
          
-        process.ACTIVE_MINER.kill()
-        process.ACTIVE_MINER = false;
+  //       process.ACTIVE_MINER.kill()
+  //       process.ACTIVE_MINER = false;
 
-      })
+  //     })
+
+  // }
+
+  selectNextPreviousBlock(){
+    if(this.getLatestBlock().blockFork){
+      let latestBlock = this.getLatestBlock();
+      let blockFork = this.getLatestBlock().blockFork;
+      if(blockFork.nonce > latestBlock.nonce){
+        return blockFork;
+      }else{
+        return latestBlock;
+      }
+    }else{
+      return this.getLatestBlock();
+    }
 
   }
 
   async mineNextBlock(block, ipAddress, verbose){
     return new Promise((resolve)=>{
-      let lastBlock = this.getLatestBlock();
+      let lastBlock = this.selectNextPreviousBlock();
       block.blockNumber = this.chain.length;
       block.previousHash = lastBlock.hash;
       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
@@ -295,10 +375,11 @@ class Blockchain{
         if(success){ 
           block = success;
           if(this.validateBlock(block)){
-            //Kill mining process to start another one after block sync       
+
             block.totalChallenge = await this.calculateWorkDone() + block.nonce;
             block.minedBy = ipAddress;
-            this.chain.push(block);
+            this.pushBlock(block, false);
+
             if(!verbose){
 
               console.log(chalk.cyan('\n********************************************************************'))
@@ -314,7 +395,7 @@ class Blockchain{
               console.log(chalk.cyan('********************************************************************\n'))
               
             }else{
-              let header = this.getBlockHeader(block.blockNumber)
+              let header = this.extractHeader(block)
               console.log(chalk.cyan(JSON.stringify(header, null, 2)))
             }
             
@@ -1327,8 +1408,14 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       if(transaction){
         if(validatePublicKey(transaction.fromAddress)){
-          const publicKey = ECDSA.fromCompressedPublicKey(transaction.fromAddress);
-          resolve(await publicKey.verify(transaction.hash, transaction.signature))
+          const publicKey = await ECDSA.fromCompressedPublicKey(transaction.fromAddress);
+          if(publicKey){
+            const verified = await publicKey.verify(transaction.hash, transaction.signature)
+            resolve(verified)
+          }else{
+            resolve(false)
+          }
+          
         }else{
           resolve(false)
         }
@@ -1339,11 +1426,20 @@ class Blockchain{
   }
 
   validateActionSignature(action, ownerKey){
-    return new Promise((resolve, reject)=>{
+    return new Promise(async (resolve, reject)=>{
       if(action){
-        
-        const publicKey = ECDSA.fromCompressedPublicKey(ownerKey);
-        resolve(publicKey.verify(action.hash, action.signature))
+        if(validatePublicKey(ownerKey)){
+          const publicKey = await ECDSA.fromCompressedPublicKey(ownerKey);
+          if(publicKey){
+            const verified = await publicKey.verify(action.hash, action.signature)
+            resolve(verified)
+          }else{
+            resolve(false)
+          }
+          
+        }else{
+          resolve(false)
+        }
       }else{
         resolve(false);
       }

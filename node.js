@@ -522,57 +522,76 @@ class Node {
     })
   }
 
-  createBlockFork(block){
-    return new Promise(async (resolve) =>{
-      if(block){
+  requestChainInfo(peer){
+    if(peer){
+      if(this.chain instanceof Blockchain){
+        peer.emit('getInfo');
 
-        let isStemOfFork
-
-        if(this.chain.blockFork){
-
-          let forkLength = this.chain.blockFork.length;
-          
-          let isLinkedToFork = this.chain.blockFork[forkLength - 1].hash == block.previousHash;
-          
-          if(isLinkedToFork){
-
-            logger('BLOCK CONFLICT: Switching to side chain')
-            let blockSwap = this.chain.chain.splice(-1, 1);
-            this.unwrapBlock(blockSwap)
-            this.chain.orphanedBlocks.push(blockSwap)
-            this.chain.blockFork.push(block);
-
-            this.chain.blockFork.forEach(async (block)=>{
-              let blockSynced = await this.chain.pushBlock(block)
-
-              if(blockSynced.error){
-                logger(blockSynced.error);
-              }
-
-              if(blockSynced.fork){
-                let display = JSON.stringify(blockSynced.fork, null, 2)
-                logger(display)
-              }
-
-              if(blockSynced.resolved){
-                let display = JSON.stringify(blockSynced.resolved, null, 2)
-                logger(display)
-              }
-
-            })
-            
-          }else if(this.chain.blockFork[forkLength - 1].previousHash == block.previousHash){
-
+        peer.on('info', (info)=>{
+          if(info){
+            peer.off('info')
+            resolve(info)
           }else{
-
+            peer.off('info')
+            resolve({error:'ERROR: Could not fetch chain info'})
           }
-        }else{
-
-        }
-       
+        })
       }
-    })
+    }
   }
+
+  // createBlockFork(block){
+  //   return new Promise(async (resolve) =>{
+  //     if(block){
+
+  //       let isStemOfFork
+
+  //       if(this.chain.blockFork){
+
+  //         let forkLength = this.chain.blockFork.length;
+          
+  //         let isLinkedToFork = this.chain.blockFork[forkLength - 1].hash == block.previousHash;
+          
+  //         if(isLinkedToFork){
+
+  //           logger('BLOCK CONFLICT: Switching to side chain')
+  //           let blockSwap = this.chain.chain.splice(-1, 1);
+  //           this.unwrapBlock(blockSwap)
+  //           this.chain.orphanedBlocks.push(blockSwap)
+  //           this.chain.blockFork.push(block);
+
+  //           this.chain.blockFork.forEach(async (block)=>{
+  //             let blockSynced = await this.chain.pushBlock(block)
+
+  //             if(blockSynced.error){
+  //               logger(blockSynced.error);
+  //             }
+
+
+  //             if(blockSynced.fork){
+  //               let display = JSON.stringify(blockSynced.fork, null, 2)
+  //               logger(display)
+  //             }
+
+  //             if(blockSynced.resolved){
+  //               let display = JSON.stringify(blockSynced.resolved, null, 2)
+  //               logger(display)
+  //             }
+
+  //           })
+            
+  //         }else if(this.chain.blockFork[forkLength - 1].previousHash == block.previousHash){
+
+  //         }else{
+
+  //         }
+  //       }else{
+
+  //       }
+       
+  //     }
+  //   })
+  // }
 
 
   receiveBlockchainStatus(peer, status){
@@ -1016,6 +1035,17 @@ class Node {
          }
        }
         
+     })
+
+     socket.on('getInfo', ()=>{
+      if(this.chain instanceof Blockchain){
+        try{
+          let info = this.getChainInfo();
+          socket.emit('info', info);
+        }catch(e){
+          console.log(e)
+        }
+      }
      })
 
      socket.on('getBlockHeader', async (blockNumber)=>{
@@ -1497,31 +1527,31 @@ class Node {
     return info
   }
 
-  /**
-    Validates every block that gets added to blockchain.
-    @param {Object} $newBlock - Block to be added
-  */
-  async addNewBlock(newBlock){
-      if(isValidBlockJSON(newBlock)){ //typeof newBlock == 'object'
+  // /**
+  //   Validates every block that gets added to blockchain.
+  //   @param {Object} $newBlock - Block to be added
+  // */
+  // async addNewBlock(newBlock){
+  //     if(isValidBlockJSON(newBlock)){ //typeof newBlock == 'object'
         
-        var isBlockSynced = await this.chain.pushBlock(newBlock);
-        if(isBlockSynced){
-          Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-          logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-          logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-          logger(chalk.green('* By: '), newBlock.minedBy)
-          return true;
-        }else if(isBlockSynced.fork){
-          //Handle forks
-          return {fork:true}
-        }else{
-          return false;
-        }
-      }else{
-        logger('ERROR: Block has invalid format');
-        return false;
-      }
-  }
+  //       var isBlockSynced = await this.chain.pushBlock(newBlock);
+  //       if(isBlockSynced){
+  //         Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+  //         logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
+  //         logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+  //         logger(chalk.green('* By: '), newBlock.minedBy)
+  //         return true;
+  //       }else if(isBlockSynced.fork){
+  //         //Handle forks
+  //         return {fork:true}
+  //       }else{
+  //         return false;
+  //       }
+  //     }else{
+  //       logger('ERROR: Block has invalid format');
+  //       return false;
+  //     }
+  // }
 
   handleNewBlockFound(data, relayPeer){
     return new Promise( async (resolve)=>{
@@ -1552,6 +1582,15 @@ class Node {
                     let addedToChain = await this.chain.pushBlock(newBlock);
                     if(addedToChain.error){
                       resolve({error:addedToChain.error})
+                    }
+
+                    if(addedToChain.outOfSync){
+                      let blockForkIndex = addedToChain.outOfSync;
+                      let info = await this.requestChainInfo(peerSocket);
+                      if(info){
+                        let headers = await this.requestChainHeaders(peerSocket, blockForkIndex, info.chainLength);
+
+                      }
                     }
       
                     if(addedToChain.fork){
@@ -1612,56 +1651,56 @@ class Node {
   }
 
    //could be moved to Blockchain.js
-  compareHeaders(headers){
-    // logger(headers)
-    if(this.chain instanceof Blockchain){
-      if(headers){
-        for(var i=0; i < headers.length; i++){
+  // compareHeaders(headers){
+  //   // logger(headers)
+  //   if(this.chain instanceof Blockchain){
+  //     if(headers){
+  //       for(var i=0; i < headers.length; i++){
 
-          var header = headers[i]
-          var localBlockHeader = this.chain.getBlockHeader(i);
+  //         var header = headers[i]
+  //         var localBlockHeader = this.chain.getBlockHeader(i);
 
-          try{
+  //         try{
             
-            if(i > 1 && isValidHeaderJSON(header)){
-              let isValid = this.chain.validateBlockHeader(header);
-              let containsBlock = localBlockHeader.hash == header.hash;
+  //           if(i > 1 && isValidHeaderJSON(header)){
+  //             let isValid = this.chain.validateBlockHeader(header);
+  //             let containsBlock = localBlockHeader.hash == header.hash;
               
 
-              if(!containsBlock) {
-                console.log('Does not contain block ',i)
-                return i
-              };
-              if(!isValid){
-                console.log('Is not valid ', i);
-                console.log(sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce))
+  //             if(!containsBlock) {
+  //               console.log('Does not contain block ',i)
+  //               return i
+  //             };
+  //             if(!isValid){
+  //               console.log('Is not valid ', i);
+  //               console.log(sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce))
                 
-                console.log('Block Hash:', block.hash);
-                console.log('Header Hash',header.hash);
-                console.log(sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce))
+  //               console.log('Block Hash:', block.hash);
+  //               console.log('Header Hash',header.hash);
+  //               console.log(sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce))
                 
-                console.log('Previous hash', header.previousHash);
-                console.log('Timestamp', header.timestamp);
-                console.log('Merkle', header.merkleRoot);
-                console.log('Nonce', header.nonce)
-                return false;
-              }
-              if(headers.length < this.chain.chain.length){
-                logger('This chain is longer than peer chain')
-                return false;
-              } 
-            }
+  //               console.log('Previous hash', header.previousHash);
+  //               console.log('Timestamp', header.timestamp);
+  //               console.log('Merkle', header.merkleRoot);
+  //               console.log('Nonce', header.nonce)
+  //               return false;
+  //             }
+  //             if(headers.length < this.chain.chain.length){
+  //               logger('This chain is longer than peer chain')
+  //               return false;
+  //             } 
+  //           }
 
-          }catch(e){
-            console.log(e)
-          }
+  //         }catch(e){
+  //           console.log(e)
+  //         }
 
 
-        }
-        return true;
-      }
-    }
-  }
+  //       }
+  //       return true;
+  //     }
+  //   }
+  // }
 
    /**
     @param {number} $number - Index of block from which to show block creation time
