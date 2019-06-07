@@ -523,7 +523,7 @@ class Node {
   }
 
   requestChainInfo(peer){
-    return new Promise( async()=>{
+    return new Promise( async(resolve)=>{
       if(peer){
         if(this.chain instanceof Blockchain){
           peer.emit('getInfo');
