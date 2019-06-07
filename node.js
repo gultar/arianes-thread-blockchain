@@ -528,12 +528,13 @@ class Node {
         if(this.chain instanceof Blockchain){
           peer.emit('getInfo');
   
-          peer.on('info', (info)=>{
+          peer.on('chainInfo', (info)=>{
+            console.log(info)
             if(info){
-              peer.off('info')
+              peer.off('chainInfo')
               resolve(info)
             }else{
-              peer.off('info')
+              peer.off('chainInfo')
               resolve({error:'ERROR: Could not fetch chain info'})
             }
           })
@@ -1090,9 +1091,11 @@ class Node {
 
      socket.on('getInfo', ()=>{
       if(this.chain instanceof Blockchain){
+
         try{
+
           let info = this.getChainInfo();
-          socket.emit('info', info);
+          socket.emit('chainInfo', info);
         }catch(e){
           console.log(e)
         }
@@ -1283,7 +1286,7 @@ class Node {
     })
     
     socket.on('test', async()=>{
-      let peer = this.connectionsToPeers['http://10.10.10.10:8003']
+      let peer = this.connectionsToPeers['http://10.10.10.10:8000']
       let info = await this.requestChainInfo(peer);
       if(info){
         console.log(info)
