@@ -329,7 +329,7 @@ class Node {
 
           peer.on('disconnect', () =>{
             logger('connection with peer dropped');
-            
+            delete this.connectionsToPeers[address]
           })
 
           if(callback){
@@ -523,21 +523,24 @@ class Node {
   }
 
   requestChainInfo(peer){
-    if(peer){
-      if(this.chain instanceof Blockchain){
-        peer.emit('getInfo');
-
-        peer.on('info', (info)=>{
-          if(info){
-            peer.off('info')
-            resolve(info)
-          }else{
-            peer.off('info')
-            resolve({error:'ERROR: Could not fetch chain info'})
-          }
-        })
+    return new Promise( async()=>{
+      if(peer){
+        if(this.chain instanceof Blockchain){
+          peer.emit('getInfo');
+  
+          peer.on('info', (info)=>{
+            if(info){
+              peer.off('info')
+              resolve(info)
+            }else{
+              peer.off('info')
+              resolve({error:'ERROR: Could not fetch chain info'})
+            }
+          })
+        }
       }
-    }
+    })
+    
   }
 
   // createBlockFork(block){
@@ -1282,7 +1285,10 @@ class Node {
     socket.on('test', async()=>{
       let peer = this.connectionsToPeers['http://10.10.10.10:8003']
       let info = await this.requestChainInfo(peer);
-      console.log(info)
+      if(info){
+        console.log(info)
+      }
+      
     })
 
     socket.on('rollback', ()=>{
