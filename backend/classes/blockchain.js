@@ -156,13 +156,9 @@ class Blockchain{
               this.chain.push(forkedBlock);
               
     
-              logger(chalk.green(`* Resolved block conflict!`))
-              logger(chalk.green(`* Replaced block ${orphanedLatestBlock.blockNumber} with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
-              logger(chalk.green(`* By block with hash ${orphanedLatestBlock.hash.substr(0, 25)}...`))
-              
-              logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-              logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-              logger(chalk.green('* By: '), newBlock.minedBy)
+              logger(chalk.yellow(`* Resolved block conflict!`))
+              logger(chalk.yellow(`* Replaced block ${chalk.white(orphanedLatestBlock.blockNumber)} with hash ${chalk.white(orphanedLatestBlock.hash.substr(0, 25))}...`))
+              logger(chalk.yellow(`* By block with hash ${chalk.white(orphanedLatestBlock.hash.substr(0, 25))}...`))
               
               Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
 
@@ -178,15 +174,18 @@ class Blockchain{
               });
 
             }else{
+              console.log('ERROR: Block is too low to be added to chain')
               console.log(this.extractHeader(newBlock))
               resolve({error:'ERROR: Block is too low to be added to chain'})
             }
           }else{
+            console.log('ERROR: Forked block not found')
             console.log(this.extractHeader(newBlock))
             resolve({error:'ERROR: Forked block not found'})
           }
           
         }else{
+          console.log('ERROR: Could not resolve chain, head block has not been forked')
           console.log(this.extractHeader(newBlock))
           resolve({error:'ERROR: Could not resolve chain, head block has not been forked'})
         }
