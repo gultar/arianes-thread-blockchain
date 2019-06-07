@@ -227,38 +227,44 @@ class Blockchain{
     
   }
 
+  
+
   compareHeaders(headers){
-    // logger(headers)
-    if(this.chain instanceof Blockchain){
-      if(headers){
-        if(headers.length >= this.chain.length){
-          let missingBlocks = [];
-          headers.forEach( header=>{
-            let correspondingBlock = this.chain[header.blockNumber];
-            if(correspondingBlock){
-              if(header.hash != correspondingBlock.hash){
-                resolve({fork:header.blockNumber})
-              }
-            }else{
-              missingBlocks.push(header);
-            }
-            
-          })
-
-          if(missingBlocks){
-            resolve({missingBlocks:missingBlocks})
-          }else{
-            resolve(true);
-          }
-
-        }else{
-
-        }
-        
-        
-      }
-    }
+    
   }
+
+  // compareHeaders(headers){
+  //   // logger(headers)
+  //   if(this.chain instanceof Blockchain){
+  //     if(headers){
+  //       if(headers.length >= this.chain.length){
+  //         let missingBlocks = [];
+  //         headers.forEach( header=>{
+  //           let correspondingBlock = this.chain[header.blockNumber];
+  //           if(correspondingBlock){
+  //             if(header.hash != correspondingBlock.hash){
+  //               resolve({fork:header.blockNumber})
+  //             }
+  //           }else{
+  //             missingBlocks.push(header);
+  //           }
+            
+  //         })
+
+  //         if(missingBlocks){
+  //           resolve({missingBlocks:missingBlocks})
+  //         }else{
+  //           resolve(true);
+  //         }
+
+  //       }else{
+
+  //       }
+        
+        
+  //     }
+  //   }
+  // }
 
 
 
@@ -422,8 +428,19 @@ class Blockchain{
   calculateWorkDone(){
     let total = 0;
     this.chain.forEach( block=>{
-      total += block.challenge;
+      total += block.nonce;
     })
+
+    return total;
+  }
+
+  calculateWorkDoneOfChain(chain){
+    if(chain){
+      let total = 0;
+      chain.forEach( block=>{
+        total += block.nonce;
+      })
+    }
 
     return total;
   }

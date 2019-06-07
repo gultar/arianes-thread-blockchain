@@ -592,7 +592,55 @@ class Node {
   //     }
   //   })
   // }
+  selfCorrectHardFork(peer, newBlock){
+    return new Promise(async(resolve)=>{
+      if(newBlock){
 
+        let info = await this.requestChainInfo(peer);
+        if(info.error) resolve({error:info.error});
+
+        let headers = await this.requestChainHeaders(peer, 0, info.chainLength)
+        if(headers.error) resolve({error:headers.error});
+
+        let peerChainTotalWork = await this.chain.calculateWorkDoneOfChain(header);
+        let currentTotalWork = await this.chain.calculateWorkDoneOfChain(this.chain);
+
+        if(peerChainTotalWork > currentTotalWork){
+
+          let forkedBlocks = []
+          headers.forEach( header=>{
+            let containedInChain = this.chain.getIndexOfBlockHash(header.hash);
+            if(!containedInChain){
+              forkedBlocks.push(header);
+            }
+          })
+
+          if(forkedBlocks.length > 0){
+            let forkIndex = forkedBlock[0].blockNumber;
+            let orphanedBranch = this.chain.splice(0, forkIndex);
+
+            let blocks = await this.downloadBlockchain(peer, forkIndex, info.length);
+            if(blocks.error) resolve({error:blocks.error})
+
+            this.chain.getLatestBlock().blockBranch = orphanedBranch;
+            blocks.forEach( block=>{
+              this.chain.pushBlock(block);
+            })
+
+            resolve(true);
+
+          }else{
+            //No forked blocks
+          }
+        }else{
+          logger('Current blockchain contains more work. Staying on current blockchain')
+        }
+      }else{
+        logger('CHAIN CORRECTION ERROR: New block is undefined')
+      }
+    })
+    
+  }
 
   receiveBlockchainStatus(peer, status){
     return new Promise(async (resolve) =>{
@@ -1231,11 +1279,10 @@ class Node {
       socket.emit('mempool', Mempool);
     })
     
-    socket.on('test', ()=>{
-      var os = require('os'),
-      cpuCount = os.cpus().length;
-      console.log('CPU: ', cpuCount)
-    
+    socket.on('test', async()=>{
+      let peer = this.connectionsToPeers['http://10.10.10.10:8003']
+      let info = await this.requestChainInfo(peer);
+      console.log(info)
     })
 
     socket.on('rollback', ()=>{
