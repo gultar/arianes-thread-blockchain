@@ -349,6 +349,74 @@ class Node {
     }
   }
 
+  requestBlockchainHeaders(peer, startAt=0, length=1){
+    return new Promise((resolve)=>{
+      if(peer){
+        if(!this.isDownloading){
+          let headers = [];
+          this.isDownloading = true;
+          logger(chalk.cyan('Fetching block headers from peer...'))
+  
+          peer.emit('getBlockHeader', startAt+1)
+  
+          let bar = Progress({
+            total:length - startAt,
+            finishMessage:'Fetched all block headers of blockchain!\n\n'
+          })
+
+          const closeDownloadChannel = (peer, bar) =>{
+            peer.off('block');
+            bar = null;
+            this.isDownloading = false;
+          }
+  
+          peer.on('blockHeader', async (header)=>{
+            if(header){
+              bar.op()
+              try{
+                  if(header.error){
+                    closeDownloadChannel(peer, bar)
+                    resolve({error:header.error})
+                  }
+  
+                  if(header.end){
+                    closeDownloadChannel(peer, bar)
+                    resolve(headers)
+  
+                  }else {
+                    if(this.chain instanceof Blockchain){
+                      let isValidHeader = this.chain.validateBlockHeader(header)
+                        if(!isValidHeader){
+                          logger('ERROR: Is not valid header')
+                        }else{
+                          headers.push(header);
+                      }
+                      peer.emit('getBlockHeader', header.blockNumber+1)
+                    }else{
+                      closeDownloadChannel(peer, bar)
+                      resolve({error:'ERROR: Blockchain not yet loaded'})
+                    }
+                    
+                    
+                  }
+              }catch(e){
+                closeDownloadChannel(peer, bar)
+                resolve({error:e})
+              }
+              
+            } 
+           })
+
+        }//If is already downloading, do nothing
+
+
+      }else{
+        closeDownloadChannel(peer, bar)
+        resolve({error:'ERROR: Header Request failed: Missing parameter'})
+      }
+    
+  })
+  }
   
   requestChainHeaders(peer, startAt=0, length=0){
     return new Promise((resolve, reject)=>{
@@ -529,7 +597,6 @@ class Node {
           peer.emit('getInfo');
   
           peer.on('chainInfo', (info)=>{
-            console.log(info)
             if(info){
               peer.off('chainInfo')
               resolve(info)
@@ -663,7 +730,7 @@ class Node {
               // let currentLastBlockNumber = this.chain.getLatestBlock().blockNumber
               let lastBlockNum = this.chain.getLatestBlock().blockNumber;
                 
-              let headers = await this.requestChainHeaders(peer, lastBlockNum, length)
+              let headers = await this.requestBlockchainHeaders(peer, lastBlockNum, length)
               if(headers){
                 
                 if(headers.error){
@@ -1287,7 +1354,7 @@ class Node {
     
     socket.on('test', async()=>{
       let peer = this.connectionsToPeers['http://10.10.10.10:8000']
-      let info = await this.requestChainInfo(peer);
+      let info = await this.requestBlockchainHeaders(peer, 0, 4400);
       if(info){
         console.log(info)
       }
