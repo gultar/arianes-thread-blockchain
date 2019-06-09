@@ -59,38 +59,38 @@ let Progress = require('pace');
 */
 
 class Node {
-  constructor(address, port, options){
-    this.address = 'http://'+address+':'+port,
-    this.port = port
-    this.id = sha1(this.address);
-    this.chain = {};
-    this.blockFork = [];
+  constructor(options){
+    if(!options){
+      options.address = 'http://localhost:8000'
+      options.port = 8000;
+      options.id = sha1(Math.random() * Date.now());
+    }
+    //Basic node configs
+    this.address = options.address,
+    this.port = options.port
+    this.id = options.id;
+    this.publicKey = options.publicKey;
+    this.verbose = false;
+    this.fastSync = options.fastSync;
+    //Network related parameters
     this.ioServer = {};
-    this.publicKey = '';
     this.userInterfaces = [];
     this.peersConnected = {}; //From ioServer to ioClient
     this.connectionsToPeers = {}; //From ioClient to ioServer
-    this.nodeList = new NodeList();
-    this.minimumNumberOfPeers = 5;
-    this.maximumUnconfirmedBlocks = 1;
+    
     this.messageBuffer = {};
+    this.messageBufferCleanUpDelay = 30 * 1000;
+
+    this.chain = {};
+    
     this.updated = false;
     this.minerStarted = false;
     this.miner = {};
-    this.verbose = false;
-    this.walletManager = new WalletManager(this.address);
+
+    this.nodeList = new NodeList();
+    this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
     this.accountTable = new AccountTable();
-    this.longestChain = {
-      length:0,
-      peerAddress:'',
-      totalChallenge:0,
-    }
-
-    if(options){
-
-    }
-    
   }
 
 
@@ -98,7 +98,7 @@ class Node {
     P2P Server with two main APIs. A socket.io API for fast communication with connected peers
     and an HTTP Api for remote peer connections as well as routine tasks like updating blockchain.
   */
-  startServer(app=express()){
+  async startServer(app=express()){
     try{
 
       console.log(chalk.cyan('\n******************************************'))
@@ -116,48 +116,20 @@ class Node {
       this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
       
       //Loading blockchain from file
-      initBlockchain()
-        .then(chain => {
-          if(chain){
-            logger('Blockchain successfully loaded')
-            this.chain = chain;
-
-            //Loading transaction Mempool
-            Mempool.loadMempool()
-            .then((mempoolLoaded)=>{
-              if(mempoolLoaded){
-                logger('Loaded transaction mempool');
-                logger('Number of transactions in pool: '+Mempool.sizeOfPool());
-              }else{
-                logger(chalk.red('ERROR: Could not load mempool'))
-              }
-            })
-
-          }else{
-            logger(chalk.red('ERROR: Could not init blockchain'))
-          }
-        })
-
-      //Loading list of known peer addresses
-      this.nodeList.loadNodeList()
-        .then(loaded =>{
-          if(loaded){
-            logger('Loaded list of known nodes')
-            logger('Number of known nodes:', this.nodeList.addresses.length)
-          }else{
-            logger(chalk.red('Could not load list of nodes'))
-          }
-        })
-
-      this.accountTable.loadAllAccountsFromFile()
-      .then(loaded =>{
-        if(loaded){
-          logger('Loaded account table');
-        }else{
-          logger(chalk.red('Could not load account table'))
-        }
-      })
       
+      let mempoolLoaded = await Mempool.loadMempool();
+      let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
+      this.chain = await initBlockchain()  
+      
+      if(!mempoolLoaded) throw new Error('Could not load Mempool');
+      if(!accountsLoaded) throw new Error('Could not load account table');
+      if(!this.chain) throw new Error('Could not load Blockchain');
+
+      logger('Loaded Blockchain')      
+      logger('Loaded transaction mempool');
+      logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
+      logger('Loaded account table');
+       
     }catch(e){
       console.log(chalk.red(e));
     }
@@ -328,7 +300,7 @@ class Node {
           })
 
           peer.on('disconnect', () =>{
-            logger('connection with peer dropped');
+            logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address]
           })
 
@@ -611,74 +583,23 @@ class Node {
     
   }
 
-  // createBlockFork(block){
-  //   return new Promise(async (resolve) =>{
-  //     if(block){
-
-  //       let isStemOfFork
-
-  //       if(this.chain.blockFork){
-
-  //         let forkLength = this.chain.blockFork.length;
-          
-  //         let isLinkedToFork = this.chain.blockFork[forkLength - 1].hash == block.previousHash;
-          
-  //         if(isLinkedToFork){
-
-  //           logger('BLOCK CONFLICT: Switching to side chain')
-  //           let blockSwap = this.chain.chain.splice(-1, 1);
-  //           this.unwrapBlock(blockSwap)
-  //           this.chain.orphanedBlocks.push(blockSwap)
-  //           this.chain.blockFork.push(block);
-
-  //           this.chain.blockFork.forEach(async (block)=>{
-  //             let blockSynced = await this.chain.pushBlock(block)
-
-  //             if(blockSynced.error){
-  //               logger(blockSynced.error);
-  //             }
-
-
-  //             if(blockSynced.fork){
-  //               let display = JSON.stringify(blockSynced.fork, null, 2)
-  //               logger(display)
-  //             }
-
-  //             if(blockSynced.resolved){
-  //               let display = JSON.stringify(blockSynced.resolved, null, 2)
-  //               logger(display)
-  //             }
-
-  //           })
-            
-  //         }else if(this.chain.blockFork[forkLength - 1].previousHash == block.previousHash){
-
-  //         }else{
-
-  //         }
-  //       }else{
-
-  //       }
-       
-  //     }
-  //   })
-  // }
-  selfCorrectHardFork(peer, newBlock){
+  
+  selfCorrectDeepFork(peer){
     return new Promise(async(resolve)=>{
-      if(newBlock){
+      if(peer){
 
         let info = await this.requestChainInfo(peer);
         if(info.error) resolve({error:info.error});
 
-        let headers = await this.requestChainHeaders(peer, 0, info.chainLength)
+        let headers = await this.requestBlockchainHeaders(peer, 0, info.chainLength)
         if(headers.error) resolve({error:headers.error});
 
-        let peerChainTotalWork = await this.chain.calculateWorkDoneOfChain(header);
-        let currentTotalWork = await this.chain.calculateWorkDoneOfChain(this.chain);
-
+        let peerChainTotalWork = await this.chain.calculateWorkDone(headers);
+        let currentTotalWork = await this.chain.calculateWorkDone(this.chain.chain);
+        if(headers.length >= this.chain.chain.length)
         if(peerChainTotalWork > currentTotalWork){
 
-          let forkedBlocks = []
+          let forkedBlocks = [];
           headers.forEach( header=>{
             let containedInChain = this.chain.getIndexOfBlockHash(header.hash);
             if(!containedInChain){
@@ -687,17 +608,19 @@ class Node {
           })
 
           if(forkedBlocks.length > 0){
-            let forkIndex = forkedBlock[0].blockNumber;
-            let orphanedBranch = this.chain.splice(0, forkIndex);
+
+            let forkIndex = forkedBlocks[0].blockNumber;
+            let orphanedBranch = this.chain.chain.splice(0, forkIndex);
 
             let blocks = await this.downloadBlockchain(peer, forkIndex, info.length);
             if(blocks.error) resolve({error:blocks.error})
-
-            this.chain.getLatestBlock().blockBranch = orphanedBranch;
+            
             blocks.forEach( block=>{
               this.chain.pushBlock(block);
             })
 
+            this.chain.chain[forkIndex].blockBranch = orphanedBranch
+            
             resolve(true);
 
           }else{
@@ -707,7 +630,7 @@ class Node {
           logger('Current blockchain contains more work. Staying on current blockchain')
         }
       }else{
-        logger('CHAIN CORRECTION ERROR: New block is undefined')
+        logger('CHAIN CORRECTION ERROR: Peer is undefined')
       }
     })
     
@@ -748,8 +671,14 @@ class Node {
                 if(blocks){
                   blocks.forEach( async(block)=>{
                     let addedBlock = await this.chain.pushBlock(block);
-                    if(!addedBlock){
-                      logger('ERROR: Could not add block')
+                    if(addedBlock.fork){
+                      let display = JSON.stringify(addedBlock.fork, null, 2)
+                      console.log(display);
+                      resolve(true)
+                    }
+                    if(addedBlock.error){
+                      logger(addedBlock.error)
+                      resolve(false)
                     }
                   })
 
@@ -809,6 +738,27 @@ class Node {
             }else{
                 this.connectionsToPeers[peerAddress].emit(eventType, data, moreData);
             }
+          })
+        }
+    }catch(e){
+      console.log(e);
+    }
+
+  }
+
+  propagate(eventType, data, moreData=false, excludePeers={} ){
+    try{
+      if(this.connectionsToPeers){
+          Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
+            if(!exclusePeers[peerAddress]){
+              if(!moreData){
+              
+                this.connectionsToPeers[peerAddress].emit(eventType, data);
+              }else{
+                  this.connectionsToPeers[peerAddress].emit(eventType, data, moreData);
+              }
+            }
+            
           })
         }
     }catch(e){
@@ -1144,7 +1094,7 @@ class Node {
       if(this.chain instanceof Blockchain){
         try{
           let status = {
-            totalChallenge: this.chain.calculateWorkDone(),
+            totalChallenge: this.chain.getLatestBlock().totalChallenge,
             bestBlockHeader: this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber),
             length: this.chain.chain.length
           }
@@ -1351,13 +1301,14 @@ class Node {
     socket.on('getMempool', ()=>{
       socket.emit('mempool', Mempool);
     })
+
+    socket.on('testforks', ()=>{
+      let forks = this.chain.gatherAllForks();
+      console.log(Object.keys(forks))
+    })
     
     socket.on('test', async()=>{
-      let peer = this.connectionsToPeers['http://10.10.10.10:8000']
-      let info = await this.requestBlockchainHeaders(peer, 0, 4400);
-      if(info){
-        console.log(info)
-      }
+     
       
     })
 
@@ -1417,14 +1368,14 @@ class Node {
       
     })
 
-    socket.on('resolveFork', ()=>{
-      if(this.longestChain.peerAddress){
-        logger('Resolving fork!');
-        this.resolveBlockFork(this.longestChain.peerAddress);
-      }else{
-        socket.emit('message', 'ERROR: longest chain is unknown')
-      }
-    })
+    // socket.on('resolveFork', ()=>{
+    //   if(this.longestChain.peerAddress){
+    //     logger('Resolving fork!');
+    //     this.resolveBlockFork(this.longestChain.peerAddress);
+    //   }else{
+    //     socket.emit('message', 'ERROR: longest chain is unknown')
+    //   }
+    // })
 
     socket.on('disconnect', ()=>{
       var index = this.userInterfaces.length
@@ -1563,16 +1514,16 @@ class Node {
           break;
           case 'addressRequest':
           break;
-          case 'chainLength':
-            const length = data
+          // case 'chainLength':
+          //   const length = data
             
-            if(this.longestChain.length < length && this.nodeList.addresses.includes(originAddress)){
+          //   if(this.longestChain.length < length && this.nodeList.addresses.includes(originAddress)){
               
-              this.longestChain.length = length;
-              this.longestChain.peerAddress = originAddress
-              logger(originAddress+' has sent its chain length: '+length)
-            }
-          break;
+          //     this.longestChain.length = length;
+          //     this.longestChain.peerAddress = originAddress
+          //     logger(originAddress+' has sent its chain length: '+length)
+          //   }
+          // break;
           case 'message':
               console.log(`!Received message from: ${originAddress}: ${data}`)
             break;
@@ -1708,23 +1659,16 @@ class Node {
                     }
 
                     if(addedToChain.outOfSync){
-                      let blockForkIndex = addedToChain.outOfSync;
-                      let info = await this.requestChainInfo(peerSocket);
-                      if(info){
-                        let headers = await this.requestChainHeaders(peerSocket, blockForkIndex, info.chainLength);
-
-                      }
+                      this.selfCorrectDeepFork(peerSocket, blockForkIndex)
                     }
       
                     if(addedToChain.fork){
                       let display = JSON.stringify(addedToChain.fork, null, 2)
-                      logger(display)
+                      console.log(display)
                       resolve(addedToChain.fork)
                     }
       
                     if(addedToChain.resolved){
-                      let display = JSON.stringify(addedToChain.resolved, null, 2)
-                      logger(display)
                       resolve(addedToChain.resolved);
                     }
       
@@ -2095,31 +2039,41 @@ class Node {
   
   }
 
-  save(callback){
-    
-    this.chain.saveBlockchain()
-      .then((saved)=>{
+  save(){
+    return new Promise(async (resolve, reject)=>{
+      try{
+        let savedBlockchain = await this.chain.saveBlockchain();
+        let savedNodeList = await this.nodeList.saveNodeList();
+        let savedMempool = await Mempool.saveMempool();
+        let savedWalletManager = await this.walletManager.saveState();
+        let savedNodeConfig = await this.saveNodeConfig();
+        let savedAccountTable = await this.accountTable.saveTable();
+        if(
+            savedBlockchain 
+            && savedNodeList 
+            && savedMempool
+            && savedWalletManager
+            && savedNodeConfig
+            && savedAccountTable
+          )
+          {
+            resolve(true)
+          }else{
+            reject('ERROR: Could not save all files')
+          }
         
-        this.nodeList.saveNodeList();
-        Mempool.saveMempool();
-        this.walletManager.saveState();
-        this.saveNodeConfig()
-        this.accountTable.saveTable();
-        if(saved == true){
-          logger('Saved blockchain file')
-          if(callback) callback(true);
-          return true;
-        }else{
-          logger(chalk.red('ERROR: could not write blockchain file'));
-          if(callback) callback(false);
-          return false;
-        }
-        
-      })
-      .catch((e)=>{
-        console.log(chalk.red(e))
-      })
+      }catch(e){
+        reject(e)
+      }
+      
+    })
     
+    
+    
+  }
+
+  closeNode(){
+
   }
 
   async loadNodeConfig(){
@@ -2147,16 +2101,26 @@ class Node {
   }
 
   async saveNodeConfig(){
-    let config = {
-      address:this.address,
-      port:this.port,
-      id:this.id,
-      publicKey:this.publicKey,
-      // accountTable:this.accountTable,
-    }
-
-    let saved = await writeToFile(JSON.stringify(config, null, 2),'./config/nodeconfig.json');
-    if(saved) logger('Saved node config')
+    return new Promise(async (resolve, reject)=>{
+      let config = {
+        address:this.address,
+        port:this.port,
+        id:this.id,
+        publicKey:this.publicKey,
+        verbose:this.verbose,
+        fastSync:this.fastSync
+      }
+  
+      let saved = await writeToFile(JSON.stringify(config, null, 2),'./config/nodeconfig.json');
+      if(saved){
+        logger('Saved node config')
+        resolve(true)
+      }else{
+        reject('ERROR: Could not save node config')
+      }
+      
+    })
+    
   }
 
   /**
@@ -2227,4 +2191,4 @@ class Node {
 }
 
 
-module.exports = new Node()
+module.exports = Node

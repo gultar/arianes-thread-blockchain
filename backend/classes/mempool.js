@@ -1,6 +1,7 @@
 const fs = require('fs')
 const { logger, readFile, writeToFile, createFile, merge } = require('../tools/utils')
 const {isValidTransactionJSON} = require('../tools/jsonvalidator')
+const JSONStream = require("JSONStream").stringifyObject("{",",","}")
 
 class Mempool{
     constructor(){
@@ -258,12 +259,23 @@ class Mempool{
     }
 
     async saveMempool(){
-        let saved = await writeToFile(this, './data/mempool.json');
-        if(saved){
-            logger('Saved mempool');
-        }else{
-            logger('ERROR: Could not save mempool')
-        }
+        return new Promise(async (resolve, reject)=>{
+            try{
+                
+                
+                let saved = await writeToFile(this, './data/mempool.json');
+                if(saved){
+                    logger('Saved mempool');
+                    resolve(true)
+                }else{
+                    reject('ERROR: Could not save mempool')
+                }  
+            }catch(e){
+               reject(e) 
+            }
+             
+        })
+        
     }
 
     async createMempool(){

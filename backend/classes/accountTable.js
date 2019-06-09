@@ -108,14 +108,18 @@ class AccountTable{
        }
 
       saveTable(){
-        try{
-            let saved = writeToFile(this.accounts, './data/accounts.json');
-            if(saved){
-                logger('Saved account table');
+          return new Promise((resolve, reject)=>{
+            try{
+                let saved = writeToFile(this.accounts, './data/accounts.json');
+                if(saved){
+                    logger('Saved account table');
+                    resolve(true)
+                }
+            }catch(e){
+                reject(e)
             }
-        }catch(e){
-            console.log(e)
-        }
+          })
+        
       }
 
       executeAction(action){

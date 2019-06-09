@@ -16,6 +16,8 @@ const chalk = require('chalk');
 const merkle = require('merkle');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
+const JSONStream = require("JSONStream").stringifyObject("{",",","}")
+const fs = require('fs');
 let _ = require('private-parts').createKey();
 
 /**
@@ -23,24 +25,17 @@ let _ = require('private-parts').createKey();
   * @param {number} $difficulty - block mining difficulty;
   * @param {object} $pendingTransactions - Transaction pool;
   * @param {number} $miningReward - Reward for mining a block;
-  * @param {object} $nodeToken - To be removed;
-  * @param {array} $ipAddresses - Seed addresses hard coded to bootstrap network;
   * @param {number} $blocksize - minimum number of transactions per block;
 */
 class Blockchain{
 
-  constructor(chain=false, difficulty=1, ipAddresses=[]){
+  constructor(chain=false, difficulty=1){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
-    this.sideChain = [];
-    this.blockFork = {};
-    this.fork = []
     this.difficulty = difficulty;
     this.miningReward = 50;
-    this.ipAddresses = ipAddresses
     this.blockSize = 5; //Minimum Number of transactions per block
     this.maxDepthForUncleBlocks = 3;
-    this.orphanedBlocks = [];
-    this.transactionSizeLimit = 100 * 1024;
+    this.transactionSizeLimit = 10 * 1024;
   }
 
   createGenesisBlock(){
@@ -62,41 +57,41 @@ class Blockchain{
     return this.chain[this.chain.length - 1];
   }
   
-  /**
-    Adds block only if valid
-    Will return true if the block is valid, false if not
-    or the index of the block to which it is linked if valid but out of sync
-    @param {object} $newBlock - New block to be added
-  */
-  async syncBlock(newBlock){
-      if(isValidBlockJSON(newBlock)){
+  // /**
+  //   Adds block only if valid
+  //   Will return true if the block is valid, false if not
+  //   or the index of the block to which it is linked if valid but out of sync
+  //   @param {object} $newBlock - New block to be added
+  // */
+  // async syncBlock(newBlock){
+  //     if(isValidBlockJSON(newBlock)){
         
-      let isValidBlock = await this.validateBlock(newBlock);
-      if(isValidBlock){
-        var isLinked = this.isBlockLinked(newBlock);
-        if(isLinked){
+  //     let isValidBlock = await this.validateBlock(newBlock);
+  //     if(isValidBlock){
+  //       var isLinked = this.isBlockLinked(newBlock);
+  //       if(isLinked){
           
-          logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-          logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-          logger(chalk.green('* By: '), newBlock.minedBy)
-          this.chain.push(newBlock);
-          Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-          return true;
-        }else{
-          // logger('WARNING: Block is not linked with previous block');
-          // console.log(this.extractHeader(newBlock))
-          this.createBlockBranch(newBlock)
-        }
+  //         logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
+  //         logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+  //         logger(chalk.green('* By: '), newBlock.minedBy)
+  //         this.chain.push(newBlock);
+  //         Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+  //         return true;
+  //       }else{
+  //         // logger('WARNING: Block is not linked with previous block');
+  //         // console.log(this.extractHeader(newBlock))
+  //         this.createBlockBranch(newBlock)
+  //       }
         
-      }else{
-        return false;
-      }
-    }else{
-      return false;
-    }
-  }
+  //     }else{
+  //       return false;
+  //     }
+  //   }else{
+  //     return false;
+  //   }
+  // }
 
-  pushBlock(newBlock, verbose=true){
+  pushBlock(newBlock, verbose=false){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
         let isValidBlock = await this.validateBlock(newBlock);
@@ -106,26 +101,24 @@ class Blockchain{
             this.chain.push(newBlock);
 
             if(verbose){
-              logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-              logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
+              logger(chalk.green('* Synced new block ')+newBlock.blockNumber);
+              logger(chalk.green('* Block hash : ')+ newBlock.hash.substr(0, 25)+"...");
+              logger(chalk.green('* Previous Hash hash : ')+ newBlock.previousHash.substr(0, 25)+"...")
+              logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length);
+              logger(chalk.green('* Number of actions : '), Object.keys(newBlock.actions).length);
               logger(chalk.green('* By: '), newBlock.minedBy)
+            }else{
+              logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
             }
-            
             
             Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
             resolve(true);
             
           }else{
             let isBlockFork = await this.createBlockBranch(newBlock)
-            if(isBlockFork.error){
-              let findForkDepth = await this.findForkInChain(newBlock);
-              if(findForkDepth){
-                resolve({outOfSync:findForkDepth})
-              }else{
-                resolve(false)
-              }
-              
-            }
+            if(isBlockFork.fork) resolve({fork:isBlockFork.fork});
+            if(isBlockFork.resolved) resolve(true);
+            if(isBlockFork.error) resolve({error:isBlockFork.error})
             resolve(true)
           }
           
@@ -141,71 +134,168 @@ class Blockchain{
 
   createBlockBranch(newBlock){
     return new Promise(async( resolve)=>{
-      let isBlockFork = this.getLatestBlock().previousHash == newBlock.previousHash && this.getLatestBlock().hash != newBlock.hash;
-      if(isBlockFork){
-        logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
-        logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
-        this.chain[newBlock.blockNumber].blockFork = {
-          [newBlock.hash]:newBlock
-        }
-        resolve(
-        {
-          fork:{
-            blockNumber:newBlock.blockNumber,
-            hash:newBlock.hash,
-            previousHash:newBlock.previousHash,
-
-          }
-        })
-      }else{
-        if(this.getLatestBlock().blockFork){
-          let forkedBlock = this.getLatestBlock().blockFork[newBlock.previousHash];
-          if(forkedBlock){
-            let isLinkedToForkedBlock = forkedBlock.hash == newBlock.previousHash;
-            if(isLinkedToForkedBlock){
-
-              let orphanedLatestBlock = this.chain.pop()
-
-              this.chain.push(forkedBlock);
-
-              this.getLatestBlock().blockFork = orphanedLatestBlock;
-              
-    
-              logger(chalk.yellow(`* Resolved block conflict!`))
-              logger(chalk.yellow(`* Replaced block ${chalk.white(orphanedLatestBlock.blockNumber)} with hash ${chalk.white(orphanedLatestBlock.hash.substr(0, 25))}...`))
-              logger(chalk.yellow(`* By block with hash ${chalk.white(orphanedLatestBlock.hash.substr(0, 25))}...`))
-              
-              Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-
-              this.pushBlock(newBlock);
-
-              resolve({
-                resolved:{
-                  blockNumber:newBlock.blockNumber,
-                  replaced:orphanedLatestBlock.hash,
-                  by:forkedBlock.hash,
-                  added:newBlock.hash,
-                }
-              });
-
-            }else{
-              console.log('ERROR: Block is too low to be added to chain')
-              resolve({error:'ERROR: Block is too low to be added to chain'})
-            }
+      if(this.getLatestBlock().hash != newBlock.hash){
+        
+        let isBlockNewFork = this.getLatestBlock().previousHash == newBlock.previousHash 
+        if(isBlockNewFork){
+          logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+          logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+          if(this.getLatestBlock().blockFork){
+            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
           }else{
-            console.log('ERROR: Forked block not found')
-            resolve({error:'ERROR: Forked block not found'})
+            this.getLatestBlock().blockFork = {}
+            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
           }
           
+          resolve(
+          {
+            fork:{
+              blockNumber:newBlock.blockNumber,
+              hash:newBlock.hash,
+              previousHash:newBlock.previousHash,
+
+            }
+          })
         }else{
-          console.log('ERROR: Could not resolve chain, head block has not been forked')
-          resolve({error:'ERROR: Could not resolve chain, head block has not been forked'})
+          //Resolving block fork that built up over several blocks (max four)
+          let lastBlock = this.getLatestBlock();
+          let secondLastBlock = this.chain[lastBlock.blockNumber - 1];
+          let thirdLastBlock = this.chain[lastBlock.blockNumber - 2];
+          if(lastBlock.blockFork){
+            
+            let forkedBlock = this.getLatestBlock().blockFork[newBlock.previousHash];
+            if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
+            
+            let parallelBranch = this.buildParallelBranch(newBlock);
+            
+            //Minus one for the newest block which has not been added
+            let numOfBlocksToRemove = parallelBranch.length - 1;
+            let tailBlock = parallelBranch[0];
+              //Is tail block of the parallel branch linked with the previous chain block
+              //to be able to merge the branch with the chain
+              if(this.chain[tailBlock.blockNumber - 1].hash == tailBlock.previousHash){
+                //extract the top part of the second branch which will be orphaned
+                let orphanedBranch = this.chain.splice(-1, numOfBlocksToRemove);
+                //add blocks of the parallel branch one by one
+                parallelBranch.forEach( async (block)=>{
+                  let added = await this.pushBlock(block, false)
+                  if(added.error) resolve({error:added.error})
+                  logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
+                  logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
+                  logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
+                })
+
+                logger(chalk.yellow(`* Finished switching branch`))
+                logger(chalk.yellow(`Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                //add all orphaned blocks to current chain as forked blocks
+                orphanedBranch.forEach( block=>{
+                  if(block){
+                    if(block.blockFork) block.blockFork = {}
+                    if(this.chain[block.blockNumber]){
+                      if(this.chain[block.blockNumber].blockFork){
+                        this.chain[block.blockNumber].blockFork[block.hash] = block; 
+                      }else{
+                        this.chain[block.blockNumber].blockFork = {}
+                        this.chain[block.blockNumber].blockFork[block.hash] = block; 
+                      }
+                    }else{
+                      if(this.getLatestBlock().blockFork){
+                        this.getLatestBlock().blockFork[block.hash] = block;
+                      }else{
+                        this.getLatestBlock().blockFork = {};
+                        this.getLatestBlock().blockFork[block.hash] = block;
+                      }
+                      
+                    }
+                  }
+                })
+                resolve({resolved:true})
+              }else{
+                resolve({error:'ERROR: parallel branch is not linked with current chain'})
+              }
+            
+          }else if(secondLastBlock.blockFork){
+            
+            let forkedBlock = secondLastBlock.blockFork[newBlock.previousHash];
+            if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
+
+            //Raising block fork one block higher
+            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
+
+            resolve(
+              {
+                fork:{
+                  blockNumber:newBlock.blockNumber,
+                  hash:newBlock.hash,
+                  previousHash:newBlock.previousHash,
+                }
+            })
+
+          }else if(thirdLastBlock.blockFork){
+            
+            let forkedBlock = thirdLastBlock.blockFork[newBlock.previousHash];
+            if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
+            //Raising block fork one block higher
+            this.chain[thirdLastBlock.blockNumber + 1].blockFork[newBlock.hash] = newBlock;
+
+            resolve(
+              {
+                fork:{
+                  blockNumber:newBlock.blockNumber,
+                  hash:newBlock.hash,
+                  previousHash:newBlock.previousHash,
+                }
+            })
+
+          }else{
+            resolve({error:'ERROR: Could not resolve chain, head block has not been forked'})
+          }
         }
-       
+        
+      }else{
+        resolve({error:'ERROR: Cannot create branch with block identical to head block'})
       }
       
-     
     })
+  }
+
+  gatherAllForks(){
+    let forks = {}
+    for(var i=0; i<this.chain.length; i++){
+      if(this.chain[i].blockFork){
+        let hashes = Object.keys(this.chain[i].blockFork)
+        hashes.forEach( hash=>{
+          console.log('Hash: ', hash)
+          forks[hash] = this.chain[i].blockFork[hash];
+        })
+        
+      }
+    }
+
+    return forks
+  }
+
+  buildParallelBranch(headBlock){
+    let parallelBranch = [];
+    let workingBlock = headBlock;
+    let previousBlock = {}
+    parallelBranch.unshift(workingBlock)
+    for(var i=headBlock.blockNumber-1; i>0; i--){
+      if(this.chain[i]){
+        if(this.chain[i].blockFork){
+          previousBlock = this.chain[i].blockFork[workingBlock.previousHash]
+          if(previousBlock){
+            parallelBranch.unshift(previousBlock);
+            workingBlock = previousBlock;
+          }
+          
+        }
+      }
+      
+    }
+    
+
+    return parallelBranch;
   }
 
   findForkInChain(newBlock){
@@ -230,42 +320,8 @@ class Blockchain{
   
 
   compareHeaders(headers){
-    
+
   }
-
-  // compareHeaders(headers){
-  //   // logger(headers)
-  //   if(this.chain instanceof Blockchain){
-  //     if(headers){
-  //       if(headers.length >= this.chain.length){
-  //         let missingBlocks = [];
-  //         headers.forEach( header=>{
-  //           let correspondingBlock = this.chain[header.blockNumber];
-  //           if(correspondingBlock){
-  //             if(header.hash != correspondingBlock.hash){
-  //               resolve({fork:header.blockNumber})
-  //             }
-  //           }else{
-  //             missingBlocks.push(header);
-  //           }
-            
-  //         })
-
-  //         if(missingBlocks){
-  //           resolve({missingBlocks:missingBlocks})
-  //         }else{
-  //           resolve(true);
-  //         }
-
-  //       }else{
-
-  //       }
-        
-        
-  //     }
-  //   }
-  // }
-
 
 
   hasEnoughTransactionsToMine(){
@@ -286,66 +342,6 @@ class Blockchain{
       delete block.transactions[txHash];
     }
   }
-  // /**
-  //   Gathers all transactions in transaction pool and attempts to mine a block
-  //   If a peer mines block before reaching the correct hash, the mining operation
-  //   is cancelled and the peer's hash will be validated then the block will be fetched
-  //   and added to the chain
-  //   @param {string} $ip - IP of mining node
-  //   @param {string} $miningRewardAddress - Public key of mining node
-  //   @param {function} $callback - Sends result of mining operation
-  // */
-  // async minePendingTransactions(ip, block , miningRewardAddress, callback){
-  //     let ipAddress = ip
-  //     let lastBlock = this.getLatestBlock();
-  //     block.blockNumber = this.chain.length;
-  //     block.previousHash = lastBlock.hash;
-  //     block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
-  //     block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
-      
-  //     logger('Current Challenge:', block.challenge)
-  //     logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
-  //     //block.mine
-  //     block.mineBlock(block.difficulty, async (success)=>{
-  //       if(success){ 
-  //         block = success;
-  //         if(this.validateBlock(block)){
-  //           //Kill mining process to start another one after block sync       
-  //           block.totalChallenge = await this.calculateWorkDone() + block.nonce;
-  //           block.minedBy = ipAddress;
-  //           this.chain.push(block);
-            
-  //           console.log(chalk.cyan('\n********************************************************************'))
-  //           console.log(chalk.cyan('* Block number ')+block.blockNumber);
-  //           console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
-  //           console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
-  //           console.log(chalk.cyan("* Block successfully mined by ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-  //           console.log(chalk.cyan("* Challenge : "), block.challenge);
-  //           console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
-  //           console.log(chalk.cyan("* Nonce : "), block.nonce)
-  //           console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
-  //           console.log(chalk.cyan('* Number of transactions in block:'), Object.keys(block.transactions).length)
-  //           console.log(chalk.cyan('********************************************************************\n'))
-              
-  //           callback(success, block.hash);
-
-  //         }else{
-  //           // logger('Block is not valid');
-            
-  //           callback(false, false)
-  //         }
-  //       }else{
-  //         // logger('Mining aborted. Peer has mined a new block');
-  //         callback(false, false)
-  //       }
-
-         
-  //       process.ACTIVE_MINER.kill()
-  //       process.ACTIVE_MINER = false;
-
-  //     })
-
-  // }
 
   selectNextPreviousBlock(){
     if(this.getLatestBlock().blockFork){
@@ -425,22 +421,11 @@ class Blockchain{
 
   }
 
-  calculateWorkDone(){
+  calculateWorkDone(chain=this.chain){
     let total = 0;
-    this.chain.forEach( block=>{
+    chain.forEach( block=>{
       total += block.nonce;
     })
-
-    return total;
-  }
-
-  calculateWorkDoneOfChain(chain){
-    if(chain){
-      let total = 0;
-      chain.forEach( block=>{
-        total += block.nonce;
-      })
-    }
 
     return total;
   }
@@ -934,38 +919,15 @@ class Blockchain{
 
   }
 
-  getAllHeaders(address){
-    
+  getAllHeaders(){
       try{
-        
-        var blockHashesFromIndex = [];
         var headers = []
-
-
-          this.chain.forEach((block)=>{
-            // if(block.blockNumber > 0){
-              headers.push(this.getBlockHeader(block.blockNumber))
-            // }
-          })
-
+          this.chain.forEach( block => headers.push(this.getBlockHeader(block.blockNumber)) )
           return headers
-
       }catch(e){
         console.log(chalk.red(e))
       }
     
-  }
-
-
-  isHeaderLinkedToPreviousBlock(header){
-    if(header){
-      let previousBlock = this.chain[header.blockNumber - 1];
-      if(previousBlock.hash == header.previousHash){
-        return true;
-      }else{
-        return false;
-      }
-    }
   }
 
   validateBlockHeader(header){
@@ -981,44 +943,44 @@ class Blockchain{
     }
   }
 
-  validateHeadersOfChain(headers){
-    return new Promise((resolve, reject)=>{
-      if(headers){
-        for(var i; i<headers.length; i++){
-          let header = headers[i];
-          if(isValidHeaderJSON(header)){
+  // validateHeadersOfChain(headers){
+  //   return new Promise((resolve, reject)=>{
+  //     if(headers){
+  //       for(var i; i<headers.length; i++){
+  //         let header = headers[i];
+  //         if(isValidHeaderJSON(header)){
         
-            if(header.hash == RecalculateHash(header)){
-              let isAlreadyInChain = this.getIndexOfBlockHash(header.hash);
+  //           if(header.hash == RecalculateHash(header)){
+  //             let isAlreadyInChain = this.getIndexOfBlockHash(header.hash);
   
-              if(isAlreadyInChain){
-                resolve({error:'Chain already contains this block'})
-              }
+  //             if(isAlreadyInChain){
+  //               resolve({error:'Chain already contains this block'})
+  //             }
   
-              if(i > 0){
-                if(header.previousHash !== headers[i-1].previousHash){
-                  resolve({error:'ERROR:Block is not linked with previous block'}) 
-                }
+  //             if(i > 0){
+  //               if(header.previousHash !== headers[i-1].previousHash){
+  //                 resolve({error:'ERROR:Block is not linked with previous block'}) 
+  //               }
   
-                if(header.totalChallenge == headers[i-1].totalChallenge + header.nonce){
-                  resolve({error:'ERROR:Total challenge did not match previous block sum'})
-                }
-              }
+  //               if(header.totalChallenge == headers[i-1].totalChallenge + header.nonce){
+  //                 resolve({error:'ERROR:Total challenge did not match previous block sum'})
+  //               }
+  //             }
               
-            }else{
-              resolve({error:'ERROR:Hash recalculation did not match block hash'})
-            }
-          }else{
-            resolve({error:'ERROR: Block does not have a valid format'})
-          }
-        }
+  //           }else{
+  //             resolve({error:'ERROR:Hash recalculation did not match block hash'})
+  //           }
+  //         }else{
+  //           resolve({error:'ERROR: Block does not have a valid format'})
+  //         }
+  //       }
   
-        resolve(true);
-      }
-    })
+  //       resolve(true);
+  //     }
+  //   })
     
     
-  }
+  // }
 
   validateBlockchain(allowRollback){
     
@@ -1060,7 +1022,6 @@ class Blockchain{
       Mempool.putbackPendingActions(actionsOfCancelledBlock)
     }
     
-    
   }
 
   
@@ -1081,7 +1042,6 @@ class Blockchain{
           }
         })
 
-        
         resolve(block);
       }else{
         logger('ERROR: Must pass block object')
@@ -1244,8 +1204,6 @@ class Blockchain{
               resolve({error:'REJECTED: Sender does not have sufficient funds'});
             }  
 
-          
-
           }else if(isMiningReward){
             
             let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
@@ -1285,16 +1243,16 @@ class Blockchain{
           let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
           let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);
-          let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + transaction.miningFee);
+          let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + this.calculateTransactionMiningFee(transaction));
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
           if(!isChecksumValid){
             resolve({error:'REJECTED: Transaction checksum is invalid'});
           }
 
-          // if(!hasTheRightMiningRewardAmount){
-          //   resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
-          // }
+          if(!hasTheRightMiningRewardAmount){
+            resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
+          }
 
           if(isAlreadyInChain){
             Mempool.deleteCoinbaseTransaction(transaction)
@@ -1477,7 +1435,6 @@ class Blockchain{
     let sizeFee = size * 0.0001;
     return sizeFee;
   }
-  
 
   coinbaseTxIsAttachedToBlock(transaction){
     let found = false;
@@ -1501,7 +1458,7 @@ class Blockchain{
           if(block.coinbaseTransactionHash == transaction.hash){
             
             let blocksPast = this.chain.length - block.blockNumber;
-            if(blocksPast >= 6){
+            if(blocksPast > 5){
               
               resolve(true)
             }else{
@@ -1522,13 +1479,14 @@ class Blockchain{
   async saveBlockchain(){
     return new Promise(async (resolve, reject)=>{
       try{
-        let blockchainFile = JSON.stringify(this);
-        let success = await writeToFile(blockchainFile, './data/blockchain.json');
-        if(success){
-          resolve(true)
-        }else{
-          resolve(false);
-        }
+        
+        let saved = await writeToFile(this, './data/blockchain.json');
+          if(saved){
+              logger('Saved Blockchain file');
+              resolve(true)
+          }else{
+              reject('ERROR: Could not save blockchain')
+          } 
       }catch(e){
         reject(e);
       }

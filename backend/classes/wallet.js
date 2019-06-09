@@ -183,29 +183,38 @@ class Wallet{
 
 
     saveWallet(filename){
-        if(this.publicKey && _(this).privateKey && filename){
+        return new Promise((resolve, reject)=>{
+            try{
+                if(this.publicKey && _(this).privateKey && filename){
             
-            const formatToJWK = () =>{
-                let key = _(this).privateKey
-                 return key.toJWK();
+                    const formatToJWK = () =>{
+                        let key = _(this).privateKey
+                         return key.toJWK();
+                    }
+        
+                    let walletToSave = {
+                        publicKey:this.publicKey,
+                        privateKey:formatToJWK(),
+                        id:this.id,
+                        name:this.name,
+                        passwordHash:_(this).passwordHash,
+                    }
+                    let walletString = JSON.stringify(walletToSave, null, 2);
+                    var wstream = fs.createWriteStream(filename);
+        
+                    wstream.write(walletString);
+                    wstream.end();
+                    resolve(true)
+                }else{
+                    reject('ERROR: cannot save empty wallet');
+                    
+                }
+            }catch(e){
+                reject(e)
             }
-
-            let walletToSave = {
-                publicKey:this.publicKey,
-                privateKey:formatToJWK(),
-                id:this.id,
-                name:this.name,
-                passwordHash:_(this).passwordHash,
-            }
-            let walletString = JSON.stringify(walletToSave, null, 2);
-            var wstream = fs.createWriteStream(filename);
-
-            wstream.write(walletString);
-            wstream.end();
-        }else{
-            logger('ERROR: cannot save empty wallet');
             
-        }
+        })
+        
     }
 
     async importWalletFromFile(pathAndFilename){

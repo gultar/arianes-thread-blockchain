@@ -161,14 +161,23 @@ class WalletManager{
   }
 
   saveState(){
-    Object.keys(this.wallets).forEach(pubKey =>{
-      let wallet = this.wallets[pubKey];
-      if(wallet){
-        wallet.saveWallet(`./wallets/${wallet.name}-${sha1(wallet.name)}.json`)
-        
+    return new Promise(async (resolve, reject)=>{
+      try{
+        Object.keys(this.wallets).forEach(async (pubKey) =>{
+          let wallet = this.wallets[pubKey];
+          if(wallet){
+            let saved = await wallet.saveWallet(`./wallets/${wallet.name}-${sha1(wallet.name)}.json`)
+            if(saved.error) reject(saved.error)
+          }
+        })
+        logger('Saved wallet states')
+        resolve(true)
+      }catch(e){
+        reject(e)
       }
+      
     })
-    logger('Saved wallet states')
+    
   }
 
 

@@ -75,14 +75,18 @@ class NodeList{
     }
 
     saveNodeList(){
-        try{
-            let saved = writeToFile(this, './data/peers.json');
-            if(saved){
-                logger('Saved list of known nodes');
+        return new Promise((resolve, reject)=>{
+            try{
+                let saved = writeToFile(this, './data/peers.json');
+                if(saved){
+                    logger('Saved list of known nodes');
+                    resolve(true)
+                }
+            }catch(e){
+                reject(e)
             }
-        }catch(e){
-            console.log(e)
-        }
+        })
+        
     }
 }
 

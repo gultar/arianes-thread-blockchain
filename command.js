@@ -1,10 +1,41 @@
 #!/usr/bin/env node
 
-const node = require('./node');
+const Node = require('./node');
 const { copyFile } = require('./backend/tools/blockchainHandler');
 const program = require('commander');
-const { logger } = require('./backend/tools/utils');
-//let node;
+const { logger, readFile } = require('./backend/tools/utils');
+const fs = require('fs')
+
+
+let node;
+
+
+
+const loadNodeConfig = () =>{
+  return new Promise(async (resolve)=>{
+    fs.exists('./config/nodeconfig.json', async (exists)=>{
+      if(exists){
+        let nodeConfigString = await readFile('./config/nodeconfig.json');
+        try{
+          if(nodeConfigString){
+            let nodeConfig = JSON.parse(nodeConfigString);
+            resolve(nodeConfig)
+          }else{
+            resolve(false)
+          }
+          
+        }catch(e){
+          logger(e)
+        }
+      }else{
+        logger('ERROR: Inexisting file')
+        resolve(false)
+      }
+    })
+  })
+  
+}
+
 
 
 program
@@ -29,13 +60,21 @@ program
   .option('-j, --jsondebug', 'Debugs JSON schema')
 
 program
-  .command('start <address> <port>')
-  .usage('<address> <port>')
+  .command('start')
+  .usage('')
   .description('Starts blockchain node')
-  .action((address, port, cmd)=>{
-    node.address = 'http://'+address+':'+port;
-    node.port = port;
-    node.startServer()
+  .action(async ()=>{
+
+
+    let configs = await loadNodeConfig();
+    if(configs){
+      node = new Node({
+        address:configs.address,
+        port:configs.port
+      })
+      node.startServer()
+    }
+
 
     if(program.join){
       setTimeout(()=>{
@@ -66,6 +105,7 @@ program
     if(program.verbose){
       node.verbose = true;
     }
+    
   });
 
 program.parse(process.argv)
@@ -78,14 +118,16 @@ process.on('SIGINT', () => {
     logger('Stopping miner');
     process.ACTIVE_MINER.kill()
   }
+
+  node.closeNode()
   
-  node.save((saved)=>{
+  node.save()
+  .then((saved)=>{
     if(saved){
-      setTimeout(()=>{
-        process.exit()
-      },5000)
+      process.exit()
     }
-  });
+  })
+  .catch(e=> console.log(e))
   
 
 });

@@ -1,5 +1,5 @@
 
-const { MINING_RATE, NEW_DIFFICULTY_LENGTH } = require('./globals');
+const { MINING_RATE, NEW_DIFFICULTY_LENGTH, BLOCKTIME_MARGIN } = require('./globals');
 
 /**
   WIP
@@ -13,9 +13,9 @@ const { MINING_RATE, NEW_DIFFICULTY_LENGTH } = require('./globals');
 const setChallenge = (currentChallenge, lastTimestamp, newTimestamp) =>{
   const blockTime = newTimestamp - lastTimestamp;
 
-  if(blockTime > MINING_RATE+10000){
+  if(blockTime > MINING_RATE+BLOCKTIME_MARGIN){
     return currentChallenge-(blockTime - MINING_RATE)
-  }else if(blockTime < MINING_RATE-10000){
+  }else if(blockTime < MINING_RATE-BLOCKTIME_MARGIN){
     return currentChallenge+(MINING_RATE - blockTime)
   }else{
     return currentChallenge;
