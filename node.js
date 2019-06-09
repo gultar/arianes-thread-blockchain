@@ -107,17 +107,6 @@ class Node {
         console.log(chalk.cyan('*')+' Starting node at '+this.address);
         console.log(chalk.cyan('******************************************\n'))
         
-        app.use(express.static(__dirname+'/views'));
-        express.json({ limit: '300kb' })
-        app.use(helmet())
-        const server = http.createServer(app).listen(this.port);
-        this.loadNodeConfig()
-        this.initChainInfoAPI(app);
-        this.initHTTPAPI(app);
-        this.cleanMessageBuffer();
-        this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
-        
-        //Loading blockchain from file
         let nodeListLoaded = await this.nodeList.loadNodeList();
         let mempoolLoaded = await Mempool.loadMempool();
         let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
@@ -133,8 +122,20 @@ class Node {
         logger('Loaded transaction mempool');
         logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
         logger('Loaded account table');
-         
-  
+
+        app.use(express.static(__dirname+'/views'));
+        express.json({ limit: '300kb' })
+        app.use(helmet())
+        const server = http.createServer(app).listen(this.port);
+        this.loadNodeConfig()
+        this.initChainInfoAPI(app);
+        this.initHTTPAPI(app);
+        this.cleanMessageBuffer();
+        this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
+        
+        //Loading blockchain from file
+        
+        
         this.ioServer.on('connection', (socket) => {
           if(socket){
             if(socket.handshake.query.token !== undefined){
@@ -315,7 +316,7 @@ class Node {
 
 
         }catch(err){
-          logger(err);
+          console.log(err)
         }
 
       }else{

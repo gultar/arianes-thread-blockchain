@@ -55,7 +55,7 @@ program
     )
   .option('-j, --join', 'Joins network')
   .option('-m, --mine', 'Starts the node as a miner')
-  .option('-s, --seed', 'Seed nodes to initiate p2p connections')
+  .option('-s, --seed <seed>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-j, --jsondebug', 'Debugs JSON schema')
 
@@ -98,6 +98,10 @@ program
             }
           },1000)
           
+        }
+
+        if(program.seed){
+          node.connectToPeer(program.seed);
         }
       })
       

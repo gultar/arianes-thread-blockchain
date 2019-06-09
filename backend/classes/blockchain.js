@@ -32,6 +32,7 @@ class Blockchain{
   constructor(chain=false, difficulty=1){
     this.chain = (chain? chain: [this.createGenesisBlock()]);
     this.difficulty = difficulty;
+    this.blockFork = []
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
     this.maxDepthForUncleBlocks = 3;
