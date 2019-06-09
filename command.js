@@ -72,39 +72,38 @@ program
         address:configs.address,
         port:configs.port
       })
-      node.startServer()
+      node.startServer();
+      if(program.join){
+        setTimeout(()=>{
+          node.joinPeers();
+        },4000)
+      }
+  
+      if(program.seed){
+  
+        setTimeout(()=>{
+          node.connectToPeer(program.seed)
+         
+        },3000)
+  
+      }
+  
+      if(program.mine){
+        let startMiner = setInterval(()=>{
+          if(node.updated){
+            node.minerStarted = true;
+            node.createMiner()
+            clearInterval(startMiner)
+          }
+        },1000)
+        
+      }
+  
+      if(program.verbose){
+        node.verbose = true;
+      }
     }
 
-
-    if(program.join){
-      setTimeout(()=>{
-        node.joinPeers();
-      },4000)
-    }
-
-    if(program.seed){
-
-      setTimeout(()=>{
-        node.connectToPeer(program.seed)
-       
-      },3000)
-
-    }
-
-    if(program.mine){
-      let startMiner = setInterval(()=>{
-        if(node.updated){
-          node.minerStarted = true;
-          node.createMiner()
-          clearInterval(startMiner)
-        }
-      },1000)
-      
-    }
-
-    if(program.verbose){
-      node.verbose = true;
-    }
     
   });
 
