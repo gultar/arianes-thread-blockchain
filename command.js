@@ -76,11 +76,17 @@ program
         port:configs.port,
         verbose:configs.verbose
       })
+
       node.startServer()
       .then( started =>{
+
+        if(started.error){
+          logger(started.error)
+          return false
+        }
+
         if(program.join){
           node.joinPeers();
-          console.log(node.nodeList)
         }
 
         if(program.mine){

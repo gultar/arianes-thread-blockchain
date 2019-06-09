@@ -100,13 +100,13 @@ class Node {
   */
   startServer(app=express()){
 
-    return new Promise(async (resolve, reject)=>{
+    return new Promise(async (resolve)=>{
       try{
 
         console.log(chalk.cyan('\n******************************************'))
         console.log(chalk.cyan('*')+' Starting node at '+this.address);
         console.log(chalk.cyan('******************************************\n'))
-        // const expressWs = require('express-ws')(app);
+        
         app.use(express.static(__dirname+'/views'));
         express.json({ limit: '300kb' })
         app.use(helmet())
@@ -123,10 +123,10 @@ class Node {
         let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
         this.chain = await initBlockchain()  
         
-        if(!nodeListLoaded) reject('Could not load node list')
-        if(!mempoolLoaded) reject('Could not load Mempool');
-        if(!accountsLoaded) reject('Could not load account table')
-        if(!this.chain) reject('Could not load account table');
+        if(!nodeListLoaded) resolve({error:'Could not load node list'})
+        if(!mempoolLoaded) reject({error:'Could not load Mempool'});
+        if(!accountsLoaded) reject({error:'Could not load account table'})
+        if(!this.chain) reject({error:'Could not load account table'});
         
         logger('Loaded peer node list');
         logger('Loaded Blockchain');      
@@ -138,7 +138,7 @@ class Node {
         this.ioServer.on('connection', (socket) => {
           if(socket){
             if(socket.handshake.query.token !== undefined){
-                try{
+               
                   socket.on('message', (msg) => { logger('Client:', msg); });
     
                   let peerToken = JSON.parse(socket.handshake.query.token);
@@ -163,10 +163,6 @@ class Node {
                     }
                   }
                   
-                }catch(e){
-                  console.log(chalk.red(e))
-                }
-    
             }else{
               socket.emit('message', 'Connected to local node')
               this.externalEventHandlers(socket);
@@ -184,7 +180,7 @@ class Node {
         resolve(true)
       }catch(e){
         console.log(e)
-        reject(e)
+        resolve({error:e})
       }
     })
   }
