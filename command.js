@@ -68,40 +68,33 @@ program
 
     let configs = await loadNodeConfig();
     if(configs){
+      if(program.verbose){
+        configs.verbose = true;
+      }
       node = new Node({
         address:configs.address,
-        port:configs.port
+        port:configs.port,
+        verbose:configs.verbose
       })
-      node.startServer();
-      if(program.join){
-        setTimeout(()=>{
+      node.startServer()
+      .then( started =>{
+        if(program.join){
           node.joinPeers();
-        },4000)
-      }
-  
-      if(program.seed){
-  
-        setTimeout(()=>{
-          node.connectToPeer(program.seed)
-         
-        },3000)
-  
-      }
-  
-      if(program.mine){
-        let startMiner = setInterval(()=>{
-          if(node.updated){
-            node.minerStarted = true;
-            node.createMiner()
-            clearInterval(startMiner)
-          }
-        },1000)
-        
-      }
-  
-      if(program.verbose){
-        node.verbose = true;
-      }
+          console.log(node.nodeList)
+        }
+
+        if(program.mine){
+          let startMiner = setInterval(()=>{
+            if(node.updated){
+              node.minerStarted = true;
+              node.createMiner()
+              clearInterval(startMiner)
+            }
+          },1000)
+          
+        }
+      })
+      
     }
 
     

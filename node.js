@@ -98,87 +98,95 @@ class Node {
     P2P Server with two main APIs. A socket.io API for fast communication with connected peers
     and an HTTP Api for remote peer connections as well as routine tasks like updating blockchain.
   */
-  async startServer(app=express()){
-    try{
+  startServer(app=express()){
 
-      console.log(chalk.cyan('\n******************************************'))
-      console.log(chalk.cyan('*')+' Starting node at '+this.address);
-      console.log(chalk.cyan('******************************************\n'))
-      // const expressWs = require('express-ws')(app);
-      app.use(express.static(__dirname+'/views'));
-      express.json({ limit: '300kb' })
-      app.use(helmet())
-      const server = http.createServer(app).listen(this.port);
-      this.loadNodeConfig()
-      this.initChainInfoAPI(app);
-      this.initHTTPAPI(app);
-      this.cleanMessageBuffer();
-      this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
-      
-      //Loading blockchain from file
-      
-      let mempoolLoaded = await Mempool.loadMempool();
-      let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
-      this.chain = await initBlockchain()  
-      
-      if(!mempoolLoaded) throw new Error('Could not load Mempool');
-      if(!accountsLoaded) throw new Error('Could not load account table');
-      if(!this.chain) throw new Error('Could not load Blockchain');
+    return new Promise(async (resolve, reject)=>{
+      try{
 
-      logger('Loaded Blockchain')      
-      logger('Loaded transaction mempool');
-      logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
-      logger('Loaded account table');
-       
-    }catch(e){
-      console.log(chalk.red(e));
-    }
-
-    this.ioServer.on('connection', (socket) => {
-      if(socket){
-         if(socket.handshake.query.token !== undefined){
-             try{
-               socket.on('message', (msg) => { logger('Client:', msg); });
-
-               let peerToken = JSON.parse(socket.handshake.query.token);
-               let peerAddress = peerToken.address;
-               let peerPublicKey = peerToken.publicKey
-               let peerChecksumObj = peerToken.checksum;
-
-               if(peerChecksumObj){
-                let peerTimestamp = peerChecksumObj.timestamp;
-                let peerRandomOrder = peerChecksumObj.randomOrder;
-                let peerChecksum = peerChecksumObj.checksum
-
-                let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
-              
-                if(isValid){
-                  this.peersConnected[peerAddress] = socket;
-                  this.nodeList.addNewAddress(peerAddress);
-                  this.nodeEventHandlers(socket);
-                }else{
-                  socket.emit('message', 'Connected to local node');
-                  this.externalEventHandlers(socket);
+        console.log(chalk.cyan('\n******************************************'))
+        console.log(chalk.cyan('*')+' Starting node at '+this.address);
+        console.log(chalk.cyan('******************************************\n'))
+        // const expressWs = require('express-ws')(app);
+        app.use(express.static(__dirname+'/views'));
+        express.json({ limit: '300kb' })
+        app.use(helmet())
+        const server = http.createServer(app).listen(this.port);
+        this.loadNodeConfig()
+        this.initChainInfoAPI(app);
+        this.initHTTPAPI(app);
+        this.cleanMessageBuffer();
+        this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
+        
+        //Loading blockchain from file
+        let nodeListLoaded = await this.nodeList.loadNodeList();
+        let mempoolLoaded = await Mempool.loadMempool();
+        let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
+        this.chain = await initBlockchain()  
+        
+        if(!nodeListLoaded) reject('Could not load node list')
+        if(!mempoolLoaded) reject('Could not load Mempool');
+        if(!accountsLoaded) reject('Could not load account table')
+        if(!this.chain) reject('Could not load account table');
+        
+        logger('Loaded peer node list');
+        logger('Loaded Blockchain');      
+        logger('Loaded transaction mempool');
+        logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
+        logger('Loaded account table');
+         
+  
+        this.ioServer.on('connection', (socket) => {
+          if(socket){
+            if(socket.handshake.query.token !== undefined){
+                try{
+                  socket.on('message', (msg) => { logger('Client:', msg); });
+    
+                  let peerToken = JSON.parse(socket.handshake.query.token);
+                  let peerAddress = peerToken.address;
+                  let peerPublicKey = peerToken.publicKey
+                  let peerChecksumObj = peerToken.checksum;
+    
+                  if(peerChecksumObj){
+                    let peerTimestamp = peerChecksumObj.timestamp;
+                    let peerRandomOrder = peerChecksumObj.randomOrder;
+                    let peerChecksum = peerChecksumObj.checksum
+    
+                    let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
+                  
+                    if(isValid){
+                      this.peersConnected[peerAddress] = socket;
+                      this.nodeList.addNewAddress(peerAddress);
+                      this.nodeEventHandlers(socket);
+                    }else{
+                      socket.emit('message', 'Connected to local node');
+                      this.externalEventHandlers(socket);
+                    }
+                  }
+                  
+                }catch(e){
+                  console.log(chalk.red(e))
                 }
-               }
-               
-             }catch(e){
-               console.log(chalk.red(e))
-             }
-
-         }else{
-           socket.emit('message', 'Connected to local node')
-           this.externalEventHandlers(socket);
-         }
-      }else{
-        logger(chalk.red('ERROR: Could not create socket'))
+    
+            }else{
+              socket.emit('message', 'Connected to local node')
+              this.externalEventHandlers(socket);
+            }
+          }else{
+            logger(chalk.red('ERROR: Could not create socket'))
+          }
+    
+        });
+    
+        this.ioServer.on('disconnect', ()=>{ logger('a node has disconnected') })
+    
+        this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
+    
+        resolve(true)
+      }catch(e){
+        console.log(e)
+        reject(e)
       }
-
-    });
-
-    this.ioServer.on('disconnect', ()=>{ logger('a node has disconnected') })
-
-    this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
+    })
   }
 
   joinPeers(){
