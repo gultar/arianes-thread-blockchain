@@ -1,6 +1,7 @@
 ///////////////Transaction//////////////////
 
 const sha256 = require('../tools/sha256');
+const sha1 = require('sha1')
 const crypto = require('crypto');
 const fs = require('fs');
 const jsonSize = require('json-size');

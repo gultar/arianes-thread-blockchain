@@ -1,6 +1,6 @@
 const sha256 = require('./sha256');
 const merkle = require('merkle');
-const fs = require('fs')
+const fs = require('fs');
 const crypto = require('crypto');
 const algorithm = 'aes-256-ctr';
 const ECDSA = require('ecdsa-secp256r1');
@@ -21,53 +21,23 @@ const displayDate = (d) =>{
 }
 
 const logger = (message, arg) => {
-  let date = new Date();
-  let time = date.toLocaleTimeString();
-  let beautifulMessage = `[${time}] ${message}`//'['+ time +'] ' + message;
-  if(arg){
-    console.log(beautifulMessage, arg);
-  }else{
-    console.log(beautifulMessage);
+  if(!process.SILENT){
+    let date = new Date();
+    let time = date.toLocaleTimeString();
+    let beautifulMessage = `[${time}] ${message}`//'['+ time +'] ' + message;
+    if(arg){
+      console.log(beautifulMessage, arg);
+    }else{
+      console.log(beautifulMessage);
+    }
   }
+  
 }
 
 
 function RecalculateHash(block){
 
   return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot).toString();
-}
-
-// function merkleRoot(dataSets){
-
-//   if(typeof dataSets == 'object'){
-//     var hashes = Object.keys(dataSets);
-
-
-//     let merkleRoot = merkle('sha256').sync(hashes);
-//     return merkleRoot.root();
-//   }else{
-//     return false;
-//   }
-
-// }
-
-function isHashPartOfMerkleTree(hash, dataSet){
-  if(typeof hash == 'string' && typeof dataSet == 'object'){
-    let hashes = Object.keys(dataSet);
-    
-    let merkleTree = merkle('sha256').sync(hashes);
-    let depth = merkleTree.depth();
-
-
-    for(var i=0; i <hashes.length; i++){
-      // console.log(merkleTree.level(i));
-      console.log('LEVEL ', i)
-      console.log(merkleTree.getProofPath(i))
-      console.log('************************************')
-    }
-
-
-  }
 }
 
 function merkleRoot(dataSet){
@@ -82,6 +52,46 @@ function merkleRoot(dataSet){
 
 }
 
+// const newProof = async (difficulty) =>{
+//   const hexToBin = require('hex-to-binary')
+//     let text = "J'aime les olivesoiawwdoijawodijaowidjoawijdoaijwdoaiwaowdjaoiioajwdoiajwdoijoimcoimwoimaoiwmdoiamwdoiamwdoimwjdoiajwdoaijwdoiajwdoiajwodijawd";
+//     let nonce = 0
+//     let hash = sha256(text + nonce.toString())
+//     let timestamp = Date.now();
+//     let challenge = 100000000000;
+//     let target = 400000000000;
+//     console.log(Math.pow(2, 256))
+//     let loop = await new LoopyLoop(async ()=>{
+//       let binary = hexToBin(hash);
+//       if(binary.substr(0, difficulty) === Array(difficulty+1).join("0")){
+//         if(nonce > challenge){
+//           loop.stop()
+//           let endTime = Date.now();
+//           let diff = (endTime - timestamp) / 1000;
+//           console.log({hash:sha256(text + nonce.toString()), nonce:nonce, binary:binary, time:diff})
+//           return {hash:sha256(text + nonce.toString()), nonce:nonce, binary:binary, time:diff}
+//         }else{
+//           console.log('Nonce too low')
+//           nonce = Math.random() * Math.pow(2, 256) - 1;
+//           hash = sha256(text + nonce.toString())
+//         }
+        
+//       }else{
+//         if(nonce < target){
+//           nonce = nonce + Math.random() * Math.pow(2, 256) - 1;
+//         }else{
+//           // console.log('Resetting nonce', nonce)
+//           nonce = 0;
+//         }
+//         hash = sha256(text + nonce.toString())
+//       }
+//     }).start()
+
+
+  
+// }
+
+// newProof(22)
 
 
 const encrypt = (text, password) =>{
@@ -293,8 +303,7 @@ module.exports = {
   displayDate,
   logger, 
   RecalculateHash, 
-  merkleRoot,
-  isHashPartOfMerkleTree, 
+  merkleRoot, 
   encrypt, 
   decrypt,
   readFile,
@@ -302,4 +311,4 @@ module.exports = {
   createFile,
   merge,
   createTargetFile,
-  validatePublicKey };
+  validatePublicKey, };

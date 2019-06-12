@@ -36,8 +36,6 @@ const loadNodeConfig = () =>{
   
 }
 
-
-
 program
   .version('0.0.1')
   .usage('<value> [-options]')
@@ -55,6 +53,7 @@ program
     )
   .option('-j, --join', 'Joins network')
   .option('-m, --mine', 'Starts the node as a miner')
+  .option('-M, --forcemine', 'Forces node to start miner, connected or not')
   .option('-s, --seed <seed>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-j, --jsondebug', 'Debugs JSON schema')
@@ -98,6 +97,11 @@ program
             }
           },1000)
           
+        }
+
+        if(program.forcemine){
+          node.minerStarted = true;
+          node.createMiner()
         }
 
         if(program.seed){

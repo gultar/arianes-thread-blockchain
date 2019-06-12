@@ -1,14 +1,15 @@
 const fs = require('fs')
 const { logger, readFile, writeToFile, createFile, merge } = require('../tools/utils')
 const {isValidTransactionJSON} = require('../tools/jsonvalidator')
-const JSONStream = require("JSONStream").stringifyObject("{",",","}")
+const Transaction = require('./transaction')
 
 class Mempool{
     constructor(){
         this.pendingTransactions = {};
         this.rejectedTransactions = {};
         this.pendingCoinbaseTransactions = {};
-        this.pendingActions = {}
+        this.pendingActions = {};
+        this.maxBatchSize = 50000
     }
 
     addTransaction(transaction){
@@ -124,13 +125,47 @@ class Mempool{
     }
 
     gatherTransactionsForBlock(){
-        let transactions = this.pendingTransactions;
-        return transactions;
+        return new Promise(async(resolve)=>{
+            let transactions = this.pendingTransactions;
+            let batch = {}
+            if(this.calculateSizeOfBatch(transactions) <= this.maxBatchSize){
+                logger('Gathering all transactions. Batch under 50 000 bytes')
+                batch = transactions
+            }else{
+                batch = await this.gatherPartialBatch(transactions);
+            }
+            batch = await this.orderTransactionsByTimestamp(batch)
+            resolve(batch);
+        })
+        
+        
+    }
+
+    gatherPartialBatch(transactions){
+        return new Promise((resolve)=>{
+            let hashes = Object.keys(transactions);
+            let batch = {};
+            hashes.forEach( hash=>{
+                if(this.calculateSizeOfBatch(batch) <= this.maxBatchSize){
+                    batch[hash] = transactions[hash];
+                }else{
+                    resolve(batch)
+                }
+                
+            })
+            logger(`Gathering partial batch of ${Object.keys(batch).length} transactions`)
+            resolve(batch)
+        })
+        
     }
 
     gatherActionsForBlock(){
         let actions = this.pendingActions;
         return actions;
+    }
+
+    calculateSizeOfBatch(transactions){
+        return Transaction.getTransactionSize(transactions)
     }
 
     

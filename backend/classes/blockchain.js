@@ -7,7 +7,8 @@ const {
   RecalculateHash, 
   writeToFile,
   validatePublicKey,
-  merkleRoot } = require('../tools/utils');
+  merkleRoot, 
+  readFile, } = require('../tools/utils');
 const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
 const Block = require('./block');
@@ -35,7 +36,7 @@ class Blockchain{
     this.blockFork = []
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
-    this.maxDepthForUncleBlocks = 3;
+    this.maxDepthForBlockForks = 3;
     this.transactionSizeLimit = 10 * 1024;
   }
 
@@ -58,39 +59,51 @@ class Blockchain{
     return this.chain[this.chain.length - 1];
   }
   
-  // /**
-  //   Adds block only if valid
-  //   Will return true if the block is valid, false if not
-  //   or the index of the block to which it is linked if valid but out of sync
-  //   @param {object} $newBlock - New block to be added
-  // */
-  // async syncBlock(newBlock){
-  //     if(isValidBlockJSON(newBlock)){
+  static initBlockchain(){
+    return new Promise(async (resolve, reject)=>{
+      let blockchain = {};
+      let blockchainObject = {};
+
+      const instanciateBlockchain = (chainObj) =>{
+        return new Blockchain(chainObj.chain, chainObj.difficulty)
+      }
+
+      logger('Initiating blockchain');
+      fs.exists('./data/blockchain.json', async (exists)=>{
         
-  //     let isValidBlock = await this.validateBlock(newBlock);
-  //     if(isValidBlock){
-  //       var isLinked = this.isBlockLinked(newBlock);
-  //       if(isLinked){
+        if(exists){
+  
+          let blockchainFile = await readFile('./data/blockchain.json');
+  
+          if(blockchainFile){
+            try{
+              blockchainObject = JSON.parse(blockchainFile);
+              blockchain = instanciateBlockchain(blockchainObject);
+
+              resolve(blockchain);
+            }catch(e){
+              console.log(e);
+              resolve(false);
+            }
+          }else{
+            logger('ERROR: Could not read blockchain file')
+            resolve(false)
+          }
           
-  //         logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-  //         logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-  //         logger(chalk.green('* By: '), newBlock.minedBy)
-  //         this.chain.push(newBlock);
-  //         Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-  //         return true;
-  //       }else{
-  //         // logger('WARNING: Block is not linked with previous block');
-  //         // console.log(this.extractHeader(newBlock))
-  //         this.createBlockBranch(newBlock)
-  //       }
-        
-  //     }else{
-  //       return false;
-  //     }
-  //   }else{
-  //     return false;
-  //   }
-  // }
+  
+        }else{
+  
+          logger('Blockchain file does not exist')
+          logger('Generating new blockchain')
+          let newBlockchain = new Blockchain();
+          newBlockchain.saveBlockchain();
+          resolve(newBlockchain);
+        }
+      })
+     
+    })
+  
+  }
 
   pushBlock(newBlock, verbose=false){
     return new Promise(async (resolve)=>{
@@ -162,12 +175,12 @@ class Blockchain{
           let lastBlock = this.getLatestBlock();
           let secondLastBlock = this.chain[lastBlock.blockNumber - 1];
           let thirdLastBlock = this.chain[lastBlock.blockNumber - 2];
-          if(lastBlock.blockFork){
+          if(lastBlock.blockFork && lastBlock.blockFork[newBlock.previousHash]){
             
             let forkedBlock = this.getLatestBlock().blockFork[newBlock.previousHash];
             if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
-            
-            let parallelBranch = this.buildParallelBranch(newBlock);
+            else{
+              let parallelBranch = this.buildParallelBranch(newBlock);
             
             //Minus one for the newest block which has not been added
             let numOfBlocksToRemove = parallelBranch.length - 1;
@@ -187,7 +200,7 @@ class Blockchain{
                 })
 
                 logger(chalk.yellow(`* Finished switching branch`))
-                logger(chalk.yellow(`Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
                 //add all orphaned blocks to current chain as forked blocks
                 orphanedBranch.forEach( block=>{
                   if(block){
@@ -214,8 +227,10 @@ class Blockchain{
               }else{
                 resolve({error:'ERROR: parallel branch is not linked with current chain'})
               }
+            }
             
-          }else if(secondLastBlock.blockFork){
+            
+          }else if(secondLastBlock.blockFork && secondLastBlock.blockFork[newBlock.previousHash]){
             
             let forkedBlock = secondLastBlock.blockFork[newBlock.previousHash];
             if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
@@ -232,7 +247,7 @@ class Blockchain{
                 }
             })
 
-          }else if(thirdLastBlock.blockFork){
+          }else if(thirdLastBlock.blockFork && thirdLastBlock.blockFork[newBlock.previousHash]){
             
             let forkedBlock = thirdLastBlock.blockFork[newBlock.previousHash];
             if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
@@ -260,20 +275,130 @@ class Blockchain{
     })
   }
 
-  gatherAllForks(){
-    let forks = {}
-    for(var i=0; i<this.chain.length; i++){
-      if(this.chain[i].blockFork){
-        let hashes = Object.keys(this.chain[i].blockFork)
-        hashes.forEach( hash=>{
-          console.log('Hash: ', hash)
-          forks[hash] = this.chain[i].blockFork[hash];
-        })
-        
-      }
-    }
+  createBlockBranch(newBlock){
 
-    return forks
+    return new Promise(async( resolve)=>{
+      if(this.getLatestBlock().hash != newBlock.hash){
+        
+        let isBlockNewFork = this.getLatestBlock().previousHash == newBlock.previousHash 
+        if(isBlockNewFork){
+          logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+          logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+          if(this.getLatestBlock().blockFork){
+            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
+          }else{
+            this.getLatestBlock().blockFork = {}
+            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
+          }
+          
+          resolve(
+          {
+            fork:{
+              blockNumber:newBlock.blockNumber,
+              hash:newBlock.hash,
+              previousHash:newBlock.previousHash,
+
+            }
+          })
+        }else{
+          
+          const extendParallelBranch = (newBlock, previousBlock) =>{
+            if(newBlock && previousBlock){
+              let forkedBlock = previousBlock.blockFork[newBlock.previousHash];
+              if(!forkedBlock) return {error:'ERROR: Forked block not found'};
+              this.chain[previousBlock.blockNumber + 1].blockFork[newBlock.hash] = newBlock;
+        
+              return true
+            }
+          }
+
+          let topIndex = this.chain.length - 1;
+          let extended = false
+          if(this.getLatestBlock().blockFork){
+            if(this.getLatestBlock().blockFork[newBlock.previousHash]){
+              let switchedBranch = await this.switchWorkingBranch(newBlock)
+              if(switchedBranch.error) resolve({error:switchedBranch.error})
+              resolve(true)
+            }
+          }
+
+          let depth = topIndex - this.maxDepthForBlockForks
+          let secondLast = topIndex - 1;
+          for(var i=secondLast; i < depth; i--){
+            let currentBlock = this.chain[i];
+            if(currentBlock.blockFork){
+              if(currentBlock.blockFork[newBlock.previousHash]){
+                extended = extendParallelBranch(newBlock, currentBlock)
+                if(extended.error) resolve({error:extended.error})
+                logger(chalk.yellow(`* Extended block fork with block ${newBlock.hash.substr(0, 25)}...`));
+                logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+                logger(chalk.yellow(`* Previous block ${currentBlock.hash.substr(0, 25)}...`));
+                resolve(true)
+              }
+            }
+          }
+        }
+        resolve(false)
+      }else{
+        resolve(false)
+      }
+      
+    })
+  }
+
+  switchWorkingBranch(newBlock){
+    return new Promise(async(resolve)=>{
+            let forkedBlock = this.getLatestBlock().blockFork[newBlock.previousHash];
+            if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
+            
+            let parallelBranch = await this.buildParallelBranch(newBlock);
+            
+            //Minus one for the newest block which has not been added
+            let numOfBlocksToRemove = parallelBranch.length - 1;
+            let tailBlock = parallelBranch[0];
+              //Tail block of the parallel branch has to be linked with the previous block in chain 
+              //to be able to merge the branch with the chain
+            let previousBlock = this.chain[tailBlock.blockNumber - 1]
+            if(previousBlock.hash == tailBlock.previousHash){
+              //extract the top part of the second branch which will be orphaned
+              let orphanedBranch = this.chain.splice(-1, numOfBlocksToRemove);
+              //add blocks of the parallel branch one by one
+              logger(chalk.yellow(`* Switching branch!`))
+              parallelBranch.forEach( async (block)=>{
+                let added = await this.pushBlock(block, false)
+                if(added.error) resolve({error:added.error})
+                logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
+                logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
+                logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
+              })
+
+              //add all orphaned blocks to current chain as forked blocks
+              orphanedBranch.forEach( block=>{
+                if(block){
+                  if(block.blockFork) block.blockFork = {}
+                  if(this.chain[block.blockNumber]){
+                    if(this.chain[block.blockNumber].blockFork){
+                      this.chain[block.blockNumber].blockFork[block.hash] = block; 
+                    }else{
+                      this.chain[block.blockNumber].blockFork = {}
+                      this.chain[block.blockNumber].blockFork[block.hash] = block; 
+                    }
+                  }else{
+                    if(this.getLatestBlock().blockFork){
+                      this.getLatestBlock().blockFork[block.hash] = block;
+                    }else{
+                      this.getLatestBlock().blockFork = {};
+                      this.getLatestBlock().blockFork[block.hash] = block;
+                    }
+                    
+                  }
+                }
+              })
+              resolve(true)
+            }else{
+              resolve({error:'ERROR: parallel branch is not linked with current chain'})
+            }
+    })
   }
 
   buildParallelBranch(headBlock){
@@ -281,7 +406,8 @@ class Blockchain{
     let workingBlock = headBlock;
     let previousBlock = {}
     parallelBranch.unshift(workingBlock)
-    for(var i=headBlock.blockNumber-1; i>0; i--){
+    let lastIndex = headBlock.blockNumber
+    for(var i=lastIndex-1; i>0; i--){
       if(this.chain[i]){
         if(this.chain[i].blockFork){
           previousBlock = this.chain[i].blockFork[workingBlock.previousHash]
@@ -295,7 +421,6 @@ class Blockchain{
       
     }
     
-
     return parallelBranch;
   }
 
@@ -317,13 +442,6 @@ class Blockchain{
     })
     
   }
-
-  
-
-  compareHeaders(headers){
-
-  }
-
 
   hasEnoughTransactionsToMine(){
     if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
@@ -1474,8 +1592,9 @@ class Blockchain{
       }
     })
     
-    
   }
+
+  
 
   async saveBlockchain(){
     return new Promise(async (resolve, reject)=>{
@@ -1499,6 +1618,4 @@ class Blockchain{
 }
 
 module.exports = Blockchain;
-
-
 

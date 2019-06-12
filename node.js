@@ -12,11 +12,8 @@ const helmet = require('helmet');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 //************Blockchain classes****************/
-const { initBlockchain } = require('./backend/tools/blockchainHandler.js');
 const Wallet = require('./backend/classes/wallet');
-const Block = require('./backend/classes/block');
 const Blockchain = require('./backend/classes/blockchain');
-const Sidechain = require('./backend/classes/sidechain');
 const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
@@ -77,16 +74,13 @@ class Node {
     this.userInterfaces = [];
     this.peersConnected = {}; //From ioServer to ioClient
     this.connectionsToPeers = {}; //From ioClient to ioServer
-    
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-
     this.chain = {};
-    
     this.updated = false;
+    this.downloading = false;
     this.minerStarted = false;
     this.miner = {};
-
     this.nodeList = new NodeList();
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
@@ -110,7 +104,7 @@ class Node {
         let nodeListLoaded = await this.nodeList.loadNodeList();
         let mempoolLoaded = await Mempool.loadMempool();
         let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
-        this.chain = await initBlockchain()  
+        this.chain = await Blockchain.initBlockchain()  
         
         if(!nodeListLoaded) resolve({error:'Could not load node list'})
         if(!mempoolLoaded) reject({error:'Could not load Mempool'});
@@ -132,10 +126,7 @@ class Node {
         this.initHTTPAPI(app);
         this.cleanMessageBuffer();
         this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
-        
-        //Loading blockchain from file
-        
-        
+  
         this.ioServer.on('connection', (socket) => {
           if(socket){
             if(socket.handshake.query.token !== undefined){
@@ -290,7 +281,9 @@ class Node {
 
           peer.on('blockchainStatus', async (status)=>{
             if(!this.isDownloading){
-              let updated = await this.receiveBlockchainStatus(peer, status);
+              
+              let updated = await this.receiveBlockchainStatus(peer, status)
+              
             }
             
           })
@@ -401,6 +394,7 @@ class Node {
           if(!this.isDownloading){
             let headers = [];
             this.isDownloading = true;
+            process.SILENT = true;
             logger(chalk.cyan('Fetching block headers from peer...'))
     
             peer.emit('getBlockHeader', startAt+1)
@@ -414,6 +408,7 @@ class Node {
               peer.off('block');
               bar = null;
               this.isDownloading = false;
+              process.SILENT = false;
             }
     
             peer.on('blockHeader', async (header)=>{
@@ -487,12 +482,15 @@ class Node {
             total:length - startAtIndex,
             finishMessage:'Fetched all block headers of blockchain!\n\n'
           })
+
           this.isDownloading = true;
+          process.SILENT = true
 
           const closeDownloadChannel = (peer, bar) =>{
             peer.off('block');
             bar = null;
             this.isDownloading = false;
+            process.SILENT = false;
           }
 
           peer.emit('getBlock', startAtIndex+1);
@@ -548,17 +546,23 @@ class Node {
         peer.emit('getBlockFromHash', hash);
 
         peer.on('blockFromHash', (block)=>{
+          
           if(block){
-
-            if(block.error){
-              logger(block.error)
+            if(block.fork){
               peer.off('blockFromHash');
-              resolve(block.error)
+              resolve(block.fork)
+            }else{
+
+              if(block.error){
+                logger('BLOCK DOWNLOAD ERROR:',block.error)
+                peer.off('blockFromHash');
+                resolve({error:block.error})
+              }
+  
+              peer.off('blockFromHash');
+              resolve(block)
             }
-
-            peer.off('blockFromHash');
-            resolve(block)
-
+            
           }else{
             logger('ERROR: No block received')
           }
@@ -1042,6 +1046,13 @@ class Node {
         
       });
 
+      app.post('/newBlock', (req, res)=>{
+        var block = req.query.block;
+        if(isValidBlockJSON){
+
+        }
+      })
+
       app.get('/getBlockHeader',(req, res)=>{
         var blockNumber = req.query.hash;
         if(blockNumber){
@@ -1170,7 +1181,13 @@ class Node {
             }else if(blockIndex == this.chain.getLatestBlock().blockNumber + 1){
               socket.emit('blockFromHash', {end:'End of blockchain'})
             }else{
-              socket.emit('blockFromHash', {error:'Block not found'})
+              if(this.chain.getLatestBlock().blockFork && this.chain.getLatestBlock().blockFork[hash]){
+                let block = this.chain.getLatestBlock().blockFork[hash];
+                socket.emit('blockFromHash', {fork:block})
+              }else{
+                socket.emit('blockFromHash', {error:'Block not found'})
+              }
+              
             }
           }else{
             socket.emit('blockFromHash', {error:'Block not found'})
@@ -1307,19 +1324,145 @@ class Node {
       socket.emit('mempool', Mempool);
     })
 
-    socket.on('testforks', ()=>{
-      let forks = this.chain.gatherAllForks();
-      console.log(Object.keys(forks))
+    socket.on('selftest', ()=>{
+      this.minerEventHandler()
     })
     
     socket.on('test', async()=>{
-     
+      const LoopyLoop = require('loopyloop')
+      const hexToBin = require('hex-to-binary')
+
+      let chain = []
+
+      const mineBlock = async (blockToMine, difficulty) =>{
+        let block = blockToMine;
+          block.startMineTime = Date.now()
+          let miner =  new LoopyLoop(async () => {
+            
+            if(isValidProof(block, difficulty)){
+              miner.stop()
+              block.endMineTime = Date.now()
+              block.timediff = (block.endMineTime - block.startMineTime);
+              return block
+            }else{
+              // block.nonce = block.nonce + (Math.pow(2, 32) * Math.random())
+              block.nonce++
+            }
+          })
+      
+          return miner
+      }
+      const calculateHash = (block) =>{
+        return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot)
+      }
+      const isValidProof = (block, difficulty) =>{
+        
+        block.hash = calculateHash(block)
+        let binary = hexToBin(block.hash)
+        if (binary.substring(0, difficulty) === Array(difficulty+1).join("0")) { //hexString.includes('000000', 0)
+          if(block.nonce > block.challenge){
+            block.nonce = 0;
+            return false
+          }else{
+            
+            return block;
+          }
+          
+        }
+      
+        return false;
+      }
+      
+      const setChallenge = (previousBlock, lastTimestamp, newTimestamp) =>{
+        const blockTime = (newTimestamp - lastTimestamp) / 1000;
+        let timestampAdjustment = Math.max( Math.trunc((1 - blockTime) / 10), -99);
+        console.log('Timestamp adjustment:', timestampAdjustment)
+        let difficultyBomb = Math.trunc(Math.pow(2, Math.trunc((previousBlock.blockNumber / 10000)-2)))
+        console.log('Difficulty bomb:', difficultyBomb)
+        let newChallenge = previousBlock.challenge + Math.trunc(previousBlock.challenge / (2048 * timestampAdjustment)) + difficultyBomb;
+        console.log('New Challenge:', newChallenge)
+        return newChallenge;
+        // if(blockTime > 30){
+          
+        // }else if(blockTime < 10){
+          
+        // }else if(blockTime <= 30 && blockTime >= 10){
+          
+        // }
+        // let challenge = previousBlock.challenge
+        // 
+        // console.log('')
+        // console.log('Blocktime:', blockTime)
+        // let algo = `
+        // block_diff = parent_diff + parent_diff // 2048 * 
+        // max(1 - (block_timestamp - parent_timestamp) // 10, -99) + 
+        // int(2**((block.number // 100000) - 2))`
+        // let timestampAdjustment = Math.max( ~~((1 - blockTime) / 10), -99);
+        // 
+        // let difficultyBomb = Math.trunc(Math.pow(2, Math.trunc((previousBlock.blockNumber / 10000)-2)))
+        // 
+        // let newChallenge = challenge + Math.trunc(challenge / (2048 * timestampAdjustment)) + difficultyBomb
+        // 
+        // console.log('')
+        // if(newChallenge !== 'Infinity'){
+        //   return newChallenge;
+        // }else{
+        //   return Math.pow(10, 999)
+        // }
+        
+   
+      }
+      
+      const startMine = async (difficulty, previousBlock) =>{
+        let challenge = Math.pow(2, difficulty-2);
+        if(!previousBlock){
+          challenge = Math.pow(2, 50);
+        }else{
+          challenge = setChallenge(previousBlock, previousBlock.startMineTime, previousBlock.endMineTime)
+          console.log('Challenge is set at :', challenge)
+          console.log('New difficulty is: ', Math.log2(challenge))
+        }
+        
+        let randomIndex = Math.floor(Math.random() * this.chain.chain.length)
+        let blockToConvert = this.chain.chain[randomIndex];
+        let header = this.chain.extractHeader(blockToConvert)
+        let block = header;//119647558363
+        block.challenge =  challenge;//9999999999999999
+        delete block.hash;
+        block.hash = '';
+        block.nonce = 0;
+        if(difficulty && block){
+          block.difficulty = difficulty
+          let mine = await mineBlock(block, difficulty)
+          mine
+              .on('started', () => { 
+              })
+              .on('stopped', async () => {
+                console.log(`Difficulty ${difficulty} took approx. ${block.timediff/1000} seconds`);
+                console.log('Hash:', block.hash)
+                console.log('Nonce:', block.nonce)
+                console.log('Nonce difficulty', Math.floor(Math.log2(block.nonce)))
+                chain.push(block)
+                startMine(difficulty, block) 
+              })
+              .on('error', (err) => {
+                console.log(err)
+              })
+              .start()
+        }else{
+          console.log('Missing params')
+        }
+        
+      }
+
+      startMine(21)
+      
       
     })
 
-    socket.on('rollback', ()=>{
-      logger('Rolled back to block 2319')
-      this.rollBackBlocks(2319)
+    socket.on('rollback', (number)=>{
+      logger('Rolled back to block ', number)
+      this.rollBackBlocks(number)
     })
 
     socket.on('dm', (address, message)=>{
@@ -1364,8 +1507,7 @@ class Node {
         let tx = Mempool.pendingTransactions[hash];
         
         logger('Size:'+ (Transaction.getTransactionSize(tx) / 1024) + 'Kb');
-        console.log(tx.miningFee)
-        console.log(this.chain.calculateTransactionMiningFee(tx))
+        console.log(Transaction.getTransactionSize(tx))
       }else{
         logger('No transaction found');
         socket.emit('message', 'No transaction found')
@@ -1373,19 +1515,63 @@ class Node {
       
     })
 
-    // socket.on('resolveFork', ()=>{
-    //   if(this.longestChain.peerAddress){
-    //     logger('Resolving fork!');
-    //     this.resolveBlockFork(this.longestChain.peerAddress);
-    //   }else{
-    //     socket.emit('message', 'ERROR: longest chain is unknown')
-    //   }
-    // })
-
     socket.on('disconnect', ()=>{
       var index = this.userInterfaces.length
       this.userInterfaces.splice(index-1, 1)
     })
+  }
+
+  minerEventHandler(){
+    //Listen port 3000
+    let app = express().listen(3000, '127.0.0.1');
+    this.minerServer = socketIo(app);
+
+    this.minerServer.on('connection',(socket)=>{
+      this.minerServer.socket = socket
+      this.minerServer.socket.on('newBlock', async (block)=>{
+        if(block){
+          let header = this.chain.extractHeader(block);
+          let synced = await this.chain.pushBlock(block);
+          if(synced.error){
+            logger(synced.error)
+  
+          }else{
+            if(synced.fork){
+              logger(fork)
+            }
+            this.sendPeerMessage('newBlockFound', header);
+          }
+        }else{
+          logger('ERROR: New mined block is undefined')
+        }
+      })
+  
+      this.minerServer.socket.on('getLatestBlock', ()=>{
+        if(this.chain instanceof Blockchain){
+          this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+        }else{
+          this.minerServer.socket.emit('error', {error: 'Chain is not ready'})
+        }
+      })
+
+      this.minerServer.socket.on('getTxHashList', ()=>{
+        this.minerServer.socket.emit('txHashList', Object.keys(Mempool.pendingTransactions))
+      })
+
+      this.minerServer.socket.on('getActionHashList', ()=>{
+        this.minerServer.socket.emit('actionHashList', Object.keys(Mempool.pendingAction))
+      })
+
+      this.minerServer.socket.on('getTx', (hash)=>{
+        this.minerServer.socket.emit('tx', Mempool.pendingTransactions[hash])
+      })
+
+      this.minerServer.socket.on('getAction', (hash)=>{
+        this.minerServer.socket.emit('action', Mempool.pendingAction[hash])
+      })
+  
+    })
+   
   }
 
 
@@ -1519,16 +1705,6 @@ class Node {
           break;
           case 'addressRequest':
           break;
-          // case 'chainLength':
-          //   const length = data
-            
-          //   if(this.longestChain.length < length && this.nodeList.addresses.includes(originAddress)){
-              
-          //     this.longestChain.length = length;
-          //     this.longestChain.peerAddress = originAddress
-          //     logger(originAddress+' has sent its chain length: '+length)
-          //   }
-          // break;
           case 'message':
               console.log(`!Received message from: ${originAddress}: ${data}`)
             break;
@@ -1606,95 +1782,82 @@ class Node {
     return info
   }
 
-  // /**
-  //   Validates every block that gets added to blockchain.
-  //   @param {Object} $newBlock - Block to be added
-  // */
-  // async addNewBlock(newBlock){
-  //     if(isValidBlockJSON(newBlock)){ //typeof newBlock == 'object'
-        
-  //       var isBlockSynced = await this.chain.pushBlock(newBlock);
-  //       if(isBlockSynced){
-  //         Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-  //         logger(chalk.green('* Synced new block ')+newBlock.blockNumber+chalk.green(' with hash : ')+ newBlock.hash.substr(0, 25)+"...");
-  //         logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length)
-  //         logger(chalk.green('* By: '), newBlock.minedBy)
-  //         return true;
-  //       }else if(isBlockSynced.fork){
-  //         //Handle forks
-  //         return {fork:true}
-  //       }else{
-  //         return false;
-  //       }
-  //     }else{
-  //       logger('ERROR: Block has invalid format');
-  //       return false;
-  //     }
-  // }
-
   handleNewBlockFound(data, relayPeer){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data && relayPeer){
-        try{
-          let header = JSON.parse(data);
-          let alreadyReceived = this.chain.getIndexOfBlockHash(header.hash)
-          let alreadyIsInActiveFork = this.chain.blockFork[header.hash];
-          if(!alreadyReceived && !alreadyIsInActiveFork){
-            if(this.chain.validateBlockHeader(header)){
-              let peerSocket = this.connectionsToPeers[relayPeer]
-              if(peerSocket){
-                
-                  if(this.miner){
-                    clearInterval(this.miner.minerLoop);
-                    if(process.ACTIVE_MINER){
-                      process.ACTIVE_MINER.send({abort:true});
+        if(!this.isDownloading){
+          try{
+            let header = JSON.parse(data);
+            let alreadyReceived = this.chain.getIndexOfBlockHash(header.hash)
+            let alreadyIsInActiveFork = this.chain.blockFork[header.hash];
+            if(!alreadyReceived && !alreadyIsInActiveFork){
+              if(this.chain.validateBlockHeader(header)){
+                let peerSocket = this.connectionsToPeers[relayPeer]
+                if(peerSocket){
+                  
+                    if(this.miner){
+                      clearInterval(this.miner.minerLoop);
+                      if(process.ACTIVE_MINER){
+                        process.ACTIVE_MINER.send({abort:true});
+                        
+                      }
+                      delete this.miner;
+                    }
+
+                    if(this.minerServer){
+                      this.minerServer.socket.emit('stopMining')
+                    }
+      
+                    let newBlock = await this.downloadBlockFromHash(peerSocket, header.hash)
+                    if(newBlock.error){
+                      resolve({error:newBlock.error})
+                    }else{
                       
-                    }
-                    delete this.miner;
-                  }
-    
-                  let newBlock = await this.downloadBlockFromHash(peerSocket, header.hash)
-                  if(newBlock.error){
-                    resolve({error:newBlock.error})
-                  }else{
+                      let addedToChain = await this.chain.pushBlock(newBlock);
+                      if(addedToChain.error){
+                        resolve({error:addedToChain.error})
+                      }
+  
+                      if(addedToChain.outOfSync){
+                        this.selfCorrectDeepFork(peerSocket, blockForkIndex)
+                      }
+        
+                      if(addedToChain.fork){
+                        let display = JSON.stringify(addedToChain.fork, null, 2)
+                        console.log(display)
+                        resolve(addedToChain.fork)
+                      }
+        
+                      if(addedToChain.resolved){
+                        resolve(addedToChain.resolved);
+                      }
+        
+        
+                      if(this.minerStarted && !this.miner){
+                        this.createMiner()
+                      }
 
-                    let addedToChain = await this.chain.pushBlock(newBlock);
-                    if(addedToChain.error){
-                      resolve({error:addedToChain.error})
+                      if(this.minerServer){
+                        this.minerServer.socket.emit('startMining')
+                      }
+                      
+                      resolve(true);
                     }
-
-                    if(addedToChain.outOfSync){
-                      this.selfCorrectDeepFork(peerSocket, blockForkIndex)
-                    }
-      
-                    if(addedToChain.fork){
-                      let display = JSON.stringify(addedToChain.fork, null, 2)
-                      console.log(display)
-                      resolve(addedToChain.fork)
-                    }
-      
-                    if(addedToChain.resolved){
-                      resolve(addedToChain.resolved);
-                    }
-      
-      
-                    if(this.minerStarted && !this.miner){
-                      this.createMiner()
-                    }
-                    
-                    resolve(true);
-                  }
+                }else{
+                  resolve({error:'ERROR:Relay peer could not be found'})
+                }
               }else{
-                resolve({error:'ERROR:Relay peer could not be found'})
+                resolve({error:'ERROR:New block is invalid'})
               }
-            }else{
-              resolve({error:'ERROR:New block is invalid'})
             }
+          }catch(e){
+            console.log(e);
+            resolve({error:e})
           }
-        }catch(e){
-          console.log(e);
-          resolve({error:e})
+        }else{
+          resolve({error:'Node is busy'})
         }
+
  
       }else{
         resolve({error:'ERROR: Missing parameters'})

@@ -4,7 +4,7 @@ const Block = require('./block');
 const Blockchain = require('./blockchain');
 const { logger } = require('../tools/utils');
 const { isValidBlockJSON } = require('../tools/jsonvalidator');
-const chalk = require('chalk')
+const chalk = require('chalk');
 
 class Miner{
     constructor(params){
@@ -112,11 +112,12 @@ class Miner{
 
     getTransactions(){
       return new Promise(async (resolve)=>{
-        let transactionsGathered = Mempool.gatherTransactionsForBlock();
+        let transactionsGathered = await Mempool.gatherTransactionsForBlock();
+        //Max 100?
         let validatedTransactions = await this.chain.validateTransactionsForMining(transactionsGathered);
-        let sortedTransactions = Mempool.orderTransactionsByTimestamp(validatedTransactions);
-        if(sortedTransactions){
-          resolve(sortedTransactions)
+        // let sortedTransactions = Mempool.orderTransactionsByTimestamp(validatedTransactions);
+        if(validatedTransactions){
+          resolve(validatedTransactions)
         }else{
           resolve(false);
         }
