@@ -329,6 +329,7 @@ class Node {
         if(!this.isDownloading){
           let headers = [];
           this.isDownloading = true;
+          process.SILENT = true;
           logger(chalk.cyan('Fetching block headers from peer...'))
   
           peer.emit('getBlockHeader', startAt+1)
@@ -342,6 +343,7 @@ class Node {
             peer.off('block');
             bar = null;
             this.isDownloading = false;
+            process.SILENT = false;
           }
   
           peer.on('blockHeader', async (header)=>{
