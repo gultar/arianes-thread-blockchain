@@ -67,13 +67,10 @@ program
 
     let configs = await loadNodeConfig();
     if(configs){
-      if(program.verbose){
-        configs.verbose = true;
-      }
       node = new Node({
         address:configs.address,
         port:configs.port,
-        verbose:configs.verbose
+        verbose:program.verbose
       })
 
       node.startServer()
@@ -89,13 +86,14 @@ program
         }
 
         if(program.mine){
-          let startMiner = setInterval(()=>{
-            if(node.updated){
-              node.minerStarted = true;
-              node.createMiner()
-              clearInterval(startMiner)
-            }
-          },1000)
+          
+          // let startMiner = setInterval(()=>{
+          //   if(node.updated){
+          //     node.minerStarted = true;
+          //     node.createMiner()
+          //     clearInterval(startMiner)
+          //   }
+          // },1000)
           
         }
 

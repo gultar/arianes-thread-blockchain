@@ -46,7 +46,7 @@ const remotePoWProcess = () =>{
     try{
       if(!process.MINER){
           let block = message.block;
-          let difficulty = message.difficulty;
+          let difficulty = block.difficulty;
           process.MINER = await mineBlock(block, difficulty);
 
           process.MINER

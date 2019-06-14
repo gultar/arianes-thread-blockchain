@@ -17,7 +17,8 @@ const chalk = require('chalk');
 const merkle = require('merkle');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
-const JSONStream = require("JSONStream").stringifyObject("{",",","}")
+const compressing = require('compressing')
+// const JSONStream = require("JSONStream").stringifyObject("{",",","}")
 const fs = require('fs');
 let _ = require('private-parts').createKey();
 
@@ -67,12 +68,12 @@ class Blockchain{
       const instanciateBlockchain = (chainObj) =>{
         return new Blockchain(chainObj.chain, chainObj.difficulty)
       }
-
+   
       logger('Initiating blockchain');
       fs.exists('./data/blockchain.json', async (exists)=>{
         
         if(exists){
-  
+
           let blockchainFile = await readFile('./data/blockchain.json');
   
           if(blockchainFile){
@@ -157,6 +158,7 @@ class Blockchain{
           if(this.getLatestBlock().blockFork){
             this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
           }else{
+            
             this.getLatestBlock().blockFork = {}
             this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
           }
@@ -1600,7 +1602,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       try{
         
-        let saved = await writeToFile(this, './data/blockchain.json');
+        let saved = await writeToFile(this, './data/blockchain.json', true);
           if(saved){
               logger('Saved Blockchain file');
               resolve(true)

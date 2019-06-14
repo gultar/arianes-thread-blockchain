@@ -45,7 +45,7 @@ const sha1 = require('sha1')
 const chalk = require('chalk');
 const fs = require('fs');
 let Progress = require('pace');
-
+const compressing = require('compressing')
 
 
 /**
@@ -85,6 +85,9 @@ class Node {
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
     this.accountTable = new AccountTable();
+    this.minerServer = {
+      socket:{}
+    }
   }
 
 
@@ -94,7 +97,7 @@ class Node {
   */
   startServer(app=express()){
 
-    return new Promise(async (resolve)=>{
+    return new Promise(async (resolve, reject)=>{
       try{
 
         console.log(chalk.cyan('\n******************************************'))
@@ -107,9 +110,9 @@ class Node {
         this.chain = await Blockchain.initBlockchain()  
         
         if(!nodeListLoaded) resolve({error:'Could not load node list'})
-        if(!mempoolLoaded) reject({error:'Could not load Mempool'});
-        if(!accountsLoaded) reject({error:'Could not load account table'})
-        if(!this.chain) reject({error:'Could not load account table'});
+        if(!mempoolLoaded) resolve({error:'Could not load Mempool'});
+        if(!accountsLoaded) resolve({error:'Could not load account table'})
+        if(!this.chain) resolve({error:'Could not load account table'});
         
         logger('Loaded peer node list');
         logger('Loaded Blockchain');      
@@ -125,6 +128,7 @@ class Node {
         this.initChainInfoAPI(app);
         this.initHTTPAPI(app);
         this.cleanMessageBuffer();
+        this.minerEventHandler();
         this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
   
         this.ioServer.on('connection', (socket) => {
@@ -243,7 +247,7 @@ class Node {
           });
 
           peer.heartbeatTimeout = 120000;
-
+          logger('Requesting connection to '+ address+ ' ...');
           if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
           this.UILog('Requesting connection to '+ address+ ' ...');
 
@@ -1523,51 +1527,56 @@ class Node {
 
   minerEventHandler(){
     //Listen port 3000
-    let app = express().listen(3000, '127.0.0.1');
+    logger('Starting miner connector')
+    let port = parseInt(this.port) + 2000
+    let app = express().listen(port, '127.0.0.1');
     this.minerServer = socketIo(app);
 
     this.minerServer.on('connection',(socket)=>{
-      this.minerServer.socket = socket
-      this.minerServer.socket.on('newBlock', async (block)=>{
+      logger('Miner connected!')
+      this.minerSocket = socket
+      this.minerSocket.on('newBlock', async (block)=>{
         if(block){
           let header = this.chain.extractHeader(block);
           let synced = await this.chain.pushBlock(block);
           if(synced.error){
             logger(synced.error)
-  
           }else{
             if(synced.fork){
-              logger(fork)
+              console.log(JSON.stringify(synced.fork, null, 2))
+            }else{
+              this.sendPeerMessage('newBlockFound', header);
             }
-            this.sendPeerMessage('newBlockFound', header);
+
+            this.minerSocket.emit('mineNextBlock', this.chain.getLatestBlock())
           }
         }else{
           logger('ERROR: New mined block is undefined')
         }
       })
   
-      this.minerServer.socket.on('getLatestBlock', ()=>{
+      this.minerSocket.on('getLatestBlock', ()=>{
         if(this.chain instanceof Blockchain){
-          this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+          this.minerSocket.emit('mineNextBlock', this.chain.getLatestBlock())
         }else{
-          this.minerServer.socket.emit('error', {error: 'Chain is not ready'})
+          this.minerSocket.emit('error', {error: 'Chain is not ready'})
         }
       })
 
-      this.minerServer.socket.on('getTxHashList', ()=>{
-        this.minerServer.socket.emit('txHashList', Object.keys(Mempool.pendingTransactions))
+      this.minerSocket.on('getTxHashList', ()=>{
+        this.minerSocket.emit('txHashList', Object.keys(Mempool.pendingTransactions))
       })
 
-      this.minerServer.socket.on('getActionHashList', ()=>{
-        this.minerServer.socket.emit('actionHashList', Object.keys(Mempool.pendingAction))
+      this.minerSocket.on('getActionHashList', ()=>{
+        this.minerSocket.emit('actionHashList', Object.keys(Mempool.pendingAction))
       })
 
-      this.minerServer.socket.on('getTx', (hash)=>{
-        this.minerServer.socket.emit('tx', Mempool.pendingTransactions[hash])
+      this.minerSocket.on('getTx', (hash)=>{
+        this.minerSocket.emit('tx', Mempool.pendingTransactions[hash])
       })
 
-      this.minerServer.socket.on('getAction', (hash)=>{
-        this.minerServer.socket.emit('action', Mempool.pendingAction[hash])
+      this.minerSocket.on('getAction', (hash)=>{
+        this.minerSocket.emit('action', Mempool.pendingAction[hash])
       })
   
     })
@@ -1804,8 +1813,8 @@ class Node {
                       delete this.miner;
                     }
 
-                    if(this.minerServer){
-                      this.minerServer.socket.emit('stopMining')
+                    if(this.minerSocket){
+                      this.minerSocket.emit('stopMining')
                     }
       
                     let newBlock = await this.downloadBlockFromHash(peerSocket, header.hash)
@@ -1814,34 +1823,35 @@ class Node {
                     }else{
                       
                       let addedToChain = await this.chain.pushBlock(newBlock);
-                      if(addedToChain.error){
-                        resolve({error:addedToChain.error})
-                      }
+                      if(addedToChain){
+                        if(addedToChain.error){
+                          resolve({error:addedToChain.error})
+                        }else if(addedToChain.outOfSync){
+                          this.selfCorrectDeepFork(peerSocket, blockForkIndex)
+                        }else if(addedToChain.fork){
+                          let display = JSON.stringify(addedToChain.fork, null, 2)
+                          console.log(display)
+                          resolve(addedToChain.fork)
+                        }else if(addedToChain.resolved){
+                          resolve(addedToChain.resolved);
+                        }else if(addedToChain.resolved){
+                          
+                        }
+    
+                        if(this.minerStarted && !this.miner){
+                          this.createMiner()
+                        }
   
-                      if(addedToChain.outOfSync){
-                        this.selfCorrectDeepFork(peerSocket, blockForkIndex)
-                      }
-        
-                      if(addedToChain.fork){
-                        let display = JSON.stringify(addedToChain.fork, null, 2)
-                        console.log(display)
-                        resolve(addedToChain.fork)
-                      }
-        
-                      if(addedToChain.resolved){
-                        resolve(addedToChain.resolved);
-                      }
-        
-        
-                      if(this.minerStarted && !this.miner){
-                        this.createMiner()
-                      }
-
-                      if(this.minerServer){
-                        this.minerServer.socket.emit('startMining')
+                        if(this.minerSocket){
+                          this.minerSocket.emit('mineNextBlock', this.chain.getLatestBlock())
+                        }
+                        
+                        resolve(true);
+                      }else{
+                        logger('ERROR: Could not push new block')
+                        resolve({error:'ERROR: Could not push new block'})
                       }
                       
-                      resolve(true);
                     }
                 }else{
                   resolve({error:'ERROR:Relay peer could not be found'})
@@ -2216,6 +2226,7 @@ class Node {
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();
         let savedAccountTable = await this.accountTable.saveTable();
+        let compressedBlockchain = await compressing.gzip.compressFile('./data/blockchain.json', './data/blockchain.json.gz')
         if(
             savedBlockchain 
             && savedNodeList 
@@ -2225,6 +2236,7 @@ class Node {
             && savedAccountTable
           )
           {
+            
             resolve(true)
           }else{
             reject('ERROR: Could not save all files')

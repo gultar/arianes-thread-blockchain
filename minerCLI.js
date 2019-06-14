@@ -14,15 +14,15 @@ program
     .option('-v, --verbose', 'Verbose level')
 
 program
-    .command('start')
+    .command('start <port>')
     .description('Start mining')
-    .action(( )=>{
+    .action(( port )=>{
         console.log('Starting miner')
         let miner = new SelfMiner({
             publicKey:program.publickey,
             verbose:program.verbose,
         })
-        miner.connect('http://localhost:3000')
+        miner.connect('http://localhost:'+port)
 
     })
 

@@ -35,6 +35,8 @@ const logger = (message, arg) => {
 }
 
 
+
+
 function RecalculateHash(block){
 
   return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot).toString();
@@ -142,12 +144,12 @@ const readFile = async (filename) =>{
   
 }
 
-const writeToFile = (data, filename) =>{
+const writeToFile = (data, filename, compact=false) =>{
   return new Promise((resolve, reject)=>{
     fs.exists(filename, async (exists)=>{
       
       if(exists){       
-        let file = parseToString(data);
+        let file = parseToString(data, compact);
           if(file != undefined){
 
             var stream = fs.createWriteStream(filename);
@@ -220,7 +222,7 @@ const createTargetFile = (path)=>{
   })
 }
 
-const parseToString = (data)=>{
+const parseToString = (data, compact)=>{
   let typeOfData = typeof data;
   let file = data;
 
@@ -230,7 +232,11 @@ const parseToString = (data)=>{
     case 'function':
     case 'object':
       try{
-        file = JSON.stringify(data, null, 2);
+        if(!compact){
+          file = JSON.stringify(data, null, 2);
+        }else{
+          file = JSON.stringify(data);
+        }
       }catch(e){
         console.log(e);
       }
@@ -312,3 +318,33 @@ module.exports = {
   merge,
   createTargetFile,
   validatePublicKey, };
+
+  // const testSign = async () =>{
+  //   // 
+  //   // let sign = 'GHDngbtPPUa+wHxMysMQLzrtyaHQb6BwmqBsMJgib16lIcFjPmAqhzyNmt4YuS4Dx6dHh+ci6aHW1qPCqbE+'
+  //   // let key = 'Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG'
+  //   // let pub = ECDSA.fromCompressedPublicKey(key)
+  //   // let valid = await pub.verify(tx, sign);
+  //   // console.log(valid)
+  //   const Wallet = require('../classes/wallet')
+  //   let w = new Wallet();
+  //   w = await w.importWalletFromFile(`./wallets/8003-b5ac90fbdd1355438a65edd2fabe14e9fcca10ea.json`);
+  //   let unlocked = await w.unlock('8003', 9999999)
+  //   let error = {}
+  //   let tx = `136c2f0a14830491743edf75be1c8379934ca7df621c85fb18ba6f007b5b52af`
+  //   for(var i=0; i < 10000; i++){
+      
+  //     let signature = await w.sign(tx);
+  //     let pub = ECDSA.fromCompressedPublicKey(w.publicKey)
+  //     let valid = await pub.verify(tx, signature);
+  //     if(!valid){
+  //       error[tx] = { signature:signature }
+  //     }
+  //     console.log(`Num ${i}: ${signature}`)
+  //     console.log('Is valid: ', valid)
+  //   }
+
+  //   console.log('Errors: ', error)
+  // }
+  
+  // testSign()
