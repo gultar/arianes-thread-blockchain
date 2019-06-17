@@ -72,7 +72,7 @@ class SelfMiner{
                 logger('At difficulty: ', parseInt(block.difficulty, 16))
                 let success = await block.mine(block.difficulty);
                 if(success){
-                  
+                  block.endMineTime = Date.now()
                   block = success;
                   block.totalDifficulty = this.previousBlock.totalDifficulty + block.difficulty;
                   this.successMessage(block)
@@ -149,17 +149,22 @@ class SelfMiner{
     }
 
     pause(){
-      logger('Stopping miner')
-      process.ACTIVE_MINER.kill()
-      process.ACTIVE_MINER = false;
-      this.minerStarted = false;
-      clearInterval(this.minerLoop)
+      
+      if(process.ACTIVE_MINER){
+        logger('Stopping miner')
+        process.ACTIVE_MINER.kill()
+        process.ACTIVE_MINER = false;
+        this.minerStarted = false;
+        
+      }
+      if(this.minerLoop) clearInterval(this.minerLoop)
     }
 
     async buildNewBlock(){
       let transactions = this.pool.pendingTransactions
       if(Object.keys(transactions).length > 0){
         let block = new Block(Date.now(), transactions);
+        block.startMineTime = Date.now()
         block.blockNumber = this.previousBlock.blockNumber + 1;
         block.previousHash = this.previousBlock.hash;
         block.difficulty = setNewDifficulty(this.previousBlock, block);

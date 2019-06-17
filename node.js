@@ -1479,7 +1479,13 @@ class Node {
 
     socket.on('rollback', (number)=>{
       logger('Rolled back to block ', number)
-      this.rollBackBlocks(number)
+      let endBlock = this.chain.chain.length-1
+      let blocks = []
+      for(var i=endBlock; i > number; i--){
+        let block = this.chain.chain.pop()
+        blocks.unshift(block)
+      }
+      console.log(`Removed ${blocks.length} blocks`)
     })
 
     socket.on('dm', (address, message)=>{
@@ -1856,7 +1862,7 @@ class Node {
                       // }
 
                       if(this.minerServer && this.minerServer.socket){
-                        this.minerServer.socket.emit('lastBlock', this.chain.getLatestBlock())
+                        this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                       }
                       
                       resolve(true);
