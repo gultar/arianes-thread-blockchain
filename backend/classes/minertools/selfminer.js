@@ -153,6 +153,7 @@ class SelfMiner{
       process.ACTIVE_MINER.kill()
       process.ACTIVE_MINER = false;
       this.minerStarted = false;
+      clearInterval(this.minerLoop)
     }
 
     async buildNewBlock(){

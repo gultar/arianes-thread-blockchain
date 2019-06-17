@@ -51,6 +51,7 @@ const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
 function setNewDifficulty(previousBlock, newBlock){
   const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
   let adjustment = 1;
+  
   if(mineTime <= 0.2){
     adjustment = 10
   }else if(mineTime > 0.2 && mineTime <= 1){

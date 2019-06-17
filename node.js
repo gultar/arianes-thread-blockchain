@@ -1814,16 +1814,16 @@ class Node {
                 let peerSocket = this.connectionsToPeers[relayPeer]
                 if(peerSocket){
                   
-                    if(this.miner){
-                      clearInterval(this.miner.minerLoop);
-                      if(process.ACTIVE_MINER){
-                        process.ACTIVE_MINER.send({abort:true});
+                    // if(this.miner){
+                    //   clearInterval(this.miner.minerLoop);
+                    //   if(process.ACTIVE_MINER){
+                    //     process.ACTIVE_MINER.send({abort:true});
                         
-                      }
-                      delete this.miner;
-                    }
+                    //   }
+                    //   delete this.miner;
+                    // }
 
-                    if(this.minerServer){
+                    if(this.minerServer && this.minerServer.socket){
                       this.minerServer.socket.emit('stopMining')
                     }
       
@@ -1851,13 +1851,12 @@ class Node {
                         resolve(addedToChain.resolved);
                       }
         
-        
-                      if(this.minerStarted && !this.miner){
-                        this.createMiner()
-                      }
+                      // if(this.minerStarted && !this.miner){
+                      //   this.createMiner()
+                      // }
 
-                      if(this.minerServer){
-                        this.minerServer.socket.emit('startMining')
+                      if(this.minerServer && this.minerServer.socket){
+                        this.minerServer.socket.emit('lastBlock', this.chain.getLatestBlock())
                       }
                       
                       resolve(true);
