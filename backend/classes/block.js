@@ -71,6 +71,7 @@ class Block{
           })
         }else{
           logger('ERROR: Already started miner')
+          resolve(false)
         }
       })
       

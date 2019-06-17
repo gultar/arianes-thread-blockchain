@@ -35,8 +35,6 @@ const logger = (message, arg) => {
 }
 
 
-
-
 function RecalculateHash(block){
 
   return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot).toString();
@@ -54,47 +52,20 @@ function merkleRoot(dataSet){
 
 }
 
-// const newProof = async (difficulty) =>{
-//   const hexToBin = require('hex-to-binary')
-//     let text = "J'aime les olivesoiawwdoijawodijaowidjoawijdoaijwdoaiwaowdjaoiioajwdoiajwdoijoimcoimwoimaoiwmdoiamwdoiamwdoimwjdoiajwdoaijwdoiajwdoiajwodijawd";
-//     let nonce = 0
-//     let hash = sha256(text + nonce.toString())
-//     let timestamp = Date.now();
-//     let challenge = 100000000000;
-//     let target = 400000000000;
-//     console.log(Math.pow(2, 256))
-//     let loop = await new LoopyLoop(async ()=>{
-//       let binary = hexToBin(hash);
-//       if(binary.substr(0, difficulty) === Array(difficulty+1).join("0")){
-//         if(nonce > challenge){
-//           loop.stop()
-//           let endTime = Date.now();
-//           let diff = (endTime - timestamp) / 1000;
-//           console.log({hash:sha256(text + nonce.toString()), nonce:nonce, binary:binary, time:diff})
-//           return {hash:sha256(text + nonce.toString()), nonce:nonce, binary:binary, time:diff}
-//         }else{
-//           console.log('Nonce too low')
-//           nonce = Math.random() * Math.pow(2, 256) - 1;
-//           hash = sha256(text + nonce.toString())
-//         }
-        
-//       }else{
-//         if(nonce < target){
-//           nonce = nonce + Math.random() * Math.pow(2, 256) - 1;
-//         }else{
-//           // console.log('Resetting nonce', nonce)
-//           nonce = 0;
-//         }
-//         hash = sha256(text + nonce.toString())
-//       }
-//     }).start()
-
-
-  
+// function test(){
+//   function pad(n, width, z) {
+//     z = z || '0';
+//     n = n + '';
+//     let array = (new Array(width - n.length + 1)).join(z)
+//     return n.length >= width ? n :  '0x'+array + n;
+//   }
+//   let value = BigInt('584341107003269207324891814328148685670414377847096671731712').toString(16)
+//   let decValue = BigInt(parseInt(value, 16)).toString()
+//   console.log(pad(value, 64))
+//   console.log(pad(decValue, 64))
 // }
 
-// newProof(22)
-
+// test()
 
 const encrypt = (text, password) =>{
   var cipher = crypto.createCipher(algorithm,password)
@@ -144,12 +115,12 @@ const readFile = async (filename) =>{
   
 }
 
-const writeToFile = (data, filename, compact=false) =>{
+const writeToFile = (data, filename) =>{
   return new Promise((resolve, reject)=>{
     fs.exists(filename, async (exists)=>{
       
       if(exists){       
-        let file = parseToString(data, compact);
+        let file = parseToString(data);
           if(file != undefined){
 
             var stream = fs.createWriteStream(filename);
@@ -222,7 +193,7 @@ const createTargetFile = (path)=>{
   })
 }
 
-const parseToString = (data, compact)=>{
+const parseToString = (data)=>{
   let typeOfData = typeof data;
   let file = data;
 
@@ -232,11 +203,7 @@ const parseToString = (data, compact)=>{
     case 'function':
     case 'object':
       try{
-        if(!compact){
-          file = JSON.stringify(data, null, 2);
-        }else{
-          file = JSON.stringify(data);
-        }
+        file = JSON.stringify(data, null, 2);
       }catch(e){
         console.log(e);
       }
@@ -318,33 +285,3 @@ module.exports = {
   merge,
   createTargetFile,
   validatePublicKey, };
-
-  // const testSign = async () =>{
-  //   // 
-  //   // let sign = 'GHDngbtPPUa+wHxMysMQLzrtyaHQb6BwmqBsMJgib16lIcFjPmAqhzyNmt4YuS4Dx6dHh+ci6aHW1qPCqbE+'
-  //   // let key = 'Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG'
-  //   // let pub = ECDSA.fromCompressedPublicKey(key)
-  //   // let valid = await pub.verify(tx, sign);
-  //   // console.log(valid)
-  //   const Wallet = require('../classes/wallet')
-  //   let w = new Wallet();
-  //   w = await w.importWalletFromFile(`./wallets/8003-b5ac90fbdd1355438a65edd2fabe14e9fcca10ea.json`);
-  //   let unlocked = await w.unlock('8003', 9999999)
-  //   let error = {}
-  //   let tx = `136c2f0a14830491743edf75be1c8379934ca7df621c85fb18ba6f007b5b52af`
-  //   for(var i=0; i < 10000; i++){
-      
-  //     let signature = await w.sign(tx);
-  //     let pub = ECDSA.fromCompressedPublicKey(w.publicKey)
-  //     let valid = await pub.verify(tx, signature);
-  //     if(!valid){
-  //       error[tx] = { signature:signature }
-  //     }
-  //     console.log(`Num ${i}: ${signature}`)
-  //     console.log('Is valid: ', valid)
-  //   }
-
-  //   console.log('Errors: ', error)
-  // }
-  
-  // testSign()

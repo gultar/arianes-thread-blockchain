@@ -67,17 +67,20 @@ program
 
     let configs = await loadNodeConfig();
     if(configs){
+      if(program.verbose){
+        configs.verbose = true;
+      }
       node = new Node({
         address:configs.address,
         port:configs.port,
-        verbose:program.verbose
+        verbose:configs.verbose
       })
 
       node.startServer()
       .then( started =>{
 
         if(started.error){
-          logger(started.error)
+          console.log(started.error)
           return false
         }
 
@@ -86,14 +89,13 @@ program
         }
 
         if(program.mine){
-          
-          // let startMiner = setInterval(()=>{
-          //   if(node.updated){
-          //     node.minerStarted = true;
-          //     node.createMiner()
-          //     clearInterval(startMiner)
-          //   }
-          // },1000)
+          let startMiner = setInterval(()=>{
+            if(node.updated){
+              node.minerStarted = true;
+              node.createMiner()
+              clearInterval(startMiner)
+            }
+          },1000)
           
         }
 
@@ -107,6 +109,8 @@ program
         }
       })
       
+    }else{
+      console.log('ERROR: Could not load node configs')
     }
 
     

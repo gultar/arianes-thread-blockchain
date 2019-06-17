@@ -45,7 +45,7 @@ const sha1 = require('sha1')
 const chalk = require('chalk');
 const fs = require('fs');
 let Progress = require('pace');
-const compressing = require('compressing')
+
 
 
 /**
@@ -85,9 +85,6 @@ class Node {
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
     this.accountTable = new AccountTable();
-    this.minerServer = {
-      socket:{}
-    }
   }
 
 
@@ -97,7 +94,7 @@ class Node {
   */
   startServer(app=express()){
 
-    return new Promise(async (resolve, reject)=>{
+    return new Promise(async (resolve)=>{
       try{
 
         console.log(chalk.cyan('\n******************************************'))
@@ -110,9 +107,9 @@ class Node {
         this.chain = await Blockchain.initBlockchain()  
         
         if(!nodeListLoaded) resolve({error:'Could not load node list'})
-        if(!mempoolLoaded) resolve({error:'Could not load Mempool'});
-        if(!accountsLoaded) resolve({error:'Could not load account table'})
-        if(!this.chain) resolve({error:'Could not load account table'});
+        if(!mempoolLoaded) reject({error:'Could not load Mempool'});
+        if(!accountsLoaded) reject({error:'Could not load account table'})
+        if(!this.chain) reject({error:'Could not load account table'});
         
         logger('Loaded peer node list');
         logger('Loaded Blockchain');      
@@ -128,7 +125,7 @@ class Node {
         this.initChainInfoAPI(app);
         this.initHTTPAPI(app);
         this.cleanMessageBuffer();
-        this.minerEventHandler();
+        this.minerEventHandler()
         this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
   
         this.ioServer.on('connection', (socket) => {
@@ -247,7 +244,7 @@ class Node {
           });
 
           peer.heartbeatTimeout = 120000;
-          logger('Requesting connection to '+ address+ ' ...');
+
           if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
           this.UILog('Requesting connection to '+ address+ ' ...');
 
@@ -329,7 +326,6 @@ class Node {
         if(!this.isDownloading){
           let headers = [];
           this.isDownloading = true;
-          process.SILENT = true;
           logger(chalk.cyan('Fetching block headers from peer...'))
   
           peer.emit('getBlockHeader', startAt+1)
@@ -343,7 +339,6 @@ class Node {
             peer.off('block');
             bar = null;
             this.isDownloading = false;
-            process.SILENT = false;
           }
   
           peer.on('blockHeader', async (header)=>{
@@ -1340,19 +1335,19 @@ class Node {
 
       let chain = []
 
-      const mineBlock = async (blockToMine, difficulty) =>{
+      const mineBlock = async (blockToMine) =>{
         let block = blockToMine;
           block.startMineTime = Date.now()
           let miner =  new LoopyLoop(async () => {
             
-            if(isValidProof(block, difficulty)){
+            if(isValidProof(block, block.challenge)){
               miner.stop()
               block.endMineTime = Date.now()
               block.timediff = (block.endMineTime - block.startMineTime);
               return block
             }else{
-              // block.nonce = block.nonce + (Math.pow(2, 32) * Math.random())
-              block.nonce++
+              block.nonce = (Math.pow(2, 64) * Math.random())
+              // block.nonce++
             }
           })
       
@@ -1361,95 +1356,111 @@ class Node {
       const calculateHash = (block) =>{
         return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot)
       }
-      const isValidProof = (block, difficulty) =>{
+      const isValidProof = (block, target) =>{
         
         block.hash = calculateHash(block)
-        let binary = hexToBin(block.hash)
-        if (binary.substring(0, difficulty) === Array(difficulty+1).join("0")) { //hexString.includes('000000', 0)
-          if(block.nonce > block.challenge){
-            block.nonce = 0;
-            return false
-          }else{
-            
-            return block;
-          }
-          
-        }
-      
-        return false;
-      }
-      
-      const setChallenge = (previousBlock, lastTimestamp, newTimestamp) =>{
-        const blockTime = (newTimestamp - lastTimestamp) / 1000;
-        let timestampAdjustment = Math.max( Math.trunc((1 - blockTime) / 10), -99);
-        console.log('Timestamp adjustment:', timestampAdjustment)
-        let difficultyBomb = Math.trunc(Math.pow(2, Math.trunc((previousBlock.blockNumber / 10000)-2)))
-        console.log('Difficulty bomb:', difficultyBomb)
-        let newChallenge = previousBlock.challenge + Math.trunc(previousBlock.challenge / (2048 * timestampAdjustment)) + difficultyBomb;
-        console.log('New Challenge:', newChallenge)
-        return newChallenge;
-        // if(blockTime > 30){
-          
-        // }else if(blockTime < 10){
-          
-        // }else if(blockTime <= 30 && blockTime >= 10){
-          
-        // }
-        // let challenge = previousBlock.challenge
-        // 
-        // console.log('')
-        // console.log('Blocktime:', blockTime)
-        // let algo = `
-        // block_diff = parent_diff + parent_diff // 2048 * 
-        // max(1 - (block_timestamp - parent_timestamp) // 10, -99) + 
-        // int(2**((block.number // 100000) - 2))`
-        // let timestampAdjustment = Math.max( ~~((1 - blockTime) / 10), -99);
-        // 
-        // let difficultyBomb = Math.trunc(Math.pow(2, Math.trunc((previousBlock.blockNumber / 10000)-2)))
-        // 
-        // let newChallenge = challenge + Math.trunc(challenge / (2048 * timestampAdjustment)) + difficultyBomb
-        // 
-        // console.log('')
-        // if(newChallenge !== 'Infinity'){
-        //   return newChallenge;
-        // }else{
-        //   return Math.pow(10, 999)
-        // }
-        
-   
-      }
-      
-      const startMine = async (difficulty, previousBlock) =>{
-        let challenge = Math.pow(2, difficulty-2);
-        if(!previousBlock){
-          challenge = Math.pow(2, 50);
+        if(BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(target, 16))){
+          return true
         }else{
-          challenge = setChallenge(previousBlock, previousBlock.startMineTime, previousBlock.endMineTime)
-          console.log('Challenge is set at :', challenge)
-          console.log('New difficulty is: ', Math.log2(challenge))
+          
+          return false
         }
+      }
+
+      function pad(n, width, z) {
+        z = z || '0';
+        n = n + '';
+        let array = (new Array(width - n.length + 1)).join(z)
+        return n.length >= width ? n :  '0x'+array + n;
+      }
+      
+      const setChallenge = (difficulty) =>{
+        if(difficulty == 0n) difficulty = 1n
+        let newChallenge = BigInt(Math.pow(2, 256) -1) / BigInt(difficulty)
+        return newChallenge.toString(16);
+      }
+
+      function setNewDifficulty(previousBlock, newBlock){
+        const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
+        let adjustment = 1;
+        if(mineTime <= 0.2){
+          adjustment = 10
+        }else if(mineTime > 0.2 && mineTime <= 1){
+          adjustment = 2
+        }else if(mineTime > 1 && mineTime <= 10){
+          adjustment = 1
+        }else if(mineTime > 10 && mineTime <= 20){
+          adjustment = 0;
+        }else if(mineTime > 20 && mineTime <= 30){
+          adjustment = 0
+        }else if(mineTime > 30 && mineTime <= 40){
+          adjustment = -1
+        }else if(mineTime > 40 && mineTime <= 60){
+          adjustment = -2
+        }else if(mineTime > 60){
+          adjustment = -10
+        }
+        
+        let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((chain.length / 10000)-2))))
+        let modifier = Math.max(1 - Math.floor(mineTime / 10), -99)
+        let newDifficulty = BigInt(previousBlock.difficulty) + BigInt(previousBlock.difficulty / 32n) * BigInt(adjustment) + BigInt(difficultyBomb)
+        console.log('* Adjustment : ', adjustment)
+        console.log('* New difficulty value : ', BigInt(previousBlock.difficulty))
+        console.log('* To be added : ', BigInt(previousBlock.difficulty / 32n) * BigInt(modifier))
+        console.log('* Otherwise: : ', BigInt(previousBlock.difficulty / 32n) * BigInt(adjustment))
+        console.log('* Difficulty bomb:', BigInt(difficultyBomb))
+        return newDifficulty;
+      }
+
+      function pad(n, width, z) {
+        z = z || '0';
+        n = n + '';
+        return n.length >= width ? n : n + new Array(width - n.length + 1).join(z);
+      }
+      
+      const startMine = async (previousBlock) =>{
         
         let randomIndex = Math.floor(Math.random() * this.chain.chain.length)
         let blockToConvert = this.chain.chain[randomIndex];
         let header = this.chain.extractHeader(blockToConvert)
         let block = header;//119647558363
-        block.challenge =  challenge;//9999999999999999
+        block.timestamp = Date.now()
         delete block.hash;
+        if(!previousBlock){
+          
+          block.difficulty = BigInt(parseInt('0x16F0F0', 16));
+          
+          block.challenge = setChallenge(block.difficulty)
+        }else{
+          block.difficulty = setNewDifficulty(previousBlock, block)
+          block.challenge = setChallenge(block.difficulty)
+        }
         block.hash = '';
         block.nonce = 0;
-        if(difficulty && block){
-          block.difficulty = difficulty
-          let mine = await mineBlock(block, difficulty)
+        
+        if(block){
+          let mine = await mineBlock(block, block.difficulty)
           mine
-              .on('started', () => { 
+              .on('started', () => {
+                
               })
               .on('stopped', async () => {
-                console.log(`Difficulty ${difficulty} took approx. ${block.timediff/1000} seconds`);
-                console.log('Hash:', block.hash)
-                console.log('Nonce:', block.nonce)
-                console.log('Nonce difficulty', Math.floor(Math.log2(block.nonce)))
+                console.log('************************')
+                console.log(`* Test number ${ chain.length } `);
+                console.log(`* Difficulty ${block.difficulty} took approx. ${ block.timediff /1000 } seconds`);
+                console.log('* Hash:', block.hash)
+                console.log('* Nonce:', block.nonce)
+                console.log('* Challenge', block.challenge)
                 chain.push(block)
-                startMine(difficulty, block) 
+                if(chain.length <= 200){ startMine(block) }
+                else{
+                  let median = 0;
+                  chain.forEach(block=>{
+                    median += block.timediff;
+
+                  })
+                  console.log('The average block time is :', median/chain.length)
+                }
               })
               .on('error', (err) => {
                 console.log(err)
@@ -1461,7 +1472,7 @@ class Node {
         
       }
 
-      startMine(21)
+      startMine()
       
       
     })
@@ -1529,56 +1540,53 @@ class Node {
 
   minerEventHandler(){
     //Listen port 3000
-    logger('Starting miner connector')
-    let port = parseInt(this.port) + 2000
-    let app = express().listen(port, '127.0.0.1');
+    let app = express().listen(parseInt(this.port)+2000, '127.0.0.1');
     this.minerServer = socketIo(app);
-
+    logger('Miner connector listening on ',parseInt(this.port)+2000)
     this.minerServer.on('connection',(socket)=>{
       logger('Miner connected!')
-      this.minerSocket = socket
-      this.minerSocket.on('newBlock', async (block)=>{
+      this.minerServer.socket = socket
+      this.minerServer.socket.on('newBlock', async (block)=>{
         if(block){
           let header = this.chain.extractHeader(block);
           let synced = await this.chain.pushBlock(block);
           if(synced.error){
             logger(synced.error)
+  
           }else{
             if(synced.fork){
-              console.log(JSON.stringify(synced.fork, null, 2))
-            }else{
-              this.sendPeerMessage('newBlockFound', header);
+              logger(synced.fork)
             }
-
-            this.minerSocket.emit('mineNextBlock', this.chain.getLatestBlock())
+            this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+            this.sendPeerMessage('newBlockFound', header);
           }
         }else{
           logger('ERROR: New mined block is undefined')
         }
       })
   
-      this.minerSocket.on('getLatestBlock', ()=>{
+      this.minerServer.socket.on('getLatestBlock', ()=>{
         if(this.chain instanceof Blockchain){
-          this.minerSocket.emit('mineNextBlock', this.chain.getLatestBlock())
+          this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
         }else{
-          this.minerSocket.emit('error', {error: 'Chain is not ready'})
+          this.minerServer.socket.emit('error', {error: 'Chain is not ready'})
         }
       })
 
-      this.minerSocket.on('getTxHashList', ()=>{
-        this.minerSocket.emit('txHashList', Object.keys(Mempool.pendingTransactions))
+      this.minerServer.socket.on('getTxHashList', ()=>{
+        this.minerServer.socket.emit('txHashList', Object.keys(Mempool.pendingTransactions))
       })
 
-      this.minerSocket.on('getActionHashList', ()=>{
-        this.minerSocket.emit('actionHashList', Object.keys(Mempool.pendingAction))
+      this.minerServer.socket.on('getActionHashList', ()=>{
+        this.minerServer.socket.emit('actionHashList', Object.keys(Mempool.pendingAction))
       })
 
-      this.minerSocket.on('getTx', (hash)=>{
-        this.minerSocket.emit('tx', Mempool.pendingTransactions[hash])
+      this.minerServer.socket.on('getTx', (hash)=>{
+        this.minerServer.socket.emit('tx', Mempool.pendingTransactions[hash])
       })
 
-      this.minerSocket.on('getAction', (hash)=>{
-        this.minerSocket.emit('action', Mempool.pendingAction[hash])
+      this.minerServer.socket.on('getAction', (hash)=>{
+        this.minerServer.socket.emit('action', Mempool.pendingAction[hash])
       })
   
     })
@@ -1815,8 +1823,8 @@ class Node {
                       delete this.miner;
                     }
 
-                    if(this.minerSocket){
-                      this.minerSocket.emit('stopMining')
+                    if(this.minerServer){
+                      this.minerServer.socket.emit('stopMining')
                     }
       
                     let newBlock = await this.downloadBlockFromHash(peerSocket, header.hash)
@@ -1825,35 +1833,34 @@ class Node {
                     }else{
                       
                       let addedToChain = await this.chain.pushBlock(newBlock);
-                      if(addedToChain){
-                        if(addedToChain.error){
-                          resolve({error:addedToChain.error})
-                        }else if(addedToChain.outOfSync){
-                          this.selfCorrectDeepFork(peerSocket, blockForkIndex)
-                        }else if(addedToChain.fork){
-                          let display = JSON.stringify(addedToChain.fork, null, 2)
-                          console.log(display)
-                          resolve(addedToChain.fork)
-                        }else if(addedToChain.resolved){
-                          resolve(addedToChain.resolved);
-                        }else if(addedToChain.resolved){
-                          
-                        }
-    
-                        if(this.minerStarted && !this.miner){
-                          this.createMiner()
-                        }
+                      if(addedToChain.error){
+                        resolve({error:addedToChain.error})
+                      }
   
-                        if(this.minerSocket){
-                          this.minerSocket.emit('mineNextBlock', this.chain.getLatestBlock())
-                        }
-                        
-                        resolve(true);
-                      }else{
-                        logger('ERROR: Could not push new block')
-                        resolve({error:'ERROR: Could not push new block'})
+                      if(addedToChain.outOfSync){
+                        this.selfCorrectDeepFork(peerSocket, blockForkIndex)
+                      }
+        
+                      if(addedToChain.fork){
+                        let display = JSON.stringify(addedToChain.fork, null, 2)
+                        console.log(display)
+                        resolve(addedToChain.fork)
+                      }
+        
+                      if(addedToChain.resolved){
+                        resolve(addedToChain.resolved);
+                      }
+        
+        
+                      if(this.minerStarted && !this.miner){
+                        this.createMiner()
+                      }
+
+                      if(this.minerServer){
+                        this.minerServer.socket.emit('startMining')
                       }
                       
+                      resolve(true);
                     }
                 }else{
                   resolve({error:'ERROR:Relay peer could not be found'})
@@ -2228,7 +2235,6 @@ class Node {
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();
         let savedAccountTable = await this.accountTable.saveTable();
-        let compressedBlockchain = await compressing.gzip.compressFile('./data/blockchain.json', './data/blockchain.json.gz')
         if(
             savedBlockchain 
             && savedNodeList 
@@ -2238,7 +2244,6 @@ class Node {
             && savedAccountTable
           )
           {
-            
             resolve(true)
           }else{
             reject('ERROR: Could not save all files')

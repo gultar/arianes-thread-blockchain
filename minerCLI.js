@@ -22,7 +22,8 @@ program
             publicKey:program.publickey,
             verbose:program.verbose,
         })
-        miner.connect('http://localhost:'+port)
+        console.log('Connecting to ', 'http://127.0.0.1:'+port)
+        miner.connect('http://127.0.0.1:'+port)
 
     })
 

@@ -12,13 +12,12 @@ const {
 const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
 const Block = require('./block');
-const { setChallenge, setDifficulty } = require('./challenge');
+const { setChallenge, setDifficulty, setNewChallenge, setNewDifficulty } = require('./challenge');
 const chalk = require('chalk');
 const merkle = require('merkle');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
-const compressing = require('compressing')
-// const JSONStream = require("JSONStream").stringifyObject("{",",","}")
+const JSONStream = require("JSONStream").stringifyObject("{",",","}")
 const fs = require('fs');
 let _ = require('private-parts').createKey();
 
@@ -49,10 +48,11 @@ class Blockchain{
       'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
       'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
     }, {});
-    genesisBlock.challenge = 5 * 1000 * 1000//10 * 1000 * 1000; //average 150 000 nonce/sec
+    genesisBlock.difficulty = '0x300000'//'0x2A353F';
+    genesisBlock.challenge = setNewChallenge(genesisBlock)//10 * 1000 * 1000; //average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
     genesisBlock.calculateHash();
-    genesisBlock.difficulty = 1;
+    
     return genesisBlock;
   }
 
@@ -68,12 +68,12 @@ class Blockchain{
       const instanciateBlockchain = (chainObj) =>{
         return new Blockchain(chainObj.chain, chainObj.difficulty)
       }
-   
+
       logger('Initiating blockchain');
       fs.exists('./data/blockchain.json', async (exists)=>{
         
         if(exists){
-
+  
           let blockchainFile = await readFile('./data/blockchain.json');
   
           if(blockchainFile){
@@ -158,7 +158,6 @@ class Blockchain{
           if(this.getLatestBlock().blockFork){
             this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
           }else{
-            
             this.getLatestBlock().blockFork = {}
             this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
           }
@@ -1602,7 +1601,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       try{
         
-        let saved = await writeToFile(this, './data/blockchain.json', true);
+        let saved = await writeToFile(this, './data/blockchain.json');
           if(saved){
               logger('Saved Blockchain file');
               resolve(true)

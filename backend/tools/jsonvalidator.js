@@ -288,11 +288,10 @@ const isValidBlockJSON = (header)=>{
                 "nonce":{"type":"number"},
                 "merkleRoot":{"type":"string"},
                 "actionMerkleRoot":{"type":"string"},
-                "challenge":{"type":"number"},
-                "totalChallenge":{"type":"number"},
+                "challenge":{"type":"string"},
                 "transactions":{"type":"object"},
                 "actions":{"type":"object"},
-                "difficulty":{"type":"number"}
+                "difficulty":{"type":"string"}
             },
         "required": [
             "blockNumber", 

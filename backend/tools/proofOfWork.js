@@ -21,6 +21,25 @@ const mineBlock = async (blockToMine, difficulty) =>{
     return miner;
 }
 
+const mineNextBlock = async (blockToMine) =>{
+  let block = blockToMine;
+    
+    let miner =  new LoopyLoop(async () => {
+      
+      if(isValidProof(block)){
+        block.endMineTime = Date.now(); 
+        process.send({success:block})
+        miner.stop()
+      }else{
+        block.nonce = (Math.pow(2, 32) * Math.random())
+        // console.log('Target:', BigInt(parseInt(block.challenge, 16)))
+        // console.log('Value:', BigInt(parseInt(block.hash, 16)))
+      }
+    })
+
+    return miner;
+}
+
 const calculateHash = (block) =>{
   return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot).toString();
 }
@@ -40,14 +59,24 @@ const isProofValid = (block, difficulty) =>{
   return false;
 }
 
+const isValidProof = (block) =>{
+        
+  block.hash = calculateHash(block)
+  if(BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))){
+    return true
+  }else{
+    return false
+  }
+}
+
 const remotePoWProcess = () =>{
   process.on('message', async(message)=>{
 
     try{
       if(!process.MINER){
           let block = message.block;
-          let difficulty = block.difficulty;
-          process.MINER = await mineBlock(block, difficulty);
+          block.difficulty = message.difficulty;
+          process.MINER = await mineNextBlock(block);//mineBlock(block, difficulty);
 
           process.MINER
           .on('started', () => {})

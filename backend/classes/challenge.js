@@ -48,5 +48,44 @@ const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
   }
 }
 
+function setNewDifficulty(previousBlock, newBlock){
+  const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
+  let adjustment = 1;
+  if(mineTime <= 0.2){
+    adjustment = 10
+  }else if(mineTime > 0.2 && mineTime <= 1){
+    adjustment = 5
+  }else if(mineTime > 1 && mineTime <= 10){
+    adjustment = 2
+  }else if(mineTime > 10 && mineTime <= 20){
+    adjustment = 1;
+  }else if(mineTime > 20 && mineTime <= 30){
+    adjustment = 0
+  }else if(mineTime > 30 && mineTime <= 40){
+    adjustment = 0
+  }else if(mineTime > 40 && mineTime <= 50){
+    adjustment = -1
+  }else if(mineTime > 50 && mineTime <= 60){
+    adjustment = -2
+  }else if(mineTime > 60 && mineTime <= 70){
+    adjustment = -5
+  }else if(mineTime > 70){
+    adjustment = -5
+  }
+  
+  let difficulty = BigInt(parseInt(previousBlock.difficulty, 16))
+  let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((previousBlock.blockNumber / 10000)-2))))
+  // let modifier = Math.max(1 - Math.floor(mineTime / 10), -99)
+  let newDifficulty = BigInt(difficulty) + BigInt(difficulty / 32n) * BigInt(adjustment) + BigInt(difficultyBomb)
+  return BigInt(newDifficulty).toString(16);
+}
 
-module.exports = {setChallenge, setDifficulty};
+const setNewChallenge = (block) =>{
+  let difficulty = BigInt(parseInt(block.difficulty, 16))
+  if(difficulty == 0n) difficulty = 1n
+  let newChallenge = BigInt(Math.pow(2, 255) -1) / BigInt(difficulty)
+  return newChallenge.toString(16)
+}
+
+
+module.exports = {setChallenge, setDifficulty, setNewChallenge, setNewDifficulty};
