@@ -132,30 +132,37 @@ class Node {
         this.ioServer.on('connection', (socket) => {
           if(socket){
             if(socket.handshake.query.token !== undefined){
-               
-                  socket.on('message', (msg) => { logger('Client:', msg); });
-    
-                  let peerToken = JSON.parse(socket.handshake.query.token);
-                  let peerAddress = peerToken.address;
-                  let peerPublicKey = peerToken.publicKey
-                  let peerChecksumObj = peerToken.checksum;
-    
-                  if(peerChecksumObj){
-                    let peerTimestamp = peerChecksumObj.timestamp;
-                    let peerRandomOrder = peerChecksumObj.randomOrder;
-                    let peerChecksum = peerChecksumObj.checksum
-    
-                    let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
                   
-                    if(isValid){
-                      this.peersConnected[peerAddress] = socket;
-                      this.nodeList.addNewAddress(peerAddress);
-                      this.nodeEventHandlers(socket);
-                    }else{
-                      socket.emit('message', 'Connected to local node');
-                      this.externalEventHandlers(socket);
-                    }
+               if(!this.peersConnected[socket.handshake.headers.host]){
+                socket.on('message', (msg) => { logger('Client:', msg); });
+                let peerToken = JSON.parse(socket.handshake.query.token);
+                  let peerAddress = peerToken.address;
+                  
+                let peerPublicKey = peerToken.publicKey
+                let peerChecksumObj = peerToken.checksum;
+  
+                if(peerChecksumObj){
+                  let peerTimestamp = peerChecksumObj.timestamp;
+                  let peerRandomOrder = peerChecksumObj.randomOrder;
+                  let peerChecksum = peerChecksumObj.checksum
+  
+                  let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
+                
+                  if(isValid){
+                    this.peersConnected[peerAddress] = socket;
+                    this.nodeList.addNewAddress(peerAddress);
+                    this.nodeEventHandlers(socket);
+                  }else{
+                    socket.emit('message', 'Connected to local node');
+                    this.externalEventHandlers(socket);
                   }
+                }
+              }else{
+                //  logger('Peer is already connected to node')
+               }
+                
+               
+                 
                   
             }else{
               socket.emit('message', 'Connected to local node')
@@ -277,17 +284,19 @@ class Node {
               this.nodeList.addNewAddress(address)
               
             }else{
-              logger('Already connected to target node')
+              // logger('Already connected to target node')
             }
           })
 
+          // peer.on('reconnect', ()=>{
+          //   logger(chalk.green('Successfully reconnected to ', address))
+          //   peer.emit('message', `${this.address} reconnected`);
+          // })
+
           peer.on('blockchainStatus', async (status)=>{
             if(!this.isDownloading){
-              
               let updated = await this.receiveBlockchainStatus(peer, status)
-              
             }
-            
           })
 
           peer.on('whisper', (whisper)=>{
@@ -315,7 +324,7 @@ class Node {
         }
 
       }else{
-        logger('Already initiated peer connection')
+        // logger('Already initiated peer connection')
       }
 
     }
@@ -1587,8 +1596,9 @@ class Node {
             if(synced.fork){
               logger(synced.fork)
             }
-            this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
             this.sendPeerMessage('newBlockFound', header);
+            this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+            
           }
         }else{
           logger('ERROR: New mined block is undefined')
@@ -1836,12 +1846,16 @@ class Node {
       if(this.chain instanceof Blockchain && data && relayPeer){
         if(!this.isDownloading){
           try{
+
             let header = JSON.parse(data);
             let alreadyReceived = this.chain.getIndexOfBlockHash(header.hash)
             let alreadyIsInActiveFork = this.chain.blockFork[header.hash];
+
             if(!alreadyReceived && !alreadyIsInActiveFork){
               if(this.chain.validateBlockHeader(header)){
+
                 let peerSocket = this.connectionsToPeers[relayPeer]
+
                 if(peerSocket){
                   
                     // if(this.miner){
