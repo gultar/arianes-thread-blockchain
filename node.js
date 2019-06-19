@@ -1722,6 +1722,7 @@ class Node {
               this.broadcast('peerMessage', peerMessage)
               break
             case 'newBlockFound':
+              console.log(peerMessage)
               let added = await this.handleNewBlockFound(data, relayPeer);
               if(added.error) logger(added.error);
               peerMessage.relayPeer = this.address;
