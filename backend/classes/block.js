@@ -28,6 +28,7 @@ class Block{
     this.minedBy = '';
     this.challenge = 1;
     this.totalChallenge = 1;
+    this.totalDifficulty = 1;
     this.startMineTime = Date.now();
     this.endMineTime = 0;
     this.totalSumTransited = 0;
@@ -71,7 +72,6 @@ class Block{
           })
         }else{
           logger('ERROR: Already started miner')
-          resolve(false)
         }
       })
       

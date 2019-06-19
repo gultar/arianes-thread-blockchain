@@ -12,6 +12,7 @@ class AccountCreator{
           
           try{
             if(name && walletName && password){
+                
                 let wallet = await this.manager.loadByWalletName(walletName);
                 let account = new Account(name, wallet.publicKey);
                 let signature = await account.signAccount(wallet, password);
@@ -24,6 +25,7 @@ class AccountCreator{
     
           }catch(e){
             console.log(e);
+            resolve(false);
           }
         })
     

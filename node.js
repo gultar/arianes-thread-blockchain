@@ -68,6 +68,7 @@ class Node {
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = false;
+    this.downloadBar = (options.downloadBar === false ? options.downloadBar:true);
     this.fastSync = options.fastSync;
     //Network related parameters
     this.ioServer = {};
@@ -107,9 +108,9 @@ class Node {
         this.chain = await Blockchain.initBlockchain()  
         
         if(!nodeListLoaded) resolve({error:'Could not load node list'})
-        if(!mempoolLoaded) reject({error:'Could not load Mempool'});
-        if(!accountsLoaded) reject({error:'Could not load account table'})
-        if(!this.chain) reject({error:'Could not load account table'});
+        if(!mempoolLoaded) resolve({error:'Could not load Mempool'});
+        if(!accountsLoaded) resolve({error:'Could not load account table'})
+        if(!this.chain) resolve({error:'Could not load account table'});
         
         logger('Loaded peer node list');
         logger('Loaded Blockchain');      
@@ -326,14 +327,18 @@ class Node {
         if(!this.isDownloading){
           let headers = [];
           this.isDownloading = true;
-          logger(chalk.cyan('Fetching block headers from peer...'))
-  
+          let bar = null;
+          logger(chalk.cyan('Fetching block headers from peer, please wait...'))
+          
           peer.emit('getBlockHeader', startAt+1)
-  
-          let bar = Progress({
-            total:length - startAt,
-            finishMessage:'Fetched all block headers of blockchain!\n\n'
-          })
+         
+          if(this.downloadBar){
+            bar = Progress({
+              total:length - startAt,
+              finishMessage:'Fetched all block headers of blockchain!\n\n'
+            })
+          }
+         
 
           const closeDownloadChannel = (peer, bar) =>{
             peer.off('block');
@@ -343,7 +348,7 @@ class Node {
   
           peer.on('blockHeader', async (header)=>{
             if(header){
-              bar.op()
+              if(this.downloadBar) bar.op()
               try{
                   if(header.error){
                     closeDownloadChannel(peer, bar)
@@ -389,100 +394,104 @@ class Node {
   })
   }
   
-  requestChainHeaders(peer, startAt=0, length=0){
-    return new Promise((resolve, reject)=>{
-        if(peer){
-          if(!this.isDownloading){
-            let headers = [];
-            this.isDownloading = true;
-            process.SILENT = true;
-            logger(chalk.cyan('Fetching block headers from peer...'))
+  // requestChainHeaders(peer, startAt=0, length=0){
+  //   return new Promise((resolve, reject)=>{
+  //       if(peer){
+  //         if(!this.isDownloading){
+  //           let headers = [];
+  //           this.isDownloading = true;
+  //           process.SILENT = true;
+  //           logger(chalk.cyan('Fetching block headers from peer...'))
     
-            peer.emit('getBlockHeader', startAt+1)
+  //           peer.emit('getBlockHeader', startAt+1)
     
-            let bar = Progress({
-              total:length - startAt,
-              finishMessage:'Fetched all block headers of blockchain!\n\n'
-            })
+  //           let bar = Progress({
+  //             total:length - startAt,
+  //             finishMessage:'Fetched all block headers of blockchain!\n\n'
+  //           })
 
-            const closeDownloadChannel = (peer, bar) =>{
-              peer.off('block');
-              bar = null;
-              this.isDownloading = false;
-              process.SILENT = false;
-            }
+  //           const closeDownloadChannel = (peer, bar) =>{
+  //             peer.off('block');
+  //             bar = null;
+  //             this.isDownloading = false;
+  //             process.SILENT = false;
+  //           }
     
-            peer.on('blockHeader', async (header)=>{
-              if(header){
-                bar.op()
-                try{
-                    if(header.error){
+  //           peer.on('blockHeader', async (header)=>{
+  //             if(header){
+  //               bar.op()
+  //               try{
+  //                   if(header.error){
     
-                      logger(header.error)
-                      closeDownloadChannel(peer, bar)
-                      resolve({error:header.error})
+  //                     logger(header.error)
+  //                     closeDownloadChannel(peer, bar)
+  //                     resolve({error:header.error})
     
-                    }
+  //                   }
     
-                    if(header.end){
+  //                   if(header.end){
     
-                      if(this.verbose) logger('Headers fully synced')
-                      closeDownloadChannel(peer, bar)
-                      resolve(headers)
+  //                     if(this.verbose) logger('Headers fully synced')
+  //                     closeDownloadChannel(peer, bar)
+  //                     resolve(headers)
     
-                    }else {
-                      if(this.chain instanceof Blockchain){
-                        let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
-                        if(alreadyInChain){
-                          logger('ERROR: Header already in chain');
-                        }else{
-                          let isValidHeader = this.chain.validateBlockHeader(header)
-                          if(!isValidHeader){
-                            logger('ERROR: Is not valid header')
-                          }else{
-                            headers.push(header);
-                          }
-                        }
-                        peer.emit('getBlockHeader', header.blockNumber+1)
-                      }else{
-                        logger('ERROR: Blockchain not yet loaded')
-                        closeDownloadChannel(peer, bar)
-                        resolve({error:'ERROR: Blockchain not yet loaded'})
-                      }
+  //                   }else {
+  //                     if(this.chain instanceof Blockchain){
+  //                       let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
+  //                       if(alreadyInChain){
+  //                         logger('ERROR: Header already in chain');
+  //                       }else{
+  //                         let isValidHeader = this.chain.validateBlockHeader(header)
+  //                         if(!isValidHeader){
+  //                           logger('ERROR: Is not valid header')
+  //                         }else{
+  //                           headers.push(header);
+  //                         }
+  //                       }
+  //                       peer.emit('getBlockHeader', header.blockNumber+1)
+  //                     }else{
+  //                       logger('ERROR: Blockchain not yet loaded')
+  //                       closeDownloadChannel(peer, bar)
+  //                       resolve({error:'ERROR: Blockchain not yet loaded'})
+  //                     }
                       
                       
-                    }
-                }catch(e){
-                  console.log(e)
-                  closeDownloadChannel(peer, bar)
-                  resolve({error:e})
-                }
+  //                   }
+  //               }catch(e){
+  //                 console.log(e)
+  //                 closeDownloadChannel(peer, bar)
+  //                 resolve({error:e})
+  //               }
                 
-              } 
-             })
+  //             } 
+  //            })
 
-          }//If is already downloading, do nothing
+  //         }//If is already downloading, do nothing
 
   
-        }else{
-          logger('ERROR: Header Request failed: Missing parameter');
-          closeDownloadChannel(peer, bar)
-          resolve({error:'ERROR: Header Request failed: Missing parameter'})
-        }
+  //       }else{
+  //         logger('ERROR: Header Request failed: Missing parameter');
+  //         closeDownloadChannel(peer, bar)
+  //         resolve({error:'ERROR: Header Request failed: Missing parameter'})
+  //       }
       
-    })
-  }
+  //   })
+  // }
 
   downloadBlockchain(peer, startAtIndex=0, length){
     return new Promise(async (resolve)=>{
         if(peer){
           let blocks = [];
+          let bar = null;
           logger(chalk.cyan('Downloading blockchain from remote peer...'))
 
-          let bar = Progress({
-            total:length - startAtIndex,
-            finishMessage:'Fetched all block headers of blockchain!\n\n'
-          })
+          if(this.downloadBar){
+            bar = Progress({
+              total:length - startAtIndex,
+              finishMessage:'Fetched all block headers of blockchain!\n\n'
+            })
+          }
+          
 
           this.isDownloading = true;
           process.SILENT = true
@@ -498,7 +507,7 @@ class Node {
   
           peer.on('block', (block)=>{
             if(block){
-              bar.op()
+              if(this.downloadBar) bar.op()
               if(block.error){
                 logger(block.error)
                 closeDownloadChannel(peer, bar)
@@ -1305,6 +1314,17 @@ class Node {
       }
     })
 
+    socket.on('meanOfBlockTime', ()=>{
+      let mean = 0;
+      this.chain.chain.forEach( block=>{
+        let diff = block.endMineTime - block.startMineTime;
+        mean += diff;
+      })
+
+      mean = (mean / this.chain.chain.length) / 1000
+      console.log('Mean:', mean )
+    })
+
 
     socket.on('verbose', ()=>{
       
@@ -1550,8 +1570,12 @@ class Node {
     this.minerServer = socketIo(app);
     logger('Miner connector listening on ',parseInt(this.port)+2000)
     this.minerServer.on('connection',(socket)=>{
+
       logger('Miner connected!')
       this.minerServer.socket = socket
+
+      this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+
       this.minerServer.socket.on('newBlock', async (block)=>{
         if(block){
           let header = this.chain.extractHeader(block);

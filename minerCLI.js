@@ -9,7 +9,8 @@ const http = require('http');
 
 program
     
-    .option('-k, --publickey <publicKey>', 'Wallet provided to sign coinbase transactions')
+    // .option('-k, --publickey <publicKey>', 'Wallet provided to sign coinbase transactions')
+    .option('-w, --walletName <walletName>', 'Name of the miner wallet')
     .option('-p, --password <password>', 'Password needed to unlock wallet')
     .option('-v, --verbose', 'Verbose level')
 
@@ -21,6 +22,7 @@ program
         let miner = new SelfMiner({
             publicKey:program.publickey,
             verbose:program.verbose,
+            keychain:{ name:program.walletName, password:program.password }
         })
         console.log('Connecting to ', 'http://127.0.0.1:'+port)
         miner.connect('http://127.0.0.1:'+port)

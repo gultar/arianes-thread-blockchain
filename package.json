@@ -33,6 +33,7 @@
     "inquirer": "^6.3.1",
     "js-sha256": "^0.9.0",
     "json-size": "^1.0.0",
+    "jsonc": "^2.0.0",
     "jsonschema": "^1.2.4",
     "loopyloop": "^1.1.2",
     "merkle": "^0.6.0",

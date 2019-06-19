@@ -1,35 +1,43 @@
 
 
 const Block = require('../block');
+const Transaction = require('../transaction');
+const WalletManager = require('../walletmanager')
 const { logger, displayTime } = require('../../tools/utils');
 const { isValidBlockJSON } = require('../../tools/jsonvalidator');
 const chalk = require('chalk');
-const { setChallenge, setDifficulty, setNewDifficulty, setNewChallenge } = require('../challenge')
+const { setNewDifficulty, setNewChallenge } = require('../challenge')
 const ioClient = require('socket.io-client');
 class SelfMiner{
     constructor(params){
         this.address = params.address;
-        this.publicKey = params.publicKey;
+        this.keychain = params.keychain;
         this.verbose = params.verbose;
+        this.wallet = {}
+        // this.publicKey = params.publicKey;
+        this.manager = new WalletManager()
         this.previousBlock = {}
-        this.pool = {
-          pendingTransactions:{},
-          pendingActions:{}
-        }
         this.minerReady = false;
         this.minerStarted = false;
+        this.miningReward = 50;
         this.pool = {
           pendingTransactions:{},
           pendingActions:{}
         }
     }
 
+    async initWallet(){
+      this.wallet = await this.manager.loadByWalletName(this.keychain.name)
+      if(!this.wallet) throw new Error('ERROR: Could not load wallet')
+    }
+
     connect(url){
+      
+      this.initWallet()
       if(url){
         this.socket = ioClient(url)
         this.socket.on('connect', ()=>{
-          console.log('Miner connected!')
-          this.socket.emit('getLatestBlock')
+          logger('Miner connected!')
         })
 
         this.socket.on('actionHashList', (list)=>{
@@ -74,11 +82,11 @@ class SelfMiner{
                 if(success){
                   block.endMineTime = Date.now()
                   block = success;
-                  block.totalDifficulty = this.previousBlock.totalDifficulty + block.difficulty;
                   this.successMessage(block)
                   this.socket.emit('newBlock', block)
                   this.pause()
                   this.pool.pendingTransactions = {}
+                  
                   this.updateTransactions()
                   .then( updated =>{
                     // this.socket.emit('getLatestBlock')
@@ -136,6 +144,10 @@ class SelfMiner{
       
     }
 
+    updateChainStatus(){
+
+    }
+
     getTxList(){
       return new Promise((resolve)=>{
         this.socket.emit('getTxHashList')
@@ -160,8 +172,34 @@ class SelfMiner{
       if(this.minerLoop) clearInterval(this.minerLoop)
     }
 
+    async createCoinbase(){
+      if(this.wallet){
+        let coinbase = new Transaction('coinbase', this.wallet.publicKey, this.miningReward)
+        let unlocked = await this.wallet.unlock(this.keychain.password)
+        
+        if(unlocked){
+          let signature = await this.wallet.sign(coinbase.hash);
+          if(signature){
+            coinbase.signature = signature;
+            return coinbase
+          }else{
+            throw new Error('Could not sign coinbase transaction')
+          }
+        }else{
+          throw new Error('Could not unlock wallet');
+        }
+        
+      }else{
+        throw new Error('Cannot create coinbase transaction, no wallet available')
+      }
+      
+      
+    }
+
     async buildNewBlock(){
       let transactions = this.pool.pendingTransactions
+      let coinbase = await this.createCoinbase()
+      transactions[coinbase.hash] = coinbase
       if(Object.keys(transactions).length > 0){
         let block = new Block(Date.now(), transactions);
         block.startMineTime = Date.now()
@@ -169,7 +207,7 @@ class SelfMiner{
         block.previousHash = this.previousBlock.hash;
         block.difficulty = setNewDifficulty(this.previousBlock, block);
         block.challenge = setNewChallenge(block)
-        block.minedBy = this.publicKey;
+        block.minedBy = this.wallet.publicKey;
         return block;
       }else{
         logger('Not enough tx')

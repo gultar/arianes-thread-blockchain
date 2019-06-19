@@ -75,6 +75,7 @@ class WalletManager{
       })
       .catch((e)=>{
         console.log(e);
+        resolve(false)
       })
     })
   }

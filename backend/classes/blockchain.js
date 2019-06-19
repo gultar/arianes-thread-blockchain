@@ -19,6 +19,7 @@ const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
 const JSONStream = require("JSONStream").stringifyObject("{",",","}")
 const fs = require('fs');
+const jsonc = require('jsonc')
 let _ = require('private-parts').createKey();
 
 /**
@@ -48,10 +49,14 @@ class Blockchain{
       'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
       'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
     }, {});
-    genesisBlock.difficulty = '0x300000'//'0x2A353F';
-    genesisBlock.challenge = setNewChallenge(genesisBlock)//10 * 1000 * 1000; //average 150 000 nonce/sec
+    genesisBlock.difficulty = '0x100000'//'0x2A353F';
+    genesisBlock.challenge = setNewChallenge(genesisBlock)//average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
+    genesisBlock.maxCoinSupply = Math.pow(10, 10);
+    genesisBlock.previousHash = ( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge )
     genesisBlock.calculateHash();
+
+    
     
     return genesisBlock;
   }
@@ -74,22 +79,33 @@ class Blockchain{
         
         if(exists){
   
-          let blockchainFile = await readFile('./data/blockchain.json');
-  
-          if(blockchainFile){
-            try{
-              blockchainObject = JSON.parse(blockchainFile);
-              blockchain = instanciateBlockchain(blockchainObject);
-
-              resolve(blockchain);
-            }catch(e){
-              console.log(e);
-              resolve(false);
-            }
-          }else{
-            logger('ERROR: Could not read blockchain file')
+          // let blockchainFile = await readFile('./data/blockchain.json');
+          let [readErr, blockchainString] = await jsonc.safe.read('./data/blockchain.json')
+          if(readErr) { 
             resolve(false)
           }
+
+          let [parseErr, blockchainObject] = await jsonc.safe.parse(blockchainString)
+          if(parseErr){
+            resolve(false)
+          }
+          
+          blockchain = instanciateBlockchain(blockchainObject);
+          resolve(blockchain);
+
+         
+          // if(blockchainFile){
+          //   // try{
+          //   //   blockchainObject = JSON.parse(blockchainFile);
+              
+          //   // }catch(e){
+          //   //   console.log(e);
+          //   //   resolve(false);
+          //   // }
+          // }else{
+          //   logger('ERROR: Could not read blockchain file')
+          //   resolve(false)
+          // }
           
   
         }else{
@@ -1280,47 +1296,47 @@ class Blockchain{
             var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
               
             if(!isChecksumValid){
-              logger('REJECTED: Transaction checksum is invalid');
+              // logger('REJECTED: Transaction checksum is invalid');
               resolve({error:'REJECTED: Transaction checksum is invalid'});
             }
 
             if(!isSendingAddressValid){
-              logger('REJECTED: Sending address is invalid');
+              // logger('REJECTED: Sending address is invalid');
               resolve({error:'REJECTED: Sending address is invalid'});
             }
 
             if(!isReceivingAddressValid){
-              logger('REJECTED: Receiving address is invalid');
+              // logger('REJECTED: Receiving address is invalid');
               resolve({error:'REJECTED: Receiving address is invalid'});
             }
               
             if(!isSignatureValid){
-              logger('REJECTED: Transaction signature is invalid');
+              // logger('REJECTED: Transaction signature is invalid');
               resolve({error:'REJECTED: Transaction signature is invalid'});
             }
 
             if(!amountIsNotZero){
-              logger('REJECTED: Amount needs to be higher than zero');
+              // logger('REJECTED: Amount needs to be higher than zero');
               resolve({error:'REJECTED: Amount needs to be higher than zero'});
             }
 
             if(!isNotCircular){
-              logger("REJECTED: Sending address can't be the same as receiving address");
+              // logger("REJECTED: Sending address can't be the same as receiving address");
               resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
             }
 
             if(!hasMiningFee){
-              logger("REJECTED: Mining fee is insufficient");
+              // logger("REJECTED: Mining fee is insufficient");
               resolve({error:"REJECTED: Mining fee is insufficient"});
             }
               
             if(!transactionSizeIsNotTooBig){
-              logger('REJECTED: Transaction size is above 10KB');
+              // logger('REJECTED: Transaction size is above 10KB');
               resolve({error:'REJECTED: Transaction size is above 10KB'});  
             }
               
-            if(balanceOfSendingAddr < transaction.amount){
-              logger('REJECTED: Sender does not have sufficient funds')
+            if(balanceOfSendingAddr < transaction.amount + transaction.miningFee){
+              // logger('REJECTED: Sender does not have sufficient funds')
               resolve({error:'REJECTED: Sender does not have sufficient funds'});
             }  
 
@@ -1360,7 +1376,7 @@ class Blockchain{
         try{
   
           let isChecksumValid = this.validateChecksum(transaction);
-          let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
+          // let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
           let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);
           let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + this.calculateTransactionMiningFee(transaction));
@@ -1382,9 +1398,9 @@ class Blockchain{
             resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           }
 
-          if(fiveBlocksHavePast != true){
-            resolve({ pending:'PENDING: Coinbase transaction needs to wait five blocks' })
-          }
+          // if(fiveBlocksHavePast != true){
+          //   resolve({ pending:'PENDING: Coinbase transaction needs to wait five blocks' })
+          // }
             
           if(!transactionSizeIsNotTooBig){
             resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
@@ -1559,12 +1575,10 @@ class Blockchain{
   coinbaseTxIsAttachedToBlock(transaction){
     let found = false;
 
-    this.chain.forEach( block =>{
-
-      if(block.coinbaseTransactionHash == transaction.hash){
-        found = block;
-      }
-    })
+    let block = this.getBlockFromHash(transaction.blockHash)
+    if(block.hash == transaction.blockHash){
+      found = block;
+    }
         
     return found
   }
@@ -1601,13 +1615,16 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       try{
         
-        let saved = await writeToFile(this, './data/blockchain.json');
-          if(saved){
-              logger('Saved Blockchain file');
-              resolve(true)
-          }else{
-              reject('ERROR: Could not save blockchain')
-          } 
+        // let saved = await writeToFile(this, './data/blockchain.json');
+        let data = await jsonc.stringify(this);
+        if(data){
+          const [err, success] = await jsonc.safe.write('./data/blockchain.json', data);
+          if(err) resolve(false)
+          else    resolve(true)
+        }
+        
+        
+         
       }catch(e){
         reject(e);
       }
