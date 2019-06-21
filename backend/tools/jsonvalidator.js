@@ -289,7 +289,6 @@ const isValidBlockJSON = (header)=>{
                 "merkleRoot":{"type":"string"},
                 "actionMerkleRoot":{"type":"string"},
                 "challenge":{"type":"string"},
-                "transactions":{"type":"object"},
                 "actions":{"type":"object"},
                 "difficulty":{"type":"string"}
             },
@@ -301,7 +300,6 @@ const isValidBlockJSON = (header)=>{
             "nonce", 
             "merkleRoot", 
             "challenge",
-            "transactions",
             "difficulty"
         ]
     }

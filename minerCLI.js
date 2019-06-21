@@ -18,6 +18,7 @@ program
     .command('start <port>')
     .description('Start mining')
     .action(( port )=>{
+        if(!program.walletName || !program.password) {throw new Error('Wallet name and password required to mine!'); return null;}
         console.log('Starting miner')
         let miner = new SelfMiner({
             publicKey:program.publickey,

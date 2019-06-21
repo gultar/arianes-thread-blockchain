@@ -49,7 +49,7 @@ const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
 }
 
 function setNewDifficulty(previousBlock, newBlock){
-  const mineTime = (previousBlock.endMineTime - previousBlock.startMineTime) / 1000;
+  const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
   // const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
   let adjustment = 1;
 

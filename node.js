@@ -13,7 +13,7 @@ const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 //************Blockchain classes****************/
 const Wallet = require('./backend/classes/wallet');
-const Blockchain = require('./backend/classes/blockchain');
+const Blockchain = require('./backend/classes/chain');
 const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
@@ -67,7 +67,7 @@ class Node {
     this.port = options.port
     this.id = options.id;
     this.publicKey = options.publicKey;
-    this.verbose = false;
+    this.verbose = options.verbose;
     this.downloadBar = (options.downloadBar === false ? options.downloadBar:true);
     this.fastSync = options.fastSync;
     //Network related parameters
@@ -126,7 +126,7 @@ class Node {
         this.initChainInfoAPI(app);
         this.initHTTPAPI(app);
         this.cleanMessageBuffer();
-        this.minerEventHandler()
+        this.minerConnector()
         this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
   
         this.ioServer.on('connection', (socket) => {
@@ -136,27 +136,26 @@ class Node {
                if(!this.peersConnected[socket.handshake.headers.host]){
                 socket.on('message', (msg) => { logger('Client:', msg); });
                 let peerToken = JSON.parse(socket.handshake.query.token);
-                  let peerAddress = peerToken.address;
+                let peerAddress = peerToken.address;
                   
-                let peerPublicKey = peerToken.publicKey
-                let peerChecksumObj = peerToken.checksum;
+                // let peerPublicKey = peerToken.publicKey
+                // let peerChecksumObj = peerToken.checksum;
   
-                if(peerChecksumObj){
-                  let peerTimestamp = peerChecksumObj.timestamp;
-                  let peerRandomOrder = peerChecksumObj.randomOrder;
-                  let peerChecksum = peerChecksumObj.checksum
+                // // if(peerChecksumObj){
+                //   let peerTimestamp = peerChecksumObj.timestamp;
+                //   let peerRandomOrder = peerChecksumObj.randomOrder;
+                //   let peerChecksum = peerChecksumObj.checksum
   
-                  let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
+                //   let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
                 
-                  if(isValid){
+                  if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
                     this.peersConnected[peerAddress] = socket;
                     this.nodeList.addNewAddress(peerAddress);
                     this.nodeEventHandlers(socket);
                   }else{
                     socket.emit('message', 'Connected to local node');
                     this.externalEventHandlers(socket);
-                  }
-                }
+                  } 
               }else{
                 //  logger('Peer is already connected to node')
                }
@@ -200,12 +199,7 @@ class Node {
   }
 
   findPeers(){
-    if(Object.keys(this.connectionsToPeers).length > 0){
-      logger('Requesting other peer addresses');
-      this.serverBroadcast('getPeers');
-    }else{
-      this.joinPeers();
-    }
+    //Use DHT
   }
 
   getNumberOfConnectionsToPeers(){
@@ -270,6 +264,11 @@ class Node {
             console.log(error)
           })
 
+          // peer.on('reconnect', ()=>{
+          //   logger(chalk.green('Successfully reconnected to ', address))
+          //   peer.emit('message', `${this.address} reconnected`);
+          // })
+
           peer.on('connect', () =>{
             if(!this.connectionsToPeers[address]){
 
@@ -288,10 +287,7 @@ class Node {
             }
           })
 
-          // peer.on('reconnect', ()=>{
-          //   logger(chalk.green('Successfully reconnected to ', address))
-          //   peer.emit('message', `${this.address} reconnected`);
-          // })
+          
 
           peer.on('blockchainStatus', async (status)=>{
             if(!this.isDownloading){
@@ -299,14 +295,14 @@ class Node {
             }
           })
 
-          peer.on('whisper', (whisper)=>{
-            let { type, originAddress, messageId, data, relayPeer }  = whisper;
-            this.handleWhisperMessage(type, originAddress, messageId, data, relayPeer);
-          })
+          // peer.on('whisper', (whisper)=>{
+          //   let { type, originAddress, messageId, data, relayPeer }  = whisper;
+          //   this.handleWhisperMessage(type, originAddress, messageId, data, relayPeer);
+          // })
 
-          peer.on('getAddr', ()=>{
-            peer.emit('addr', this.nodeList.addresses);
-          })
+          // peer.on('getAddr', ()=>{
+          //   peer.emit('addr', this.nodeList.addresses);
+          // })
 
           peer.on('disconnect', () =>{
             logger(`connection with peer ${address} dropped`);
@@ -403,90 +399,6 @@ class Node {
   })
   }
   
-  // requestChainHeaders(peer, startAt=0, length=0){
-  //   return new Promise((resolve, reject)=>{
-  //       if(peer){
-  //         if(!this.isDownloading){
-  //           let headers = [];
-  //           this.isDownloading = true;
-  //           process.SILENT = true;
-  //           logger(chalk.cyan('Fetching block headers from peer...'))
-    
-  //           peer.emit('getBlockHeader', startAt+1)
-    
-  //           let bar = Progress({
-  //             total:length - startAt,
-  //             finishMessage:'Fetched all block headers of blockchain!\n\n'
-  //           })
-
-  //           const closeDownloadChannel = (peer, bar) =>{
-  //             peer.off('block');
-  //             bar = null;
-  //             this.isDownloading = false;
-  //             process.SILENT = false;
-  //           }
-    
-  //           peer.on('blockHeader', async (header)=>{
-  //             if(header){
-  //               bar.op()
-  //               try{
-  //                   if(header.error){
-    
-  //                     logger(header.error)
-  //                     closeDownloadChannel(peer, bar)
-  //                     resolve({error:header.error})
-    
-  //                   }
-    
-  //                   if(header.end){
-    
-  //                     if(this.verbose) logger('Headers fully synced')
-  //                     closeDownloadChannel(peer, bar)
-  //                     resolve(headers)
-    
-  //                   }else {
-  //                     if(this.chain instanceof Blockchain){
-  //                       let alreadyInChain = await this.chain.getIndexOfBlockHash(header.hash);
-  //                       if(alreadyInChain){
-  //                         logger('ERROR: Header already in chain');
-  //                       }else{
-  //                         let isValidHeader = this.chain.validateBlockHeader(header)
-  //                         if(!isValidHeader){
-  //                           logger('ERROR: Is not valid header')
-  //                         }else{
-  //                           headers.push(header);
-  //                         }
-  //                       }
-  //                       peer.emit('getBlockHeader', header.blockNumber+1)
-  //                     }else{
-  //                       logger('ERROR: Blockchain not yet loaded')
-  //                       closeDownloadChannel(peer, bar)
-  //                       resolve({error:'ERROR: Blockchain not yet loaded'})
-  //                     }
-                      
-                      
-  //                   }
-  //               }catch(e){
-  //                 console.log(e)
-  //                 closeDownloadChannel(peer, bar)
-  //                 resolve({error:e})
-  //               }
-                
-  //             } 
-  //            })
-
-  //         }//If is already downloading, do nothing
-
-  
-  //       }else{
-  //         logger('ERROR: Header Request failed: Missing parameter');
-  //         closeDownloadChannel(peer, bar)
-  //         resolve({error:'ERROR: Header Request failed: Missing parameter'})
-  //       }
-      
-  //   })
-  // }
-
   downloadBlockchain(peer, startAtIndex=0, length){
     return new Promise(async (resolve)=>{
         if(peer){
@@ -667,13 +579,15 @@ class Node {
   receiveBlockchainStatus(peer, status){
     return new Promise(async (resolve) =>{
       if(this.chain instanceof Blockchain && peer && status){
-        let { totalChallenge, bestBlockHeader, length } = status;
+        let { totalDifficultyHex, bestBlockHeader, length } = status;
   
-        if(totalChallenge && bestBlockHeader && length){
+        if(totalDifficultyHex && bestBlockHeader && length){
           
-          let thisTotalChallenge = await this.chain.calculateWorkDone();
-  
-          if(thisTotalChallenge < totalChallenge){
+          let thisTotalDifficultyHex = await this.chain.getTotalDifficulty();
+          // Possible major bug, will not sync if chain is longer but has different block at a given height
+          let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
+          let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
+          if(thisTotalDifficulty < totalDifficulty){
             logger('Attempting to download blocks from peer')
             
             let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
@@ -795,62 +709,62 @@ class Node {
 
   }
 
-  whisper(type, data, relayPeer){
-    if(type){
-      try{
-        if(typeof data == 'object')
-          data = JSON.stringify(data);
-        var shaInput = (Math.random() * Date.now()).toString()
-        var messageId = sha256(shaInput);
-        this.messageBuffer[messageId] = messageId;
-        this.serverBroadcast('whisper', { 
-          'type':type, 
-          'messageId':messageId, 
-          'originAddress':this.address, 
-          'data':data,
-          'relayPeer':relayPeer
-        });
+  // whisper(type, data, relayPeer){
+  //   if(type){
+  //     try{
+  //       if(typeof data == 'object')
+  //         data = JSON.stringify(data);
+  //       var shaInput = (Math.random() * Date.now()).toString()
+  //       var messageId = sha256(shaInput);
+  //       this.messageBuffer[messageId] = messageId;
+  //       this.serverBroadcast('whisper', { 
+  //         'type':type, 
+  //         'messageId':messageId, 
+  //         'originAddress':this.address, 
+  //         'data':data,
+  //         'relayPeer':relayPeer
+  //       });
 
-      }catch(e){
-        console.log(chalk.red(e));
-      }
+  //     }catch(e){
+  //       console.log(chalk.red(e));
+  //     }
 
-    }
-  }
+  //   }
+  // }
 
-  handleWhisperMessage(type, originAddress, messageId, data, relayPeer){
-    let gossipMessage = { 
-      'type':type, 
-      'originAddress':originAddress, 
-      'messageId':messageId, 
-      'data':data, 
-      'relayPeer':relayPeer 
-    }
+  // handleWhisperMessage(type, originAddress, messageId, data, relayPeer){
+  //   let gossipMessage = { 
+  //     'type':type, 
+  //     'originAddress':originAddress, 
+  //     'messageId':messageId, 
+  //     'data':data, 
+  //     'relayPeer':relayPeer 
+  //   }
 
-    if(!this.messageBuffer[messageId]){
-      switch(type){
-        case 'blockchainStatus':
-          try{
-            let relayPeer = this.peersConnected[relayPeer];
-            let status = JSON.parse(data)
-            this.receiveBlockchainStatus(relayPeer, status)
-          }catch(e){
-            console.log(e)
-          }
+  //   if(!this.messageBuffer[messageId]){
+  //     switch(type){
+  //       case 'blockchainStatus':
+  //         try{
+  //           let relayPeer = this.peersConnected[relayPeer];
+  //           let status = JSON.parse(data)
+  //           this.receiveBlockchainStatus(relayPeer, status)
+  //         }catch(e){
+  //           console.log(e)
+  //         }
           
-          break;
-        case 'message':
-          logger(data)
-          break;
-        default:
-          break;
-      }
+  //         break;
+  //       case 'message':
+  //         logger(data)
+  //         break;
+  //       default:
+  //         break;
+  //     }
 
-        this.messageBuffer[messageId] = gossipMessage;
-        this.whisper('gossip', gossipMessage, this.address)
-    }
+  //       this.messageBuffer[messageId] = gossipMessage;
+  //       this.whisper('gossip', gossipMessage, this.address)
+  //   }
     
-  }
+  // }
 
   /**
     Relays certain console logs to the web UI
@@ -1129,7 +1043,7 @@ class Node {
       if(this.chain instanceof Blockchain){
         try{
           let status = {
-            totalChallenge: this.chain.getLatestBlock().totalChallenge,
+            totalDifficulty: this.chain.getTotalDifficulty(),
             bestBlockHeader: this.chain.getBlockHeader(this.chain.getLatestBlock().blockNumber),
             length: this.chain.chain.length
           }
@@ -1167,13 +1081,15 @@ class Node {
        }
      })
 
-     socket.on('getBlock', (blockNumber)=>{
+     socket.on('getBlock', async(blockNumber)=>{
       if(this.chain instanceof Blockchain){
         if(blockNumber && typeof blockNumber == 'number'){
-         
-          let block = this.chain.chain[blockNumber];
-          if(block){
-            
+          let localBlock = this.chain.chain[blockIndex];
+          
+          if(localBlock){
+            let block = this.chain.extractHeader(localBlock);
+            let transactions = await this.chain.confirmedTransactions.get(block.hash)
+            block.transactions = transactions;
             socket.emit('block', block)
             
           }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
@@ -1186,13 +1102,15 @@ class Node {
       }
      })
 
-     socket.on('getBlockFromHash', (hash)=>{
+     socket.on('getBlockFromHash', async(hash)=>{
       if(this.chain instanceof Blockchain){
         if(hash && typeof hash == 'string'){
          
           let blockIndex = this.chain.getIndexOfBlockHash(hash);
           if(blockIndex){
-            let block = this.chain.chain[blockIndex];
+            let block = await this.chain.extractHeader(this.chain.chain[blockIndex]);
+            let transactions = await this.chain.confirmedTransactions.get(block.hash)
+            block.transactions = transactions;
             if(block){
               
               socket.emit('blockFromHash', block)
@@ -1275,6 +1193,8 @@ class Node {
           totalSumTransited:block.totalSumTransited,
           coinbaseTransactionHash:block.coinbaseTransactionHash
         }
+
+        console.log(blockInfo)
       }else{
         blockInfo = {
           error: 'header not found'
@@ -1283,9 +1203,13 @@ class Node {
       socket.emit('header', blockInfo)
     })
 
-    socket.on('getBlock', (blockNumber)=>{
-      let block = this.chain.chain[blockNumber];
-      if(block){
+    socket.on('getBlock', async(blockNumber)=>{
+      
+      let hasBlock = this.chain.chain[blockNumber]
+      if(isValidBlockJSON(hasBlock)){
+        let block = this.chain.extractHeader(this.chain.chain[blockNumber])
+        let transactions = await this.chain.confirmedTransactions.get(block.hash)
+        block.transactions = transactions
         socket.emit('block', block)
       }else{
         socket.emit('block', {error:'ERROR: Block not found'})
@@ -1293,13 +1217,26 @@ class Node {
       
     })
 
-    socket.on('getBlockSize', (number)=>{
-      socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
+    socket.on('getChainSize', ()=>{
+      let size = Transaction.getTransactionSize(this.chain)
+      console.log('Total size of chain: ', size)
+
+      this.chain.chain.forEach( block=>{
+        let size = Transaction.getTransactionSize(block)
+        console.log(`Size of block ${block.blockNumber}: ${size}`)
+      })
+      // socket.emit('message', `Block number ${number-1} has ${Object.keys(this.chain.chain[number-1].transactions).length} transactions`)
     })
 
-    socket.on('resolveInvalidChain', ()=>{
-      this.validateBlockchain(true);
+    socket.on('dbtest',async(hash)=>{
+      this.chain.chain.forEach(async(b)=>{
+        let tx = await this.chain.confirmedTransactions.get(b.hash).catch(e => console.log('tx not found'))
+        console.log(tx)
+      })
+      
     })
+
+    
 
     socket.on('startMiner', ()=>{
       this.minerStarted = true;
@@ -1352,10 +1289,6 @@ class Node {
 
     socket.on('getMempool', ()=>{
       socket.emit('mempool', Mempool);
-    })
-
-    socket.on('selftest', ()=>{
-      this.minerEventHandler()
     })
     
     socket.on('test', async()=>{
@@ -1573,7 +1506,7 @@ class Node {
     })
   }
 
-  minerEventHandler(){
+  minerConnector(){
     //Listen port 3000
     let app = express().listen(parseInt(this.port)+2000, '127.0.0.1');
     this.minerServer = socketIo(app);
@@ -1722,15 +1655,23 @@ class Node {
               this.broadcast('peerMessage', peerMessage)
               break
             case 'newBlockFound':
-              console.log(peerMessage)
               let added = await this.handleNewBlockFound(data, relayPeer);
               if(added.error) logger(added.error);
               peerMessage.relayPeer = this.address;
               this.broadcast('peerMessage', peerMessage)
               break;
-            // case 'message':
-            //   logger(chalk.green('['+originAddress+']')+' -> '+data)
-            //   break;
+            case 'getAddress':
+              if(data){
+                if(originAddress){
+                  for(var i=0; i < Math.floor(this.nodeList.length/2); i++){
+
+                  }
+                  let randomSelectedPeers = Math.random() 
+                }
+              }
+              // this.handleGetAddress(data)
+              this.broadcast('peerMessage', peerMessage)
+              break;
           }
           // this.messageBuffer[messageId] = peerMessage;
           // this.broadcast('peerMessage', peerMessage)
@@ -1836,7 +1777,8 @@ class Node {
       chainLength:this.chain.chain.length,
       headBlockNumber:this.chain.getLatestBlock().blockNumber,
       headBlockHash:this.chain.getLatestBlock().hash,
-      lastBlockTime:displayDate(new Date(this.chain.getLatestBlock().endMineTime)),
+      lastBlockTime:displayDate(new Date(this.chain.getLatestBlock().timestamp)),
+      totalDifficulty:this.chain.getTotalDifficulty(),
       minedBy:this.chain.getLatestBlock().minedBy,
     }
     return info
@@ -1948,57 +1890,7 @@ class Node {
     }
   }
 
-   //could be moved to Blockchain.js
-  // compareHeaders(headers){
-  //   // logger(headers)
-  //   if(this.chain instanceof Blockchain){
-  //     if(headers){
-  //       for(var i=0; i < headers.length; i++){
-
-  //         var header = headers[i]
-  //         var localBlockHeader = this.chain.getBlockHeader(i);
-
-  //         try{
-            
-  //           if(i > 1 && isValidHeaderJSON(header)){
-  //             let isValid = this.chain.validateBlockHeader(header);
-  //             let containsBlock = localBlockHeader.hash == header.hash;
-              
-
-  //             if(!containsBlock) {
-  //               console.log('Does not contain block ',i)
-  //               return i
-  //             };
-  //             if(!isValid){
-  //               console.log('Is not valid ', i);
-  //               console.log(sha256(header.previousHash + header.timestamp + header.merkleRoot + header.nonce))
-                
-  //               console.log('Block Hash:', block.hash);
-  //               console.log('Header Hash',header.hash);
-  //               console.log(sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce))
-                
-  //               console.log('Previous hash', header.previousHash);
-  //               console.log('Timestamp', header.timestamp);
-  //               console.log('Merkle', header.merkleRoot);
-  //               console.log('Nonce', header.nonce)
-  //               return false;
-  //             }
-  //             if(headers.length < this.chain.chain.length){
-  //               logger('This chain is longer than peer chain')
-  //               return false;
-  //             } 
-  //           }
-
-  //         }catch(e){
-  //           console.log(e)
-  //         }
-
-
-  //       }
-  //       return true;
-  //     }
-  //   }
-  // }
+ 
 
    /**
     @param {number} $number - Index of block from which to show block creation time
@@ -2180,11 +2072,6 @@ class Node {
     this.startMiner();
   }
 
-
-  update(){
-    this.gossip('getBlockchainStatus')
-  }
-
   /**
     @desc Miner loop can be launched via the web UI or upon Node boot up
   */
@@ -2217,17 +2104,17 @@ class Node {
     }
   }
 
-  unwrapBlock(block){
-    if(isValidBlockJSON(block)){
-      let transactionsOfCancelledBlock = block.transactions;
-      let actionsOfCancelledBlock = block.actions
-      Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
-      Mempool.putbackPendingActions(actionsOfCancelledBlock)
-      this.cashInCoinbaseTransactions();
-    }
+  // unwrapBlock(block){
+  //   if(isValidBlockJSON(block)){
+  //     let transactionsOfCancelledBlock = block.transactions;
+  //     let actionsOfCancelledBlock = block.actions
+  //     Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
+  //     Mempool.putbackPendingActions(actionsOfCancelledBlock)
+  //     this.cashInCoinbaseTransactions();
+  //   }
     
     
-  }
+  // }
 
   cashInCoinbaseTransactions(){
     return new Promise((resolve, reject)=>{
@@ -2303,9 +2190,6 @@ class Node {
     
   }
 
-  closeNode(){
-
-  }
 
   async loadNodeConfig(){
     fs.exists('./config/nodeconfig.json', async (exists)=>{

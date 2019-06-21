@@ -17,11 +17,10 @@ const chalk = require('chalk');
 const merkle = require('merkle');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
-const JSONStream = require("JSONStream").stringifyObject("{",",","}")
 const fs = require('fs');
 const jsonc = require('jsonc')
-const lzString = require('lz-string')
 let _ = require('private-parts').createKey();
+const level = require('level')
 
 /**
   * @desc Basic blockchain class.
@@ -32,9 +31,9 @@ let _ = require('private-parts').createKey();
 */
 class Blockchain{
 
-  constructor(chain=false, difficulty=1){
-    this.chain = (chain? chain: [this.createGenesisBlock()]);
-    this.difficulty = difficulty;
+  constructor(chain=false){
+    this.chain = (chain?chain:[])
+    this.confirmedTransactions = level('transactions', { valueEncoding:'json' })
     this.blockFork = []
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
@@ -42,7 +41,7 @@ class Blockchain{
     this.transactionSizeLimit = 10 * 1024;
   }
 
-  createGenesisBlock(){
+  async createGenesisBlock(){
     //Initial Nonce Challenge is 10 000 000
     let genesisBlock = new Block(1554987342039, {
       'first':new Transaction('coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions'),
@@ -54,11 +53,9 @@ class Blockchain{
     genesisBlock.challenge = setNewChallenge(genesisBlock)//average 150 000 nonce/sec
     genesisBlock.endMineTime = Date.now();
     genesisBlock.maxCoinSupply = Math.pow(10, 10);
-    genesisBlock.previousHash = ( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge )
+    genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
     genesisBlock.calculateHash();
-
-    
-    
+    this.confirmedTransactions.put(genesisBlock.hash, genesisBlock.transactions)
     return genesisBlock;
   }
 
@@ -69,7 +66,6 @@ class Blockchain{
   static initBlockchain(){
     return new Promise(async (resolve, reject)=>{
       let blockchain = {};
-      let blockchainObject = {};
 
       const instanciateBlockchain = (chainObj) =>{
         return new Blockchain(chainObj.chain, chainObj.difficulty)
@@ -93,27 +89,15 @@ class Blockchain{
           
           blockchain = instanciateBlockchain(blockchainObject);
           resolve(blockchain);
-
-         
-          // if(blockchainFile){
-          //   // try{
-          //   //   blockchainObject = JSON.parse(blockchainFile);
-              
-          //   // }catch(e){
-          //   //   console.log(e);
-          //   //   resolve(false);
-          //   // }
-          // }else{
-          //   logger('ERROR: Could not read blockchain file')
-          //   resolve(false)
-          // }
-          
   
         }else{
   
           logger('Blockchain file does not exist')
           logger('Generating new blockchain')
+          
           let newBlockchain = new Blockchain();
+          let genesisBlock = await newBlockchain.createGenesisBlock()
+          newBlockchain.chain.push(newBlockchain.extractHeader(genesisBlock))
           newBlockchain.saveBlockchain();
           resolve(newBlockchain);
         }
@@ -130,7 +114,8 @@ class Blockchain{
         if(isValidBlock){
           var isLinked = this.isBlockLinked(newBlock);
           if(isLinked){
-            this.chain.push(newBlock);
+            let txConfirmed = await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
+            this.chain.push(this.extractHeader(newBlock));
 
             if(verbose){
               logger(chalk.green('* Synced new block ')+newBlock.blockNumber);
@@ -173,10 +158,10 @@ class Blockchain{
           logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
           logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
           if(this.getLatestBlock().blockFork){
-            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
+            this.getLatestBlock().blockFork[newBlock.hash] = this.extractHeader(newBlock);
           }else{
             this.getLatestBlock().blockFork = {}
-            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
+            this.getLatestBlock().blockFork[newBlock.hash] = this.extractHeader(newBlock);
           }
           
           resolve(
@@ -210,6 +195,7 @@ class Blockchain{
                 let orphanedBranch = this.chain.splice(-1, numOfBlocksToRemove);
                 //add blocks of the parallel branch one by one
                 parallelBranch.forEach( async (block)=>{
+
                   let added = await this.pushBlock(block, false)
                   if(added.error) resolve({error:added.error})
                   logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
@@ -254,8 +240,8 @@ class Blockchain{
             if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
 
             //Raising block fork one block higher
-            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
-
+            this.getLatestBlock().blockFork[newBlock.hash] = this.extractHeader(newBlock);
+            await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
             resolve(
               {
                 fork:{
@@ -270,8 +256,8 @@ class Blockchain{
             let forkedBlock = thirdLastBlock.blockFork[newBlock.previousHash];
             if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
             //Raising block fork one block higher
-            this.chain[thirdLastBlock.blockNumber + 1].blockFork[newBlock.hash] = newBlock;
-
+            this.chain[thirdLastBlock.blockNumber + 1].blockFork[newBlock.hash] = this.extractHeader(newBlock);
+            await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
             resolve(
               {
                 fork:{
@@ -303,11 +289,13 @@ class Blockchain{
           logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
           logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
           if(this.getLatestBlock().blockFork){
-            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
+            this.getLatestBlock().blockFork[newBlock.hash] = this.extractHeader(newBlock);
           }else{
             this.getLatestBlock().blockFork = {}
-            this.getLatestBlock().blockFork[newBlock.hash] = newBlock;
+            this.getLatestBlock().blockFork[newBlock.hash] = this.extractHeader(newBlock);
           }
+
+          await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
           
           resolve(
           {
@@ -324,7 +312,7 @@ class Blockchain{
             if(newBlock && previousBlock){
               let forkedBlock = previousBlock.blockFork[newBlock.previousHash];
               if(!forkedBlock) return {error:'ERROR: Forked block not found'};
-              this.chain[previousBlock.blockNumber + 1].blockFork[newBlock.hash] = newBlock;
+              this.chain[previousBlock.blockNumber + 1].blockFork[newBlock.hash] = this.extractHeader(newBlock);
         
               return true
             }
@@ -495,68 +483,68 @@ class Blockchain{
 
   }
 
-  async mineNextBlock(block, ipAddress, verbose){
-    return new Promise((resolve)=>{
-      let lastBlock = this.selectNextPreviousBlock();
-      block.blockNumber = this.chain.length;
-      block.previousHash = lastBlock.hash;
-      block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
-      block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
+//   async mineNextBlock(block, ipAddress, verbose){
+//     return new Promise((resolve)=>{
+//       let lastBlock = this.selectNextPreviousBlock();
+//       block.blockNumber = this.chain.length;
+//       block.previousHash = lastBlock.hash;
+//       block.challenge = setChallenge(lastBlock.challenge, lastBlock.startMineTime, lastBlock.endMineTime)
+//       block.difficulty = setDifficulty(lastBlock.difficulty, lastBlock.challenge, this.chain.length);
       
-      logger('Current Challenge:', block.challenge)
-      logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
-      block.mine(block.difficulty)
-      .then(async (success)=>{
+//       logger('Current Challenge:', block.challenge)
+//       logger(chalk.cyan('Adjusted difficulty to :', block.difficulty))
+//       block.mine(block.difficulty)
+//       .then(async (success)=>{
         
-        process.ACTIVE_MINER.kill()
-        process.ACTIVE_MINER = false;
+//         process.ACTIVE_MINER.kill()
+//         process.ACTIVE_MINER = false;
         
-        if(success){ 
-          block = success;
-          if(this.validateBlock(block)){
+//         if(success){ 
+//           block = success;
+//           if(this.validateBlock(block)){
 
-            block.totalChallenge = await this.calculateWorkDone() + block.nonce;
-            block.minedBy = ipAddress;
-            this.pushBlock(block, false);
+//             block.totalChallenge = await this.calculateWorkDone() + block.nonce;
+//             block.minedBy = ipAddress;
+//             this.pushBlock(block, false);
 
-            if(!verbose){
+//             if(!verbose){
 
-              console.log(chalk.cyan('\n********************************************************************'))
-              console.log(chalk.cyan('* Block number : ')+block.blockNumber);
-              console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
-              console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
-              console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-              console.log(chalk.cyan("* Challenge : "), block.challenge);
-              console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
-              console.log(chalk.cyan("* Nonce : "), block.nonce)
-              console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
-              console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
-              console.log(chalk.cyan('********************************************************************\n'))
+//               console.log(chalk.cyan('\n********************************************************************'))
+//               console.log(chalk.cyan('* Block number : ')+block.blockNumber);
+//               console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
+//               console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
+//               console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+//               console.log(chalk.cyan("* Challenge : "), block.challenge);
+//               console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+//               console.log(chalk.cyan("* Nonce : "), block.nonce)
+//               console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
+//               console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
+//               console.log(chalk.cyan('********************************************************************\n'))
               
-            }else{
-              let header = this.extractHeader(block)
-              console.log(chalk.cyan(JSON.stringify(header, null, 2)))
-            }
+//             }else{
+//               let header = this.extractHeader(block)
+//               console.log(chalk.cyan(JSON.stringify(header, null, 2)))
+//             }
             
-            resolve(success);
+//             resolve(success);
 
-          }else{
-            // logger('Block is not valid');
-            resolve(false)
+//           }else{
+//             // logger('Block is not valid');
+//             resolve(false)
             
-          }
-        }else{
-          // logger('Mining aborted. Peer has mined a new block');
-          resolve(false)
-        }
+//           }
+//         }else{
+//           // logger('Mining aborted. Peer has mined a new block');
+//           resolve(false)
+//         }
 
         
 
-      })
-    })
+//       })
+//     })
     
 
-  }
+//   }
 
   calculateWorkDone(chain=this.chain){
     let total = 0;
@@ -662,7 +650,7 @@ class Blockchain{
         return false;
       }
         for(var block of this.chain){
-          
+          let transaction = this.confirmedTransactions
           for(var transHash of Object.keys(block.transactions)){
             
             trans = block.transactions[transHash]
@@ -699,6 +687,58 @@ class Blockchain{
 
   }
 
+  getBalance(publicKey){
+      return new Promise(async (resolve)=>{
+        var address = publicKey;
+        let balance = 0;
+        var trans;
+        var action;
+        if(!publicKey){
+          logger("ERROR: Can't get balance of undefined publickey")
+          resolve(false)
+        }
+          for(var block of this.chain){
+            let transactions = await this.confirmedTransactions.get(block.hash)
+            if(transactions){
+                for(var transHash of Object.keys(transactions)){
+              
+                    trans = transactions[transHash]
+                    if(trans){
+                      if(trans.fromAddress == address){
+        
+                        balance = balance - trans.amount - trans.miningFee;
+                      }
+        
+                      if(trans.toAddress == address){
+        
+                        balance = balance + trans.amount;
+                      }
+        
+                    }
+                    
+        
+                  }
+                  if(transactions.actions){
+                    for(var actionHash of Object.keys(transactions.actions)){
+                      action = transactions.actions[actionHash]
+                      if(action){
+                        if(action.fromAccount.publicKey == address){
+                          balance = balance - action.fee;
+                        }
+                      }
+                    }
+                  }
+            }
+
+  
+          }
+  
+        resolve(balance)
+      })
+    
+
+  }
+
   gatherMiningFees(block){
     if(block){
       let reward = 0;
@@ -717,12 +757,35 @@ class Blockchain{
 
   }
 
+  getMiningFees(block){
+      return new Promise(async(resolve)=>{
+        if(block){
+            let reward = 0;
+            let transactions = await this.confirmedTransactions.get(block.hash)
+            
+            var txHashes = Object.keys(transactions);
+            var actionHashes = Object.keys(transactions.actions);
+            for(var hash of txHashes){
+              reward += transactions[hash].miningFee;
+            }
+      
+            for(var hash of actionHashes){
+              reward += transactions.actions[hash].fee;
+            }
+      
+           resolve(reward)
+          }
+      })
+
+  }
+
   calculateTotalMiningRewards(){
     let amountOfReward = 0;
-    this.chain.forEach( block =>{
-      let txHashes = Object.keys(block.transactions);
+    this.chain.forEach( async(block) =>{
+    let transactions = await this.confirmedTransactions.get(block.hash)
+      let txHashes = Object.keys(transactions);
       txHashes.forEach( hash =>{
-        let tx = block.transactions[hash];
+        let tx = transactions[hash];
         if(tx.fromAddress == 'coinbase'){
           amountOfReward += tx.amount;
         }
@@ -780,7 +843,7 @@ class Blockchain{
 
   }
 
-  getTransactionHistory(publicKey){
+  async getTransactionHistory(publicKey){
     if(publicKey){
       var address = publicKey;
       var history = {
@@ -798,8 +861,9 @@ class Blockchain{
       }
         for(var block of this.chain){
           // logger(block);
-          for(var transHash of Object.keys(block.transactions)){
-            trans = block.transactions[transHash]
+          let transactions = await this.confirmedTransactions.get(block.hash)
+          for(var transHash of Object.keys(transactions)){
+            trans = transactions[transHash]
             if(trans){
               if(trans.fromAddress == address){
                 history.sent[trans.hash] = trans
@@ -837,7 +901,8 @@ class Blockchain{
   getTransactionFromChain(hash){
     let tx = {}
     if(hash){
-      this.chain.forEach(block =>{
+      this.chain.forEach(async (block) =>{
+        let transactions = await this.confirmedTransactions.get(block.hash)
         if(block.transactions[hash]){
           //need to avoid collision
           tx = block.transactions[hash];
@@ -873,6 +938,16 @@ class Blockchain{
     }
 
     return true;
+  }
+
+  getTotalDifficulty(){
+      let total = BigInt(1);
+
+      this.chain.forEach( block=>{
+        total += BigInt(parseInt(block.difficulty, 16))
+      })
+
+      return total.toString(16);
   }
 
 
@@ -1019,7 +1094,6 @@ class Blockchain{
           actionMerkleRoot:block.actionMerkleRoot,
           difficulty:block.difficulty,
           challenge:block.challenge,
-          totalChallenge:block.totalChallenge,
           minedBy:block.minedBy,
         }
 
@@ -1043,7 +1117,6 @@ class Blockchain{
           actionMerkleRoot:block.actionMerkleRoot,
           difficulty:block.difficulty,
           challenge:block.challenge,
-          totalChallenge:block.totalChallenge,
           minedBy:block.minedBy,
         }
 
@@ -1288,7 +1361,7 @@ class Blockchain{
 
             let isNotCircular = transaction.fromAddress !== transaction.toAddress;
            
-            var balanceOfSendingAddr = this.getBalanceOfAddress(transaction.fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+            var balanceOfSendingAddr = await this.getBalance(transaction.fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
            
             var amountIsNotZero = transaction.amount > 0;
 
@@ -1431,7 +1504,7 @@ class Blockchain{
           let isChecksumValid = await this.validateActionChecksum(action);
           let hasMiningFee = action.fee > 0; //check if amount is correct
           let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
-          let balanceOfSendingAddr = this.getBalanceOfAddress(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
+          let balanceOfSendingAddr = await this.getBalance(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
           let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
           let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
           let isCreateAccount = action.type == 'account' && action.task == 'create';
@@ -1584,31 +1657,31 @@ class Blockchain{
     return found
   }
 
-  async waitFiveBlocks(transaction){
-    return new Promise((resolve, reject) =>{
-      let latestBlock = this.getLatestBlock()
-      if(latestBlock && latestBlock.hasOwnProperty('blockNumber')){
-        this.chain.forEach( block =>{
+//   async waitFiveBlocks(transaction){
+//     return new Promise((resolve, reject) =>{
+//       let latestBlock = this.getLatestBlock()
+//       if(latestBlock && latestBlock.hasOwnProperty('blockNumber')){
+//         this.chain.forEach( block =>{
           
-          if(block.coinbaseTransactionHash == transaction.hash){
+//           if(block.coinbaseTransactionHash == transaction.hash){
             
-            let blocksPast = this.chain.length - block.blockNumber;
-            if(blocksPast > 5){
+//             let blocksPast = this.chain.length - block.blockNumber;
+//             if(blocksPast > 5){
               
-              resolve(true)
-            }else{
-              resolve(false)
-            }
+//               resolve(true)
+//             }else{
+//               resolve(false)
+//             }
             
-          }
-        })
+//           }
+//         })
         
-      }else{
-        resolve(false)
-      }
-    })
+//       }else{
+//         resolve(false)
+//       }
+//     })
     
-  }
+//   }
 
   
 
@@ -1617,8 +1690,10 @@ class Blockchain{
       try{
         
         // let saved = await writeToFile(this, './data/blockchain.json');
-
-        let data = await jsonc.stringify(this);
+        let chain = {
+            chain:this.chain
+        } 
+        let data = await jsonc.stringify(chain);
 
         if(data){
           const [err, success] = await jsonc.safe.write('./data/blockchain.json', data);

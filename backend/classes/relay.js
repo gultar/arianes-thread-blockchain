@@ -8,6 +8,7 @@ const helmet = require('helmet');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 const { logger, readFile } = require('../tools/utils');
+const NodeList = require('./nodelist')
 const sha256 = require('../tools/sha256');
 const sha1 = require('sha1');
 const axios = require('axios');
@@ -15,30 +16,23 @@ const chalk = require('chalk');
 const fs = require('fs');
 
 class Relay{
-    constructor(address, port){
-        this.address = 'http://'+address+':'+port,
-        this.port = port
-        this.id = sha1(this.address);
-        this.ioServer = {};
-        this.userInterfaces = [];
-        this.peersConnected = {};
-        this.connectionsToPeers = {};
-        this.nodeList = []
-        this.messageBuffer = {};
-        this.verbose = false;
-        this.longestChain = {
-          length:0,
-          peerAddress:''
-        }  //Serves to store messages from other nodes to avoid infinite feedback
+    constructor(options){
+      //Basic node configs
+      this.address = (options.address ? options.address : 'http://localhost:8000');
+      this.port = (options.port ? options.port : 8000)
+      this.id = (options.id ? options.id : sha1(Math.random() * Date.now()))
+      this.publicKey = (options.publicKey ? options.publicKey : 'unkown');
+      this.verbose = (options.verbose ? true : false);
+      this.messageBufferCleanUpDelay = (options.cleanupDelay ? options.cleanupDelay : 30 * 1000);
+      this.messageBuffer = {};
+      this.peersConnected = {}; //From ioServer to ioClient
+      this.connectionsToPeers = {}; //From ioClient to ioServer
+      this.nodeList = new NodeList();
     }
 
     startServer(app=express()){
       try{
-  
-        console.log(chalk.cyan('\n******************************************'))
-        console.log(chalk.cyan('*')+' Starting node at '+this.address);
-        console.log(chalk.cyan('******************************************\n'))
-        // const expressWs = require('express-ws')(app);
+        logger(`Starting relay server at ${this.address}`)
         app.use(express.static(__dirname+'/views'));
         express.json({ limit: '300kb' })
         app.use(helmet())
@@ -47,41 +41,27 @@ class Relay{
         this.cleanMessageBuffer();
         this.ioServer = socketIo(server, {'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':false });
         
-      }catch(e){
-        console.log(chalk.red(e));
-      }
-  
+     
       this.ioServer.on('connection', (socket) => {
         if(socket){
            if(socket.handshake.query.token !== undefined){
-               try{
-                 socket.on('message', (msg) => { logger('Client:', msg); });
-  
-                 let peerToken = JSON.parse(socket.handshake.query.token);
-                 let peerAddress = peerToken.address;
-                 let peerPublicKey = peerToken.publicKey
-                 let peerChecksumObj = peerToken.checksum;
-  
-                 if(peerChecksumObj){
-                  let peerTimestamp = peerChecksumObj.timestamp;
-                  let peerRandomOrder = peerChecksumObj.randomOrder;
-                  let peerChecksum = peerChecksumObj.checksum
-  
-                  let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
+            if(!this.peersConnected[socket.handshake.headers.host]){
+                socket.on('message', (msg) => { logger('Client:', msg); });
+ 
+                let peerToken = JSON.parse(socket.handshake.query.token);
+                let peerAddress = peerToken.address;
+               
+                 if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
+                   this.peersConnected[peerAddress] = socket;
+                   this.nodeEventHandlers(socket);
+                 }else{
+                  socket.emit('message', 'Connected to local node');
+                  this.externalEventHandlers(socket);
+                 } 
                 
-                  if(isValid){
-                    this.peersConnected[peerAddress] = socket;
-                    this.nodeEventHandlers(socket);
-                  }
-                 }
-                 
-  
-                 
-  
-               }catch(e){
-                 console.log(chalk.red(e))
-               }
-  
+            }else{
+              //  logger('Peer is already connected to node')
+            }
            }else{
              socket.emit('message', 'Connected to local node')
              this.externalEventHandlers(socket);
@@ -95,7 +75,11 @@ class Relay{
       this.ioServer.on('disconnect', ()=>{ logger('a node has disconnected') })
   
       this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
-    }
+     
+      }catch(e){
+        console.log(chalk.red(e))
+      }
+   }
 
     joinPeers(){
       try{
@@ -156,25 +140,17 @@ class Relay{
               if(!this.connectionsToPeers.hasOwnProperty(address)){
   
                 logger(chalk.green('Connected to ', address))
-                peer.emit('message', 'Peer connection established by '+ this.address+' at : '+ displayTime());
+                peer.emit('message', 'Connection established by '+ this.address);
                 peer.emit('connectionRequest', this.address);
                 this.sendPeerMessage('addressBroadcast');
                 
                 this.connectionsToPeers[address] = peer;
-                
+                this.nodeList.addNewAddress(address)
               }else{
                 logger('Already connected to target node')
               }
             })
-  
-            peer.on('message', (message)=>{
-                logger('Server: ' + message);
-            })
-  
-            peer.on('getAddr', ()=>{
-              peer.emit('addr', this.nodeList.addresses);
-            })
-  
+
             peer.on('disconnect', () =>{
               logger('connection with peer dropped');
               delete this.connectionsToPeers[address];
@@ -186,13 +162,12 @@ class Relay{
               callback(peer)
             }
   
-  
-  
-          }catch(err){
-            logger(err);
+          }catch(e){
+            console.log(e);
           }
   
         }else{
+          
         }
   
       }
@@ -220,13 +195,6 @@ class Relay{
     serverBroadcast(eventType, data){
       this.ioServer.emit(eventType, data);
     }
-    // outputToUI(message, arg){
-
-    // }
-
-    // initHTTPAPI(app){
-
-    // }
 
     nodeEventHandlers(socket){
       if(socket){
@@ -267,7 +235,13 @@ class Relay{
     }
 
     externalEventHandlers(socket){
+      socket.on('getKnownPeers', ()=>{
+        socket.emit('knownPeers', this.nodeList.addresses);
+      })
 
+      socket.on('addPeer', (address)=>{
+        this.nodeList.addNewAddress(address)
+      })
     }
 
     sendPeerMessage(type, data){
@@ -278,7 +252,13 @@ class Relay{
           var shaInput = (Math.random() * Date.now()).toString()
           var messageId = sha256(shaInput);
           this.messageBuffer[messageId] = messageId;
-          this.broadcast('peerMessage', { 'type':type, 'messageId':messageId, 'originAddress':this.address, 'data':data });
+          this.broadcast('peerMessage', { 
+            'type':type, 
+            'messageId':messageId, 
+            'originAddress':this.address, 
+            'data':data,
+            'relayPeer':this.address
+           });
   
         }catch(e){
           console.log(chalk.red(e));
@@ -288,30 +268,34 @@ class Relay{
     }
 
     handlePeerMessage(type, originAddress, messageId, data){
-      let peerMessage = { 'type':type, 'originAddress':originAddress, 'messageId':messageId, 'data':data }
+      if(data){
+        try{
+          let peerMessage = { 
+            'type':type, 
+            'originAddress':originAddress, 
+            'messageId':messageId, 
+            'data':data,
+            'relayPeer':relayPeer 
+          }
+    
+          if(!this.messageBuffer[messageId]){
   
-      if(!this.messageBuffer[messageId]){
-        switch(type){
-          case 'transaction':
-            //Validate transaction;
-            //if valid broadcast, if invalid block
-            break;
-          case 'newBlock':
-            //store only latest block
-            //If peer is looking for data, query peer full nodes
-            break;
-          case 'whoisLongestChain':
-            //return current longestchain
-            break;
-          case 'message':
-            logger(chalk.green('['+originAddress+']')+' -> '+data)
-            break;
+            this.messageBuffer[messageId] = peerMessage;
   
-  
-        }
-        logger(`Forwarding ${type} message to other nodes`)
-        this.messageBuffer[messageId] = peerMessage;
-        this.broadcast('peerMessage', peerMessage)
+            switch(type){
+              case 'newBlockFound':
+                //Do something to avoid leaving a node without
+                //block download
+                break;
+              default:
+                  this.broadcast('peerMessage', peerMessage)
+                break;
+            }
+            
+          }
+        }catch(e){
+          console.log(e)
+        }  
       }
     }
 
@@ -425,9 +409,12 @@ const tryOut = () =>{
   let nodes = [];
   let numberOfNodesToGenerate = 4
   for(var i=0; i<numberOfNodesToGenerate ;i++){
-    let address = '10.10.10.10';
+    let address = 'http://localhost:';
     let port = 9000 + i;
-    var node = new Relay(address, port);
+    var node = new Relay({
+      address:address+port,
+      port:port
+    });
     nodes.push(node);
   }
 
@@ -435,6 +422,8 @@ const tryOut = () =>{
     for(var y=0; y<numberOfNodesToGenerate ;y++){
       nodes[y].startServer();
     }
+
+    
 
     for(var x=0; x<numberOfNodesToGenerate-1 ; x++){
       let currentNode = nodes[x];

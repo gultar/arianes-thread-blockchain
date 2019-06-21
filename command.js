@@ -129,7 +129,7 @@ process.on('SIGINT', () => {
     process.ACTIVE_MINER.kill()
   }
 
-  node.closeNode()
+  // node.closeNode()
   
   node.save()
   .then((saved)=>{
