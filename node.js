@@ -131,42 +131,21 @@ class Node {
   
         this.ioServer.on('connection', (socket) => {
           if(socket){
-            if(socket.handshake.query.token !== undefined){
-                  
-               if(!this.peersConnected[socket.handshake.headers.host]){
-                socket.on('message', (msg) => { logger('Client:', msg); });
-                let peerToken = JSON.parse(socket.handshake.query.token);
-                let peerAddress = peerToken.address;
-                  
-                // let peerPublicKey = peerToken.publicKey
-                // let peerChecksumObj = peerToken.checksum;
-  
-                // // if(peerChecksumObj){
-                //   let peerTimestamp = peerChecksumObj.timestamp;
-                //   let peerRandomOrder = peerChecksumObj.randomOrder;
-                //   let peerChecksum = peerChecksumObj.checksum
-  
-                //   let isValid = this.validateChecksum(peerTimestamp, peerRandomOrder);
-                
-                  if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
-                    this.peersConnected[peerAddress] = socket;
-                    this.nodeList.addNewAddress(peerAddress);
-                    this.nodeEventHandlers(socket);
-                  }else{
-                    socket.emit('message', 'Connected to local node');
-                    this.externalEventHandlers(socket);
-                  } 
-              }else{
-                //  logger('Peer is already connected to node')
-               }
-                
-               
-                 
-                  
+            if(!this.peersConnected[socket.handshake.headers.host]){
+              socket.on('message', (msg) => { logger('Client:', msg); });
+              
+                if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){
+                  this.peersConnected[peerAddress] = socket;
+                  this.nodeList.addNewAddress(peerAddress);
+                  this.nodeEventHandlers(socket);
+                }else{
+                  socket.emit('message', 'Connected to local node');
+                  this.externalEventHandlers(socket);
+                } 
             }else{
-              socket.emit('message', 'Connected to local node')
-              this.externalEventHandlers(socket);
+              //  logger('Peer is already connected to node')
             }
+            
           }else{
             logger(chalk.red('ERROR: Could not create socket'))
           }
