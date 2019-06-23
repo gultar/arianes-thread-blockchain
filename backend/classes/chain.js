@@ -19,9 +19,9 @@ const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
 const fs = require('fs');
 const jsonc = require('jsonc')
+const LoopyLoop = require('loopyloop')
 let _ = require('private-parts').createKey();
-const level = require('level')
-
+const PouchDB = require('pouchdb');
 /**
   * @desc Basic blockchain class.
   * @param {number} $difficulty - block mining difficulty;
@@ -33,7 +33,7 @@ class Blockchain{
 
   constructor(chain=false){
     this.chain = (chain?chain:[])
-    this.confirmedTransactions = level('transactions', { valueEncoding:'json' })
+    this.chainDB = new PouchDB('./data/chainDB');
     this.blockFork = []
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
@@ -42,21 +42,31 @@ class Blockchain{
   }
 
   async createGenesisBlock(){
-    //Initial Nonce Challenge is 10 000 000
-    let genesisBlock = new Block(1554987342039, {
-      'first':new Transaction('coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions'),
-      'second':new Transaction('coinbase',"AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6", 10000, 'ICO transactions'),
-      'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
-      'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
-    }, {});
-    genesisBlock.difficulty = '0x100000'//'0x2A353F';
-    genesisBlock.challenge = setNewChallenge(genesisBlock)//average 150 000 nonce/sec
-    genesisBlock.endMineTime = Date.now();
-    genesisBlock.maxCoinSupply = Math.pow(10, 10);
-    genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
-    genesisBlock.calculateHash();
-    this.confirmedTransactions.put(genesisBlock.hash, genesisBlock.transactions)
-    return genesisBlock;
+    return new Promise(async (resolve)=>{
+        let genesisBlock = new Block(1554987342039, {
+            'first':new Transaction('coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions'),
+            'second':new Transaction('coinbase',"AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6", 10000, 'ICO transactions'),
+            'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
+            'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
+          }, {});
+          genesisBlock.difficulty = '0x100000'//'0x2A353F';
+          genesisBlock.challenge = setNewChallenge(genesisBlock)//average 150 000 nonce/sec
+          genesisBlock.maxCoinSupply = Math.pow(10, 10);
+          genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
+          genesisBlock.calculateHash();
+          let newEntry = { [genesisBlock.hash]: genesisBlock.transactions }
+          let addedGenesisTx = await this.chainDB.put({
+              _id:genesisBlock.hash,
+              [genesisBlock.hash]:genesisBlock.transactions
+          })
+          .catch(e => console.log(e))
+
+          if(addedGenesisTx){
+              resolve(genesisBlock)
+          }else{
+              reject('ERROR: Could not create genesis block')
+          }
+    })
   }
 
   getLatestBlock(){
@@ -114,23 +124,41 @@ class Blockchain{
         if(isValidBlock){
           var isLinked = this.isBlockLinked(newBlock);
           if(isLinked){
-            let txConfirmed = await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
+            
             this.chain.push(this.extractHeader(newBlock));
-
-            if(verbose){
-              logger(chalk.green('* Synced new block ')+newBlock.blockNumber);
-              logger(chalk.green('* Block hash : ')+ newBlock.hash.substr(0, 25)+"...");
-              logger(chalk.green('* Previous Hash hash : ')+ newBlock.previousHash.substr(0, 25)+"...")
-              logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length);
-              logger(chalk.green('* Number of actions : '), Object.keys(newBlock.actions).length);
-              logger(chalk.green('* By: '), newBlock.minedBy)
-            }else{
-              logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
-            }
-            
-            Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-            resolve(true);
-            
+                if(verbose){
+                    logger(chalk.green('* Synced new block ')+newBlock.blockNumber);
+                    logger(chalk.green('* Block hash : ')+ newBlock.hash.substr(0, 25)+"...");
+                    logger(chalk.green('* Previous Hash hash : ')+ newBlock.previousHash.substr(0, 25)+"...")
+                    logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length);
+                    logger(chalk.green('* Number of actions : '), Object.keys(newBlock.actions).length);
+                    logger(chalk.green('* By: '), newBlock.minedBy)
+                  }else{
+                    logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
+                  }
+                  let exists = await this.chainDB.get(newBlock.hash).catch(e => {})
+                  if(!exists){
+                    let txConfirmed = await this.chainDB.put({
+                        _id:newBlock.hash,
+                        [newBlock.hash]:newBlock.transactions
+                    })
+                    .catch(e => console.log(e))
+                     
+                    if(txConfirmed){
+                      Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                      resolve(true);
+                    }else{
+                        logger('ERROR: Could not add transactions to database')
+                        resolve(false)
+                    }
+                  }else{
+                    logger('WARNING: Block transactions already exist for block:', newBlock.hash.substr(0, 25))
+                    Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                    resolve(true)
+                  }
+                 
+                  
+           
           }else{
             let isBlockFork = await this.createBlockBranch(newBlock)
             if(isBlockFork.fork) resolve({fork:isBlockFork.fork});
@@ -241,15 +269,40 @@ class Blockchain{
 
             //Raising block fork one block higher
             this.getLatestBlock().blockFork[newBlock.hash] = this.extractHeader(newBlock);
-            await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
-            resolve(
-              {
-                fork:{
-                  blockNumber:newBlock.blockNumber,
-                  hash:newBlock.hash,
-                  previousHash:newBlock.previousHash,
-                }
-            })
+            let exists = await this.chainDB.get(newBlock.hash).catch(e => {})
+            if(!exists){
+              let txConfirmed = await this.chainDB.put({
+                  _id:newBlock.hash,
+                  [newBlock.hash]:newBlock.transactions
+              })
+              .catch(e => console.log(e))
+                
+              if(txConfirmed){
+                Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                resolve(
+                  {
+                    fork:{
+                      blockNumber:newBlock.blockNumber,
+                      hash:newBlock.hash,
+                      previousHash:newBlock.previousHash,
+                    }
+                })
+              }else{
+                  logger('ERROR: Could not add transactions to database')
+                  resolve(false)
+              }
+            }else{
+              logger('WARNING: Block transactions already exist for block:', newBlock.hash.substr(0, 25))
+              Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+              resolve(
+                {
+                  fork:{
+                    blockNumber:newBlock.blockNumber,
+                    hash:newBlock.hash,
+                    previousHash:newBlock.previousHash,
+                  }
+              })
+            }
 
           }else if(thirdLastBlock.blockFork && thirdLastBlock.blockFork[newBlock.previousHash]){
             
@@ -257,7 +310,11 @@ class Blockchain{
             if(!forkedBlock) resolve({error:'ERROR: Forked block not found'})
             //Raising block fork one block higher
             this.chain[thirdLastBlock.blockNumber + 1].blockFork[newBlock.hash] = this.extractHeader(newBlock);
-            await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
+            await this.chainDB.put({
+                _id:newBlock.hash,
+                [newBlock.hash]:newBlock.transactions
+            })
+            .catch(e => console.log(e))
             resolve(
               {
                 fork:{
@@ -295,8 +352,11 @@ class Blockchain{
             this.getLatestBlock().blockFork[newBlock.hash] = this.extractHeader(newBlock);
           }
 
-          await this.confirmedTransactions.put(newBlock.hash, newBlock.transactions)
-          
+          await this.chainDB.put({
+            _id:newBlock.hash,
+            [newBlock.hash]:newBlock.transactions
+         })
+          .catch(e => console.log(e))
           resolve(
           {
             fork:{
@@ -308,12 +368,16 @@ class Blockchain{
           })
         }else{
           
-          const extendParallelBranch = (newBlock, previousBlock) =>{
+          const extendParallelBranch = async (newBlock, previousBlock) =>{
             if(newBlock && previousBlock){
               let forkedBlock = previousBlock.blockFork[newBlock.previousHash];
               if(!forkedBlock) return {error:'ERROR: Forked block not found'};
               this.chain[previousBlock.blockNumber + 1].blockFork[newBlock.hash] = this.extractHeader(newBlock);
-        
+              await this.chainDB.put({
+                _id:newBlock.hash,
+                [newBlock.hash]:newBlock.transactions
+              })
+              .catch(e => console.log(e))
               return true
             }
           }
@@ -650,7 +714,7 @@ class Blockchain{
         return false;
       }
         for(var block of this.chain){
-          let transaction = this.confirmedTransactions
+          let transaction = this.chainDB
           for(var transHash of Object.keys(block.transactions)){
             
             trans = block.transactions[transHash]
@@ -698,7 +762,8 @@ class Blockchain{
           resolve(false)
         }
           for(var block of this.chain){
-            let transactions = await this.confirmedTransactions.get(block.hash)
+            let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+            transactions = transactions[transactions._id]
             if(transactions){
                 for(var transHash of Object.keys(transactions)){
               
@@ -761,8 +826,8 @@ class Blockchain{
       return new Promise(async(resolve)=>{
         if(block){
             let reward = 0;
-            let transactions = await this.confirmedTransactions.get(block.hash)
-            
+            let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+            transactions = transactions[transactions._id]
             var txHashes = Object.keys(transactions);
             var actionHashes = Object.keys(transactions.actions);
             for(var hash of txHashes){
@@ -782,7 +847,8 @@ class Blockchain{
   calculateTotalMiningRewards(){
     let amountOfReward = 0;
     this.chain.forEach( async(block) =>{
-    let transactions = await this.confirmedTransactions.get(block.hash)
+    let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+    transactions = transactions[transactions._id]
       let txHashes = Object.keys(transactions);
       txHashes.forEach( hash =>{
         let tx = transactions[hash];
@@ -861,7 +927,8 @@ class Blockchain{
       }
         for(var block of this.chain){
           // logger(block);
-          let transactions = await this.confirmedTransactions.get(block.hash)
+          let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+          transactions = transactions[transactions._id]
           for(var transHash of Object.keys(transactions)){
             trans = transactions[transHash]
             if(trans){
@@ -902,7 +969,8 @@ class Blockchain{
     let tx = {}
     if(hash){
       this.chain.forEach(async (block) =>{
-        let transactions = await this.confirmedTransactions.get(block.hash)
+        let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+        transactions = transactions[transactions._id]
         if(block.transactions[hash]){
           //need to avoid collision
           tx = block.transactions[hash];
@@ -965,12 +1033,13 @@ class Blockchain{
   async validateBlock(block){
 
     var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
-    var merkleRootIsValid = this.recalculateMerkleRoot(block);
+    // let transactions = await this.chainDB.get(block.hash).catch( e=> console.log('Cannot get transactions to validate merkleRoot'));
+    // var merkleRootIsValid = this.isValidMerkleRoot(block.merkleRoot, transactions);
     // var latestBlock = this.getLatestBlock();
     // var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
-    if(!merkleRootIsValid){
-      logger('ERROR: Merkle root of block is invalid')
-    }
+    // if(!merkleRootIsValid){
+    //   logger('ERROR: Merkle root of block is invalid')
+    // }
     
     if(chainAlreadyContainsBlock){
       logger('ERROR: Chain already contains block')
@@ -1031,8 +1100,6 @@ class Blockchain{
         var isLinked = this.isBlockLinked(block);
         var latestBlock = this.getLatestBlock();
         var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
-        var rightNumberOfZeros = block.difficulty < (block.hash.substring(0, block.difficulty)).length;
-        var difficultyMatchesChallenge = block.difficulty < Math.floor(Math.log10(block.challenge))-1
         //Validate transactions using merkle root
         if(containsCurrentBlock){
           logger('BLOCK SYNC ERROR: Chain already contains that block')
@@ -1153,45 +1220,6 @@ class Blockchain{
     }
   }
 
-  // validateHeadersOfChain(headers){
-  //   return new Promise((resolve, reject)=>{
-  //     if(headers){
-  //       for(var i; i<headers.length; i++){
-  //         let header = headers[i];
-  //         if(isValidHeaderJSON(header)){
-        
-  //           if(header.hash == RecalculateHash(header)){
-  //             let isAlreadyInChain = this.getIndexOfBlockHash(header.hash);
-  
-  //             if(isAlreadyInChain){
-  //               resolve({error:'Chain already contains this block'})
-  //             }
-  
-  //             if(i > 0){
-  //               if(header.previousHash !== headers[i-1].previousHash){
-  //                 resolve({error:'ERROR:Block is not linked with previous block'}) 
-  //               }
-  
-  //               if(header.totalChallenge == headers[i-1].totalChallenge + header.nonce){
-  //                 resolve({error:'ERROR:Total challenge did not match previous block sum'})
-  //               }
-  //             }
-              
-  //           }else{
-  //             resolve({error:'ERROR:Hash recalculation did not match block hash'})
-  //           }
-  //         }else{
-  //           resolve({error:'ERROR: Block does not have a valid format'})
-  //         }
-  //       }
-  
-  //       resolve(true);
-  //     }
-  //   })
-    
-    
-  // }
-
   validateBlockchain(allowRollback){
     
       let isValid = this.isChainValid();
@@ -1216,9 +1244,7 @@ class Blockchain{
       let length = this.chain.length;
       let numberOfBlocks = length - blockIndex;
       orphanedBlocks = this.chain.splice(-1, numberOfBlocks);
-      orphanedBlocks.forEach((block)=>{
-        this.unwrapBlock(block);
-      })
+      orphanedBlocks.forEach((block)=>{})
 
       return orphanedBlocks;
     }
@@ -1334,6 +1360,21 @@ class Blockchain{
    
   }
 
+  isValidMerkleRoot(root, transactions){
+      if(transactions && root){
+        let recalculatedMerkleRoot = merkleRoot(transactions);
+        if(recalculatedMerkleRoot == root){
+            return true;
+        }else{
+            return false;
+        }
+      }else{
+        logger('Undefined root or transactions');
+        return false;
+      }
+    
+  }
+
   /**
   *  To run a proper transaction validation, one must look back at all the previous transactions that have been made by
   *  emitting peer every time this is checked, to avoid double spending. An initial coin distribution is made once the genesis
@@ -1370,47 +1411,38 @@ class Blockchain{
             var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
               
             if(!isChecksumValid){
-              // logger('REJECTED: Transaction checksum is invalid');
               resolve({error:'REJECTED: Transaction checksum is invalid'});
             }
 
             if(!isSendingAddressValid){
-              // logger('REJECTED: Sending address is invalid');
               resolve({error:'REJECTED: Sending address is invalid'});
             }
 
             if(!isReceivingAddressValid){
-              // logger('REJECTED: Receiving address is invalid');
               resolve({error:'REJECTED: Receiving address is invalid'});
             }
               
             if(!isSignatureValid){
-              // logger('REJECTED: Transaction signature is invalid');
               resolve({error:'REJECTED: Transaction signature is invalid'});
             }
 
             if(!amountIsNotZero){
-              // logger('REJECTED: Amount needs to be higher than zero');
               resolve({error:'REJECTED: Amount needs to be higher than zero'});
             }
 
             if(!isNotCircular){
-              // logger("REJECTED: Sending address can't be the same as receiving address");
               resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
             }
 
             if(!hasMiningFee){
-              // logger("REJECTED: Mining fee is insufficient");
               resolve({error:"REJECTED: Mining fee is insufficient"});
             }
               
             if(!transactionSizeIsNotTooBig){
-              // logger('REJECTED: Transaction size is above 10KB');
               resolve({error:'REJECTED: Transaction size is above 10KB'});  
             }
               
             if(balanceOfSendingAddr < transaction.amount + transaction.miningFee){
-              // logger('REJECTED: Sender does not have sufficient funds')
               resolve({error:'REJECTED: Sender does not have sufficient funds'});
             }  
 
@@ -1471,10 +1503,6 @@ class Blockchain{
           if(!isAttachedToMinedBlock){
             resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           }
-
-          // if(fiveBlocksHavePast != true){
-          //   resolve({ pending:'PENDING: Coinbase transaction needs to wait five blocks' })
-          // }
             
           if(!transactionSizeIsNotTooBig){
             resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
@@ -1656,34 +1684,6 @@ class Blockchain{
         
     return found
   }
-
-//   async waitFiveBlocks(transaction){
-//     return new Promise((resolve, reject) =>{
-//       let latestBlock = this.getLatestBlock()
-//       if(latestBlock && latestBlock.hasOwnProperty('blockNumber')){
-//         this.chain.forEach( block =>{
-          
-//           if(block.coinbaseTransactionHash == transaction.hash){
-            
-//             let blocksPast = this.chain.length - block.blockNumber;
-//             if(blocksPast > 5){
-              
-//               resolve(true)
-//             }else{
-//               resolve(false)
-//             }
-            
-//           }
-//         })
-        
-//       }else{
-//         resolve(false)
-//       }
-//     })
-    
-//   }
-
-  
 
   async saveBlockchain(){
     return new Promise(async (resolve, reject)=>{

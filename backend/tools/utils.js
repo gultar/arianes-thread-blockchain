@@ -35,6 +35,7 @@ const logger = (message, arg) => {
 }
 
 
+
 function RecalculateHash(block){
 
   return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot).toString();
@@ -148,6 +149,7 @@ const writeToFile = (data, filename) =>{
   })
 
 }
+
 
 const createFile = (data, filename) =>{
   return new Promise((resolve, reject)=>{

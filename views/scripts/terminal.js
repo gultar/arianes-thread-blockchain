@@ -786,7 +786,7 @@ function initSocketConnection(nodeAddress){
       nodeAddress = localAddress;
     }
 
-      socket  = io(nodeAddress, {"transports" : ["websocket"]}  ); //{'query':{  token: JSON.stringify(endpointToken)  }}
+      socket  = io(nodeAddress, {"transports" : ["websocket"], 'secure':true}  ); //{'query':{  token: JSON.stringify(endpointToken)  }}
       socket.heartbeatTimeout = 30000;
       //console.log(socket)
 

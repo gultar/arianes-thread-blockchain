@@ -35,9 +35,9 @@ class NodeList{
     async loadNodeList(){
         return new Promise((resolve, reject)=>{
             try{
-                fs.exists('./data/peers.json', async (exists)=>{
+                fs.exists('./data/nodelist.json', async (exists)=>{
                     if(exists){
-                        let listFile = await readFile('./data/peers.json');
+                        let listFile = await readFile('./data/nodelist.json');
                         let list = JSON.parse(listFile)
                         if(list){
                             list.addresses.forEach((addr)=>{
@@ -53,7 +53,7 @@ class NodeList{
                         }
                     }else{
                         
-                        let saved = writeToFile(this, './data/peers.json');
+                        let saved = writeToFile(this, './data/nodelist.json');
                         if(saved){
                             logger('Created new list of known nodes')
                             resolve(true)
@@ -77,7 +77,7 @@ class NodeList{
     saveNodeList(){
         return new Promise((resolve, reject)=>{
             try{
-                let saved = writeToFile(this, './data/peers.json');
+                let saved = writeToFile(this, './data/nodelist.json');
                 if(saved){
                     logger('Saved list of known nodes');
                     resolve(true)
