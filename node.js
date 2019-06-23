@@ -45,8 +45,6 @@ const sha1 = require('sha1')
 const chalk = require('chalk');
 const fs = require('fs');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-let Progress = require('cli-progress');
-const generate = require('self-signed');
 
 
 /**
@@ -142,9 +140,8 @@ class Node {
 
                 if(token && token != undefined){
                   token = JSON.parse(token)
-                  let isValid = this.validateChecksum(token.checksum.timestamp, token.checksum.randomOrder);
                   
-                  if(isValid){  //socket.request.headers['user-agent'] === 'node-XMLHttpRequest'
+                  if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
                     if(!this.peersConnected[socket.handshake.headers.host]){
                       this.peersConnected[peerAddress] = socket;
                       this.nodeList.addNewAddress(peerAddress);
@@ -403,7 +400,7 @@ class Node {
           peer.on('disconnect', () =>{
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
-            this.seekOtherPeers()
+            // this.seekOtherPeers()
             peer.destroy()
           })
 
@@ -596,26 +593,26 @@ class Node {
 
   }
 
-  propagate(eventType, data, moreData=false, excludePeers={} ){
-    try{
-      if(this.connectionsToPeers){
-          Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
-            if(!exclusePeers[peerAddress]){
-              if(!moreData){
+  // propagate(eventType, data, moreData=false, excludePeers={} ){
+  //   try{
+  //     if(this.connectionsToPeers){
+  //         Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
+  //           if(!exclusePeers[peerAddress]){
+  //             if(!moreData){
               
-                this.connectionsToPeers[peerAddress].emit(eventType, data);
-              }else{
-                  this.connectionsToPeers[peerAddress].emit(eventType, data, moreData);
-              }
-            }
+  //               this.connectionsToPeers[peerAddress].emit(eventType, data);
+  //             }else{
+  //                 this.connectionsToPeers[peerAddress].emit(eventType, data, moreData);
+  //             }
+  //           }
             
-          })
-        }
-    }catch(e){
-      console.log(e);
-    }
+  //         })
+  //       }
+  //   }catch(e){
+  //     console.log(e);
+  //   }
 
-  }
+  // }
 
   
   /**
@@ -858,10 +855,10 @@ class Node {
       //     duration: 1, // per second
       //   });
 
-     socket.emit('getBlockchainStatus')
+    //  socket.emit('getBlockchainStatus')
 
      socket.on('error', async(err)=>{
-       logger(chalk.red(err));
+       logger('Socket error:',err);
      })
 
      socket.on('disconnect', async()=>{ 
@@ -870,19 +867,19 @@ class Node {
      })
 
      socket.on('connectionRequest', async(address)=>{
-      //  await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log(e) }); // consume 1 point per event from IP
+      //  await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
        this.connectToPeer(address, (peer)=>{
        });
      });
 
      socket.on('peerMessage', async(data)=>{
-      //  await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      //  await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
        var { type, originAddress, messageId, data, relayPeer } = data
        this.handlePeerMessage(type, originAddress, messageId, data, relayPeer);
      })
 
      socket.on('getPeers', async()=>{
-        // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+        // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getPeer' events") }); // consume 1 point per event from IP
         let peers = this.nodeList.addresses;
         let randomPeers = []
         peers.forEach( peer=>{
@@ -897,7 +894,7 @@ class Node {
 
     
      socket.on('getBlockchainStatus', async()=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
         try{
           let status = {
@@ -914,7 +911,7 @@ class Node {
      })
 
      socket.on('getInfo', async()=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getInfo' events") }); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
 
         try{
@@ -928,7 +925,7 @@ class Node {
      })
 
      socket.on('getBlockHeader', async (blockNumber)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => {});
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
       logger('Peer requested') // consume 1 point per event from IP
        if(blockNumber && typeof blockNumber == 'number'){
          let header = await this.chain.getBlockHeader(blockNumber);
@@ -943,7 +940,7 @@ class Node {
      })
 
     socket.on('getNextBlock', async (hash)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getNextBlock' events") }); // consume 1 point per event from IP
       let index = this.chain.getIndexOfBlockHash(hash)
       
       if(index || index === 0){
@@ -964,7 +961,7 @@ class Node {
     })
 
      socket.on('getBlockFromHash', async(hash)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
         if(hash && typeof hash == 'string'){
          
@@ -1083,15 +1080,17 @@ class Node {
       })
 
       socket.on('testFlood', ()=>{
-        try{
-          logger('Flooding peers with events')
-          process.flood = setInterval(()=>{
-            logger('Requesting...')
-            this.connectionsToPeers['http://127.0.0.1:8000'].emit('getBlockHeader', 10)
-          }, 0)
-        }catch(e){
-          console.log(e)
-        }
+        logger('Requesting status')
+        this.broadcast('getBlockchainStatus')
+        // try{
+        //   logger('Flooding peers with events')
+        //   process.flood = setInterval(()=>{
+        //     logger('Requesting...')
+        //     this.connectionsToPeers['http://127.0.0.1:8000'].emit('getBlockHeader', 10)
+        //   }, 0)
+        // }catch(e){
+        //   console.log(e)
+        // }
         
       })
 
