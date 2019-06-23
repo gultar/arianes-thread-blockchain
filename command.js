@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const Node = require('./node');
-const { copyFile } = require('./backend/tools/blockchainHandler');
 const program = require('commander');
 const { logger, readFile } = require('./backend/tools/utils');
 const fs = require('fs')
@@ -56,7 +55,6 @@ program
   .option('-M, --forcemine', 'Forces node to start miner, connected or not')
   .option('-s, --seed <seed>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
-  .option('-n, --noprogressbar', 'Enable progress bar when downloading blockchain')
   .option('-j, --jsondebug', 'Debugs JSON schema')
 
 program
@@ -75,7 +73,6 @@ program
         address:configs.address,
         port:configs.port,
         verbose:configs.verbose,
-        downloadBar:(program.noprogressbar ? false:true)
       })
 
       node.startServer()

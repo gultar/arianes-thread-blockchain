@@ -140,7 +140,6 @@ class Node {
             
                 socket.on('message', (msg) => { logger('Client:', msg); });
 
-                
                 if(token && token != undefined){
                   token = JSON.parse(token)
                   let isValid = this.validateChecksum(token.checksum.timestamp, token.checksum.randomOrder);
@@ -371,7 +370,8 @@ class Node {
               peer.emit('message', 'Connection established by '+ this.address);
               peer.emit('connectionRequest', this.address);
               setTimeout(()=>{
-                peer.emit('getBlockchainStatus')
+                peer.emit('getBlockchainStatus');
+                peer.emit('connectionRequest', this.address);
               },1000);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
@@ -852,11 +852,13 @@ class Node {
   */
   nodeEventHandlers(socket, peerAddress){
     if(socket && peerAddress){
-      const rateLimiter = new RateLimiterMemory(
-        {
-          points: 50, // 5 points
-          duration: 1, // per second
-        });
+      // const rateLimiter = new RateLimiterMemory(
+      //   {
+      //     points: 50, // 5 points
+      //     duration: 1, // per second
+      //   });
+
+     socket.emit('getBlockchainStatus')
 
      socket.on('error', async(err)=>{
        logger(chalk.red(err));
@@ -868,19 +870,19 @@ class Node {
      })
 
      socket.on('connectionRequest', async(address)=>{
-       await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      //  await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log(e) }); // consume 1 point per event from IP
        this.connectToPeer(address, (peer)=>{
        });
      });
 
      socket.on('peerMessage', async(data)=>{
-       await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      //  await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
        var { type, originAddress, messageId, data, relayPeer } = data
        this.handlePeerMessage(type, originAddress, messageId, data, relayPeer);
      })
 
      socket.on('getPeers', async()=>{
-        await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+        // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
         let peers = this.nodeList.addresses;
         let randomPeers = []
         peers.forEach( peer=>{
@@ -895,7 +897,7 @@ class Node {
 
     
      socket.on('getBlockchainStatus', async()=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
         try{
           let status = {
@@ -912,7 +914,7 @@ class Node {
      })
 
      socket.on('getInfo', async()=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
 
         try{
@@ -926,7 +928,7 @@ class Node {
      })
 
      socket.on('getBlockHeader', async (blockNumber)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => {});
+      // await rateLimiter.consume(socket.handshake.address).catch(e => {});
       logger('Peer requested') // consume 1 point per event from IP
        if(blockNumber && typeof blockNumber == 'number'){
          let header = await this.chain.getBlockHeader(blockNumber);
@@ -941,7 +943,7 @@ class Node {
      })
 
     socket.on('getNextBlock', async (hash)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
       let index = this.chain.getIndexOfBlockHash(hash)
       
       if(index || index === 0){
@@ -962,7 +964,7 @@ class Node {
     })
 
      socket.on('getBlockFromHash', async(hash)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => {}); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
         if(hash && typeof hash == 'string'){
          
