@@ -1117,6 +1117,10 @@ class Node {
       
       })
 
+      socket.on('update', ()=>{
+        this.broadcast('getBlockchainStatus');
+      })
+
       socket.on('getMempool', ()=>{
         socket.emit('mempool', Mempool);
       })
@@ -1288,56 +1292,6 @@ class Node {
         console.log(`Removed ${blocks.length} blocks`)
       })
 
-      socket.on('dm', (address, message)=>{
-        console.log(`Sending: ${message} to ${address}`)
-        this.sendDirectMessage('message', address, message)
-      })
-
-      socket.on('sumFee', async (number)=>{
-        console.log(this.chain.gatherMiningFees(this.chain.chain[number]))
-      })
-
-      socket.on('getAccounts', (ownerKey)=>{
-        if(ownerKey){
-          let accounts = this.accountTable.getAccountsOfKey(ownerKey)
-          socket.emit('accounts', accounts)
-        }else{
-          socket.emit('accounts', this.accountTable.accounts)
-        }
-          
-      })
-
-
-      socket.on('deleteAccounts', async()=>{
-        let w = new Wallet();
-        w = await w.importWalletFromFile(`./wallets/8003-b5ac90fbdd1355438a65edd2fabe14e9fcca10ea.json`);
-        let account = this.accountTable.accounts['kayusha'];
-        console.log(w)
-        let unlocked = await w.unlock(this.port)
-        let signature = await w.sign(account.hash);
-        console.log(signature)
-        let deleted = await this.accountTable.deleteAccount('kayusha', signature);
-        if(deleted){
-          logger(`Account kayusha got deleted`);
-        }else{
-          logger('Could not delete kayusha')
-        }
-        
-      })
-    
-      socket.on('txSize', (hash)=>{
-        if(Mempool.pendingTransactions.hasOwnProperty(hash)){
-          let tx = Mempool.pendingTransactions[hash];
-          
-          logger('Size:'+ (Transaction.getTransactionSize(tx) / 1024) + 'Kb');
-          console.log(Transaction.getTransactionSize(tx))
-        }else{
-          logger('No transaction found');
-          socket.emit('message', 'No transaction found')
-        }
-        
-      })
-
       socket.on('disconnect', ()=>{
         var index = this.userInterfaces.length
         this.userInterfaces.splice(index-1, 1)
@@ -1436,33 +1390,6 @@ class Node {
 
     }
   }
-
-  // sendDirectMessage(type, targetAddress, data){
-  //   if(type){
-  //     try{
-  //       if(typeof data == 'object')
-  //         data = JSON.stringify(data);
-  //       var shaInput = (Math.random() * Date.now()).toString()
-  //       var messageId = sha256(shaInput);
-  //       this.messageBuffer[messageId] = messageId;
-        
-  //       this.broadcast('directMessage', { 
-  //        'type':type,
-  //        'originAddress':this.address, 
-  //        'targetAddress':targetAddress, 
-  //        'messageId':messageId, 
-  //        'data':data 
-  //       });
-
-  //     }catch(e){
-  //       console.log(chalk.red(e));
-  //     }
-
-  //   }
-  // }
-
-  
-
 
   /**
     @param {String} $type - Peer message type
