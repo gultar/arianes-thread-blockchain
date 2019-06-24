@@ -123,8 +123,7 @@ class Blockchain{
         let isValidBlock = await this.validateBlock(newBlock);
         if(isValidBlock){
           var isLinked = this.isBlockLinked(newBlock);
-          console.log('Previous', this.chain[newBlock.blockNumber - 1])
-          console.log(newBlock)
+          
           if(isLinked){
             
             this.chain.push(this.extractHeader(newBlock));
