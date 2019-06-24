@@ -888,8 +888,6 @@ class Node {
           }
 
           socket.emit('blockchainStatus', status);
-          console.log(this.connectionsToPeers);
-          console.log(peerAddress)
           let peer = this.connectionsToPeers[peerAddress];
           if(peer){
             let updated = await this.receiveBlockchainStatus(peer, peerStatus)
