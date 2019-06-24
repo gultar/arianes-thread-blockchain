@@ -53,10 +53,8 @@ function setNewDifficulty(previousBlock, newBlock){
   // const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
   let adjustment = 1;
 
-  if(mineTime <= 0.2){
-    adjustment = 10
-  }else if(mineTime > 0.2 && mineTime <= 1){
-    adjustment = 5
+  if(mineTime > 0 && mineTime <= 1){
+    adjustment = 15
   }else if(mineTime > 1 && mineTime <= 10){
     adjustment = 2
   }else if(mineTime > 10 && mineTime <= 20){
@@ -72,7 +70,7 @@ function setNewDifficulty(previousBlock, newBlock){
   }else if(mineTime > 60 && mineTime <= 70){
     adjustment = -5
   }else if(mineTime > 70){
-    adjustment = -5
+    adjustment = -10
   }
   
   let difficulty = BigInt(parseInt(previousBlock.difficulty, 16))

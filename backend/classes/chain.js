@@ -1022,66 +1022,45 @@ class Blockchain{
     @param {string} $block - Block to be validated
   */
   async validateBlock(block){
+    return new Promise(async (resolve)=>{
+      var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
+      var isValidHash = block.hash == RecalculateHash(block);
+      var timestampIsGreaterThanPrevious = block.timestamp > this.chain[block.blockNumber - 1].timestamp;
+      var merkleRootIsValid = false;
+      if(block.transactions){
+        merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
+      }else{
+        let transactions = await this.chainDB.get(block.hash).catch( e=> console.log('Cannot get transactions to validate merkleRoot'));
+        if(transactions){
+          merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, transactions);
+        }
+      }
 
-    var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
-    // let transactions = await this.chainDB.get(block.hash).catch( e=> console.log('Cannot get transactions to validate merkleRoot'));
-    // var merkleRootIsValid = this.isValidMerkleRoot(block.merkleRoot, transactions);
-    // var latestBlock = this.getLatestBlock();
-    // var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
-    // if(!merkleRootIsValid){
-    //   logger('ERROR: Merkle root of block is invalid')
-    // }
+      if(!isValidHash){
+        logger('ERROR: Is not valid block hash')
+        resolve(false)
+      }
+
+      if(!timestampIsGreaterThanPrevious){
+        logger('ERROR: Block Timestamp must be greater than previous timestamp ')
+        resolve(false)
+      }
+
+      if(!merkleRootIsValid){
+        logger('ERROR: Merkle root of block IS NOT valid')
+        resolve(false)
+      }
     
-    if(chainAlreadyContainsBlock){
-      logger('ERROR: Chain already contains block')
-      return false;
-    }
-    else{
-      return true;
-    }
-    
-    // else if(!transactionsAreValid){
-    //   logger('ERROR: Not all transactions are valid')
-    //   return false;
-    // }
-
-
-    //Validate transactions using merkle root
-    // if(!containsCurrentBlock){
       
-    //   if(!isLinked){
+      if(chainAlreadyContainsBlock){
+        logger('ERROR: Chain already contains block')
+        resolve(false)
+      }
+      
 
-    //     if(latestBlock.previousHash == block.previousHash){
-    //       /*.*/
-    //       logger('New block received has been orphaned since latest block has been mined before')
-    //       return false;
-    //     }
-    //     // console.log('Num',block.blockNumber);
-    //     // console.log('Hash',block.hash)
-    //     // console.log('Prev',block.previousHash)
-    //     logger('Current mined block is not linked with previous block. Sending it to orphanedBlocks');
-    //     return this.getIndexOfBlockHash(block.previousHash);
-
-    //   }else{
-    //     if(block.difficulty < this.getLatestBlock().difficulty){
-    //       return false;
-    //     }
-
-    //     if(block.difficulty < (block.hash.substring(0, block.difficulty)).length){
-    //       return false;
-    //     }
-
-    //     // if(block.difficulty < Math.floor(Math.log10(block.challenge))-1){
-    //     //   false
-    //     // }
-      //   return true;
-      // }
-
-    // }else if(containsCurrentBlock){
-    //   logger('Chain already contains that block')
-    //   return false;
-    // }
-
+      resolve(true)
+    })
+    
   }
 
   validateNewBlock(block){
