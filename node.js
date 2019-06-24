@@ -1470,7 +1470,7 @@ class Node {
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
   async handlePeerMessage({ type, originAddress, messageId, data, relayPeer }){
-    console.log('Received peer message of type ', type)
+    
     if(data){
       try{
         let peerMessage = { 
@@ -1588,7 +1588,7 @@ class Node {
               if(this.minerServer && this.minerServer.socket){
                 this.minerServer.socket.emit('stopMining')
               }
-              
+
               let addedToChain = await this.chain.pushBlock(block);
               if(addedToChain.error){
                 resolve({error:addedToChain.error})
