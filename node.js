@@ -133,15 +133,16 @@ class Node {
         this.ioServer = socketIo(server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
   
         this.ioServer.on('connection', (socket) => {
-          let peerAddress = socket.handshake.headers.host;
+          
           let token = socket.handshake.query.token;
+          
           if(socket){
             
                 socket.on('message', (msg) => { logger('Client:', msg); });
 
                 if(token && token != undefined){
                   token = JSON.parse(token)
-                  
+                  let peerAddress = token.address
                   if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
                     if(!this.peersConnected[socket.handshake.headers.host]){
                       this.peersConnected[peerAddress] = socket;
