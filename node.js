@@ -1588,7 +1588,7 @@ class Node {
               if(this.minerServer && this.minerServer.socket){
                 this.minerServer.socket.emit('stopMining')
               }
-              logger(`Adding new block number ${block.blockNumber}`)
+              
               let addedToChain = await this.chain.pushBlock(block);
               if(addedToChain.error){
                 resolve({error:addedToChain.error})

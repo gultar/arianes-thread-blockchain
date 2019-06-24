@@ -126,40 +126,30 @@ class Blockchain{
           if(isLinked){
             
             this.chain.push(this.extractHeader(newBlock));
-                if(verbose){
-                    logger(chalk.green('* Synced new block ')+newBlock.blockNumber);
-                    logger(chalk.green('* Block hash : ')+ newBlock.hash.substr(0, 25)+"...");
-                    logger(chalk.green('* Previous Hash hash : ')+ newBlock.previousHash.substr(0, 25)+"...")
-                    logger(chalk.green('* Number of transactions: '), Object.keys(newBlock.transactions).length);
-                    logger(chalk.green('* Number of actions : '), Object.keys(newBlock.actions).length);
-                    logger(chalk.green('* By: '), newBlock.minedBy)
-                  }else{
-                    logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
-                  }
-                  let exists = await this.chainDB.get(newBlock.hash).catch(e => {})
-                  if(!exists){
-                    let txConfirmed = await this.chainDB.put({
-                        _id:newBlock.hash,
-                        [newBlock.hash]:newBlock.transactions
-                    })
-                    .catch(e => console.log(e))
-                     
-                    if(txConfirmed){
-                      Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-                      resolve(true);
-                    }else{
-                        logger('ERROR: Could not add transactions to database')
-                        resolve(false)
-                    }
-                  }else{
-                    logger('WARNING: Block transactions already exist for block:', newBlock.hash.substr(0, 25))
-                    Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-                    resolve(true)
-                  }
-                 
-                  
-           
+            logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
+            let exists = await this.chainDB.get(newBlock.hash).catch(e => {})
+            if(!exists){
+              let txConfirmed = await this.chainDB.put({
+                  _id:newBlock.hash,
+                  [newBlock.hash]:newBlock.transactions
+              })
+              .catch(e => console.log(e))
+                
+              if(txConfirmed){
+                Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                resolve(true);
+              }else{
+                  logger('ERROR: Could not add transactions to database')
+                  resolve(false)
+              }
+            }else{
+              logger('WARNING: Block transactions already exist for block:', newBlock.hash.substr(0, 25))
+              Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+              resolve(true)
+            }
+            
           }else{
+            logger('Creating new block fork')
             let isBlockFork = await this.createBlockBranch(newBlock)
             if(isBlockFork.fork) resolve({fork:isBlockFork.fork});
             if(isBlockFork.resolved) resolve(true);
