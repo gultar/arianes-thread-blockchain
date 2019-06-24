@@ -57,14 +57,14 @@
   },
   "devDependencies": {},
   "bin": {
-    "blockchain": "./command.js",
-    "wallet": "./walletCLI.js",
+    "blockchain": "command.js",
+    "wallet": "walletCLI.js",
     "keyserver": "keyServer.js",
-    "chain": "./chainCLI.js",
-    "action": "./actionCLI.js",
-    "txgen": "./txgen.js",
-    "sendTx": "./txCLI.js",
-    "miner": "./minerCLI.js"
+    "chain": "chainCLI.js",
+    "action": "actionCLI.js",
+    "txgen": "txgen.js",
+    "sendTx": "txCLI.js",
+    "miner": "minerCLI.js"
   },
   "scripts": {
     "test": "node test.js",
