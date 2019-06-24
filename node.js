@@ -361,7 +361,8 @@ class Node {
 
           peer.on('connect', () =>{
             if(!this.connectionsToPeers[address]){
-
+              
+              peer.emit('connectionRequest', {address:this.address});
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
@@ -371,7 +372,7 @@ class Node {
                 length: this.chain.chain.length
               }
               setTimeout(()=>{
-                peer.emit('connectionRequest', {address:this.address});
+                
                 peer.emit('getBlockchainStatus', status);
               },1500);
               this.connectionsToPeers[address] = peer;
@@ -849,10 +850,9 @@ class Node {
       delete this.peersConnected[peerAddress];
      })
 
-     socket.on('connectionRequest', async(address)=>{
+     socket.on('connectionRequest', async({address})=>{
       //  await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
-       this.connectToPeer(address, (peer)=>{
-       });
+       this.connectToPeer(address);
      });
 
      socket.on('peerMessage', async(peerMessage)=>{
