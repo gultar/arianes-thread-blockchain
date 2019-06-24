@@ -1496,7 +1496,7 @@ class Node {
               this.receiveAction(action);
               break
             case 'newBlockFound':
-              let added = await this.handleNewBlockFound(data, relayPeer);
+              let added = await this.handleNewBlockFound(data);
               if(added.error){
                 logger(added.error);
               }
@@ -1589,8 +1589,8 @@ class Node {
               if(this.minerServer && this.minerServer.socket){
                 this.minerServer.socket.emit('stopMining')
               }
-              logger(`Adding new block number ${newBlock.blockNumber}`)
-              let addedToChain = await this.chain.pushBlock(newBlock);
+              logger(`Adding new block number ${block.blockNumber}`)
+              let addedToChain = await this.chain.pushBlock(block);
               if(addedToChain.error){
                 resolve({error:addedToChain.error})
               }
