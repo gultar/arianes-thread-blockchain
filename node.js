@@ -365,10 +365,14 @@ class Node {
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
-              
+              let status = {
+                totalDifficultyHex: this.chain.getTotalDifficulty(),
+                bestBlockHeader: this.chain.getLatestBlock(),
+                length: this.chain.chain.length
+              }
               setTimeout(()=>{
-                peer.emit('connectionRequest', this.address);
-                peer.emit('getBlockchainStatus');
+                peer.emit('connectionRequest', {address:this.address});
+                peer.emit('getBlockchainStatus', status);
               },1500);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
@@ -539,7 +543,8 @@ class Node {
             let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
             if(isValidHeader && !this.isDownloading){
               
-              await this.downloadBlockchain(peer, bestBlockHeader)
+             let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+             
               resolve(true)
               
             }else{
@@ -557,6 +562,8 @@ class Node {
           logger('ERROR: Status object is missing parameters')
           resolve(false)
         }
+      }else{
+        logger('ERROR: Could not handle peer chain status. Missing parameter')
       }
     })
     
@@ -868,7 +875,7 @@ class Node {
      })
 
     
-     socket.on('getBlockchainStatus', async()=>{
+     socket.on('getBlockchainStatus', async(peerStatus)=>{
       // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
       // logger(`Peer ${peerAddress} has requesting blockchain status`)
       if(this.chain instanceof Blockchain){
@@ -878,8 +885,18 @@ class Node {
             bestBlockHeader: this.chain.getLatestBlock(),
             length: this.chain.chain.length
           }
-          // console.log('Sending status :', status)
+
           socket.emit('blockchainStatus', status);
+          let peer = this.connectionsToPeers[peerAddress];
+          if(peer){
+            let updated = await this.receiveBlockchainStatus(peer, peerStatus)
+          }else{
+            logger('ERROR: Could not find peer socket to download blockchain')
+          }
+          
+          
+          // console.log('Sending status :', status)
+          
          }catch(e){
            console.log(e)
          }
