@@ -397,7 +397,7 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            logger(`Received blockchain status from peer ${address}`);
+            // logger(`Received blockchain status from peer ${address}`);
             // console.log(status)
             if(!this.isDownloading){
               let updated = await this.receiveBlockchainStatus(peer, status)
@@ -554,7 +554,7 @@ class Node {
               resolve(false)
             }
           }else{
-            logger('Blockchain is up to date with peer')
+            // logger('Blockchain is up to date with peer')
             this.updated = true;
           }
 
