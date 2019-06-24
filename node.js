@@ -374,7 +374,7 @@ class Node {
               setTimeout(()=>{
                 
                 peer.emit('getBlockchainStatus', status);
-              },1500);
+              },5000);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
               
