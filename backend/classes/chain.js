@@ -11,6 +11,7 @@ const {
   readFile, } = require('../tools/utils');
 const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
+const BalanceTable = require('./balanceTable')
 const Block = require('./block');
 const { setChallenge, setDifficulty, setNewChallenge, setNewDifficulty } = require('./challenge');
 const chalk = require('chalk');
@@ -34,6 +35,7 @@ class Blockchain{
   constructor(chain=false){
     this.chain = (chain?chain:[])
     this.chainDB = new PouchDB('./data/chainDB');
+    this.balance = {}
     this.blockFork = []
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
@@ -43,18 +45,33 @@ class Blockchain{
 
   async createGenesisBlock(){
     return new Promise(async (resolve)=>{
-        let genesisBlock = new Block(1554987342039, {
-            'first':new Transaction('coinbase', "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG", 10000, 'ICO transactions'),
-            'second':new Transaction('coinbase',"AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6", 10000, 'ICO transactions'),
-            'third':new Transaction('coinbase', "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R", 10000, 'ICO transactions'),
-            'fourth':new Transaction('coinbase', "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr", 10000, 'ICO transactions'),
-          }, {});
+        let genesisBlock = new Block(1554987342039,
+          { //fromAddress, toAddress, amount, data='', type='', hash='', miningFee=false
+            'maxCurrency':new Transaction
+            (
+              'coinbase',
+              "coinbase", 
+              1000 * 1000 * 1000 * 1000, 
+              'Maximum allowed currency in circulation',
+              'coinbaseReserve',
+              false,
+              0
+            ),
+          } 
+          , {});
           genesisBlock.difficulty = '0x100000'//'0x2A353F';
           genesisBlock.challenge = setNewChallenge(genesisBlock)//average 150 000 nonce/sec
           genesisBlock.maxCoinSupply = Math.pow(10, 10);
           genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
           genesisBlock.calculateHash();
-          let newEntry = { [genesisBlock.hash]: genesisBlock.transactions }
+          
+          this.balance.state = {
+            "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000, lastTransaction:'coinbase', },
+            "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000, lastTransaction:'coinbase', },
+            "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
+            "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
+          }
+          
           let addedGenesisTx = await this.chainDB.put({
               _id:genesisBlock.hash,
               [genesisBlock.hash]:genesisBlock.transactions
@@ -96,8 +113,11 @@ class Blockchain{
           if(parseErr){
             resolve(false)
           }
-          
+
           blockchain = instanciateBlockchain(blockchainObject);
+          let states = await BalanceTable.loadAllStates()
+          if(!states) resolve(false)
+          blockchain.balance = new BalanceTable(states)
           resolve(blockchain);
   
         }else{
@@ -106,6 +126,9 @@ class Blockchain{
           logger('Generating new blockchain')
           
           let newBlockchain = new Blockchain();
+          let states = await BalanceTable.loadAllStates()
+          if(!states) resolve(false)
+          newBlockchain.balance = new BalanceTable(states)
           let genesisBlock = await newBlockchain.createGenesisBlock()
           newBlockchain.chain.push(newBlockchain.extractHeader(genesisBlock))
           newBlockchain.saveBlockchain();
@@ -130,6 +153,10 @@ class Blockchain{
             logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
             let exists = await this.chainDB.get(newBlock.hash).catch(e => {})
             if(!exists){
+
+              let executed = await this.balance.executeTransactionBlock(newBlock.transactions)
+              if(executed.errors) resolve({ error: executed.errors })
+
               let txConfirmed = await this.chainDB.put({
                   _id:newBlock.hash,
                   [newBlock.hash]:newBlock.transactions
@@ -795,6 +822,12 @@ class Blockchain{
 
   }
 
+  checkBalance(publicKey){
+    let walletState = this.balance.getBalance(publicKey)
+    let balance = walletState.balance;
+    return balance;
+  }
+
   gatherMiningFees(block){
     if(block){
       let reward = 0;
@@ -1398,7 +1431,7 @@ class Blockchain{
 
             let isNotCircular = transaction.fromAddress !== transaction.toAddress;
            
-            var balanceOfSendingAddr = await this.getBalance(transaction.fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+            var balanceOfSendingAddr = await this.checkBalance(transaction.fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
            
             var amountIsNotZero = transaction.amount > 0;
 
@@ -1528,7 +1561,7 @@ class Blockchain{
           let isChecksumValid = await this.validateActionChecksum(action);
           let hasMiningFee = action.fee > 0; //check if amount is correct
           let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
-          let balanceOfSendingAddr = await this.getBalance(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
+          let balanceOfSendingAddr = await this.checkBalance(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
           let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
           let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
           let isCreateAccount = action.type == 'account' && action.task == 'create';
@@ -1690,11 +1723,16 @@ class Blockchain{
             chain:this.chain
         } 
         let data = await jsonc.stringify(chain);
+        
 
         if(data){
           const [err, success] = await jsonc.safe.write('./data/blockchain.json', data);
+          const savedStates = await this.balance.saveStates();
           if(err) resolve(false)
-          else    resolve(true)
+          else{
+            if(!savedStates) resolve(false)
+            resolve(true)
+          }
         }
         
         

@@ -19,7 +19,7 @@ const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountCreator = require('./backend/classes/accountCreator');
 const AccountTable = require('./backend/classes/accountTable');
-const Miner = require('./backend/classes/miner')
+const BalanceTable = require('./backend/classes/balanceTable');
 /*************Smart Contract VM************** */
 const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
@@ -103,7 +103,7 @@ class Node {
         let nodeListLoaded = await this.nodeList.loadNodeList();
         let mempoolLoaded = await Mempool.loadMempool();
         let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
-        this.chain = await Blockchain.initBlockchain()  
+        this.chain = await Blockchain.initBlockchain()
         
         if(!nodeListLoaded) resolve({error:'Could not load node list'})
         if(!mempoolLoaded) resolve({error:'Could not load Mempool'});
@@ -641,7 +641,7 @@ class Node {
       if(isValidWalletBalanceJSON(req.query)){
         let publicKey = req.query.publicKey;
         if(publicKey){
-          let balance = await this.chain.getBalance(publicKey);
+          let balance = await this.chain.balance.getBalance(publicKey);
           res.json({ 
             balance: balance
           }).end()
@@ -1105,17 +1105,8 @@ class Node {
         }
       })
 
-      socket.on('meanOfBlockTime', ()=>{
-        let mean = 0;
-        this.chain.chain.forEach( block=>{
-          let diff =  block.endMineTime - block.startMineTime
-          mean += diff;
-            
-                  
-        })
-        mean = (mean / this.chain.chain.length) / 1000
-        console.log('Mean:', mean )
-        
+      socket.on('showBalances', ()=>{
+        console.log(this.chain.balance)
       })
 
 

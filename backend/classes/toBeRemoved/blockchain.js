@@ -1,6 +1,6 @@
 
 /////////////////////Blockchain///////////////////////
-const sha256 = require('../tools/sha256');
+const sha256 = require('../../tools/sha256');
 const { 
   displayTime, 
   logger, 
@@ -8,15 +8,15 @@ const {
   writeToFile,
   validatePublicKey,
   merkleRoot, 
-  readFile, } = require('../tools/utils');
-const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../tools/jsonvalidator');
-const Transaction = require('./transaction');
-const Block = require('./block');
-const { setChallenge, setDifficulty, setNewChallenge, setNewDifficulty } = require('./challenge');
+  readFile, } = require('../../tools/utils');
+const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../../tools/jsonvalidator');
+const Transaction = require('../transaction');
+const Block = require('../block');
+const { setChallenge, setDifficulty, setNewChallenge, setNewDifficulty } = require('../challenge');
 const chalk = require('chalk');
 const merkle = require('merkle');
 const ECDSA = require('ecdsa-secp256r1');
-const Mempool = require('./mempool');
+const Mempool = require('../mempool');
 const JSONStream = require("JSONStream").stringifyObject("{",",","}")
 const fs = require('fs');
 const jsonc = require('jsonc')

@@ -8,7 +8,6 @@ const walletManager = new WalletManager()
 const sha1 = require('sha1')
 const Transaction = require('./backend/classes/transaction');
 const { readFile, validatePublicKey } = require('./backend/tools/utils');
-const txgen = require('./backend/tools/_tempTxgen');
 let api = new WalletQueryTool();
  
 //Commands to implement

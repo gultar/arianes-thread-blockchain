@@ -1,9 +1,9 @@
 
-const Mempool = require('./mempool');
-const Block = require('./block');
+const Mempool = require('../mempool');
+const Block = require('../block');
 const Blockchain = require('./blockchain');
-const { logger } = require('../tools/utils');
-const { isValidBlockJSON } = require('../tools/jsonvalidator');
+const { logger } = require('../../tools/utils');
+const { isValidBlockJSON } = require('../../tools/jsonvalidator');
 const chalk = require('chalk');
 
 class Miner{

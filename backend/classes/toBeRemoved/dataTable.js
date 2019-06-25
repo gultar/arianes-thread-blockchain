@@ -1,5 +1,5 @@
-const { logger } = require('../tools/utils')
-const Account = require('./account');
+const { logger } = require('../../tools/utils')
+const Account = require('../account');
 const Contract = require('./contract')
 
 class DataTable{
