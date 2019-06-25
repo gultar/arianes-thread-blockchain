@@ -75,8 +75,9 @@ class Node {
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
     this.chain = {};
+    this.blocksToValidate = []
     this.updated = false;
-    this.downloading = false;
+    this.isDownloading = false;
     this.minerStarted = false;
     this.miner = {};
     this.nodeList = new NodeList();
@@ -1521,75 +1522,57 @@ class Node {
   handleNewBlockFound(data){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
-        try{
+        if(!this.isDownloading){
+          try{
 
-          let block = JSON.parse(data);
-          let alreadyReceived = this.chain.getIndexOfBlockHash(block.hash)
-          let alreadyIsInActiveFork = this.chain.blockFork[block.hash];
-
-          if(!alreadyReceived && !alreadyIsInActiveFork){
-            if(this.chain.validateBlockHeader(block)){
-
-              if(this.minerServer && this.minerServer.socket){
-                this.minerServer.socket.emit('stopMining')
-              }
-
-              let addedToChain = await this.chain.pushBlock(block);
-              if(addedToChain.error){
-                resolve({error:addedToChain.error})
-              }
-
-              if(addedToChain.outOfSync){
-                this.selfCorrectDeepFork(peerSocket, blockForkIndex)
-              }
-
-              if(addedToChain.fork){
-                let display = JSON.stringify(addedToChain.fork, null, 2)
-                console.log(display)
-                resolve(addedToChain.fork)
-              }
-
-              if(addedToChain.resolved){
-                resolve(addedToChain.resolved);
-              }
-
-              if(this.minerServer && this.minerServer.socket){
-                this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-              }
-              
-              resolve(true);
-
-              // let peerSocket = this.connectionsToPeers[relayPeer]
-
-              // if(peerSocket){
+            let block = JSON.parse(data);
+            let alreadyReceived = this.chain.getIndexOfBlockHash(block.hash)
+            let alreadyIsInActiveFork = this.chain.blockFork[block.hash];
+  
+            if(!alreadyReceived && !alreadyIsInActiveFork){
+              if(this.chain.validateBlockHeader(block)){
+  
+                if(this.minerServer && this.minerServer.socket){
+                  this.minerServer.socket.emit('stopMining')
+                }
+  
+                let addedToChain = await this.chain.pushBlock(block);
+                if(addedToChain.error){
+                  resolve({error:addedToChain.error})
+                }
+  
+                if(addedToChain.outOfSync){
+                  this.selfCorrectDeepFork(peerSocket, blockForkIndex)
+                }
+  
+                if(addedToChain.fork){
+                  let display = JSON.stringify(addedToChain.fork, null, 2)
+                  console.log(display)
+                  resolve(addedToChain.fork)
+                }
+  
+                if(addedToChain.resolved){
+                  resolve(addedToChain.resolved);
+                }
+  
+                if(this.minerServer && this.minerServer.socket){
+                  this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                }
                 
-                  
-    
-              //     // let newBlock = await this.downloadBlockFromHash(peerSocket, header.hash)
-              //     // if(newBlock.error){
-              //     //   resolve({error:newBlock.error})
-              //     // }else{
-                    
-                    
-              //     // }
-              // }else{
-              //   resolve({error:'ERROR:Relay peer could not be found'})
-              // }
-            }else{
-              resolve({error:'ERROR:New block is invalid'})
-            }
-          }
-        }catch(e){
-          console.log(e);
-          resolve({error:e})
-        }
-        // if(relayPeer){
-          
-        // }else{
-        //   resolve({error:'Peer message contains no relayNode'})
-        // }
+                resolve(true);
 
- 
+              }else{
+                resolve({error:'ERROR:New block is invalid'})
+              }
+            }
+          }catch(e){
+            console.log(e);
+            resolve({error:e})
+          }
+        }else{
+          //Need to store while downloading. Then, when done, validate them one by one
+          this.blocksToValidate.push(data);
+        }
       }else{
         resolve({error:'ERROR: Missing parameters'})
       }

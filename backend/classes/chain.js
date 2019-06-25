@@ -1025,9 +1025,16 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
-      var timestampIsGreaterThanPrevious = block.timestamp > this.chain[block.blockNumber - 1].timestamp;
+      
       var merkleRootIsValid = false;
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
+
+      if(this.chain.length > 1 && this.chain[block.blockNumber - 1]){
+        var timestampIsGreaterThanPrevious = block.timestamp > this.chain[block.blockNumber - 1].timestamp;
+        if(!timestampIsGreaterThanPrevious){
+          logger('ERROR: Block timestamp must be greater than previous timestamp')
+        }
+      }
 
       if(!hashIsBelowChallenge){
         logger('ERROR: Hash value must be below challenge value')
