@@ -1030,6 +1030,9 @@ class Blockchain{
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
 
       if(this.chain.length > 1 && this.chain[block.blockNumber - 1]){
+        console.log('New block:', block.timestamp)
+        console.log('Previous Block:', this.chain[block.blockNumber - 1].timestamp)
+        console.log('Highest:', (block.timestamp > this.chain[block.blockNumber - 1].timestamp? 'New block' : 'Previous'))
         var timestampIsGreaterThanPrevious = block.timestamp > this.chain[block.blockNumber - 1].timestamp;
         if(!timestampIsGreaterThanPrevious){
           logger('ERROR: Block timestamp must be greater than previous timestamp')
