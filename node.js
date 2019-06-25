@@ -67,8 +67,6 @@ class Node {
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
-    this.downloadBar = (options.downloadBar === false ? options.downloadBar:true);
-    this.fastSync = options.fastSync;
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -1374,6 +1372,8 @@ class Node {
       this.minerServer.socket.on('getAction', (hash)=>{
         this.minerServer.socket.emit('action', Mempool.pendingAction[hash])
       })
+
+      this.externalEventHandlers(this.minerServer.socket)
   
     })
    
