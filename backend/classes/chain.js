@@ -1185,10 +1185,13 @@ class Blockchain{
 
   validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
-      var timestampIsGreaterThanPrevious = header.timestamp > this.chain[header.blockNumber - 1].timestamp;
-      if(!timestampIsGreaterThanPrevious){
-        logger('ERROR: Block timestamp must be greater than previous timestamp')
+      if(this.chain.length > 1 && this.chain[header.blockNumber - 1]){
+        var timestampIsGreaterThanPrevious = header.timestamp > this.chain[header.blockNumber - 1].timestamp;
+        if(!timestampIsGreaterThanPrevious){
+          logger('ERROR: Block timestamp must be greater than previous timestamp')
+        }
       }
+      
       if(header.hash == RecalculateHash(header)){
         return true;
       }else{
