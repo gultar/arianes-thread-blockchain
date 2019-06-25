@@ -295,7 +295,7 @@ const isValidBlockJSON = (header)=>{
         "required": [
             "blockNumber", 
             "timestamp", 
-            "previousHash", 
+            "previousHash",
             "hash", 
             "nonce", 
             "merkleRoot", 
@@ -307,11 +307,10 @@ const isValidBlockJSON = (header)=>{
     if(header){
         v.addSchema(headerSchema, "/block")
         let valid = v.validate(header, headerSchema);
-        
         if(valid.errors.length == 0){
             return true
         }else{
-            // console.log(valid.errors)
+            console.log(valid.errors)
             return false;
         }
         

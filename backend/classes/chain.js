@@ -86,6 +86,43 @@ class Blockchain{
     })
   }
 
+  saveGenesisFile(){
+    return new Promise(async (resolve)=>{
+      let genesisBlock = await this.createGenesisBlock();
+      let saved = await writeToFile(genesisBlock, './config/genesis.json')
+      if(saved){
+        resolve(genesisBlock)
+      }else{
+        resolve({error:'Could not save genesis file'})
+      }
+    })
+  }
+
+  loadGenesisFile(){
+    return new Promise(async (resolve)=>{
+      fs.exists('./config/genesis.json', async (exists)=>{
+        if(exists){
+          let genesis = await readFile('./config/genesis.json');
+          if(genesis){
+            genesis = JSON.parse(genesis)
+            resolve(genesis)
+          }else{
+            resolve({error:'Could not load genesis file'})
+          }
+        }else{
+          let genesis = await this.saveGenesisFile();
+          if(!genesis.error){
+            resolve(genesis)
+          }else{
+            resolve({error:'Could not load genesis file'})
+          }
+        }
+        
+      })
+      
+    })
+  }
+
   getLatestBlock(){
     return this.chain[this.chain.length - 1];
   }
@@ -135,7 +172,7 @@ class Blockchain{
             resolve(false)
           }
           newBlockchain.balance = new BalanceTable(states)
-          let genesisBlock = await newBlockchain.createGenesisBlock()
+          let genesisBlock = await newBlockchain.loadGenesisFile()
           newBlockchain.chain.push(newBlockchain.extractHeader(genesisBlock))
           newBlockchain.saveBlockchain();
           resolve(newBlockchain);
