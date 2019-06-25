@@ -1,6 +1,6 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger, readFile, writeToFile } = require('../tools/utils.js') 
-
+const fs = require('fs')
 class AccountTable{
     constructor(accounts={}){
         this.accounts = accounts;
