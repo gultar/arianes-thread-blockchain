@@ -105,10 +105,10 @@ class Node {
         let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
         this.chain = await Blockchain.initBlockchain()
         
+        if(!this.chain) resolve({error:'Could not load Blockchain file'});
         if(!nodeListLoaded) resolve({error:'Could not load node list'})
         if(!mempoolLoaded) resolve({error:'Could not load Mempool'});
         if(!accountsLoaded) resolve({error:'Could not load account table'})
-        if(!this.chain) resolve({error:'Could not load account table'});
         
         logger('Loaded peer node list');
         logger('Loaded Blockchain');      

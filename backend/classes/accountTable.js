@@ -88,18 +88,27 @@ class AccountTable{
       loadAllAccountsFromFile(){
         return new Promise(async (resolve, reject)=>{
          try{
-             let accountsFile = await readFile('./data/accounts.json');
-             if(accountsFile){
-                 let accounts = JSON.parse(accountsFile);
-                 if(accounts){
-                     this.accounts = accounts;
-                     resolve(true)
+             fs.exists('./data/accounts.json', (exists)=>{
+                 if(exists){
+                    let accountsFile = await readFile('./data/accounts.json');
+                    if(accountsFile){
+                        let accounts = JSON.parse(accountsFile);
+                        if(accounts){
+                            this.accounts = accounts;
+                            resolve(true)
+                        }else{
+                            resolve(false)
+                        }
+                    }else{
+                        resolve(false)
+                    }
                  }else{
-                     resolve(false)
+                    let saved = await this.saveTable()
+                    resolve(saved)
                  }
-             }else{
-                 resolve(false)
-             }
+                
+             })
+            
          }catch(e){
              console.log(e)
              resolve(false)
