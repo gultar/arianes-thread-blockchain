@@ -1027,6 +1027,12 @@ class Blockchain{
       var isValidHash = block.hash == RecalculateHash(block);
       var timestampIsGreaterThanPrevious = block.timestamp > this.chain[block.blockNumber - 1].timestamp;
       var merkleRootIsValid = false;
+      var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
+
+      if(!hashIsBelowChallenge){
+        logger('ERROR: Hash value must be below challenge value')
+      }
+
       if(block.transactions){
         merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       }else{
@@ -1179,7 +1185,10 @@ class Blockchain{
 
   validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
-      
+      var timestampIsGreaterThanPrevious = block.timestamp > this.chain[block.blockNumber - 1].timestamp;
+      if(!timestampIsGreaterThanPrevious){
+        logger('ERROR: Block timestamp must be greater than previous timestamp')
+      }
       if(header.hash == RecalculateHash(header)){
         return true;
       }else{

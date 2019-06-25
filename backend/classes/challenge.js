@@ -52,23 +52,23 @@ const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
 function setNewDifficulty(previousBlock, newBlock){
   const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
   let adjustment = 1;
-  let minimumDifficulty = BigInt(1048576);//'0x100000';
+  let minimumDifficulty = BigInt(524288);//'0x100000';
   if(mineTime > 0 && mineTime <= 1){
     adjustment = 15
   }else if(mineTime > 1 && mineTime <= 10){
     adjustment = 5
   }else if(mineTime > 10 && mineTime <= 20){
-    adjustment = 1;
+    adjustment = 0;
   }else if(mineTime > 20 && mineTime <= 30){
     adjustment = 0
   }else if(mineTime > 30 && mineTime <= 40){
-    adjustment = 0
-  }else if(mineTime > 40 && mineTime <= 50){
     adjustment = -1
-  }else if(mineTime > 50 && mineTime <= 60){
+  }else if(mineTime > 40 && mineTime <= 50){
     adjustment = -2
-  }else if(mineTime > 60 && mineTime <= 70){
+  }else if(mineTime > 50 && mineTime <= 60){
     adjustment = -5
+  }else if(mineTime > 60 && mineTime <= 70){
+    adjustment = -10
   }else if(mineTime > 70){
     adjustment = -15
   }
@@ -86,7 +86,7 @@ function setNewDifficulty(previousBlock, newBlock){
   // if(modifier < 0){
   //   modifier = (modifier * -1n <= difficulty ? modifier : modifier / 10n)
   // }
-  let newDifficulty = BigInt(difficulty) + BigInt(difficulty/32n) * BigInt(adjustment) + BigInt(difficultyBomb)
+  let newDifficulty = BigInt(difficulty) + BigInt(difficulty/32n) * (BigInt(adjustment) + BigInt(difficultyBomb))
   newDifficulty = (newDifficulty > minimumDifficulty ? newDifficulty : minimumDifficulty)
   // logger(`Adjustment: ${adjustment}`);
   // logger(`Modifier: ${modifier}`);
