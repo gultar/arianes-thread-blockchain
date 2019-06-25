@@ -88,7 +88,7 @@ class AccountTable{
       loadAllAccountsFromFile(){
         return new Promise(async (resolve, reject)=>{
          try{
-             fs.exists('./data/accounts.json', (exists)=>{
+             fs.exists('./data/accounts.json', async (exists)=>{
                  if(exists){
                     let accountsFile = await readFile('./data/accounts.json');
                     if(accountsFile){
