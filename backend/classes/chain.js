@@ -1057,10 +1057,10 @@ class Blockchain{
         resolve(false)
       }
 
-      if(!timestampIsGreaterThanPrevious){
-        logger('ERROR: Block Timestamp must be greater than previous timestamp ')
-        resolve(false)
-      }
+      // if(!timestampIsGreaterThanPrevious){
+      //   logger('ERROR: Block Timestamp must be greater than previous timestamp ')
+      //   resolve(false)
+      // }
 
       if(!merkleRootIsValid){
         logger('ERROR: Merkle root of block IS NOT valid')
