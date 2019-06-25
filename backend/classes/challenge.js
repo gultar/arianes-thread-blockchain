@@ -1,5 +1,6 @@
 
 const { MINING_RATE, NEW_DIFFICULTY_LENGTH, BLOCKTIME_MARGIN } = require('./globals');
+const { logger } = require('../tools/utils')
 
 /**
   WIP
@@ -50,13 +51,12 @@ const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
 
 function setNewDifficulty(previousBlock, newBlock){
   const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
-  // const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
   let adjustment = 1;
-
+  let minimumDifficulty = BigInt(1048576);//'0x100000';
   if(mineTime > 0 && mineTime <= 1){
     adjustment = 15
   }else if(mineTime > 1 && mineTime <= 10){
-    adjustment = 2
+    adjustment = 5
   }else if(mineTime > 10 && mineTime <= 20){
     adjustment = 1;
   }else if(mineTime > 20 && mineTime <= 30){
@@ -70,13 +70,28 @@ function setNewDifficulty(previousBlock, newBlock){
   }else if(mineTime > 60 && mineTime <= 70){
     adjustment = -5
   }else if(mineTime > 70){
-    adjustment = -10
+    adjustment = -15
   }
+  // if(mineTime < 15 || mineTime > 30){
+  //   adjustment = Math.floor(30 - mineTime);
+  // }else{
+  //   adjustment = 0;
+  // }
+  
   
   let difficulty = BigInt(parseInt(previousBlock.difficulty, 16))
-  let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((previousBlock.blockNumber / 10000)-2))))
+  let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((previousBlock.blockNumber / 1000)-2))))
   // let modifier = Math.max(1 - Math.floor(mineTime / 10), -99)
-  let newDifficulty = BigInt(difficulty) + BigInt(difficulty / 32n) * BigInt(adjustment) + BigInt(difficultyBomb)
+  // let modifier = BigInt(difficulty / 32n) * BigInt(adjustment)
+  // if(modifier < 0){
+  //   modifier = (modifier * -1n <= difficulty ? modifier : modifier / 10n)
+  // }
+  let newDifficulty = BigInt(difficulty) + BigInt(difficulty/32n) * BigInt(adjustment) + BigInt(difficultyBomb)
+  newDifficulty = (newDifficulty > minimumDifficulty ? newDifficulty : minimumDifficulty)
+  // logger(`Adjustment: ${adjustment}`);
+  // logger(`Modifier: ${modifier}`);
+  logger(`Difficulty Bomb: ${difficultyBomb}`);
+
   return BigInt(newDifficulty).toString(16);
 }
 

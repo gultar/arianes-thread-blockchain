@@ -217,16 +217,21 @@ class SelfMiner{
 
 
     successMessage(block){
+      function pad(n, width, z) {
+        z = z || '0';
+        n = n + '';
+        let array = (new Array(width - n.length + 1)).join(z)
+        return n.length >= width ? n :  '0x'+array + n;
+      }
       console.log(chalk.cyan('\n********************************************************************'))
       console.log(chalk.cyan('* Block number : ')+block.blockNumber);
       console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
       console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
       console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-      console.log(chalk.cyan("* Challenge : "), block.challenge);
+      console.log(chalk.cyan("* Challenge : "), pad(block.challenge, 64));
       console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
       console.log(chalk.cyan("* Nonce : "), block.nonce)
       console.log(chalk.cyan("* Difficulty : "), parseInt(block.difficulty, 16))
-      console.log(chalk.cyan("* Total Challenge : "), block.totalChallenge)
       console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
       console.log(chalk.cyan('********************************************************************\n'))
     }

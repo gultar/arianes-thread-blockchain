@@ -31,7 +31,11 @@ const mineNextBlock = async (blockToMine) =>{
         process.send({success:block})
         miner.stop()
       }else{
-        block.nonce = (Math.pow(2, 32) * Math.random())
+        block.nonce = block.nonce + (Math.pow(2, 12) * Math.random())
+        if(block.nonce == 'Infinity'){
+          logger('Resetting nonce')
+          block.nonce = 0;
+        }
         // console.log('Target:', BigInt(parseInt(block.challenge, 16)))
         // console.log('Value:', BigInt(parseInt(block.hash, 16)))
       }
