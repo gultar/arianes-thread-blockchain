@@ -107,7 +107,7 @@ const readFile = async (filename) =>{
           }
         });
       }else{
-        logger('ERROR: file does not exist')
+        logger(`ERROR: file ${filename} does not exist`)
         resolve(false);
       }
     })

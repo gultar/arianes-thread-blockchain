@@ -1,6 +1,7 @@
 const sha256 = require('../tools/sha256');
 const { isValidTransactionJSON } = require('../tools/jsonvalidator');
 const { readFile, writeToFile, logger } = require('../tools/utils');
+const fs = require('fs')
 
 class BalanceTable{
     constructor(state){
@@ -90,19 +91,34 @@ class BalanceTable{
 
     static loadAllStates(){
         return new Promise(async (resolve, reject)=>{
+            
          try{
-             let balancesFile = await readFile('./data/balances.json');
-             if(balancesFile){
-                 let balances = JSON.parse(balancesFile);
-                 if(balances){
-                     
-                     resolve(balances)
+             fs.exists('./data/balances.json', async (exists)=>{
+                 if(exists){
+                    let balancesFile = await readFile('./data/balances.json');
+                    if(balancesFile){
+                        let balances = JSON.parse(balancesFile);
+                        if(balances){
+                            
+                            resolve(balances)
+                        }else{
+                            resolve(false)
+                        }
+                    }else{
+                        resolve(false)
+                    }
                  }else{
-                     resolve(false)
+                    let savedBalances = await this.saveStates();
+                    if(savedBalances){
+                        resolve(savedBalances)
+                    }else{
+                        resolve(false)
+                    }
                  }
-             }else{
-                 resolve(false)
-             }
+                
+             })
+
+             
          }catch(e){
              console.log(e)
              resolve(false)
@@ -116,7 +132,7 @@ class BalanceTable{
                 let saved = writeToFile(this.state, './data/balances.json');
                 if(saved){
                     logger('Saved balance states table');
-                    resolve(true)
+                    resolve(this.state)
                 }
             }catch(e){
                 reject(e)
