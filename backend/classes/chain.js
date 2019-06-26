@@ -64,13 +64,14 @@ class Blockchain{
           genesisBlock.maxCoinSupply = Math.pow(10, 10);
           genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
           genesisBlock.calculateHash();
-          
-          this.balance.state = {
+          genesisBlock.state = {
             "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000, lastTransaction:'coinbase', },
             "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000, lastTransaction:'coinbase', },
             "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
             "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
           }
+          
+          this.balance.state = genesisBlock.state;
           
           let addedGenesisTx = await this.chainDB.put({
               _id:genesisBlock.hash,
@@ -867,8 +868,12 @@ class Blockchain{
 
   checkBalance(publicKey){
     let walletState = this.balance.getBalance(publicKey)
-    let balance = walletState.balance;
-    return balance;
+    if(walletState){
+      return walletState.balance;
+    }else{
+      return 0
+    }
+    
   }
 
   gatherMiningFees(block){

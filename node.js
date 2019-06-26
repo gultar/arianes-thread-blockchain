@@ -641,10 +641,8 @@ class Node {
       if(isValidWalletBalanceJSON(req.query)){
         let publicKey = req.query.publicKey;
         if(publicKey){
-          let balance = await this.chain.balance.getBalance(publicKey);
-          res.json({ 
-            balance: balance
-          }).end()
+          let state = await this.chain.balance.getBalance(publicKey);
+          res.json(state).end()
         }else{
           res.json({error:'ERROR: must provide publicKey'}).end()
         }
