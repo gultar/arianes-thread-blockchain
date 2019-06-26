@@ -1934,7 +1934,7 @@ class Node {
     let transactionChecksum = '';
 
     let nodeFile = await readFile('./node.js');
-    let blockchainFile = await readFile(`./backend/classes/blockchain.js`);
+    let blockchainFile = await readFile(`./backend/classes/chain.js`);
     let blockFile = await readFile(`./backend/classes/block.js`);
     let challengeFile = await readFile(`./backend/classes/challenge.js`);
     let transactionFile = await readFile(`./backend/classes/transaction.js`);
