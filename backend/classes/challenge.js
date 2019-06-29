@@ -88,7 +88,7 @@ function setNewDifficulty(previousBlock, newBlock){
   // if(modifier < 0){
   //   modifier = (modifier * -1n <= difficulty ? modifier : modifier / 10n)
   // }
-  let newDifficulty = BigInt(difficulty) + BigInt(difficulty/32n) * (BigInt(adjustment) + BigInt(difficultyBomb))
+  let newDifficulty = BigInt(difficulty) + (BigInt(difficulty/32n) * (BigInt(adjustment))) * BigInt(difficultyBomb)
   newDifficulty = (newDifficulty > minimumDifficulty ? newDifficulty : minimumDifficulty)
   logger(`Difficulty Bomb: ${difficultyBomb}`);
 
