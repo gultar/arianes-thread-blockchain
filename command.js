@@ -67,7 +67,7 @@ program
     let configs = await loadNodeConfig();
     if(!configs){
       configs = {
-        address:'localhost',
+        address:'http://localhost:8000',
         port:8000
       }
     }
