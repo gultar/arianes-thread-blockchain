@@ -64,15 +64,15 @@ function setNewDifficulty(previousBlock, newBlock){
   }else if(mineTime > 20 && mineTime <= 30){
     adjustment = 0
   }else if(mineTime > 30 && mineTime <= 40){
-    adjustment = -2
+    adjustment = -1
   }else if(mineTime > 40 && mineTime <= 50){
-    adjustment = -5
+    adjustment = -2
   }else if(mineTime > 50 && mineTime <= 60){
-    adjustment = -10
+    adjustment = -4
   }else if(mineTime > 60 && mineTime <= 70){
-    adjustment = -15
+    adjustment = -5
   }else if(mineTime > 70){
-    adjustment = -20
+    adjustment = -10
   }
   // if(mineTime < 15 || mineTime > 30){
   //   adjustment = Math.floor(30 - mineTime);

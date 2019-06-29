@@ -822,7 +822,7 @@ class Node {
     if(socket && peerAddress){
       const rateLimiter = new RateLimiterMemory(
         {
-          points: 50, // 5 points
+          points: 100, // 5 points
           duration: 1, // per second
         });
 
