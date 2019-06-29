@@ -62,10 +62,15 @@ program
   .usage('')
   .description('Starts blockchain node')
   .action(async ()=>{
-
+    
 
     let configs = await loadNodeConfig();
-    if(configs){
+    if(!configs){
+      configs = {
+        address:'localhost',
+        port:8000
+      }
+    }
       if(program.verbose){
         configs.verbose = true;
       }
@@ -108,9 +113,7 @@ program
         }
       })
       
-    }else{
-      console.log('ERROR: Could not load node configs')
-    }
+    
 
     
   });
