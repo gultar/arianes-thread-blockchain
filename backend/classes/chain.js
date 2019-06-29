@@ -153,12 +153,13 @@ class Blockchain{
           }
 
           blockchain = instanciateBlockchain(blockchainObject);
-          let states = await BalanceTable.loadAllStates()
+          blockchain.balance = new BalanceTable()
+          let states = await blockchain.balance.loadAllStates()
           if(!states) {
             logger('ERROR: Could not load balance table')
             resolve(false)
           }
-          blockchain.balance = new BalanceTable(states)
+          blockchain.balance.states = states
           resolve(blockchain);
   
         }else{
@@ -167,12 +168,13 @@ class Blockchain{
           logger('Generating new blockchain')
           
           let newBlockchain = new Blockchain();
-          let states = await BalanceTable.loadAllStates()
+          newBlockchain.balance = new BalanceTable()
+          let states = await newBlockchain.balance.loadAllStates()
           if(!states) {
             logger('ERROR: Could not load balance table')
             resolve(false)
           }
-          newBlockchain.balance = new BalanceTable(states)
+          newBlockchain.balance.states = states;
           let genesisBlock = await newBlockchain.loadGenesisFile()
           newBlockchain.chain.push(newBlockchain.extractHeader(genesisBlock))
           newBlockchain.saveBlockchain();

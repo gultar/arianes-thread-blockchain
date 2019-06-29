@@ -89,7 +89,7 @@ class BalanceTable{
         return true;
     }
 
-    static loadAllStates(){
+    loadAllStates(){
         return new Promise(async (resolve, reject)=>{
             
          try{
@@ -108,7 +108,7 @@ class BalanceTable{
                         resolve(false)
                     }
                  }else{
-                    let savedBalances = await BalanceTable.saveStates();
+                    let savedBalances = await this.saveStates();
                     if(savedBalances){
                         resolve(savedBalances)
                     }else{
