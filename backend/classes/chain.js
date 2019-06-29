@@ -64,14 +64,14 @@ class Blockchain{
           genesisBlock.maxCoinSupply = Math.pow(10, 10);
           genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
           genesisBlock.calculateHash();
-          genesisBlock.state = {
+          genesisBlock.states = {
             "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000, lastTransaction:'coinbase', },
             "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000, lastTransaction:'coinbase', },
             "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
             "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
           }
           
-          this.balance.state = genesisBlock.state;
+          // this.balance.states = genesisBlock.state;
           
           let addedGenesisTx = await this.chainDB.put({
               _id:genesisBlock.hash,
@@ -169,7 +169,7 @@ class Blockchain{
           
           let newBlockchain = new Blockchain();
           let genesisBlock = await newBlockchain.loadGenesisFile()
-          newBlockchain.balance = new BalanceTable(genesisBlock.state)
+          newBlockchain.balance = new BalanceTable(genesisBlock.states)
           let states = await newBlockchain.balance.loadAllStates()
           if(!states) {
             logger('ERROR: Could not load balance table')

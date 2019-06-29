@@ -5,7 +5,7 @@ const fs = require('fs')
 
 class BalanceTable{
     constructor(state){
-        this.state = (state?state:{})
+        this.states = (state?state:{})
     }
 
     executeTransactionBlock(transactions){
@@ -52,21 +52,21 @@ class BalanceTable{
     }
 
     getBalance(publicKey){
-        return this.state[publicKey]
+        return this.states[publicKey]
     }
 
     addNewWalletKey(publicKey){
-        this.state[publicKey] = {
+        this.states[publicKey] = {
             balance:0,
             lastTransaction:'unkown',
         }
-        let fingerprintString = JSON.stringify(this.state[publicKey])
-        this.state[publicKey].fingerprint = sha256(fingerprintString);
+        let fingerprintString = JSON.stringify(this.states[publicKey])
+        this.states[publicKey].fingerprint = sha256(fingerprintString);
     }
 
     spend(publicKey, value, txHash){
-        if(!this.state[publicKey]) return {error:'Wallet does not exist'};
-        let walletState = this.state[publicKey];
+        if(!this.states[publicKey]) return {error:'Wallet does not exist'};
+        let walletState = this.states[publicKey];
         if(walletState.balance > value){
             walletState.balance -= value;
             walletState.lastTransaction = txHash
@@ -80,8 +80,8 @@ class BalanceTable{
     }
 
     gain(publicKey, value, txHash){
-        if(!this.state[publicKey]) this.addNewWalletKey(publicKey);
-        let walletState = this.state[publicKey];
+        if(!this.states[publicKey]) this.addNewWalletKey(publicKey);
+        let walletState = this.states[publicKey];
         walletState.balance += value;
         walletState.lastTransaction = txHash
         let fingerprintString = JSON.stringify(walletState)
@@ -129,10 +129,10 @@ class BalanceTable{
       saveStates(){
           return new Promise((resolve, reject)=>{
             try{
-                let saved = writeToFile(this.state, './data/balances.json');
+                let saved = writeToFile(this.states, './data/balances.json');
                 if(saved){
                     logger('Saved balance states table');
-                    resolve(this.state)
+                    resolve(this.states)
                 }
             }catch(e){
                 reject(e)
