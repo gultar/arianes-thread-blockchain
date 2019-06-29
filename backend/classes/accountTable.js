@@ -1,6 +1,7 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger, readFile, writeToFile } = require('../tools/utils.js') 
 const fs = require('fs')
+
 class AccountTable{
     constructor(accounts={}){
         this.accounts = accounts;
@@ -16,28 +17,6 @@ class AccountTable{
             }
         })
       }
-
-    //   loadAllAccountsFromFile(){
-    //    return new Promise(async (resolve, reject)=>{
-    //     try{
-    //         let accountsFile = await readFile('./data/accounts.json');
-    //         if(accountsFile){
-    //             let accounts = JSON.parse(accountsFile);
-    //             if(accounts){
-    //                 this.accounts = accounts;
-    //                 resolve(true)
-    //             }else{
-    //                 resolve(false)
-    //             }
-    //         }else{
-    //             resolve(false)
-    //         }
-    //     }catch(e){
-    //         console.log(e)
-    //         resolve(false)
-    //     }
-    //    })
-    //   }
 
       getAccount(name){
         if(this.accounts){

@@ -8,7 +8,7 @@ const { isValidBlockJSON } = require('../../tools/jsonvalidator');
 const chalk = require('chalk');
 const { setNewDifficulty, setNewChallenge } = require('../challenge')
 const ioClient = require('socket.io-client');
-class SelfMiner{
+class Miner{
     constructor(params){
         this.address = params.address;
         this.keychain = params.keychain;
@@ -240,4 +240,4 @@ class SelfMiner{
 
 }
 
-module.exports = SelfMiner;
+module.exports = Miner;

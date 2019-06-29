@@ -1090,6 +1090,16 @@ class Blockchain{
       return total.toString(16);
   }
 
+  validateBlockTimestamp(timestamp){
+    let twentyMinutesInTheFuture = 30 * 60 * 1000
+    if(timestamp > this.getLatestBlock().timestamp && timestamp < (Date.now() + twentyMinutesInTheFuture) ){
+      return true
+    }else{
+      return false
+    }
+    
+  }
+
 
   /**
     Criterias for validation are as follows:
@@ -1098,6 +1108,7 @@ class Blockchain{
     - Block difficulty hasn't been tempered with
     - Total challenge score matches 
     - Chain doesn't already contain this block
+    - Timestamp is greater than previous timestamp
     - All transactions are valid
     - No double spend took place in chain
     @param {string} $block - Block to be validated
@@ -1106,19 +1117,13 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
-      
+      var isValidTimestamp = this.validateBlockTimestamp(block.timestamp)
       var merkleRootIsValid = false;
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
 
-      // if(this.chain.length > 1 && this.chain[block.blockNumber - 1]){
-      //   console.log('New block:', block.timestamp)
-      //   console.log('Previous Block:', this.chain[block.blockNumber - 1].timestamp)
-      //   console.log('Highest:', (block.timestamp > this.chain[block.blockNumber - 1].timestamp? 'New block' : 'Previous'))
-      //   var timestampIsGreaterThanPrevious = block.timestamp > this.chain[block.blockNumber - 1].timestamp;
-      //   if(!timestampIsGreaterThanPrevious){
-      //     logger('ERROR: Block timestamp must be greater than previous timestamp')
-      //   }
-      // }
+      if(!isValidTimestamp){
+        logger('ERROR: Is not valid timestamp')
+      }
 
       if(!hashIsBelowChallenge){
         logger('ERROR: Hash value must be below challenge value')
@@ -1470,68 +1475,31 @@ class Blockchain{
           if(!isMiningReward){
 
             var isChecksumValid = this.validateChecksum(transaction);
-           
             let isSignatureValid = await this.validateSignature(transaction)
-
             let isSendingAddressValid = await validatePublicKey(transaction.fromAddress)
-
             let isReceivingAddressValid = await validatePublicKey(transaction.toAddress)
-
             let isNotCircular = transaction.fromAddress !== transaction.toAddress;
-           
             var balanceOfSendingAddr = await this.checkBalance(transaction.fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
-           
+            let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
             var amountIsNotZero = transaction.amount > 0;
-
             let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
-            
             var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
               
-            if(!isChecksumValid){
-              resolve({error:'REJECTED: Transaction checksum is invalid'});
-            }
-
-            if(!isSendingAddressValid){
-              resolve({error:'REJECTED: Sending address is invalid'});
-            }
-
-            if(!isReceivingAddressValid){
-              resolve({error:'REJECTED: Receiving address is invalid'});
-            }
-              
-            if(!isSignatureValid){
-              resolve({error:'REJECTED: Transaction signature is invalid'});
-            }
-
-            if(!amountIsNotZero){
-              resolve({error:'REJECTED: Amount needs to be higher than zero'});
-            }
-
-            if(!isNotCircular){
-              resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
-            }
-
-            if(!hasMiningFee){
-              resolve({error:"REJECTED: Mining fee is insufficient"});
-            }
-              
-            if(!transactionSizeIsNotTooBig){
-              resolve({error:'REJECTED: Transaction size is above 10KB'});  
-            }
-              
-            if(balanceOfSendingAddr < transaction.amount + transaction.miningFee){
-              resolve({error:'REJECTED: Sender does not have sufficient funds'});
-            }  
+            if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+            if(!isSendingAddressValid) resolve({error:'REJECTED: Sending address is invalid'});
+            if(!isReceivingAddressValid) resolve({error:'REJECTED: Receiving address is invalid'});
+            if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
+            if(!amountIsNotZero) resolve({error:'REJECTED: Amount needs to be higher than zero'});
+            if(!isNotCircular) resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
+            if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
+            if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
+            if(!hasEnoughFunds) resolve({error:'REJECTED: Sender does not have sufficient funds'});
 
           }else if(isMiningReward){
             
             let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
 
-            if(isValidCoinbaseTransaction.error){
-              resolve({error:isValidCoinbaseTransaction.error})
-            }else if(isValidCoinbaseTransaction.pending){
-              resolve({pending:isValidCoinbaseTransaction.pending})
-            }
+            if(isValidCoinbaseTransaction.error) resolve({error:isValidCoinbaseTransaction.error})
 
           }
           
@@ -1565,25 +1533,11 @@ class Blockchain{
           let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + this.calculateTransactionMiningFee(transaction));
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
-          if(!isChecksumValid){
-            resolve({error:'REJECTED: Transaction checksum is invalid'});
-          }
-
-          if(!hasTheRightMiningRewardAmount){
-            resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
-          }
-
-          if(isAlreadyInChain){
-            Mempool.deleteCoinbaseTransaction(transaction)
-          }
-
-          if(!isAttachedToMinedBlock){
-            resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
-          }
-            
-          if(!transactionSizeIsNotTooBig){
-            resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'}); 
-          } 
+          if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+          if(!hasTheRightMiningRewardAmount) resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
+          if(isAlreadyInChain) Mempool.deleteCoinbaseTransaction(transaction)
+          if(!isAttachedToMinedBlock) resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
+          if(!transactionSizeIsNotTooBig) resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'});
           
           resolve(true)
               

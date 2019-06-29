@@ -108,7 +108,7 @@ class BalanceTable{
                         resolve(false)
                     }
                  }else{
-                    let savedBalances = await this.saveStates();
+                    let savedBalances = await BalanceTable.saveStates();
                     if(savedBalances){
                         resolve(savedBalances)
                     }else{

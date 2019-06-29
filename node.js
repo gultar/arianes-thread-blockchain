@@ -12,14 +12,13 @@ const helmet = require('helmet');
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 //************Blockchain classes****************/
-const Wallet = require('./backend/classes/wallet');
+// const Wallet = require('./backend/classes/wallet');
 const Blockchain = require('./backend/classes/chain');
-const Transaction = require('./backend/classes/transaction');
+// const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountCreator = require('./backend/classes/accountCreator');
 const AccountTable = require('./backend/classes/accountTable');
-const BalanceTable = require('./backend/classes/balanceTable');
 /*************Smart Contract VM************** */
 const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
@@ -30,12 +29,12 @@ const Mempool = require('./backend/classes/mempool'); //Instance not class
 const { displayTime, displayDate, logger, writeToFile, readFile, isHashPartOfMerkleTree } = require('./backend/tools/utils');
 const {
   isValidTransactionJSON,
-  isValidChainLengthJSON,
-  isValidWalletRequestJSON,
-  isValidGetNextBlockJSON,
-  isValidHeaderJSON,
-  isValidCreateWalletJSON,
-  isValidUnlockWalletJSON,
+  // isValidChainLengthJSON,
+  // isValidWalletRequestJSON,
+  // isValidGetNextBlockJSON,
+  // isValidHeaderJSON,
+  // isValidCreateWalletJSON,
+  // isValidUnlockWalletJSON,
   isValidWalletBalanceJSON,
   isValidActionJSON,
   isValidBlockJSON
@@ -320,7 +319,6 @@ class Node {
         let peer;
         let timestamp = Date.now();
         let randomOrder = Math.random();
-        let checksum = this.validateChecksum(timestamp, randomOrder)
         try{
           peer = ioClient(address, {
             'reconnection limit' : 1000,
@@ -329,13 +327,7 @@ class Node {
             'pingTimeout': 10000,
             'query':
             {
-              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey, 'checksum':{
-                  timestamp:timestamp,
-                  randomOrder:randomOrder,
-                  checksum:checksum
-                } 
-              }),
-              
+              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey}),
             }
           });
 
@@ -371,10 +363,7 @@ class Node {
                 bestBlockHeader: this.chain.getLatestBlock(),
                 length: this.chain.chain.length
               }
-              setTimeout(()=>{
-                
-                peer.emit('getBlockchainStatus', status);
-              },5000);
+              setTimeout(()=>{ peer.emit('getBlockchainStatus', status); },5000);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
               
@@ -554,7 +543,7 @@ class Node {
             }
           }else{
             // logger('Blockchain is up to date with peer')
-            this.updated = true;
+            resolve(true)
           }
 
           
@@ -831,13 +820,11 @@ class Node {
   */
   nodeEventHandlers(socket, peerAddress){
     if(socket && peerAddress){
-      // const rateLimiter = new RateLimiterMemory(
-      //   {
-      //     points: 50, // 5 points
-      //     duration: 1, // per second
-      //   });
-
-    //  socket.emit('getBlockchainStatus')
+      const rateLimiter = new RateLimiterMemory(
+        {
+          points: 50, // 5 points
+          duration: 1, // per second
+        });
 
      socket.on('error', async(err)=>{
        logger('Socket error:',err);
@@ -849,17 +836,17 @@ class Node {
      })
 
      socket.on('connectionRequest', async({address})=>{
-      //  await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
+       await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
        this.connectToPeer(address);
      });
 
      socket.on('peerMessage', async(peerMessage)=>{
-      //  await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
+       await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
        this.handlePeerMessage(peerMessage);
      })
 
      socket.on('getPeers', async()=>{
-        // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getPeer' events") }); // consume 1 point per event from IP
+        await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getPeer' events") }); // consume 1 point per event from IP
         let peers = this.nodeList.addresses;
         let randomPeers = []
         peers.forEach( peer=>{
@@ -874,7 +861,7 @@ class Node {
 
     
      socket.on('getBlockchainStatus', async(peerStatus)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
       // logger(`Peer ${peerAddress} has requesting blockchain status`)
       if(this.chain instanceof Blockchain){
         try{
@@ -903,7 +890,7 @@ class Node {
      })
 
      socket.on('getInfo', async()=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getInfo' events") }); // consume 1 point per event from IP
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getInfo' events") }); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
 
         try{
@@ -917,7 +904,7 @@ class Node {
      })
 
      socket.on('getBlockHeader', async (blockNumber)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
        if(blockNumber && typeof blockNumber == 'number'){
          let header = await this.chain.getBlockHeader(blockNumber);
          if(header){
@@ -931,7 +918,7 @@ class Node {
      })
 
     socket.on('getNextBlock', async (hash)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getNextBlock' events") }); // consume 1 point per event from IP
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getNextBlock' events") }); // consume 1 point per event from IP
       let index = this.chain.getIndexOfBlockHash(hash)
       
       if(index || index === 0){
@@ -952,7 +939,7 @@ class Node {
     })
 
      socket.on('getBlockFromHash', async(hash)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
       if(this.chain instanceof Blockchain){
         if(hash && typeof hash == 'string'){
          
@@ -1106,7 +1093,6 @@ class Node {
       socket.on('showBalances', ()=>{
         console.log(this.chain.balance)
       })
-
 
       socket.on('verbose', ()=>{
         
@@ -1926,51 +1912,51 @@ class Node {
     }
   }
 
-  async validateChecksum(timestamp, randomOrder){
-    let nodeChecksum = '';
-    let blockchainChecksum = '';
-    let blockChecksum = '';
-    let challengeChecksum = '';
-    let transactionChecksum = '';
+  // async validateChecksum(timestamp, randomOrder){
+  //   let nodeChecksum = '';
+  //   let blockchainChecksum = '';
+  //   let blockChecksum = '';
+  //   let challengeChecksum = '';
+  //   let transactionChecksum = '';
 
-    let nodeFile = await readFile('./node.js');
-    let blockchainFile = await readFile(`./backend/classes/chain.js`);
-    let blockFile = await readFile(`./backend/classes/block.js`);
-    let challengeFile = await readFile(`./backend/classes/challenge.js`);
-    let transactionFile = await readFile(`./backend/classes/transaction.js`);
+  //   let nodeFile = await readFile('./node.js');
+  //   let blockchainFile = await readFile(`./backend/classes/chain.js`);
+  //   let blockFile = await readFile(`./backend/classes/block.js`);
+  //   let challengeFile = await readFile(`./backend/classes/challenge.js`);
+  //   let transactionFile = await readFile(`./backend/classes/transaction.js`);
 
-    if(nodeFile && blockchainFile && blockFile && challengeFile && transactionFile){
-      nodeChecksum = await sha256(nodeFile)
-      blockchainChecksum = await sha256(blockchainFile)
-      blockChecksum = await sha256(blockFile)
-      challengeChecksum = await sha256(challengeFile)
-      transactionChecksum = await sha256(transactionFile);
+  //   if(nodeFile && blockchainFile && blockFile && challengeFile && transactionFile){
+  //     nodeChecksum = await sha256(nodeFile)
+  //     blockchainChecksum = await sha256(blockchainFile)
+  //     blockChecksum = await sha256(blockFile)
+  //     challengeChecksum = await sha256(challengeFile)
+  //     transactionChecksum = await sha256(transactionFile);
 
-      let checksumArray = [
-        nodeChecksum,
-        blockchainChecksum,
-        blockChecksum,
-        challengeChecksum,
-        transactionChecksum
-      ]
+  //     let checksumArray = [
+  //       nodeChecksum,
+  //       blockchainChecksum,
+  //       blockChecksum,
+  //       challengeChecksum,
+  //       transactionChecksum
+  //     ]
   
-      checksumArray.sort((a, b)=>{
-        return 0.5 - randomOrder;
-      })
+  //     checksumArray.sort((a, b)=>{
+  //       return 0.5 - randomOrder;
+  //     })
   
-      let finalChecksum
-      checksumArray.forEach( checksum=>{
-        finalChecksum = finalChecksum + checksum;
-      })
+  //     let finalChecksum
+  //     checksumArray.forEach( checksum=>{
+  //       finalChecksum = finalChecksum + checksum;
+  //     })
   
-      finalChecksum = sha256(finalChecksum + timestamp.toString()) ;
-      return finalChecksum;
+  //     finalChecksum = sha256(finalChecksum + timestamp.toString()) ;
+  //     return finalChecksum;
 
-    }else{
-      return false;
-    }
+  //   }else{
+  //     return false;
+  //   }
     
-  }
+  // }
 
 }
 
