@@ -2,7 +2,7 @@
 
 const Block = require('../block');
 const Transaction = require('../transaction');
-const WalletManager = require('../walletmanager')
+const WalletManager = require('../walletManager')
 const { logger, displayTime } = require('../../tools/utils');
 const { isValidBlockJSON } = require('../../tools/jsonvalidator');
 const chalk = require('chalk');
@@ -37,7 +37,7 @@ class Miner{
       if(url){
         this.socket = ioClient(url)
         this.socket.on('connect', ()=>{
-          logger('Miner connected!')
+          logger('Miner connected to ', url)
         })
 
         this.socket.on('actionHashList', (list)=>{
@@ -62,6 +62,7 @@ class Miner{
         this.socket.on('error', error => console.log('ERROR',error))
         this.socket.on('disconnect', ()=>{
           logger('Connection to node dropped')
+          this.pause()
         })
       }
     }
@@ -89,7 +90,7 @@ class Miner{
                   
                   this.updateTransactions()
                   .then( updated =>{
-                    // this.socket.emit('getLatestBlock')
+                    logger('Fetched other transactions')
                     
                   })
                 }else{
@@ -137,9 +138,6 @@ class Miner{
         }else{
           resolve(false)
         }
-        
-
-        
       })
       
     }
@@ -209,8 +207,6 @@ class Miner{
         block.challenge = setNewChallenge(block)
         block.minedBy = this.wallet.publicKey;
         return block;
-      }else{
-        logger('Not enough tx')
       }
       
     }
@@ -228,7 +224,7 @@ class Miner{
       console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
       console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
       console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-      console.log(chalk.cyan("* Challenge : "), pad(block.challenge, 64));
+      console.log(chalk.cyan("* Challenge : "), '0x'+pad(block.challenge, 64).substr(0, 25)+'...');
       console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
       console.log(chalk.cyan("* Nonce : "), block.nonce)
       console.log(chalk.cyan("* Difficulty : "), parseInt(block.difficulty, 16))

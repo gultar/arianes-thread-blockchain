@@ -1,15 +1,9 @@
 #!/usr/bin/env node
-// const Mempool = require('./backend/classes/mempool')
+
 const Miner = require('./backend/classes/minertools/miner')
-const ECDSA = require('ecdsa-secp256r1');
 const program = require('commander');
-const fs = require('fs');
-const express = require('express');
-const http = require('http');
 
 program
-    
-    // .option('-k, --publickey <publicKey>', 'Wallet provided to sign coinbase transactions')
     .option('-w, --walletName <walletName>', 'Name of the miner wallet')
     .option('-p, --password <password>', 'Password needed to unlock wallet')
     .option('-v, --verbose', 'Verbose level')
@@ -19,13 +13,12 @@ program
     .description('Start mining')
     .action(( port )=>{
         if(!program.walletName || !program.password) {throw new Error('Wallet name and password required to mine!'); return null;}
-        console.log('Starting miner')
+        
         let miner = new Miner({
             publicKey:program.publickey,
             verbose:program.verbose,
             keychain:{ name:program.walletName, password:program.password }
         })
-        console.log('Connecting to ', 'http://localhost:'+port)
         miner.connect('http://127.0.0.1:'+port)
 
     })

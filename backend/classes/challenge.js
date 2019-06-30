@@ -1,9 +1,10 @@
 
-const { MINING_RATE, NEW_DIFFICULTY_LENGTH, BLOCKTIME_MARGIN } = require('./globals');
 const { logger } = require('../tools/utils')
 
+process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
+process.IDEAL_BLOCK_TIME = 10; //seconds
+
 /**
-  WIP
   Algorithm to increase difficulty over time to ensure uniform block time.
   To be worked on.
   @param {number} $currentChallenge - Mining difficulty current set on blockchain
@@ -11,43 +12,7 @@ const { logger } = require('../tools/utils')
   @param {number} $newTimestamp - Time at the end of the block creation process in milliseconds
 */
 
-const setChallenge = (currentChallenge, lastTimestamp, newTimestamp) =>{
-  const blockTime = newTimestamp - lastTimestamp;
 
-  if(blockTime > MINING_RATE+BLOCKTIME_MARGIN){
-    return currentChallenge-(blockTime - MINING_RATE)
-  }else if(blockTime < MINING_RATE-BLOCKTIME_MARGIN){
-    return currentChallenge+(MINING_RATE - blockTime)
-  }else{
-    return currentChallenge;
-  }
-
-}
-
-
-const setDifficulty = (currentDifficulty, challenge, chainLength) =>{
-  //Every time challenge value goes beyond a power of ten, increase difficulty
-  if(challenge && currentDifficulty && chainLength){
-    if(chainLength % NEW_DIFFICULTY_LENGTH == 0){ //
-      
-      let difficulty = Math.floor(Math.log10(challenge))
-      if(difficulty > currentDifficulty + 1){
-        return currentDifficulty+1;
-      }else if(difficulty == currentDifficulty + 1){
-        return currentDifficulty
-      }else{
-        if(currentDifficulty > 1){
-          return currentDifficulty - 1;
-        }else{
-          return currentDifficulty
-        }
-      }
-    }else{
-      return currentDifficulty
-    }
-    
-  }
-}
 
 function setNewDifficulty(previousBlock, newBlock){
   const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
@@ -82,14 +47,16 @@ function setNewDifficulty(previousBlock, newBlock){
   
   
   let difficulty = BigInt(parseInt(previousBlock.difficulty, 16))
-  let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((previousBlock.blockNumber / 1000)-2))))
+  let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((previousBlock.blockNumber / process.DIFFICULTY_BOMB_DIVIDER)-2))))
+  difficultyBomb = ( adjustment > 0 && difficultyBomb > 0 ? difficultyBomb : 1 )
   // let modifier = Math.max(1 - Math.floor(mineTime / 10), -99)
   // let modifier = BigInt(difficulty / 32n) * BigInt(adjustment)
   // if(modifier < 0){
   //   modifier = (modifier * -1n <= difficulty ? modifier : modifier / 10n)
   // }
-  let newDifficulty = BigInt(difficulty) + (BigInt(difficulty/32n) * (BigInt(adjustment))) * BigInt(difficultyBomb)
+  let newDifficulty = BigInt(difficulty) + (BigInt(difficulty/32n) * BigInt(adjustment) * BigInt(difficultyBomb)) 
   newDifficulty = (newDifficulty > minimumDifficulty ? newDifficulty : minimumDifficulty)
+
   logger(`Difficulty Bomb: ${difficultyBomb}`);
 
   return BigInt(newDifficulty).toString(16);
@@ -103,4 +70,4 @@ const setNewChallenge = (block) =>{
 }
 
 
-module.exports = {setChallenge, setDifficulty, setNewChallenge, setNewDifficulty};
+module.exports = {setNewChallenge, setNewDifficulty};

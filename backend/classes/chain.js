@@ -1,8 +1,7 @@
 
 /////////////////////Blockchain///////////////////////
 const sha256 = require('../tools/sha256');
-const { 
-  displayTime, 
+const {  
   logger, 
   RecalculateHash, 
   writeToFile,
@@ -13,14 +12,12 @@ const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../
 const Transaction = require('./transaction');
 const BalanceTable = require('./balanceTable')
 const Block = require('./block');
-const { setChallenge, setDifficulty, setNewChallenge, setNewDifficulty } = require('./challenge');
+const { setNewChallenge } = require('./challenge');
 const chalk = require('chalk');
-const merkle = require('merkle');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
 const fs = require('fs');
 const jsonc = require('jsonc')
-const LoopyLoop = require('loopyloop')
 let _ = require('private-parts').createKey();
 const PouchDB = require('pouchdb');
 /**
@@ -1190,16 +1187,6 @@ class Blockchain{
           resolve(false)
         }
 
-        // if(rightNumberOfZeros){
-        //   logger('BLOCK SYNC ERROR: Difficulty does not match leading zero in hash')
-        //   resolve(false)
-        // }
-
-        // if(difficultyMatchesChallenge){
-        //   logger('BLOCK SYNC ERROR: Difficulty does not match challenge')
-        //   resolve(false)
-        // }
-
         resolve(true)
       }catch(e){
         console.log(e);
@@ -1283,17 +1270,6 @@ class Blockchain{
 
   validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
-      // if(this.chain.length > 1 && this.chain[header.blockNumber - 1]){
-      //   console.log('New header:', header.timestamp)
-      //   console.log('Previous header:', this.chain[header.blockNumber - 1].timestamp)
-      //   console.log('Highest:', (header.timestamp > this.chain[header.blockNumber - 1].timestamp? 'New header' : 'Previous'))
-       
-      //   var timestampIsGreaterThanPrevious = header.timestamp > this.chain[header.blockNumber - 1].timestamp;
-      //   if(!timestampIsGreaterThanPrevious){
-      //     logger('ERROR: Block timestamp must be greater than previous timestamp')
-      //   }
-      // }
-      
       if(header.hash == RecalculateHash(header)){
         return true;
       }else{
