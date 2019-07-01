@@ -40,6 +40,19 @@ class Miner{
           logger('Miner connected to ', url)
         })
 
+        this.socket.on('txHashList', (list)=>{
+          if(list){
+              list.forEach(hash=>{
+                  this.socket.emit('getTx', hash)
+              })
+          }
+        })
+        this.socket.on('tx', (tx)=>{
+            if(tx){
+              this.pool.pendingTransactions[tx.hash] = tx;
+            }
+        })
+
         this.socket.on('actionHashList', (list)=>{
             if(list){
                 list.forEach(hash=>{
@@ -71,13 +84,16 @@ class Miner{
       
         this.minerLoop = setInterval(async ()=>{
           if(!this.minerStarted){
-            let updated = await this.updateTransactions()
+            let updated = await this.updateTransactions() //Not mandatory as there may not have any actions to mine
             if(updated){
+            let actionsUpdated = await this.updateActions()
               let block = await this.buildNewBlock();
               if(block){
                 this.minerStarted = true
                 logger('Starting to mine next block')
                 logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
+                logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
+                if(actionsUpdated)
                 logger('At difficulty: ', parseInt(block.difficulty, 16))
                 let success = await block.mine(block.difficulty);
                 if(success){
@@ -87,7 +103,7 @@ class Miner{
                   this.socket.emit('newBlock', block)
                   this.pause()
                   this.pool.pendingTransactions = {}
-                  
+                  this.pool.pendingActions = {}
                   this.updateTransactions()
                   .then( updated =>{
                     logger('Fetched other transactions')
@@ -142,6 +158,37 @@ class Miner{
       
     }
 
+    updateActions(){
+      return new Promise(async (resolve)=>{
+        let lastHash = '';
+        let list = await this.getActionList();
+        if(list && list.length > 0){
+          for(var i=0; i < list.length; i++){
+            if(i == list.length -1){
+              lastHash = list[i]
+            }
+
+            this.socket.emit('getAction', list[i])
+          }
+          this.socket.on('action', (action)=>{
+            if(action){
+                this.pool.pendingActions[action.hash] = action;
+                if(action.hash == lastHash){
+                  this.socket.off('action')
+                  resolve(true)
+                }
+            }else{
+              resolve(false)
+            }
+            
+          })
+        }else{
+          resolve(false)
+        }
+      })
+      
+    }
+
     updateChainStatus(){
 
     }
@@ -153,6 +200,22 @@ class Miner{
             if(list){
                 this.socket.off('txHashList')
                 resolve(list)
+            }else{
+              resolve(false)
+            }
+        })
+      })
+    }
+
+    getActionList(){
+      return new Promise((resolve)=>{
+        this.socket.emit('getActionHashList')
+        this.socket.on('actionHashList', (list)=>{
+            if(list){
+                this.socket.off('actionHashList')
+                resolve(list)
+            }else{
+              resolve(false)
             }
         })
       })
@@ -196,10 +259,11 @@ class Miner{
 
     async buildNewBlock(){
       let transactions = this.pool.pendingTransactions
+      let actions = this.pool.pendingActions
       let coinbase = await this.createCoinbase()
       transactions[coinbase.hash] = coinbase
       if(Object.keys(transactions).length > 0){
-        let block = new Block(Date.now(), transactions);
+        let block = new Block(Date.now(), transactions, actions);
         block.startMineTime = Date.now()
         block.blockNumber = this.previousBlock.blockNumber + 1;
         block.previousHash = this.previousBlock.hash;
@@ -224,11 +288,12 @@ class Miner{
       console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
       console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
       console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
-      console.log(chalk.cyan("* Challenge : "), '0x'+pad(block.challenge, 64).substr(0, 25)+'...');
+      console.log(chalk.cyan("* Challenge : "), pad(block.challenge, 64).substr(0, 25)+'...');
       console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
       console.log(chalk.cyan("* Nonce : "), block.nonce)
       console.log(chalk.cyan("* Difficulty : "), parseInt(block.difficulty, 16))
       console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
+      console.log(chalk.cyan('* Number of actions in block : '), Object.keys(block.actions).length)
       console.log(chalk.cyan('********************************************************************\n'))
     }
 

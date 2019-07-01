@@ -717,6 +717,10 @@ class Node {
       });
       
       app.set('json spaces', 2)
+
+      app.get('connect', (req, res)=>{
+        //
+      })
       
       app.get('/transaction', (req, res)=>{
         let tx = {};
@@ -841,8 +845,10 @@ class Node {
      });
 
      socket.on('peerMessage', async(peerMessage)=>{
-       await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
-       this.handlePeerMessage(peerMessage);
+      if(!this.messageBuffer[peerMessage.messageId]){
+        await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
+        this.handlePeerMessage(peerMessage);
+      }
      })
 
      socket.on('getPeers', async()=>{
@@ -1338,7 +1344,7 @@ class Node {
       })
 
       this.minerServer.socket.on('getActionHashList', ()=>{
-        this.minerServer.socket.emit('actionHashList', Object.keys(Mempool.pendingAction))
+        this.minerServer.socket.emit('actionHashList', Object.keys(Mempool.pendingActions))
       })
 
       this.minerServer.socket.on('getTx', (hash)=>{
@@ -1346,7 +1352,7 @@ class Node {
       })
 
       this.minerServer.socket.on('getAction', (hash)=>{
-        this.minerServer.socket.emit('action', Mempool.pendingAction[hash])
+        this.minerServer.socket.emit('action', Mempool.pendingActions[hash])
       })
 
       this.externalEventHandlers(this.minerServer.socket)
@@ -1401,9 +1407,6 @@ class Node {
           'data':data,
           'relayPeer':relayPeer 
         }
-  
-        if(!this.messageBuffer[messageId]){
-
           this.messageBuffer[messageId] = peerMessage;
 
           switch(type){
@@ -1425,7 +1428,7 @@ class Node {
           }
           
           this.broadcast('peerMessage', peerMessage)
-        }
+        
       }catch(e){
         console.log(e)
       }  

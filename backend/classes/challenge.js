@@ -3,6 +3,7 @@ const { logger } = require('../tools/utils')
 
 process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
 process.IDEAL_BLOCK_TIME = 10; //seconds
+process.MINIMUM_DIFFICULTY = 1048576
 
 /**
   Algorithm to increase difficulty over time to ensure uniform block time.
@@ -14,52 +15,61 @@ process.IDEAL_BLOCK_TIME = 10; //seconds
 
 
 
-function setNewDifficulty(previousBlock, newBlock){
-  const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
-  let adjustment = 1;
-  let minimumDifficulty = BigInt(1048576);//'0x100000';
-  if(mineTime > 0 && mineTime <= 1){
-    adjustment = 15
-  }else if(mineTime > 1 && mineTime <= 5){
-    adjustment = 10
-  }else if(mineTime > 5 && mineTime <= 10){
-    adjustment = 5
-  }else if(mineTime > 10 && mineTime <= 20){
-    adjustment = 0;
-  }else if(mineTime > 20 && mineTime <= 30){
-    adjustment = 0
-  }else if(mineTime > 30 && mineTime <= 40){
-    adjustment = -1
-  }else if(mineTime > 40 && mineTime <= 50){
-    adjustment = -2
-  }else if(mineTime > 50 && mineTime <= 60){
-    adjustment = -4
-  }else if(mineTime > 60 && mineTime <= 70){
-    adjustment = -5
-  }else if(mineTime > 70){
-    adjustment = -10
-  }
-  // if(mineTime < 15 || mineTime > 30){
-  //   adjustment = Math.floor(30 - mineTime);
-  // }else{
-  //   adjustment = 0;
-  // }
+// function setNewDifficulty(previousBlock, newBlock){
+//   const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
+//   let adjustment = 1;
+//   let minimumDifficulty = BigInt(process.MINIMUM_DIFFICULTY);//'0x100000';
+//   if(mineTime > 0 && mineTime <= 1){
+//     adjustment = 15
+//   }else if(mineTime > 1 && mineTime <= 5){
+//     adjustment = 10
+//   }else if(mineTime > 5 && mineTime <= 10){
+//     adjustment = 5
+//   }else if(mineTime > 10 && mineTime <= 20){
+//     adjustment = 0;
+//   }else if(mineTime > 20 && mineTime <= 30){
+//     adjustment = 0
+//   }else if(mineTime > 30 && mineTime <= 40){
+//     adjustment = -1
+//   }else if(mineTime > 40 && mineTime <= 50){
+//     adjustment = -2
+//   }else if(mineTime > 50 && mineTime <= 60){
+//     adjustment = -4
+//   }else if(mineTime > 60 && mineTime <= 70){
+//     adjustment = -5
+//   }else if(mineTime > 70){
+//     adjustment = -10
+//   }
+//   // if(mineTime < 15 || mineTime > 30){
+//   //   adjustment = Math.floor(30 - mineTime);
+//   // }else{
+//   //   adjustment = 0;
+//   // }
   
   
-  let difficulty = BigInt(parseInt(previousBlock.difficulty, 16))
-  let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((previousBlock.blockNumber / process.DIFFICULTY_BOMB_DIVIDER)-2))))
-  difficultyBomb = ( adjustment > 0 && difficultyBomb > 0 ? difficultyBomb : 1 )
-  // let modifier = Math.max(1 - Math.floor(mineTime / 10), -99)
-  // let modifier = BigInt(difficulty / 32n) * BigInt(adjustment)
-  // if(modifier < 0){
-  //   modifier = (modifier * -1n <= difficulty ? modifier : modifier / 10n)
-  // }
-  let newDifficulty = BigInt(difficulty) + (BigInt(difficulty/32n) * BigInt(adjustment) * BigInt(difficultyBomb)) 
-  newDifficulty = (newDifficulty > minimumDifficulty ? newDifficulty : minimumDifficulty)
+//   let difficulty = BigInt(parseInt(previousBlock.difficulty, 16))
+//   let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((previousBlock.blockNumber / process.DIFFICULTY_BOMB_DIVIDER)-2))))
+//   difficultyBomb = ( adjustment > 0 && difficultyBomb > 0 ? difficultyBomb : 1 )
+//   // let modifier = Math.max(1 - Math.floor(mineTime / 10), -99)
+//   // let modifier = BigInt(difficulty / 32n) * BigInt(adjustment)
+//   // if(modifier < 0){
+//   //   modifier = (modifier * -1n <= difficulty ? modifier : modifier / 10n)
+//   // }
+//   let newDifficulty = BigInt(difficulty) + (BigInt(difficulty/32n) * BigInt(adjustment) * BigInt(difficultyBomb)) 
+//   newDifficulty = (newDifficulty > minimumDifficulty ? newDifficulty : minimumDifficulty)
+//   setDifficulty(previousBlock, newBlock)
+//   return BigInt(newDifficulty).toString(16);
+// }
 
-  logger(`Difficulty Bomb: ${difficultyBomb}`);
-
-  return BigInt(newDifficulty).toString(16);
+const setNewDifficulty =(previousBlock, newBlock)=>{
+  const minimumDifficulty = BigInt(process.MINIMUM_DIFFICULTY);//;
+  const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
+  const timeAdjustment = (1 - Math.floor(mineTime / 10 ) >= -99? (1 - Math.floor(mineTime / 10 )) : -99)
+  const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / 2048n) * BigInt(timeAdjustment)
+  const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / 100000)-2)))
+  let blockDiff = BigInt(parseInt(previousBlock.difficulty, 16)) + modifier + difficultyBomb
+  blockDiff = (blockDiff > minimumDifficulty ? blockDiff : minimumDifficulty)
+  return BigInt(blockDiff).toString(16) //console.log('Possible difficulty: ', blockDiff)
 }
 
 const setNewChallenge = (block) =>{

@@ -12,7 +12,7 @@ const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../
 const Transaction = require('./transaction');
 const BalanceTable = require('./balanceTable')
 const Block = require('./block');
-const { setNewChallenge } = require('./challenge');
+const { setNewChallenge, setNewDifficulty } = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
@@ -200,6 +200,10 @@ class Blockchain{
               let executed = await this.balance.executeTransactionBlock(newBlock.transactions)
               if(executed.errors) resolve({ error: executed.errors })
 
+              let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions)
+              if(actionsExecuted.error) resolve({ error: executed.errors })
+              if(newBlock.actions) newBlock.transactions['actions'] = newBlock.actions
+              
               let txConfirmed = await this.chainDB.put({
                   _id:newBlock.hash,
                   [newBlock.hash]:newBlock.transactions
@@ -208,6 +212,7 @@ class Blockchain{
                 
               if(txConfirmed){
                 Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
                 resolve(true);
               }else{
                   logger('ERROR: Could not add transactions to database')
@@ -1099,6 +1104,31 @@ class Blockchain{
     
   }
 
+  validateDifficulty(block){
+    let previousBlock = this.getLatestBlock()
+    if(previousBlock){
+      let difficultyRecalculated = setNewDifficulty(previousBlock, block);
+      let parsedRecalculatedDifficulty = BigInt(parseInt(difficultyRecalculated, 16))
+      let parsedActualdifficulty = BigInt(parseInt(block.difficulty, 16))
+      if(parsedActualdifficulty == parsedRecalculatedDifficulty){
+        return true;
+      }else{
+        return false;
+      }
+    }
+  }
+
+  validateChallenge(block){
+    let recalculatedChallenge = setNewChallenge(block)
+    let parsedRecalculatedChallenge = BigInt(parseInt(recalculatedChallenge, 16))
+    let parsedActualChallenge = BigInt(parseInt(block.challenge, 16))
+    if(parsedActualChallenge == parsedRecalculatedChallenge){
+      return true
+    }else{
+      return false
+    }
+  }
+
 
   /**
     Criterias for validation are as follows:
@@ -1117,8 +1147,16 @@ class Blockchain{
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = this.validateBlockTimestamp(block.timestamp)
+      var isValidDifficulty = this.validateDifficulty(block);
+      var isValidChallenge = this.validateChallenge(block);
       var merkleRootIsValid = false;
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
+      //validate difficulty
+      var difficultyIsAboveMinimum = BigInt(parseInt(block.difficulty, 16)) >= BigInt(parseInt(this.chain[0].difficulty, 16))
+
+      if(!difficultyIsAboveMinimum){
+        logger('ERROR: Difficulty level must be above minimum set in genesis block')
+      }
 
       if(!isValidTimestamp){
         logger('ERROR: Is not valid timestamp')
@@ -1126,6 +1164,14 @@ class Blockchain{
 
       if(!hashIsBelowChallenge){
         logger('ERROR: Hash value must be below challenge value')
+      }
+
+      if(!isValidDifficulty){
+        logger('ERROR: Recalculated difficulty did not match block difficulty')
+      }
+
+      if(!isValidChallenge){
+        logger('ERROR: Recalculated challenge did not match block challenge')
       }
 
       if(block.transactions){

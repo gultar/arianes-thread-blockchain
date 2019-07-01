@@ -1,13 +1,10 @@
-# Simuchain
+# Thousandfold blocks
 
-A Nodejs + Socket.io blockchain simulation with signed transactions, p2p communication, block synchronization between peers, and a working proof of work algorithm.
+A Nodejs + Socket.io + PouchDB blockchain platform with signed transactions, p2p communication, block synchronization between peers, block conflict resolution (although still pretty simple), a working proof of work algorithm, a difficulty increase algorithm.
 
 
-
-This is a simulation only. It was and is still a project built for leasure and understanding basic blockchain/p2p network structures.
 
 Aside from some fine tuning, here are some possible future implementations:
-- Kademlia DHT Peer discovery system, similar to ethereum's.
 - A proof of stake version of the same project.
 - TCP NAT traversal to do a live test
 
@@ -35,89 +32,89 @@ To get the blockchain up and running you first need to get all the dependencies
 ```
 npm install
 ```
+### Configuring the blockchain
+
+Almost all configurations for the generation of blocks are found in the
+./config/genesis.json. 
+
+You can set the balances of your account for the ICO.
+Other configurations like block times, initial/minimum difficulty and much more 
+can be set in this file.
+
+You can then set your node's network configs at
+./config/nodeconfig.json
+
 
 ### Connecting to the blockchain
 
 Then you can either instantiate the class by using
 
 ```
-let myNode = new Node(ipAddress, port);
-myNode.startServer();
+let myNode = new Node({
+        address:'http://localhost:8000', //default ip address
+        port:8000,                       //default port
+        verbose:false,                   //default verbose state
+});
+
+let started = await myNode.startServer()
+if(started.error) throw new Error(started.error)
+
+myNode.joinPeers();
 
 ```
 
-or by running index.js for a CLI-like interface.
+or by running blockchainCLI.js for a CLI-like interface.
 
 ```
-node index.js start <ip> <port>
+node blockchainCLI.js start
 ```
 
 To get a list of all options :
 ```
-$ node index.js --help
-Usage: index [command] [options] 
+$ node blockchainCLI.js --help
+Usage: blockchainCLI <value> [-options]
+
+
+  Possible other commands:
+
+  wallet - For managing wallets and wallet states
+  sendTx - For sending transactions from one wallet to another
+  action - For creating and sending an action to a contract
+  chain  - For querying the blockchain for information
+  config - For updating node config file
+  pool   - For managing transaction pool
+
 
 Options:
-  -V, --version           output the version number
-  -j, --join              Joins network
-  -m, --mine              Starts the node as a miner
-  -u, --update            Tries to update chain by querying for the longest chain in the network
-  -s, --seed              Seed nodes to initiate p2p connections
-  -h, --help              output usage information
+  -V, --version         output the version number
+  -j, --join [network]  Joins network
+  -s, --seed <seed>     Seed nodes to initiate p2p connections
+  -v, --verbose         Enable transaction and network verbose
+  -h, --help            output usage information
 
 Commands:
-  start <address> <port>  Starts blockchain node
+  start                 Starts blockchain node
+  create                Creates the genesis block
+  rollback <blockNum>   Rollback blocks from chain (from the end) 
 
 
 ```
 
-## Running the tests
+## Author
 
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-## Deployment
-
-Add additional notes about how to deploy this on a live system
-
-## Built With
-
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
-
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags).
-
-## Authors
-
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+* **Sacha-Olivier Dulac** - *Initial work* - [Gultar](https://github.com/gultar)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+
+The Simublock library is licensed under the GNU General Public License v3.0
+
+You may copy, distribute and modify the software as long as you track changes/dates in source files. Any modifications to or software including (via compiler) GPL-licensed code must also be made available under the GPL along with build & install instructions.
+
+For the full licence: [LICENCE](https://tldrlegal.com/license/gnu-general-public-license-v3-(gpl-3)#fulltext)
+
+Copyright (C) 2018 Sacha-Olivier Dulac
 
 ## Acknowledgments
 

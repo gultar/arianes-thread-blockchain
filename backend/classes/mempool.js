@@ -193,7 +193,6 @@ class Mempool{
         
             for(var hash of actionHashes){
                 if(this.pendingActions.hasOwnProperty(hash)){
-                    console.log('Deleting action: ', hash)
                     delete this.pendingActions[hash];
                 }
             }

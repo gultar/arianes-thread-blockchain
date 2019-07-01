@@ -5,6 +5,7 @@ const fs = require('fs')
 class AccountTable{
     constructor(accounts={}){
         this.accounts = accounts;
+        this.state = {}
     }
 
     addAccount(account){
@@ -62,6 +63,10 @@ class AccountTable{
             }
             
           })
+      }
+
+      setAccountState(){
+
       }
 
       loadAllAccountsFromFile(){

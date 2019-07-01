@@ -1,5 +1,5 @@
 const sha256 = require('../tools/sha256');
-const { isValidTransactionJSON } = require('../tools/jsonvalidator');
+const { isValidTransactionJSON, isValidActionJSON } = require('../tools/jsonvalidator');
 const { readFile, writeToFile, logger } = require('../tools/utils');
 const fs = require('fs')
 
@@ -45,6 +45,41 @@ class BalanceTable{
             }else{
                 let coinsGained = this.gain(toAddress, amount, hash);
                 return true;
+            }
+            
+            
+        }
+    }
+
+    executeActionBlock(actions){
+        return new Promise((resolve)=>{
+            let hashes = Object.keys(actions);
+            let errors = {}
+            hashes.forEach( hash=>{
+                let action = actions[hash];
+                let executed = this.executeAction(action)
+                if(executed.error) errors[hash] = executed.error;
+            })
+            let numOfErrors = Object.keys(errors).length;
+
+            if(numOfErrors > 0) resolve({errors:errors})
+            else resolve(true)
+        })
+        
+    }
+
+    executeAction(action){
+        if(isValidActionJSON(action)){
+            
+            let fromAddress = action.fromAddress;
+            let hash = action.hash;
+            let fee = action.fee;
+
+            let coinsSpent = this.spend(fromAddress, fee, hash);
+            if(!coinsSpent.error){
+                return true;
+            }else{
+                return coinsSpent.error;
             }
             
             
