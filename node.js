@@ -1916,53 +1916,6 @@ class Node {
       this.outputToUI(message)
     }
   }
-
-  // async validateChecksum(timestamp, randomOrder){
-  //   let nodeChecksum = '';
-  //   let blockchainChecksum = '';
-  //   let blockChecksum = '';
-  //   let challengeChecksum = '';
-  //   let transactionChecksum = '';
-
-  //   let nodeFile = await readFile('./node.js');
-  //   let blockchainFile = await readFile(`./backend/classes/chain.js`);
-  //   let blockFile = await readFile(`./backend/classes/block.js`);
-  //   let challengeFile = await readFile(`./backend/classes/challenge.js`);
-  //   let transactionFile = await readFile(`./backend/classes/transaction.js`);
-
-  //   if(nodeFile && blockchainFile && blockFile && challengeFile && transactionFile){
-  //     nodeChecksum = await sha256(nodeFile)
-  //     blockchainChecksum = await sha256(blockchainFile)
-  //     blockChecksum = await sha256(blockFile)
-  //     challengeChecksum = await sha256(challengeFile)
-  //     transactionChecksum = await sha256(transactionFile);
-
-  //     let checksumArray = [
-  //       nodeChecksum,
-  //       blockchainChecksum,
-  //       blockChecksum,
-  //       challengeChecksum,
-  //       transactionChecksum
-  //     ]
-  
-  //     checksumArray.sort((a, b)=>{
-  //       return 0.5 - randomOrder;
-  //     })
-  
-  //     let finalChecksum
-  //     checksumArray.forEach( checksum=>{
-  //       finalChecksum = finalChecksum + checksum;
-  //     })
-  
-  //     finalChecksum = sha256(finalChecksum + timestamp.toString()) ;
-  //     return finalChecksum;
-
-  //   }else{
-  //     return false;
-  //   }
-    
-  // }
-
 }
 
 

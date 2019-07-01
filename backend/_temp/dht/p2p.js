@@ -20,21 +20,25 @@ class P2P{
         this.bootstrapNodes = [];
     }
 
-    start(next){
-        logger(`RPC Interface listening on ${this.address}`)
-        this.ioServer.listen(this.port)
-        
-        this.ioServer.on('connection', (socket)=>{
-            let address = socket.request.connection.remoteAddress;
-            if(!this.inbound[address]){
-                this.inbound[address] = socket;
-                this.inboundChannels(socket, address)
-                next(socket)
-            }else{
-                socket.destroy()
-            }
-           
+    start(){
+        return new Promise((resolve)=>{
+            logger(`RPC Interface listening on ${this.address}`)
+            this.ioServer.listen(this.port)
+            
+            this.ioServer.on('connection', (socket)=>{
+                let address = socket.request.connection.remoteAddress;
+                if(!this.inbound[address]){
+                    this.inbound[address] = socket;
+                    this.inboundChannels(socket, address)
+                    
+                }else{
+                    socket.destroy()
+                }
+            
+            })
+            resolve(socket)
         })
+        
     }
 
     connect(peerAddress, next){

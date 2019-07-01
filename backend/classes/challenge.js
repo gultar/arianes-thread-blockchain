@@ -62,7 +62,7 @@ process.MINIMUM_DIFFICULTY = 1048576
 // }
 
 const setNewDifficulty =(previousBlock, newBlock)=>{
-  const minimumDifficulty = BigInt(process.MINIMUM_DIFFICULTY);//;
+  const minimumDifficulty = BigInt(process.MINIMUM_DIFFICULTY);
   // console.log('Minimum difficulty: ', minimumDifficulty)
   const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
   // console.log('Mine time:', mineTime)
