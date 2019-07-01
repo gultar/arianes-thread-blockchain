@@ -53,8 +53,9 @@ class BalanceTable{
 
     executeActionBlock(actions){
         return new Promise((resolve)=>{
-            if(actions){
-                let hashes = Object.keys(actions);
+            let hashes = Object.keys(actions);
+            if(actions && hashes.length > 0){
+                
                 let errors = {}
                 hashes.forEach( hash=>{
                     let action = actions[hash];
