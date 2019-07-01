@@ -202,7 +202,9 @@ class Blockchain{
 
               let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions)
               if(actionsExecuted.error) resolve({ error: executed.errors })
-              if(newBlock.actions) newBlock.transactions['actions'] = newBlock.actions
+              if(newBlock.actions && actionsExecuted){
+                newBlock.transactions['actions'] = newBlock.actions
+              }
               
               let txConfirmed = await this.chainDB.put({
                   _id:newBlock.hash,
