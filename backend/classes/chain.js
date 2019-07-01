@@ -1473,6 +1473,7 @@ class Blockchain{
         let recalculatedMerkleRoot = merkleRoot(transactions);
         console.log('Root :', root)
         console.log('Other:', recalculatedMerkleRoot)
+        console.log(Object.keys(transactions))
         if(recalculatedMerkleRoot == root){
             return true;
         }else{
