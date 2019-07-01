@@ -1177,8 +1177,10 @@ class Blockchain{
       }
 
       if(block.transactions){
+        console.log('Block has transactions')
         merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       }else{
+        console.log('Block does not have transactions')
         let transactions = await this.chainDB.get(block.hash).catch( e=> console.log('Cannot get transactions to validate merkleRoot'));
         if(transactions){
           merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, transactions);

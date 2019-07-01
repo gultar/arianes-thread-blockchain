@@ -63,11 +63,18 @@ process.MINIMUM_DIFFICULTY = 1048576
 
 const setNewDifficulty =(previousBlock, newBlock)=>{
   const minimumDifficulty = BigInt(process.MINIMUM_DIFFICULTY);//;
+  console.log('Minimum difficulty: ', minimumDifficulty)
   const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
+  console.log('Mine time:', mineTime)
   const timeAdjustment = (1 - Math.floor(mineTime / 10 ) >= -99? (1 - Math.floor(mineTime / 10 )) : -99)
+  console.log('Time adjustment:', timeAdjustment)
   const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / 2048n) * BigInt(timeAdjustment)
+  console.log('Modifier:', modifier)
   const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / 100000)-2)))
+  console.log('Difficulty bomb', difficultyBomb)
   let blockDiff = BigInt(parseInt(previousBlock.difficulty, 16)) + modifier + difficultyBomb
+  console.log(`${BigInt(parseInt(previousBlock.difficulty, 16))} + ${modifier} + ${difficultyBomb}`)
+  console.log('New Difficulty:', blockDiff)
   blockDiff = (blockDiff > minimumDifficulty ? blockDiff : minimumDifficulty)
   return BigInt(blockDiff).toString(16) //console.log('Possible difficulty: ', blockDiff)
 }
