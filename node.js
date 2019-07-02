@@ -597,6 +597,7 @@ class Node {
 
              
             }else{
+              console.log(lastHeader)
               logger('ERROR: Last block header from peer is invalid')
               resolve(false)
             }
