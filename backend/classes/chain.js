@@ -1224,9 +1224,10 @@ class Blockchain{
       return total.toString(16);
   }
 
-  validateBlockTimestamp(timestamp){
+  validateBlockTimestamp(block){
+    let timestamp = block.timestamp;
     let twentyMinutesInTheFuture = 30 * 60 * 1000
-    if(timestamp > this.getLatestBlock().timestamp && timestamp < (Date.now() + twentyMinutesInTheFuture) ){
+    if(timestamp > this.chain[block.blockNumber - 1].timestamp && timestamp < (Date.now() + twentyMinutesInTheFuture) ){
       return true
     }else{
       return false
@@ -1276,7 +1277,7 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
-      var isValidTimestamp = this.validateBlockTimestamp(block.timestamp)
+      var isValidTimestamp = this.validateBlockTimestamp(block)
       var isValidDifficulty = this.validateDifficulty(block);
       var isValidChallenge = this.validateChallenge(block);
       var merkleRootIsValid = false;
