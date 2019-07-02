@@ -516,7 +516,17 @@ class Node {
         }
         //Need to Validate Genesis Block
         this.chain[0] = genesisBlock
-        this.downloadBlockchain(peer, lastHeader)
+        let downloaded = await this.downloadBlockchain(peer, lastHeader)
+        if(downloaded.error){
+          closeConnection()
+          resolve(
+            { 
+              error:{
+                message:'Blockchain download failed',
+                reason:downloaded.error
+              } 
+            })
+        }
       }else{
         
   
@@ -525,21 +535,25 @@ class Node {
           if(block.end){
             logger('Blockchain updated successfully!')
             closeConnection()
+            resolve(true)
           }else if(block.error){
             logger(block.error)
             closeConnection()
+            resolve({error:block.error})
           }else{
             if(block.previousHash != lastHash){
               let isBlockPushed = await this.chain.pushBlock(block);
-              if(isBlockPushed){
-                peer.emit('getNextBlock', block.hash)
-              }else{
+              if(isBlockPushed.error){
                 closeConnection()
+                resolve({ error: 'Block could not be pushed' })
+              }else{
+                peer.emit('getNextBlock', block.hash)
               }
             }else{
               let isBlockFork = await this.chain.newBlockFork(block)
               peer.emit('getNextBlock', block.hash)
               closeConnection()
+              resolve(true)
             }
             
           }
