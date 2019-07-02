@@ -443,10 +443,10 @@ class Blockchain{
               logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
               logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
               //Store actual block on the chain, as an array
-              let forkedChain = []
-              forkedChain.push(newBlock)
+
               this.chain[previousBlockNumber].fork = {}
-              this.chain[previousBlockNumber].fork[newBlock.hash] = forkedChain
+              this.chain[previousBlockNumber].fork[newBlock.hash] = []
+              this.chain[previousBlockNumber].fork[newBlock.hash].push(newBlock)
               resolve(true)
             }else if(previousBlockNumber >= 0 && this.blockForks[newBlock.previousHash]){
               //Extend already existing block fork
@@ -519,7 +519,7 @@ class Blockchain{
                   logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
                   logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
                   logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
-                  if(this.blockForks[block.hash]) delete this.blockForks[block.hash]
+                  // if(this.blockForks[block.hash]) delete this.blockForks[block.hash]
                 }
               }else{
                 logger('ERROR: Could not find block')

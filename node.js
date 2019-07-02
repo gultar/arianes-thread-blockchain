@@ -993,17 +993,7 @@ class Node {
         // console.log("Peer sent too many 'getNextBlock' events") 
       }); // consume 1 point per event from IP
        let genesisBlock = this.chain.chain[0];
-       let transactions = await this.chain.chainDB.get(genesisBlock.hash)
-            .catch(e => console.log(e))
-          if(transactions){
-            transactions = transactions[transactions._id]
-            genesisBlock.transactions = transactions;
-            socket.emit('genesisBlock', genesisBlock)
-          }else{
-            socket.emit('genesisBlock', {error:'Could not find transactions'})
-          }
-          
-       
+       socket.emit('genesisBlock', genesisBlock)
      })
 
     socket.on('getNextBlock', async (hash)=>{
