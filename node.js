@@ -516,6 +516,7 @@ class Node {
         }
         //Need to Validate Genesis Block
         this.chain[0] = genesisBlock
+        this.downloadBlockchain(peer, lastHeader)
       }else{
         
   
@@ -544,9 +545,6 @@ class Node {
           }
         })
       }
-
-      
-
       peer.emit('getNextBlock', startHash);
 
     })
