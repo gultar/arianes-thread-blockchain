@@ -457,12 +457,13 @@ class Blockchain{
                 size:previousForkInfo.size+1,
               }
               
-              let rootBlock = this.chain[previousForkedBlock.root.height]
-              let forkedChain = rootBlock.fork[previousForkedBlock.root.hash]
+              let rootBlock = this.chain[previousForkInfo.root.height]
+              let forkedChain = rootBlock.fork[previousForkInfo.root.hash]
               let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
               if(isNewBlockLinked){
                 forkedChain.push(newBlock)
                 let result = await this.resolveBlockFork(forkedChain)
+                if(result)
               }else{
                 
                 resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
@@ -485,8 +486,10 @@ class Blockchain{
         if(forkChainHasMoreWork){
 
           let isValidTotalDifficulty = this.calculateWorkDone(forkedChain)
-          if(isValidTotalDifficulty){
-            let startRemovingBlocksAt = forkedChain[0].blockNumber
+          if(!isValidTotalDifficulty){
+            logger('Is not valid total difficulty')
+          }
+          let startRemovingBlocksAt = forkedChain[0].blockNumber
             let numberOfBlocks = this.getLatestBlock().blockNumber - startRemovingBlocksAt
             let orphanedChain = this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
 
@@ -497,22 +500,21 @@ class Blockchain{
                 let numberOfAddedBlock = this.getLatestBlock().blockNumber - startRemovingBlocksAt
                 this.chain.splice(startRemovingBlocksAt, numberOfAddedBlock)
                 this.chain.concat(orphanedChain)
+                resolve({error:blockAdded.error})
               }else{
                 logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
                 logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
                 logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
+                
               }
 
             })
     
             logger(chalk.yellow(`* Finished switching branch`))
             logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-    
-          }else{
-    
-          }
+            resolve(true)
         }else{
-          resolve({ result:'Canonical chain contains more work. Staying on this one' })
+          resolve({ error:'Canonical chain contains more work. Staying on this one' })
         }
       }
       
