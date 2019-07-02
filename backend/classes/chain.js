@@ -463,7 +463,9 @@ class Blockchain{
               }
               
               let rootBlock = this.chain[previousForkInfo.root.blockNumber]
+              if(!rootBlock) resolve({ error:'BLOCK FORK ERROR: Could not find rootBlock' })
               let forkedChain = rootBlock.fork[newBlock.previousHash]
+              if(!forkedChain || !Array.isArray(forkedChain)) resolve({ error:'BLOCK FORK ERROR: Could not get forked chain' })
               let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
               if(isNewBlockLinked){
                 forkedChain.push(newBlock)
