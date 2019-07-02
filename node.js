@@ -503,33 +503,11 @@ class Node {
       let lastHash = lastHeader.hash;
       this.isDownloading = true;
       let length = lastHeader.blockNumber + 1;
+      
       const closeConnection = () =>{
         peer.off('nextBlock')
         this.isDownloading = false;
       }
-      if(this.chain.getLatestBlock().blockNumber == 0){
-        
-        let genesisBlock = await this.downloadGenesisBlock(peer)
-        if(genesisBlock.error){
-          logger(genesisBlock.error)
-          closeConnection()
-        }
-        //Need to Validate Genesis Block
-        this.chain[0] = genesisBlock
-        let downloaded = await this.downloadBlockchain(peer, lastHeader)
-        if(downloaded.error){
-          closeConnection()
-          resolve(
-            { 
-              error:{
-                message:'Blockchain download failed',
-                reason:downloaded.error
-              } 
-            })
-        }
-      }else{
-        
-  
         peer.on('nextBlock', async (block)=>{
           
           if(block.end){
@@ -558,7 +536,7 @@ class Node {
             
           }
         })
-      }
+      
       peer.emit('getNextBlock', startHash);
 
     })
@@ -570,6 +548,7 @@ class Node {
     return new Promise(async (resolve) =>{
       if(this.chain instanceof Blockchain && peer && status){
         
+
         let { totalDifficultyHex, bestBlockHeader, length } = status;
         
         if(totalDifficultyHex && bestBlockHeader && length){
@@ -584,15 +563,39 @@ class Node {
             
             let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
             if(isValidHeader && !this.isDownloading){
-              
-             let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-             if(downloaded.error){
-               logger('Could not download blockchain')
-               logger(downloaded.error)
-               resolve(false)
-             }else{
-              resolve(true)
-             }
+
+              if(this.chain.getLatestBlock().blockNumber == 0){
+                this.downloadGenesisBlock(peer)
+                .then( genesisBlock=>{
+                  if(genesisBlock.error){
+                    logger(genesisBlock.error)
+                  }else{
+                    //Need to Validate Genesis Block
+                    this.chain[0] = genesisBlock
+                    let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                    if(downloaded.error){
+                      logger('Could not download blockchain')
+                      logger(downloaded.error)
+                      resolve(false)
+                    }else{
+                      resolve(true)
+                    }
+                  }
+
+                })
+                
+              }else{
+                let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                if(downloaded.error){
+                  logger('Could not download blockchain')
+                  logger(downloaded.error)
+                  resolve(false)
+                }else{
+                  resolve(true)
+                }
+              }
+
+             
             }else{
               logger('ERROR: Last block header from peer is invalid')
               resolve(false)
