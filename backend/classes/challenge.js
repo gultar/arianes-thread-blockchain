@@ -1,6 +1,11 @@
 
 const { logger } = require('../tools/utils')
-const genesisBlock = require('../../config/genesis.json')
+const fs = require('fs')
+let genesisBlock;
+fs.exists('../../config/genesis.json', (exists)=>{
+  genesisBlock = require('../../config/genesis.json')
+})
+
 process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
 process.IDEAL_BLOCK_TIME = 10; //seconds
 const MINIMUM_DIFFICULTY = parseInt(genesisBlock.difficulty, 16)
