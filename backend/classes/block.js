@@ -19,6 +19,7 @@ class Block{
     this.actions = actions;
     this.previousHash = previousHash;
     this.blockFork = {}
+    this.totalDifficulty = '0x1'
     this.difficulty = 1;
     this.hash = this.calculateHash();
     this.merkleRoot = this.createMerkleRoot(this.transactions);

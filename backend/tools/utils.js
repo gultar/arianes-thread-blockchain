@@ -53,6 +53,23 @@ function merkleRoot(dataSet){
 
 }
 
+function loopOverMethods(object){
+  return new Promise((resolve)=>{
+    let methods = []
+    for (let name of Object.getOwnPropertyNames(Object.getPrototypeOf(object))) {
+      let method = name;
+      if(method !== 'constructor'){
+        methods.push(method)
+      }else{
+        continue
+      }
+      
+    }
+    resolve(methods)
+  })
+  
+}
+
 // function test(){
   
 //   const RoutingTable = require('kademlia-routing-table')
@@ -371,4 +388,5 @@ module.exports = {
   createFile,
   merge,
   createTargetFile,
-  validatePublicKey, };
+  validatePublicKey,
+  loopOverMethods, };

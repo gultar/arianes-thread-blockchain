@@ -18,6 +18,7 @@ class Account{
                if(unlocked){
                  let signature = await wallet.sign(this.hash);
                  if(signature){
+                     this.ownerSignature = signature;
                      resolve(signature);
                  }else{
                      logger('ERROR: Could not sign account')

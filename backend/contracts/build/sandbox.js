@@ -1,5 +1,13 @@
-const Contract = require('../toolbox/contract')
-const Coin = require('../toolbox/coin')
+const Contract = require('./authentication');
+const serializeActiveObjects = require('../toolbox/contractTools')
+let _ = require('private-parts').createKey();
+const authenticateAccount = require('./authentication');
+const Account = require('../../classes/account');
+const Wallet = require('../../classes/wallet');
+const { logger } = require('../../tools/utils');
+const Transaction = require('../../classes/transaction')
+const Action = require('../../classes/transaction')
+
 
 class Sandbox{
     constructor(){
@@ -7,14 +15,12 @@ class Sandbox{
         this.classes = {};
     }
 
-    exposeCoin(){
-        return Coin;
-    }
-
     exposeClasses(){
         return({
-            Coin:Coin,
             Contract:Contract
+            serialize:serializeActiveObjects,
+            Account:Account,
+            Transaction:Transaction,
         })
     }
 }

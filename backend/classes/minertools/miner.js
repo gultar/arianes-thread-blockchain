@@ -269,10 +269,15 @@ class Miner{
         block.previousHash = this.previousBlock.hash;
         block.difficulty = setNewDifficulty(this.previousBlock, block);
         block.challenge = setNewChallenge(block)
+        block.totalDifficulty = this.calculateTotalDifficulty(block)
         block.minedBy = this.wallet.publicKey;
         return block;
       }
       
+    }
+
+    calculateTotalDifficulty(block){
+      return (BigInt(parseInt(this.previousBlock.totalDifficulty, 16)) + BigInt(parseInt(block.difficulty, 16))).toString(16)
     }
 
 
@@ -292,6 +297,7 @@ class Miner{
       console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
       console.log(chalk.cyan("* Nonce : "), block.nonce)
       console.log(chalk.cyan("* Difficulty : "), parseInt(block.difficulty, 16))
+      console.log(chalk.cyan("* Total Difficulty : "), BigInt(parseInt(block.totalDifficulty, 16)))
       console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
       console.log(chalk.cyan('* Number of actions in block : '), Object.keys(block.actions).length)
       console.log(chalk.cyan('********************************************************************\n'))

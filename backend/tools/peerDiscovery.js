@@ -18,8 +18,8 @@ class PeerDiscovery{
     }
 
     listen(){
-        logger('Listening on ', program.port)
-        this.swarm.listen(program.port)
+        logger('Listening on ', this.port)
+        this.swarm.listen(this.port)
         
     }
 
