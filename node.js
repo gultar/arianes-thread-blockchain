@@ -949,7 +949,7 @@ class Node {
        }
      })
 
-     socket.on('getGenesisBlock', ()=>{
+     socket.on('getGenesisBlock', async ()=>{
       await rateLimiter.consume(socket.handshake.address).catch(e => { 
         // console.log("Peer sent too many 'getNextBlock' events") 
       }); // consume 1 point per event from IP
