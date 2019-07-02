@@ -1572,9 +1572,10 @@ class Node {
 
             let block = JSON.parse(data);
             let alreadyReceived = this.chain.getIndexOfBlockHash(block.hash)
-            let alreadyIsInActiveFork = this.chain.blockFork[block.hash];
+            let alreadyIsInActiveFork = this.chain.blockForks[block.hash];
   
             if(!alreadyReceived && !alreadyIsInActiveFork){
+              //Need to validate more before stopping miner
               if(this.chain.validateBlockHeader(block)){
   
                 if(this.minerServer && this.minerServer.socket){
@@ -1586,19 +1587,19 @@ class Node {
                   resolve({error:addedToChain.error})
                 }
   
-                if(addedToChain.outOfSync){
-                  this.selfCorrectDeepFork(peerSocket, blockForkIndex)
-                }
+                // if(addedToChain.outOfSync){
+                //   this.selfCorrectDeepFork(peerSocket, blockForkIndex)
+                // }
   
-                if(addedToChain.fork){
-                  let display = JSON.stringify(addedToChain.fork, null, 2)
-                  console.log(display)
-                  resolve(addedToChain.fork)
-                }
+                // if(addedToChain.fork){
+                //   let display = JSON.stringify(addedToChain.fork, null, 2)
+                //   console.log(display)
+                //   resolve(addedToChain.fork)
+                // }
   
-                if(addedToChain.resolved){
-                  resolve(addedToChain.resolved);
-                }
+                // if(addedToChain.resolved){
+                //   resolve(addedToChain.resolved);
+                // }
   
                 if(this.minerServer && this.minerServer.socket){
                   this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
@@ -1607,7 +1608,7 @@ class Node {
                 resolve(true);
 
               }else{
-                resolve({error:'ERROR:New block is invalid'})
+                resolve({error:'ERROR:New block header is invalid'})
               }
             }
           }catch(e){
