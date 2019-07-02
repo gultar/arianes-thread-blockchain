@@ -228,10 +228,16 @@ class Blockchain{
             }
 
           }else{
-            logger('Creating new block fork')
-            let isBlockFork = await this.newBlockFork(newBlock)
-            if(isBlockFork.error) resolve({error:isBlockFork.error})
-            resolve(true)
+            let isLinkedToSomeBlock = this.chain.getIndexOfBlockHash(newBlock.previousHash)
+            let isLinkedToBlockFork = this.chain.blockFork[newBlock.previousHash]
+            if( isLinkedToSomeBlock || isLinkedToBlockFork ){
+              let isBlockFork = await this.newBlockFork(newBlock)
+              if(isBlockFork.error) resolve({error:isBlockFork.error})
+              resolve(true)
+            }else{
+              resolve(false)
+            }
+
           }
           
         }else{
@@ -457,9 +463,7 @@ class Blockchain{
               }
               
               let rootBlock = this.chain[previousForkInfo.root.blockNumber]
-              console.log('Root block', rootBlock)
               let forkedChain = rootBlock.fork[newBlock.previousHash]
-              console.log('Forked chain', forkedChain)
               let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
               if(isNewBlockLinked){
                 forkedChain.push(newBlock)
@@ -488,14 +492,16 @@ class Blockchain{
         let forkChainHasMoreWork = lastBlockOfFork.totalDifficulty > this.getLatestBlock().totalDifficulty
         if(forkChainHasMoreWork){
 
-          let isValidTotalDifficulty = this.calculateWorkDone(forkedChain)
-          if(!isValidTotalDifficulty){
-            logger('Is not valid total difficulty')
-          }
-          let startRemovingBlocksAt = forkedChain[0].blockNumber
+            let isValidTotalDifficulty = this.calculateWorkDone(forkedChain)
+            if(!isValidTotalDifficulty){
+              logger('Is not valid total difficulty')
+            }
+
+            let startRemovingBlocksAt = forkedChain[0].blockNumber
             let numberOfBlocks = this.getLatestBlock().blockNumber - startRemovingBlocksAt
             let orphanedChain = this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
             let errors = []
+
             forkedChain.forEach( async(block)=>{
               if(orphanedChain){
                 let blockAdded = await this.pushBlock(block, true)

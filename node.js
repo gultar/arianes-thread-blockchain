@@ -529,9 +529,14 @@ class Node {
               }
             }else{
               let isBlockFork = await this.chain.newBlockFork(block)
-              peer.emit('getNextBlock', block.hash)
-              closeConnection()
-              resolve(true)
+              if(isBlockFork.error){
+                closeConnection()
+                resolve({error:isBlockFork.error})
+              }else{
+                peer.emit('getNextBlock', block.hash)
+                resolve(true)
+              }
+
             }
             
           }
@@ -1185,6 +1190,10 @@ class Node {
 
       socket.on('showBalances', ()=>{
         console.log(this.chain.balance)
+      })
+
+      socket.on('showForks', ()=>{
+        console.log(this.chain.blockForks)
       })
 
       socket.on('verbose', ()=>{
