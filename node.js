@@ -566,7 +566,7 @@ class Node {
 
               if(this.chain.getLatestBlock().blockNumber == 0){
                 this.downloadGenesisBlock(peer)
-                .then( genesisBlock=>{
+                .then( async (genesisBlock)=>{
                   if(genesisBlock.error){
                     logger(genesisBlock.error)
                   }else{
