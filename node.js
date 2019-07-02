@@ -471,7 +471,7 @@ class Node {
     
   }
 
-  downloadGenesisBlock(){
+  downloadGenesisBlock(peer){
     return new Promise((resolve)=>{
       this.isDownloading = true;
       peer.on('genesisBlock', (genesisBlock)=>{
@@ -500,7 +500,7 @@ class Node {
       
       if(this.chain.getLatestBlock().blockNumber == 0){
         logger("Downloading peer's genesis block")
-        let genesisBlock = await this.downloadGenesisBlock()
+        let genesisBlock = await this.downloadGenesisBlock(peer)
         //Need to Validate Genesis Block
         this.chain[0] = genesisBlock
       }
