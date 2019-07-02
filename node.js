@@ -953,7 +953,7 @@ class Node {
       await rateLimiter.consume(socket.handshake.address).catch(e => { 
         // console.log("Peer sent too many 'getNextBlock' events") 
       }); // consume 1 point per event from IP
-       let genesisBlock = this.chain[0];
+       let genesisBlock = this.chain.chain[0];
        let transactions = await this.chain.chainDB.get(genesisBlock.hash)
             .catch(e => console.log(e))
           transactions = transactions[transactions._id]
