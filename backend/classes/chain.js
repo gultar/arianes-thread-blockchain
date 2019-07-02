@@ -421,7 +421,7 @@ class Blockchain{
           if(previousBlockNumber == -1 && !this.blockForks[newBlock.previousHash]){
             resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
           }else{
-            let blockIsNotTooOld = previousBlockNumber <= this.getLatestBlock().blockNumber - this.maxDepthForBlockForks
+            let blockIsNotTooOld = previousBlockNumber >= this.getLatestBlock().blockNumber - this.maxDepthForBlockForks
             if(!blockIsNotTooOld){
               logger('Block is too old to create block fork')
             }
@@ -438,7 +438,9 @@ class Blockchain{
                 size:1,
               }
               //Store actual block on the chain, as an array
-              rootBlock.fork[newBlock.hash] = [ newBlock ]
+              rootBlock.fork = {
+                [newBlock.hash]:[ newBlock ]
+              }
             }else{
               //Extend already existing block fork
               let previousForkInfo = this.blockForks[newBlock.previousHash]
