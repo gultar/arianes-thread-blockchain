@@ -617,12 +617,12 @@ class Node {
             resolve(false)
           }
         }else{
-          logger('Node is busy downloading')
+          // logger('Node is busy downloading')
+          resolve(true)
         }
-
-        
       }else{
         logger('ERROR: Could not handle peer chain status. Missing parameter')
+        resolve(false)
       }
     })
     
