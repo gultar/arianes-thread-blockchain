@@ -602,7 +602,7 @@ class Node {
 
              
             }else{
-              console.log(lastHeader)
+              console.log(bestBlockHeader)
               logger('ERROR: Last block header from peer is invalid')
               resolve(false)
             }
