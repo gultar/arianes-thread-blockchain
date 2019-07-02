@@ -495,27 +495,30 @@ class Blockchain{
           let startRemovingBlocksAt = forkedChain[0].blockNumber
             let numberOfBlocks = this.getLatestBlock().blockNumber - startRemovingBlocksAt
             let orphanedChain = this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
-
+          let errors = []
             forkedChain.forEach( async(block)=>{
               let blockAdded = await this.pushBlock(block, true)
               if(blockAdded.error){
-                logger('Rolled back on block changes')
-                let numberOfAddedBlock = this.getLatestBlock().blockNumber - startRemovingBlocksAt
-                this.chain.splice(startRemovingBlocksAt, numberOfAddedBlock)
-                this.chain.concat(orphanedChain)
-                resolve({error:blockAdded.error})
+                errors.push(blockAdded.error)
               }else{
                 logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
                 logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
                 logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
-                
               }
 
             })
-    
-            logger(chalk.yellow(`* Finished switching branch`))
-            logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-            resolve(true)
+
+            if(errors.length > 0){
+              logger('Rolled back on block changes')
+              this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
+              this.chain.concat(orphanedChain)
+              resolve({ error:'Canonical chain contains more work. Staying on this one' })
+            }else{
+              logger(chalk.yellow(`* Finished switching branch`))
+              logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+              resolve(true)
+            }
+            
         }else{
           resolve({ error:'Canonical chain contains more work. Staying on this one' })
         }
