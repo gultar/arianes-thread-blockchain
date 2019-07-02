@@ -495,16 +495,21 @@ class Blockchain{
           let startRemovingBlocksAt = forkedChain[0].blockNumber
             let numberOfBlocks = this.getLatestBlock().blockNumber - startRemovingBlocksAt
             let orphanedChain = this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
-          let errors = []
+            let errors = []
             forkedChain.forEach( async(block)=>{
-              let blockAdded = await this.pushBlock(block, true)
-              if(blockAdded.error){
-                errors.push(blockAdded.error)
+              if(orphanedChain){
+                let blockAdded = await this.pushBlock(block, true)
+                if(blockAdded.error){
+                  errors.push(blockAdded.error)
+                }else{
+                  logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
+                  logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
+                  logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
+                }
               }else{
-                logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
-                logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
-                logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
+                logger('ERROR: Could not splice blockchain')
               }
+              
 
             })
 
