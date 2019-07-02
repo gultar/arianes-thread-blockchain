@@ -586,9 +586,13 @@ class Node {
             if(isValidHeader && !this.isDownloading){
               
              let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-             
+             if(downloaded.error){
+               logger('Could not download blockchain')
+               logger(downloaded.error)
+               resolve(false)
+             }else{
               resolve(true)
-              
+             }
             }else{
               logger('ERROR: Last block header from peer is invalid')
               resolve(false)
