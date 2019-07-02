@@ -228,8 +228,8 @@ class Blockchain{
             }
 
           }else{
-            let isLinkedToSomeBlock = this.chain.getIndexOfBlockHash(newBlock.previousHash)
-            let isLinkedToBlockFork = this.chain.blockFork[newBlock.previousHash]
+            let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
+            let isLinkedToBlockFork = this.blockFork[newBlock.previousHash]
             if( isLinkedToSomeBlock || isLinkedToBlockFork ){
               let isBlockFork = await this.newBlockFork(newBlock)
               if(isBlockFork.error) resolve({error:isBlockFork.error})
@@ -467,6 +467,7 @@ class Blockchain{
               let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
               if(isNewBlockLinked){
                 forkedChain.push(newBlock)
+                
                 let result = await this.resolveBlockFork(forkedChain)
                 if(result.error) resolve({error:result.error})
                 else resolve(true)
@@ -511,9 +512,11 @@ class Blockchain{
                   logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
                   logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
                   logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
+                  if(this.blockForks[block.hash]) delete this.blockForks[block.hash]
                 }
               }else{
                 logger('ERROR: Could not splice blockchain')
+                errors.push({error:'ERROR: Could not splice blockchain'})
               }
               
 
