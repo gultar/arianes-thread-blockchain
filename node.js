@@ -471,6 +471,26 @@ class Node {
     
   }
 
+  downloadGenesisBlock(){
+    return new Promise((resolve)=>{
+      this.isDownloading = true;
+      peer.on('genesisBlock', (genesisBlock)=>{
+        peer.off('genesisBlock')
+        this.isDownloading = false;
+        clearTimeout(timeout)
+        resolve(genesisBlock)
+      })
+
+      peer.emit('getGenesisBlock')
+
+      let timeout = setTimeout(()=>{
+        logger('Genesis block request timedout')
+        peer.off('genesisBlock')
+        this.isDownloading = false;
+      }, 5000)
+    })
+  }
+
   downloadBlockchain(peer, lastHeader){
     return new Promise(async (resolve)=>{
       let startHash = this.chain.getLatestBlock().hash;
@@ -478,6 +498,12 @@ class Node {
       this.isDownloading = true;
       let length = lastHeader.blockNumber + 1;
       
+      if(this.chain.getLatestBlock().blockNumber == 0){
+        logger("Downloading peer's genesis block")
+        let genesisBlock = await this.downloadGenesisBlock()
+        //Need to Validate Genesis Block
+        this.chain[0] = genesisBlock
+      }
 
       const closeConnection = () =>{
         peer.off('nextBlock')
@@ -921,6 +947,18 @@ class Node {
           socket.emit('blockHeader', {error:'Header not found'})
          }
        }
+     })
+
+     socket.on('getGenesisBlock', ()=>{
+      await rateLimiter.consume(socket.handshake.address).catch(e => { 
+        // console.log("Peer sent too many 'getNextBlock' events") 
+      }); // consume 1 point per event from IP
+       let genesisBlock = this.chain[0];
+       let transactions = await this.chain.chainDB.get(genesisBlock.hash)
+            .catch(e => console.log(e))
+          transactions = transactions[transactions._id]
+          genesisBlock.transactions = transactions;
+       socket.emit('genesisBlock', genesisBlock)
      })
 
     socket.on('getNextBlock', async (hash)=>{
