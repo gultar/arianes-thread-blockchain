@@ -1477,6 +1477,8 @@ class Blockchain{
       if(header.hash == RecalculateHash(header)){
         return true;
       }else{
+        console.log(header.hash)
+        console.log(RecalculateHash(header))
         return false;
       }
     }else{
