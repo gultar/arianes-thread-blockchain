@@ -474,11 +474,16 @@ class Node {
   downloadGenesisBlock(peer){
     return new Promise((resolve)=>{
       this.isDownloading = true;
+      logger("Downloading peer's genesis block")
       peer.on('genesisBlock', (genesisBlock)=>{
         peer.off('genesisBlock')
         this.isDownloading = false;
         clearTimeout(timeout)
-        resolve(genesisBlock)
+        if(genesisBlock.error){
+          resolve({error:genesisBlock.error})
+        }else{
+          resolve(genesisBlock)
+        }
       })
 
       peer.emit('getGenesisBlock')
@@ -497,41 +502,49 @@ class Node {
       let lastHash = lastHeader.hash;
       this.isDownloading = true;
       let length = lastHeader.blockNumber + 1;
-      
-      if(this.chain.getLatestBlock().blockNumber == 0){
-        logger("Downloading peer's genesis block")
-        let genesisBlock = await this.downloadGenesisBlock(peer)
-        //Need to Validate Genesis Block
-        this.chain[0] = genesisBlock
-      }
-
       const closeConnection = () =>{
         peer.off('nextBlock')
         this.isDownloading = false;
       }
-
-      peer.on('nextBlock', async (block)=>{
+      if(this.chain.getLatestBlock().blockNumber == 0){
         
-        if(block.end){
-          logger('Blockchain updated successfully!')
+        let genesisBlock = await this.downloadGenesisBlock(peer)
+        if(genesisBlock.error){
+          logger(genesisBlock.error)
           closeConnection()
-        }else if(block.error){
-          logger(block.error)
-          closeConnection()
-        }else{
-          if(block.previousBlock != lastHash){
-            let isBlockPushed = await this.chain.pushBlock(block);
-            if(isBlockPushed){
-              peer.emit('getNextBlock', block.hash)
+        }
+        //Need to Validate Genesis Block
+        this.chain[0] = genesisBlock
+      }else{
+        
+  
+        peer.on('nextBlock', async (block)=>{
+          
+          if(block.end){
+            logger('Blockchain updated successfully!')
+            closeConnection()
+          }else if(block.error){
+            logger(block.error)
+            closeConnection()
+          }else{
+            if(block.previousHash != lastHash){
+              let isBlockPushed = await this.chain.pushBlock(block);
+              if(isBlockPushed){
+                peer.emit('getNextBlock', block.hash)
+              }else{
+                closeConnection()
+              }
             }else{
+              let isBlockFork = await this.chain.newBlockFork(block)
+              peer.emit('getNextBlock', block.hash)
               closeConnection()
             }
-          }else{
-            closeConnection()
+            
           }
-          
-        }
-      })
+        })
+      }
+
+      
 
       peer.emit('getNextBlock', startHash);
 
@@ -956,9 +969,15 @@ class Node {
        let genesisBlock = this.chain.chain[0];
        let transactions = await this.chain.chainDB.get(genesisBlock.hash)
             .catch(e => console.log(e))
-          transactions = transactions[transactions._id]
-          genesisBlock.transactions = transactions;
-       socket.emit('genesisBlock', genesisBlock)
+          if(transactions){
+            transactions = transactions[transactions._id]
+            genesisBlock.transactions = transactions;
+            socket.emit('genesisBlock', genesisBlock)
+          }else{
+            socket.emit('genesisBlock', {error:'Could not find transactions'})
+          }
+          
+       
      })
 
     socket.on('getNextBlock', async (hash)=>{
@@ -974,9 +993,14 @@ class Node {
           let nextBlock = this.chain.extractHeader(this.chain.chain[index + 1]);
           let transactions = await this.chain.chainDB.get(nextBlock.hash)
             .catch(e => console.log(e))
-          transactions = transactions[transactions._id]
-          nextBlock.transactions = transactions;
-          socket.emit('nextBlock', nextBlock)
+            if(transactions){
+              transactions = transactions[transactions._id]
+              nextBlock.transactions = transactions;
+              socket.emit('nextBlock', nextBlock)
+            }else{
+              socket.emit('nextBlock', {error:'Could not find transactions'})
+            }
+          
         }
         
       }else{
@@ -992,12 +1016,15 @@ class Node {
           let blockIndex = this.chain.getIndexOfBlockHash(hash);
           if(blockIndex){
             let block = await this.chain.extractHeader(this.chain.chain[blockIndex]);
-            let transactions = await this.chain.chainDB.get(hash)
-            .catch(e => console.log(e))
-            transactions = transactions[transactions._id]
-            block.transactions = transactions;
             if(block){
-              
+              let transactions = await this.chain.chainDB.get(hash)
+              .catch(e => console.log(e))
+              if(transactions){
+                transactions = transactions[transactions._id]
+                block.transactions = transactions;
+              }else{
+                socket.emit('blockFromHash', {error:'Could not find transactions'})
+              }
               socket.emit('blockFromHash', block)
               
             }else if(blockIndex == this.chain.getLatestBlock().blockNumber + 1){
@@ -1014,7 +1041,6 @@ class Node {
           }else{
             socket.emit('blockFromHash', {error:'Block not found'})
           }
-          
           
          }
       }
