@@ -3,7 +3,7 @@ const { logger } = require('../tools/utils')
 
 process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
 process.IDEAL_BLOCK_TIME = 10; //seconds
-const MINIMUM_DIFFICULTY = parseInt('0x100000')
+const MINIMUM_DIFFICULTY = parseInt('0x4000')
 
 
 
