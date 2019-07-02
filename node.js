@@ -480,6 +480,7 @@ class Node {
         this.isDownloading = false;
         clearTimeout(timeout)
         if(genesisBlock.error){
+          logger(genesisBlock.error)
           resolve({error:genesisBlock.error})
         }else{
           resolve(genesisBlock)
