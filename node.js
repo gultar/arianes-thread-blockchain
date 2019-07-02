@@ -552,71 +552,75 @@ class Node {
   receiveBlockchainStatus(peer, status){
     return new Promise(async (resolve) =>{
       if(this.chain instanceof Blockchain && peer && status){
+        if(!this.isDownloading){
+          let { totalDifficultyHex, bestBlockHeader, length } = status;
         
-
-        let { totalDifficultyHex, bestBlockHeader, length } = status;
-        
-        if(totalDifficultyHex && bestBlockHeader && length){
-          
-          let thisTotalDifficultyHex = await this.chain.getTotalDifficulty();
-          // Possible major bug, will not sync if chain is longer but has different block at a given height
-          let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
-          let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
-
-          if(thisTotalDifficulty < totalDifficulty){
-            logger('Attempting to download blocks from peer')
+          if(totalDifficultyHex && bestBlockHeader && length){
             
-            let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
-            if(isValidHeader && !this.isDownloading){
-
-              if(this.chain.getLatestBlock().blockNumber == 0){
-                this.downloadGenesisBlock(peer)
-                .then( async (genesisBlock)=>{
-                  if(genesisBlock.error){
-                    logger(genesisBlock.error)
-                  }else{
-                    //Need to Validate Genesis Block
-                    this.chain[0] = genesisBlock
-                    let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                    if(downloaded.error){
-                      logger('Could not download blockchain')
-                      logger(downloaded.error)
-                      resolve(false)
+            let thisTotalDifficultyHex = await this.chain.getTotalDifficulty();
+            // Possible major bug, will not sync if chain is longer but has different block at a given height
+            let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
+            let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
+  
+            if(thisTotalDifficulty < totalDifficulty){
+              logger('Attempting to download blocks from peer')
+              
+              let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+              if(isValidHeader){
+  
+                if(this.chain.getLatestBlock().blockNumber == 0){
+                  this.downloadGenesisBlock(peer)
+                  .then( async (genesisBlock)=>{
+                    if(genesisBlock.error){
+                      logger(genesisBlock.error)
                     }else{
-                      resolve(true)
+                      //Need to Validate Genesis Block
+                      this.chain[0] = genesisBlock
+                      let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                      if(downloaded.error){
+                        logger('Could not download blockchain')
+                        logger(downloaded.error)
+                        resolve(false)
+                      }else{
+                        resolve(true)
+                      }
                     }
-                  }
-
-                })
-                
-              }else{
-                let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                if(downloaded.error){
-                  logger('Could not download blockchain')
-                  logger(downloaded.error)
-                  resolve(false)
+  
+                  })
+                  
                 }else{
-                  resolve(true)
+                  let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                  if(downloaded.error){
+                    logger('Could not download blockchain')
+                    logger(downloaded.error)
+                    resolve(false)
+                  }else{
+                    resolve(true)
+                  }
                 }
+  
+               
+              }else{
+                console.log(bestBlockHeader)
+                logger('ERROR: Last block header from peer is invalid')
+                resolve(false)
               }
-
-             
             }else{
-              console.log(bestBlockHeader)
-              logger('ERROR: Last block header from peer is invalid')
-              resolve(false)
+              // logger('Blockchain is up to date with peer')
+              resolve(true)
             }
+  
+            
+  
           }else{
-            // logger('Blockchain is up to date with peer')
-            resolve(true)
+            logger('ERROR: Status object is missing parameters')
+            resolve(false)
           }
-
-          
-
         }else{
-          logger('ERROR: Status object is missing parameters')
-          resolve(false)
+          logger('Node is busy downloading')
         }
+
+        
       }else{
         logger('ERROR: Could not handle peer chain status. Missing parameter')
       }
