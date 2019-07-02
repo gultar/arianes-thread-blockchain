@@ -1,9 +1,11 @@
 
 const { logger } = require('../tools/utils')
-
+const genesisBlock = require('../../config/genesis.json')
 process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
 process.IDEAL_BLOCK_TIME = 10; //seconds
-process.MINIMUM_DIFFICULTY = 1048576
+const MINIMUM_DIFFICULTY = parseInt(genesisBlock.difficulty, 16)
+
+
 
 /**
   Algorithm to increase difficulty over time to ensure uniform block time.
@@ -18,7 +20,7 @@ process.MINIMUM_DIFFICULTY = 1048576
 // function setNewDifficulty(previousBlock, newBlock){
 //   const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
 //   let adjustment = 1;
-//   let minimumDifficulty = BigInt(process.MINIMUM_DIFFICULTY);//'0x100000';
+//   let minimumDifficulty = BigInt(MINIMUM_DIFFICULTY);//'0x100000';
 //   if(mineTime > 0 && mineTime <= 1){
 //     adjustment = 15
 //   }else if(mineTime > 1 && mineTime <= 5){
@@ -62,7 +64,7 @@ process.MINIMUM_DIFFICULTY = 1048576
 // }
 
 const setNewDifficulty =(previousBlock, newBlock)=>{
-  const minimumDifficulty = BigInt(process.MINIMUM_DIFFICULTY);
+  const minimumDifficulty = BigInt(MINIMUM_DIFFICULTY);
   // console.log('Minimum difficulty: ', minimumDifficulty)
   const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
   // console.log('Mine time:', mineTime)
