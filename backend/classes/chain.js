@@ -458,7 +458,9 @@ class Blockchain{
               }
               
               let rootBlock = this.chain[previousForkInfo.root.height]
+              console.log('Root block', rootBlock)
               let forkedChain = rootBlock.fork[previousForkInfo.root.hash]
+              console.log('Forked chain', forkedChain)
               let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
               if(isNewBlockLinked){
                 forkedChain.push(newBlock)
