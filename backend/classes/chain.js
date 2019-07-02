@@ -424,7 +424,7 @@ class Blockchain{
            * 
            */
           let previousBlockNumber = this.getIndexOfBlockHash(newBlock.previousHash)
-          if(previousBlockNumber == -1 && !this.blockForks[newBlock.previousHash]){
+          if(previousBlockNumber < 0 && !this.blockForks[newBlock.previousHash]){
             resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
           }else{
             
@@ -451,7 +451,7 @@ class Blockchain{
             }else if(previousBlockNumber >= 0 && this.blockForks[newBlock.previousHash]){
               //Extend already existing block fork
               let previousForkInfo = this.blockForks[newBlock.previousHash]
-
+              if(!previousForkInfo) resolve({ error:'Could not find previousForkInfo' })
               //Details of the block fork, to avoid crowding the canonical chain with superfluous data
               this.blockForks[newBlock.hash] = {
                 root:{
@@ -464,17 +464,28 @@ class Blockchain{
               
               let rootBlock = this.chain[previousForkInfo.root.blockNumber]
               if(!rootBlock) resolve({ error:'BLOCK FORK ERROR: Could not find rootBlock' })
-              let forkedChain = rootBlock.fork[newBlock.previousHash]
-              if(!forkedChain || !Array.isArray(forkedChain)) resolve({ error:'BLOCK FORK ERROR: Could not get forked chain' })
-              let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
-              if(isNewBlockLinked){
-                forkedChain.push(newBlock)
-                
-                let result = await this.resolveBlockFork(forkedChain)
-                if(result.error) resolve({error:result.error})
-                else resolve(true)
+              let forkedChain = rootBlock.fork[previousForkInfo.root.blockNumber]
+              if(!forkedChain || !Array.isArray(forkedChain)){
+                console.log(forkedChain)
+                console.log(rootBlock)
+                console.log(this.blockForks[newBlock.hash])
+                resolve({ error:'BLOCK FORK ERROR: Could not get forked chain' })
               }else{
-                resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
+                let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
+                if(isNewBlockLinked){
+                  forkedChain.push(newBlock)
+                  let forkChainHasMoreWork = lastBlockOfFork.totalDifficulty > this.getLatestBlock().totalDifficulty
+                  if(forkChainHasMoreWork){
+                    let result = await this.resolveBlockFork(forkedChain)
+                    if(result.error) resolve({error:result.error})
+                    else resolve(true)
+                  }else{
+                    resolve({ error:'Canonical chain contains more work. Staying on this one' })
+                  }
+                  
+                }else{
+                  resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
+                }
               }
               
             }else{
@@ -492,9 +503,7 @@ class Blockchain{
       }else{
         let forkLength = forkedChain.length
         let lastBlockOfFork = forkedChain[forkLength - 1]
-        let forkChainHasMoreWork = lastBlockOfFork.totalDifficulty > this.getLatestBlock().totalDifficulty
-        if(forkChainHasMoreWork){
-
+        
             let isValidTotalDifficulty = this.calculateWorkDone(forkedChain)
             if(!isValidTotalDifficulty){
               logger('Is not valid total difficulty')
@@ -532,16 +541,14 @@ class Blockchain{
               logger('Rolled back on block changes')
               this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
               this.chain.concat(orphanedChain)
-              resolve({ error:'Canonical chain contains more work. Staying on this one' })
+              resolve({ error:errors })
             }else{
               logger(chalk.yellow(`* Finished switching branch`))
               logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
               resolve(true)
             }
             
-        }else{
-          resolve({ error:'Canonical chain contains more work. Staying on this one' })
-        }
+        
       }
       
     })
