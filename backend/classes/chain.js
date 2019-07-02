@@ -484,7 +484,7 @@ class Blockchain{
   }
 
   resolveBlockFork(forkedChain){
-    return new Promise((resolve)=>{
+    return new Promise(async (resolve)=>{
       if(!forkedChain){
         resolve({ error:'Cannot resolve conflict with empty block fork' })
       }else{
@@ -499,12 +499,17 @@ class Blockchain{
             }
 
             let startRemovingBlocksAt = forkedChain[0].blockNumber
-            let numberOfBlocks = this.getLatestBlock().blockNumber - startRemovingBlocksAt
-            let orphanedChain = this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
+            let numberOfBlocks = this.chain.length - startRemovingBlocksAt
             let errors = []
+            let orphanedBlocks = []
+            for(var remove=0; remove < numberOfBlocks; remove++){
+              let orphanedBlock = this.chain.pop()
+              orphanedBlocks.push(orphanedBlock)
+            }
 
-            forkedChain.forEach( async(block)=>{
-              if(orphanedChain){
+            for(var add=0; add < numberOfBlocks; add++){
+              let block = forkedChain[add]
+              if(block){
                 let blockAdded = await this.pushBlock(block, true)
                 if(blockAdded.error){
                   errors.push(blockAdded.error)
@@ -515,17 +520,16 @@ class Blockchain{
                   if(this.blockForks[block.hash]) delete this.blockForks[block.hash]
                 }
               }else{
-                logger('ERROR: Could not splice blockchain')
-                errors.push({error:'ERROR: Could not splice blockchain'})
+                logger('ERROR: Could not find block')
+                resolve({ error:'ERROR: Could not find block' })
               }
               
-
-            })
+            }
 
             if(errors.length > 0){
               logger('Rolled back on block changes')
-              // this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
-              // this.chain.concat(orphanedChain)
+              this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
+              this.chain.concat(orphanedChain)
               resolve({ error:'Canonical chain contains more work. Staying on this one' })
             }else{
               logger(chalk.yellow(`* Finished switching branch`))
