@@ -1477,13 +1477,15 @@ class Blockchain{
       if(header.hash == RecalculateHash(header)){
         return true;
       }else{
-        console.log(header.hash)
-        console.log(RecalculateHash(header))
+        
         return false;
       }
     }else{
+      
       return false;
     }
+    console.log(header.hash)
+      console.log(RecalculateHash(header))
   }
 
   validateBlockchain(allowRollback){

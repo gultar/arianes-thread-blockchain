@@ -273,8 +273,6 @@ const isValidHeaderJSON = (header)=>{
         }
         
     }else{
-        
-        console.log(valid.errors)
         return false
     }
 }
