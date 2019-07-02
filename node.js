@@ -1604,22 +1604,8 @@ class Node {
   
                 let addedToChain = await this.chain.pushBlock(block);
                 if(addedToChain.error){
-                  resolve({error:addedToChain.error})
+                  logger(addedToChain.error)
                 }
-  
-                // if(addedToChain.outOfSync){
-                //   this.selfCorrectDeepFork(peerSocket, blockForkIndex)
-                // }
-  
-                // if(addedToChain.fork){
-                //   let display = JSON.stringify(addedToChain.fork, null, 2)
-                //   console.log(display)
-                //   resolve(addedToChain.fork)
-                // }
-  
-                // if(addedToChain.resolved){
-                //   resolve(addedToChain.resolved);
-                // }
   
                 if(this.minerServer && this.minerServer.socket){
                   this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
