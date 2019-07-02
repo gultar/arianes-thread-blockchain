@@ -510,8 +510,8 @@ class Blockchain{
 
             if(errors.length > 0){
               logger('Rolled back on block changes')
-              this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
-              this.chain.concat(orphanedChain)
+              // this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
+              // this.chain.concat(orphanedChain)
               resolve({ error:'Canonical chain contains more work. Staying on this one' })
             }else{
               logger(chalk.yellow(`* Finished switching branch`))
