@@ -229,7 +229,7 @@ class Blockchain{
 
           }else{
             let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
-            let isLinkedToBlockFork = this.blockFork[newBlock.previousHash]
+            let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
             if( isLinkedToSomeBlock || isLinkedToBlockFork ){
               let isBlockFork = await this.newBlockFork(newBlock)
               if(isBlockFork.error) resolve({error:isBlockFork.error})
