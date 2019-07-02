@@ -292,7 +292,8 @@ class Miner{
       console.log(chalk.cyan('* Block number : ')+block.blockNumber);
       console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
       console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
-      console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy+chalk.cyan(" at ")+displayTime()+"!");
+      console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy)
+      console.log(chalk.cyan('* Mined at: '), displayTime())
       console.log(chalk.cyan("* Challenge : "), pad(block.challenge, 64).substr(0, 25)+'...');
       console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
       console.log(chalk.cyan("* Nonce : "), block.nonce)

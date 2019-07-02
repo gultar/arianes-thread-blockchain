@@ -463,9 +463,9 @@ class Blockchain{
               if(isNewBlockLinked){
                 forkedChain.push(newBlock)
                 let result = await this.resolveBlockFork(forkedChain)
-                if(result)
+                if(result.error) resolve({error:result.error})
+                else resolve(true)
               }else{
-                
                 resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
               }
               
@@ -1236,7 +1236,7 @@ class Blockchain{
   }
 
   validateDifficulty(block){
-    let previousBlock = this.getLatestBlock()
+    let previousBlock = this.chain[block.blockNumber - 1]
     if(previousBlock){
       let difficultyRecalculated = setNewDifficulty(previousBlock, block);
       let parsedRecalculatedDifficulty = BigInt(parseInt(difficultyRecalculated, 16))
