@@ -437,6 +437,8 @@ class Blockchain{
                 previousHash:rootBlock.hash,
                 size:1,
               }
+              logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+              logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
               //Store actual block on the chain, as an array
               rootBlock.fork = {
                 [newBlock.hash]:[ newBlock ]
