@@ -541,7 +541,7 @@ class Blockchain{
 
             }
               
-            if(forkRootBlockNumber >= 0){
+            if(forkRootBlockNumber){
               if(this.blockForks[newBlock.previousHash]){
                 console.log('Linked at index', forkRootBlockNumber)
                 console.log(this.blockForks[newBlock.previousHash])
