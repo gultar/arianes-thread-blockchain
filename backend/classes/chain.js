@@ -484,7 +484,7 @@ class Blockchain{
                 if(fork && Array.isArray(fork)){
 
                   let numberOfBlocks = fork.length;
-                  let lastBlock = forkedChain[forkLength - 1]
+                  let lastBlock = fork[fork.length - 1]
                   let forkTotalDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
                   let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
                   let forkChainHasMoreWork =  forkTotalDifficulty > currentTotalDifficulty
