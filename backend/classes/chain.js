@@ -231,7 +231,7 @@ class Blockchain{
             let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
             let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
             if( isLinkedToSomeBlock || isLinkedToBlockFork ){
-              let isBlockFork = await this.newBlockFork(newBlock)
+              let isBlockFork = await this.createBlockBranch(newBlock)
               if(isBlockFork.error) resolve({error:isBlockFork.error})
               resolve(true)
             }else{
@@ -408,154 +408,149 @@ class Blockchain{
       
   //   })
   // }
-  newBlockFork(newBlock){
-    return new Promise(async (resolve)=>{
-      if(this.getLatestBlock().hash != newBlock.hash){
+  // newBlockFork(newBlock){
+  //   return new Promise(async (resolve)=>{
+  //     if(this.getLatestBlock().hash != newBlock.hash){
          
-          /**
-           * b: Canonical Block
-           * f: Forked block
-           * r: Root of fork
-           *           |-[b][b] <-- [b] Case 1: Canonical chain will be extended, then fork will be orphaned
-           * [b][b][b][r]
-           *           |-[f][f] <-- [f] Case 2: Forked chain will be extended, then, if total difficulty is higher, 
-           *           |              forked chain will be adopted, the other branch will be orphaned
-           *           |-[f] <-- [f] Case 3: Handles more than one forked block
-           * 
-           */
-          let previousBlockNumber = this.getIndexOfBlockHash(newBlock.previousHash)
-          if(previousBlockNumber < 0 && !this.blockForks[newBlock.previousHash]){
-            resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
-          }else{
+  //         /**
+  //          * b: Canonical Block
+  //          * f: Forked block
+  //          * r: Root of fork
+  //          *           |-[b][b] <-- [b] Case 1: Canonical chain will be extended, then fork will be orphaned
+  //          * [b][b][b][r]
+  //          *           |-[f][f] <-- [f] Case 2: Forked chain will be extended, then, if total difficulty is higher, 
+  //          *           |              forked chain will be adopted, the other branch will be orphaned
+  //          *           |-[f] <-- [f] Case 3: Handles more than one forked block
+  //          * 
+  //          */
+  //         let previousBlockNumber = this.getIndexOfBlockHash(newBlock.previousHash)
+  //         if(previousBlockNumber < 0 && !this.blockForks[newBlock.previousHash]){
+  //           resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
+  //         }else{
             
-            if(previousBlockNumber >= 0 && !this.blockForks[newBlock.previousHash]){
-              let rootBlock = this.chain[previousBlockNumber];
-              //This is the first block of the fork
-              //Store information on the fork to easily track when a block belongs to the fork
-              this.blockForks[newBlock.hash] = {
-                root:{ 
-                  hash:rootBlock.hash,
-                  blockNumber:rootBlock.blockNumber,
-                },
-                previousHash:rootBlock.hash,
-                size:1,
-              }
-              logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
-              logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
-              //Store actual block on the chain, as an array
+  //           if(previousBlockNumber >= 0 && !this.blockForks[newBlock.previousHash]){
+  //             let rootBlock = this.chain[previousBlockNumber];
+  //             //This is the first block of the fork
+  //             //Store information on the fork to easily track when a block belongs to the fork
+  //             this.blockForks[newBlock.hash] = {
+  //               root:{ 
+  //                 hash:rootBlock.hash,
+  //                 blockNumber:rootBlock.blockNumber,
+  //               },
+  //               previousHash:rootBlock.hash,
+  //               size:1,
+  //             }
+  //             logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+  //             logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+  //             //Store actual block on the chain, as an array
 
-              this.chain[previousBlockNumber].fork = {}
-              this.chain[previousBlockNumber].fork[newBlock.hash] = []
-              this.chain[previousBlockNumber].fork[newBlock.hash].push(newBlock)
-              resolve(true)
-            }else if(previousBlockNumber >= 0 && this.blockForks[newBlock.previousHash]){
-              //Extend already existing block fork
-              let previousForkInfo = this.blockForks[newBlock.previousHash]
-              if(!previousForkInfo) resolve({ error:'Could not find previousForkInfo' })
-              //Details of the block fork, to avoid crowding the canonical chain with superfluous data
-              this.blockForks[newBlock.hash] = {
-                root:{
-                  hash:previousForkInfo.root.hash,
-                  blockNumber:previousForkInfo.root.blockNumber,
-                },
-                previousHash:newBlock.previousHash,
-                size:previousForkInfo.size+1,
-              }
+  //             this.chain[previousBlockNumber].fork = {}
+  //             this.chain[previousBlockNumber].fork[newBlock.hash] = []
+  //             this.chain[previousBlockNumber].fork[newBlock.hash].push(newBlock)
+  //             resolve(true)
+  //           }else if(previousBlockNumber >= 0 && this.blockForks[newBlock.previousHash]){
+  //             //Extend already existing block fork
+  //             let previousForkInfo = this.blockForks[newBlock.previousHash]
+  //             if(!previousForkInfo) resolve({ error:'Could not find previousForkInfo' })
+  //             //Details of the block fork, to avoid crowding the canonical chain with superfluous data
+  //             this.blockForks[newBlock.hash] = {
+  //               root:{
+  //                 hash:previousForkInfo.root.hash,
+  //                 blockNumber:previousForkInfo.root.blockNumber,
+  //               },
+  //               previousHash:newBlock.previousHash,
+  //               size:previousForkInfo.size+1,
+  //             }
               
-              let rootBlock = this.chain[previousForkInfo.root.blockNumber]
-              if(!rootBlock) resolve({ error:'BLOCK FORK ERROR: Could not find rootBlock' })
-              let forkedChain = rootBlock.fork[previousForkInfo.root.hash]
-              if(!forkedChain || !Array.isArray(forkedChain)){
-                console.log(forkedChain)
-                console.log(rootBlock)
-                console.log(this.blockForks[newBlock.hash])
-                console.log(this.blockForks[newBlock.hash].fork)
-                console.log(this.blockForks[newBlock.hash].fork[0])
-                resolve({ error:'BLOCK FORK ERROR: Could not get forked chain' })
-              }else{
-                let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
-                if(isNewBlockLinked){
-                  forkedChain.push(newBlock)
-                  let forkChainHasMoreWork = lastBlockOfFork.totalDifficulty > this.getLatestBlock().totalDifficulty
-                  if(forkChainHasMoreWork){
-                    let result = await this.resolveBlockFork(forkedChain)
-                    if(result.error) resolve({error:result.error})
-                    else resolve(true)
-                  }else{
-                    resolve({ error:'Canonical chain contains more work. Staying on this one' })
-                  }
+  //             let rootBlock = this.chain[previousForkInfo.root.blockNumber]
+  //             if(!rootBlock) resolve({ error:'BLOCK FORK ERROR: Could not find rootBlock' })
+  //             let forkedChain = rootBlock.fork[previousForkInfo.root.hash]
+  //             if(!forkedChain || !Array.isArray(forkedChain)){
+  //               resolve({ error:'BLOCK FORK ERROR: Could not get forked chain' })
+  //             }else{
+  //               let isNewBlockLinked = newBlock.previousHash == forkedChain[forkedChain.length - 1].hash
+  //               if(isNewBlockLinked){
+  //                 forkedChain.push(newBlock)
+  //                 let forkChainHasMoreWork = lastBlockOfFork.totalDifficulty > this.getLatestBlock().totalDifficulty
+  //                 if(forkChainHasMoreWork){
+  //                   let result = await this.resolveBlockFork(forkedChain)
+  //                   if(result.error) resolve({error:result.error})
+  //                   else resolve(true)
+  //                 }else{
+  //                   resolve({ error:'Canonical chain contains more work. Staying on this one' })
+  //                 }
                   
-                }else{
-                  resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
-                }
-              }
+  //               }else{
+  //                 resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
+  //               }
+  //             }
               
-            }else{
-              resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
-            }
-          }
-      }
-    })
-  }
+  //           }else{
+  //             resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
+  //           }
+  //         }
+  //     }
+  //   })
+  // }
 
-  resolveBlockFork(forkedChain){
-    return new Promise(async (resolve)=>{
-      if(!forkedChain){
-        resolve({ error:'Cannot resolve conflict with empty block fork' })
-      }else{
-        let forkLength = forkedChain.length
-        let lastBlockOfFork = forkedChain[forkLength - 1]
+  // resolveBlockFork(forkedChain){
+  //   return new Promise(async (resolve)=>{
+  //     if(!forkedChain){
+  //       resolve({ error:'Cannot resolve conflict with empty block fork' })
+  //     }else{
+  //       let forkLength = forkedChain.length
+  //       let lastBlockOfFork = forkedChain[forkLength - 1]
         
-            let isValidTotalDifficulty = this.calculateWorkDone(forkedChain)
-            if(!isValidTotalDifficulty){
-              logger('Is not valid total difficulty')
-            }
+  //           let isValidTotalDifficulty = this.calculateWorkDone(forkedChain)
+  //           if(!isValidTotalDifficulty){
+  //             logger('Is not valid total difficulty')
+  //           }
 
-            let startRemovingBlocksAt = forkedChain[0].blockNumber
-            let numberOfBlocks = this.chain.length - startRemovingBlocksAt
-            let errors = []
-            let orphanedBlocks = []
-            for(var remove=0; remove < numberOfBlocks; remove++){
-              let orphanedBlock = this.chain.pop()
-              orphanedBlocks.push(orphanedBlock)
-            }
+  //           let startRemovingBlocksAt = forkedChain[0].blockNumber
+  //           let numberOfBlocks = this.chain.length - startRemovingBlocksAt
+  //           let errors = []
+  //           let orphanedBlocks = []
+  //           for(var remove=0; remove < numberOfBlocks; remove++){
+  //             let orphanedBlock = this.chain.pop()
+  //             orphanedBlocks.push(orphanedBlock)
+  //           }
 
-            for(var add=0; add < numberOfBlocks; add++){
-              let block = forkedChain[add]
-              if(block){
-                let blockAdded = await this.pushBlock(block, true)
-                if(blockAdded.error){
-                  errors.push(blockAdded.error)
-                }else{
-                  logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
-                  logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
-                  logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
-                  // if(this.blockForks[block.hash]) delete this.blockForks[block.hash]
-                }
-              }else{
-                logger('ERROR: Could not find block')
-                resolve({ error:'ERROR: Could not find block' })
-              }
+  //           for(var add=0; add < numberOfBlocks; add++){
+  //             let block = forkedChain[add]
+  //             if(block){
+  //               let blockAdded = await this.pushBlock(block, true)
+  //               if(blockAdded.error){
+  //                 errors.push(blockAdded.error)
+  //               }else{
+  //                 logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
+  //                 logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
+  //                 logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
+  //                 // if(this.blockForks[block.hash]) delete this.blockForks[block.hash]
+  //               }
+  //             }else{
+  //               logger('ERROR: Could not find block')
+  //               resolve({ error:'ERROR: Could not find block' })
+  //             }
               
-            }
+  //           }
 
-            if(errors.length > 0){
-              logger('Rolled back on block changes')
-              this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
-              this.chain.concat(orphanedChain)
-              resolve({ error:errors })
-            }else{
-              logger(chalk.yellow(`* Finished switching branch`))
-              logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-              resolve(true)
-            }
+  //           if(errors.length > 0){
+  //             logger('Rolled back on block changes')
+  //             this.chain.splice(startRemovingBlocksAt, numberOfBlocks)
+  //             this.chain.concat(orphanedChain)
+  //             resolve({ error:errors })
+  //           }else{
+  //             logger(chalk.yellow(`* Finished switching branch`))
+  //             logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+  //             resolve(true)
+  //           }
             
         
-      }
+  //     }
       
-    })
+  //   })
     
-  }
+  // }
 
 
   createBlockBranch(newBlock){
@@ -579,15 +574,7 @@ class Blockchain{
             [newBlock.hash]:newBlock.transactions
          })
           .catch(e => console.log(e))
-          resolve(
-          {
-            fork:{
-              blockNumber:newBlock.blockNumber,
-              hash:newBlock.hash,
-              previousHash:newBlock.previousHash,
-
-            }
-          })
+          resolve(true)
         }else{
           
           const extendParallelBranch = async (newBlock, previousBlock) =>{
@@ -599,7 +586,7 @@ class Blockchain{
                 _id:newBlock.hash,
                 [newBlock.hash]:newBlock.transactions
               })
-              .catch(e => console.log(e))
+              .catch(e => resolve({error:e}))
               return true
             }
           }
@@ -620,7 +607,7 @@ class Blockchain{
             let currentBlock = this.chain[i];
             if(currentBlock.blockFork){
               if(currentBlock.blockFork[newBlock.previousHash]){
-                extended = extendParallelBranch(newBlock, currentBlock)
+                extended = await extendParallelBranch(newBlock, currentBlock)
                 if(extended.error) resolve({error:extended.error})
                 logger(chalk.yellow(`* Extended block fork with block ${newBlock.hash.substr(0, 25)}...`));
                 logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
