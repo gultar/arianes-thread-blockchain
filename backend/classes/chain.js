@@ -34,7 +34,7 @@ class Blockchain{
     this.chainDB = new PouchDB('./data/chainDB');
     this.balance = {}
     this.blockForks = {}
-    this.forks = {}
+    this.isSyncingBlocks = false
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
     this.maxDepthForBlockForks = 3;
@@ -412,7 +412,10 @@ class Blockchain{
   newBlockFork(newBlock){
     return new Promise(async (resolve)=>{
       if(this.getLatestBlock().hash != newBlock.hash){
-         
+          if(this.isSyncingBlocks){
+            this.cachedBlocks.push(newBlock)
+            resolve({ error:'Node is busy syncing new block' })
+          }
           /**
            * b: Canonical Block
            * f: Forked block
@@ -463,12 +466,18 @@ class Blockchain{
                     return fork;
                   }else{
                     //Has not fork so what the fuck
+                    console.log('RootHash', rootHash)
+                    console.log('RootIndex', rootIndex)
+                    console.log('RootBlock', rootBlock)
+                    console.log('Fork',fork)
                     logger(chalk.red('Fork is not an array'))
                     return false
                   }
 
                 }else{
                   //Again, root is not part of the chain
+                  console.log('RootHash', rootHash)
+                  console.log('RootIndex', rootIndex)
                   logger(chalk.red('Root is not part of the chain'))
                   return false
                 }
@@ -492,15 +501,17 @@ class Blockchain{
                   if(forkChainHasMoreWork){
                     let isValidTotalDifficulty = this.calculateWorkDone(fork)
                     if(isValidTotalDifficulty){
+                      this.isSyncingBlocks = true
                       let errors = []
-                      let orphanedBlocks = []
-                      for(var remove=0; remove < numberOfBlocks; remove++){
-                        let orphanedBlock = this.chain.pop()
-                        orphanedBlocks.push(orphanedBlock)
-                      }
-  
-                      for(var add=0; add < numberOfBlocks; add++){
-                        let block = fork[add]
+
+                      let forkHeadBlock = fork[0];
+                      let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
+                      let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
+                      // for(var remove=0; remove < numberOfBlocks; remove++){
+                      //   let orphanedBlock = this.chain.pop()
+                      //   orphanedBlocks.push(orphanedBlock)
+                      // }
+                      fork.forEach( async (block)=>{
                         let added = await this.pushBlock(block, true)
                         if(added.error){
                           errors.push(added.error)
@@ -510,14 +521,14 @@ class Blockchain{
                           logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
                           logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
                         } 
-                        
-                      }
-  
+                      })
+                      
+                      this.isSyncingBlocks = false;
                       if(errors.length > 0){
                         let numberOfAddedBlocks = numberOfBlocks - errors.length
                         logger('Rolled back on block changes')
                         for(var remove=0; remove < numberOfAddedBlocks; remove++){
-                          await this.chain.pop()
+                          this.chain.pop()
                         }
                         this.chain.concat(orphanedBlocks) 
                         resolve({error:errors})
