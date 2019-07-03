@@ -1268,6 +1268,8 @@ class Blockchain{
       if(parsedActualdifficulty == parsedRecalculatedDifficulty){
         return true;
       }else{
+        console.log('Difficulty recalculated: ', difficultyRecalculated)
+        console.log('Block difficulty: ', block.difficulty)
         return false;
       }
     }
