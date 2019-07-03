@@ -1249,7 +1249,9 @@ class Blockchain{
   validateBlockTimestamp(block){
     let timestamp = block.timestamp;
     let twentyMinutesInTheFuture = 30 * 60 * 1000
-    if(timestamp > this.chain[block.blockNumber - 1].timestamp && timestamp < (Date.now() + twentyMinutesInTheFuture) ){
+    let previousBlock = this.chain[block.blockNumber - 1] || this.getLatestBlock()
+    let previousTimestamp = previousBlock.timestamp
+    if(timestamp > previousTimestamp && timestamp < (Date.now() + twentyMinutesInTheFuture) ){
       return true
     }else{
       return false
