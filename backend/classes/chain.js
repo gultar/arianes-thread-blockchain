@@ -446,9 +446,9 @@ class Blockchain{
             }
 
             const extendFork = (newBlock) =>{
-              let forkInfo = this.blockForks[newBlock.previousBlock]
+              let forkInfo = this.blockForks[newBlock.previousHash]
               if(forkInfo){
-                let rootHash = this.blockForks[newBlock.previousBlock].root
+                let rootHash = this.blockForks[newBlock.previousHash].root
                 let rootIndex = this.getIndexOfBlockHash(rootHash)
                 if(rootIndex){
                   let rootBlock = this.chain[rootIndex];
