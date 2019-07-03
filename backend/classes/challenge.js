@@ -3,7 +3,7 @@ const { logger } = require('../tools/utils')
 
 process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
 process.IDEAL_BLOCK_TIME = 10; //seconds
-const MINIMUM_DIFFICULTY = parseInt('0x4000')
+const MINIMUM_DIFFICULTY = parseInt('0x100000')
 
 
 
@@ -14,8 +14,6 @@ const MINIMUM_DIFFICULTY = parseInt('0x4000')
   @param {number} $lastTimestamp - Time of block creation expressed in milliseconds
   @param {number} $newTimestamp - Time at the end of the block creation process in milliseconds
 */
-
-
 
 // function setNewDifficulty(previousBlock, newBlock){
 //   const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
