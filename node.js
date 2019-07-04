@@ -1869,6 +1869,7 @@ class Node {
     return new Promise(async (resolve, reject)=>{
       try{
         let savedBlockchain = await this.chain.save();
+        let savedStates = await this.chain.balance.saveStates();
         let savedNodeList = await this.nodeList.saveNodeList();
         let savedMempool = await Mempool.saveMempool();
         let savedWalletManager = await this.walletManager.saveState();
@@ -1881,6 +1882,7 @@ class Node {
             && savedWalletManager
             && savedNodeConfig
             && savedAccountTable
+            && savedStates
           )
           {
             resolve(true)

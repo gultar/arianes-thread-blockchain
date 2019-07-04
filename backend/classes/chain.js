@@ -2091,6 +2091,10 @@ class Blockchain{
   save(){
     return new Promise(async(resolve)=>{
       if(this.chainDB){
+
+        
+
+
         this.chainDB.get('blockchain')
         .then( async(fetchedChain) =>{
           const saved = await this.chainDB.put({
@@ -2099,6 +2103,8 @@ class Blockchain{
             chain:this.chain
           })
           .catch(e => console.log('CHAIN SAVE ERROR:', e))
+          logger('Saved blockchain')
+          resolve(true)
         })
         .catch( async (e)=> {
           logger('Creating new database entry for blockchain')
@@ -2107,10 +2113,7 @@ class Blockchain{
             chain:this.chain
           })
           .catch(e => console.log('CHAIN SAVE ERROR:', e))
-
-          const savedStates = await this.balance.saveStates();
-          logger('Saved blockchain state')
-          if(!savedStates) resolve(false)
+          logger('Saved blockchain')
           resolve(true)
         })
         
