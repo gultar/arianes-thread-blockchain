@@ -133,10 +133,10 @@ class Node {
         this.server.listen(this.port)
 
         this.loadNodeConfig()
-        this.initChainInfoAPI(app);
-        this.initHTTPAPI(app);
+        
         this.cleanMessageBuffer();
         this.minerConnector();
+        
         
         this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
   
@@ -381,7 +381,7 @@ class Node {
               }
               peer.emit('connectionRequest', this.address);
               this.nodeList.addNewAddress(address)  
-              
+
               setTimeout(()=>{
                 peer.emit('getBlockchainStatus', status);
               },5000);
@@ -1465,6 +1465,9 @@ class Node {
       this.minerServer.socket.on('getAction', (hash)=>{
         this.minerServer.socket.emit('action', Mempool.pendingActions[hash])
       })
+
+      this.initChainInfoAPI(app);
+      this.initHTTPAPI(app);
 
       this.externalEventHandlers(this.minerServer.socket)
   
