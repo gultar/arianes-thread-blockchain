@@ -62,13 +62,11 @@ program
     
 
     let configs = await loadNodeConfig();
-      if(!configs){
-        configs = {}
-      }
+      console.log(configs)
       if(program.verbose){
         configs.verbose = true;
       }
-      
+
       node = new Node({
         host:configs.host,
         port:configs.port,
