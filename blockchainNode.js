@@ -380,13 +380,13 @@ class Node {
                 length: this.chain.chain.length
               }
               setTimeout(()=>{
-                peer.emit('connectionRequest', this.address); 
+                peer.emit('connectionRequest', this.address);
+                this.connectionsToPeers[address] = peer;
+                this.nodeList.addNewAddress(address)  
               }, 1000)
               setTimeout(()=>{
                 peer.emit('getBlockchainStatus', status);
-                this.connectionsToPeers[address] = peer;
-                this.nodeList.addNewAddress(address) 
-              },2000);
+              },5000);
               
               
             }else{
