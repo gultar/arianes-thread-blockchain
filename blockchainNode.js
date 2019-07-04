@@ -125,9 +125,9 @@ class Node {
 
         if(this.httpsEnabled){
           let sslConfig = await this.getCertificateAndPrivateKey()
-          this.server = https.createServer(sslConfig, app);
+          this.server = https.createServer(sslConfig);
         }else{
-          this.server = http.createServer(app);
+          this.server = http.createServer();
         }
          
         this.server.listen(this.port)
@@ -785,7 +785,6 @@ class Node {
   */
   initHTTPAPI(app){
     try{
-
       let rateLimiter = new RateLimit({
         windowMs: 1000, // 1 hour window 
         max: 100, // start blocking after 100 requests 
@@ -1413,8 +1412,12 @@ class Node {
 
   minerConnector(){
     //Listen port 3000
-    let app = express().listen(parseInt(this.port)+2000, '127.0.0.1');
-    this.minerServer = socketIo(app);
+    let app = express()
+    this.initChainInfoAPI(app);
+    this.initHTTPAPI(app);
+    const server = http.createServer(app)
+    server.listen(parseInt(this.port)+2000, 'localhost');
+    this.minerServer = socketIo(server);
     logger('Miner connector listening on ',parseInt(this.port)+2000)
     this.minerServer.on('connection',(socket)=>{
 
@@ -1465,9 +1468,6 @@ class Node {
       this.minerServer.socket.on('getAction', (hash)=>{
         this.minerServer.socket.emit('action', Mempool.pendingActions[hash])
       })
-
-      this.initChainInfoAPI(app);
-      this.initHTTPAPI(app);
 
       this.externalEventHandlers(this.minerServer.socket)
   
