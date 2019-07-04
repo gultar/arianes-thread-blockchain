@@ -68,6 +68,7 @@ program
       if(program.verbose){
         configs.verbose = true;
       }
+      
       node = new Node({
         host:configs.host,
         port:configs.port,
