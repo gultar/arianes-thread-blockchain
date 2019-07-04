@@ -379,12 +379,15 @@ class Node {
                 bestBlockHeader: this.chain.getLatestBlock(),
                 length: this.chain.chain.length
               }
-              setTimeout(()=>{ 
-                peer.emit('getBlockchainStatus', status);
+              setTimeout(()=>{
                 peer.emit('connectionRequest', this.address); 
+              }, 1000)
+              setTimeout(()=>{
+                peer.emit('getBlockchainStatus', status);
+                this.connectionsToPeers[address] = peer;
+                this.nodeList.addNewAddress(address) 
               },2000);
-              this.connectionsToPeers[address] = peer;
-              this.nodeList.addNewAddress(address)
+              
               
             }else{
               // this.connectionsToPeers[address] = peer;
