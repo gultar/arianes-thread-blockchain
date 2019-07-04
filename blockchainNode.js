@@ -338,7 +338,10 @@ class Node {
             }
           }
 
-          if(address.includes('https')) config.secure = true
+          if(address.includes('https')){ 
+            config.secure = true
+            config.rejectUnauthorized = false
+          }
           
           peer = ioClient(address, config);
 
