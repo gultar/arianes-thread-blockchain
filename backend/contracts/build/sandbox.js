@@ -17,7 +17,7 @@ class Sandbox{
 
     exposeClasses(){
         return({
-            Contract:Contract
+            Contract:Contract,
             serialize:serializeActiveObjects,
             Account:Account,
             Transaction:Transaction,

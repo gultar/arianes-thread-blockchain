@@ -126,64 +126,73 @@ class Blockchain{
   getLatestBlock(){
     return this.chain[this.chain.length - 1];
   }
+
   
-  static initBlockchain(){
-    return new Promise(async (resolve, reject)=>{
-      let blockchain = {};
+  
+  // static initBlockchain(){
+  //   return new Promise(async (resolve, reject)=>{
+  //     let blockchain = {};
 
-      const instanciateBlockchain = (chainObj) =>{
-        return new Blockchain(chainObj.chain, chainObj.difficulty)
-      }
+  //     const instanciateBlockchain = (chainObj) =>{
+  //       return new Blockchain(chainObj.chain, chainObj.difficulty)
+  //     }
 
-      logger('Initiating blockchain');
-      fs.exists('./data/blockchain.json', async (exists)=>{
+  //     logger('Initiating blockchain');
+  //     fs.exists('./data/blockchain.json', async (exists)=>{
         
-        if(exists){
+  //       if(exists){
   
-          // let blockchainFile = await readFile('./data/blockchain.json');
-          let [readErr, blockchainString] = await jsonc.safe.read('./data/blockchain.json')
-          if(readErr) { 
-            resolve(false)
-          }
+  //         // let blockchainFile = await readFile('./data/blockchain.json');
+  //         let [readErr, blockchainString] = await jsonc.safe.read('./data/blockchain.json')
+  //         if(readErr) { 
+  //           resolve(false)
+  //         }
 
-          let [parseErr, blockchainObject] = await jsonc.safe.parse(blockchainString)
-          if(parseErr){
-            resolve(false)
-          }
+  //         let [parseErr, blockchainObject] = await jsonc.safe.parse(blockchainString)
+  //         if(parseErr){
+  //           resolve(false)
+  //         }
 
-          blockchain = instanciateBlockchain(blockchainObject);
-          blockchain.balance = new BalanceTable()
-          let states = await blockchain.balance.loadAllStates()
-          if(!states) {
-            logger('ERROR: Could not load balance table')
-            resolve(false)
-          }
-          blockchain.balance.states = states
-          resolve(blockchain);
+  //         let _tempDB = new PouchDB('./data/chainDB')
+  //         let blockchainObj = await _tempDB.get('blockchain')
+  //         .catch(e => { 
+  //           blockchainObj = blockchainObject;
+  //           console.log('CHAIN LOAD ERROR:', e) 
+  //         })
+
+  //         blockchain = instanciateBlockchain(blockchainObj);
+  //         blockchain.balance = new BalanceTable()
+  //         let states = await blockchain.balance.loadAllStates()
+  //         if(!states) {
+  //           logger('ERROR: Could not load balance table')
+  //           resolve(false)
+  //         }
+  //         blockchain.balance.states = states
+  //         resolve(blockchain);
   
-        }else{
+  //       }else{
   
-          logger('Blockchain file does not exist')
-          logger('Generating new blockchain')
+  //         logger('Blockchain file does not exist')
+  //         logger('Generating new blockchain')
           
-          let newBlockchain = new Blockchain();
-          let genesisBlock = await newBlockchain.loadGenesisFile()
-          newBlockchain.balance = new BalanceTable(genesisBlock.states)
-          let states = await newBlockchain.balance.loadAllStates()
-          if(!states) {
-            logger('ERROR: Could not load balance table')
-            resolve(false)
-          }
-          newBlockchain.balance.states = states;
-          newBlockchain.chain.push(newBlockchain.extractHeader(genesisBlock))
-          newBlockchain.saveBlockchain();
-          resolve(newBlockchain);
-        }
-      })
+  //         let newBlockchain = new Blockchain();
+  //         let genesisBlock = await newBlockchain.loadGenesisFile()
+  //         newBlockchain.balance = new BalanceTable(genesisBlock.states)
+  //         let states = await newBlockchain.balance.loadAllStates()
+  //         if(!states) {
+  //           logger('ERROR: Could not load balance table')
+  //           resolve(false)
+  //         }
+  //         newBlockchain.balance.states = states;
+  //         newBlockchain.chain.push(newBlockchain.extractHeader(genesisBlock))
+  //         newBlockchain.saveBlockchain();
+  //         resolve(newBlockchain);
+  //       }
+  //     })
      
-    })
+  //   })
   
-  }
+  // }
 
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
@@ -2032,37 +2041,134 @@ class Blockchain{
         
     return found
   }
+  
 
-  async saveBlockchain(){
-    return new Promise(async (resolve, reject)=>{
-      try{
-        
-        // let saved = await writeToFile(this, './data/blockchain.json');
-        let chain = {
-            chain:this.chain
-        } 
-        let data = await jsonc.stringify(chain);
-        
+  static load(){
+    return new Promise(async(resolve)=>{
 
-        if(data){
-          const [err, success] = await jsonc.safe.write('./data/blockchain.json', data);
-          const savedStates = await this.balance.saveStates();
-          if(err) resolve(false)
-          else{
-            if(!savedStates) resolve(false)
-            resolve(true)
+          const instanciateBlockchain = (chainObj) =>{
+            return new Blockchain(chainObj.chain, chainObj.difficulty)
           }
-        }
+          let blockchain = new Blockchain()
+          let _tempDB = new PouchDB('./data/chainDB')
+          _tempDB.get('blockchain')
+          .then( async (blockchainObj) =>{
+            //Blockchain exists in chainDB, fetch than instanciate
+            blockchain = instanciateBlockchain(blockchainObj);
+            blockchain.balance = new BalanceTable()
+            
+            let states = await blockchain.balance.loadAllStates()
+            if(!states) {
+              logger('ERROR: Could not load balance table')
+              resolve(false)
+            }
+            blockchain.balance.states = states
+            resolve(blockchain);
+
+          })
+          .catch(async(e) => { 
+            logger('Blockchain file does not exist')
+            logger('Generating new blockchain')
+            
+            let newBlockchain = new Blockchain();
+            let genesisBlock = await newBlockchain.loadGenesisFile()
+            newBlockchain.balance = new BalanceTable(genesisBlock.states)
+            let states = await newBlockchain.balance.loadAllStates()
+            if(!states) {
+              logger('ERROR: Could not load balance table')
+              resolve(false)
+            }
+            newBlockchain.balance.states = states;
+            newBlockchain.chain.push(genesisBlock)
+            newBlockchain.save();
+            resolve(newBlockchain); 
+          })
+
+          
+    })
+  }
+
+  save(){
+    return new Promise(async(resolve)=>{
+      if(this.chainDB){
+        this.chainDB.get('blockchain')
+        .then( async(fetchedChain) =>{
+          const saved = await this.chainDB.put({
+            _id:fetchedChain._id,
+            _rev:fetchedChain._rev,
+            chain:this.chain
+          })
+          .catch(e => console.log('CHAIN SAVE ERROR:', e))
+        })
+        .catch( async (e)=> {
+          logger('Creating new database entry for blockchain')
+          const saved = await this.chainDB.put({
+            _id:'blockchain',
+            chain:this.chain
+          })
+          .catch(e => console.log('CHAIN SAVE ERROR:', e))
+        })
+      }
+      
+      logger('Saved blockchain state')
+      
+      const savedStates = await this.balance.saveStates();
+      if(!savedStates) resolve(false)
+      resolve(true)
+    })
+  }
+
+  // async saveBlockchain(){
+  //   return new Promise(async (resolve, reject)=>{
+  //     try{
+        
+  //       // let saved = await writeToFile(this, './data/blockchain.json');
+  //       let chain = {
+  //           chain:this.chain
+  //       } 
+  //       let data = await jsonc.stringify(chain);
+        
+
+  //       if(data){
+  //         const [err, success] = await jsonc.safe.write('./data/blockchain.json', data);
+  //         if(this.chainDB){
+  //           this.chainDB.get('blockchain')
+  //           .then( async(fetchedChain) =>{
+  //             const saved = await this.chainDB.put({
+  //               _id:fetchedChain._id,
+  //               _rev:fetchedChain._rev,
+  //               chain:this.chain
+  //             })
+  //             .catch(e => console.log('CHAIN SAVE ERROR:', e))
+  //           })
+  //           .catch( async (e)=> {
+  //             logger('Creating new database entry for blockchain')
+  //             const saved = await this.chainDB.put({
+  //               _id:'blockchain',
+  //               chain:this.chain
+  //             })
+  //             .catch(e => console.log('CHAIN SAVE ERROR:', e))
+  //           })
+  //         }
+          
+          
+  //         const savedStates = await this.balance.saveStates();
+  //         if(err) resolve(false)
+  //         else{
+  //           if(!savedStates) resolve(false)
+  //           resolve(true)
+  //         }
+  //       }
         
         
          
-      }catch(e){
-        reject(e);
-      }
+  //     }catch(e){
+  //       reject(e);
+  //     }
       
-    })
+  //   })
     
-  }
+  // }
 
 }
 

@@ -5,6 +5,7 @@
 /********HTTP Server and protection************/
 const express = require('express');
 const http = require('http');
+const https = require('https')
 const bodyParser = require('body-parser');
 const RateLimit = require('express-rate-limit');
 const helmet = require('helmet');
@@ -56,13 +57,15 @@ const { RateLimiterMemory } = require('rate-limiter-flexible');
 class Node {
   constructor(options){
     if(!options){
-      options.address = 'http://localhost:8000'
+      options.host = 'localhost'
       options.port = 8000;
       options.id = sha1(Math.random() * Date.now());
     }
     //Basic node configs
-    this.address = options.address,
+    this.host = options.host,
     this.port = options.port
+    this.httpsEnabled = options.httpsEnabled
+    this.address = (this.httpsEnabled ? `https://${this.host}:${this.port}` : `http://${this.host}:${this.port}`)
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -78,7 +81,6 @@ class Node {
     this.updated = false;
     this.isDownloading = false;
     this.minerStarted = false;
-    this.miner = {};
     this.nodeList = new NodeList();
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
@@ -119,16 +121,23 @@ class Node {
         app.use(express.static(__dirname+'/views'));
         express.json({ limit: '300kb' })
         app.use(helmet())
-        const server = http.createServer(app).listen(this.port);
-        // const options = await this.getCertificateAndPrivateKey();
-        // const server = require('https').createServer(options).listen(this.port)
+
+        if(this.httpsEnabled){
+          let sslConfig = await this.getCertificateAndPrivateKey()
+          this.server = https.createServer(sslConfig, app);
+        }else{
+          this.server = http.createServer(app);
+        }
+         
+        this.server.listen(this.port)
+
         this.loadNodeConfig()
         this.initChainInfoAPI(app);
         this.initHTTPAPI(app);
         this.cleanMessageBuffer();
         this.minerConnector();
-
-        this.ioServer = socketIo(server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
+        
+        this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
   
         this.ioServer.on('connection', (socket) => {
           
@@ -317,8 +326,6 @@ class Node {
       if(!this.connectionsToPeers[address]){
         let connectionAttempts = 0;
         let peer;
-        let timestamp = Date.now();
-        let randomOrder = Math.random();
         try{
           let config = {
             'reconnection limit' : 1000,

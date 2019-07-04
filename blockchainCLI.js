@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const Node = require('./node');
+const Node = require('./blockchainNode');
 const program = require('commander');
 const { logger, readFile } = require('./backend/tools/utils');
 const fs = require('fs')
@@ -62,19 +62,17 @@ program
     
 
     let configs = await loadNodeConfig();
-    if(!configs){
-      configs = {
-        address:'http://localhost:8000',
-        port:8000
+      if(!configs){
+        configs = {}
       }
-    }
       if(program.verbose){
         configs.verbose = true;
       }
       node = new Node({
-        address:configs.address,
+        host:'localhost',
         port:configs.port,
         verbose:configs.verbose,
+        httpsEnabled:true
       })
 
      let started = await node.startServer()
