@@ -368,7 +368,7 @@ class Node {
           peer.on('connect', () =>{
             if(!this.connectionsToPeers[address]){
               
-              peer.emit('connectionRequest', {address:this.address});
+              
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
@@ -377,7 +377,10 @@ class Node {
                 bestBlockHeader: this.chain.getLatestBlock(),
                 length: this.chain.chain.length
               }
-              setTimeout(()=>{ peer.emit('getBlockchainStatus', status); },5000);
+              setTimeout(()=>{ 
+                peer.emit('getBlockchainStatus', status);
+                peer.emit('connectionRequest', {address:this.address}); 
+              },2000);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
               
