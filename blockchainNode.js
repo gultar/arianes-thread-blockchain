@@ -378,8 +378,8 @@ class Node {
                 bestBlockHeader: this.chain.getLatestBlock(),
                 length: this.chain.chain.length
               }
+              peer.emit('connectionRequest', this.address);
               setTimeout(()=>{
-                peer.emit('connectionRequest', this.address);
                 this.connectionsToPeers[address] = peer;
                 this.nodeList.addNewAddress(address)  
               }, 1000)
@@ -406,8 +406,7 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            // logger(`Received blockchain status from peer ${address}`);
-            // console.log(status)
+            logger(`Received blockchain status from peer ${address}`);
             if(!this.isDownloading){
               let updated = await this.receiveBlockchainStatus(peer, status)
               this.isDownloading = false
