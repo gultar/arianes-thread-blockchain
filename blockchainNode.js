@@ -65,7 +65,8 @@ class Node {
     this.host = options.host,
     this.port = options.port
     this.httpsEnabled = options.httpsEnabled
-    this.address = (options.httpsEnabled ? `https://${this.host}:${this.port}` : `http://${this.host}:${this.port}`)
+    this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
+    this.address = this.httpPrefix + '://' + this.host + ':' + this.port
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -1973,7 +1974,7 @@ class Node {
   async saveNodeConfig(){
     return new Promise(async (resolve, reject)=>{
       let config = {
-        //address:this.address,
+        address:this.address,
         host:this.host,
         port:this.port,
         id:this.id,
