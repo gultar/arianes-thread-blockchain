@@ -69,7 +69,7 @@ program
         configs.verbose = true;
       }
       node = new Node({
-        host:'localhost',
+        host:configs.host,
         port:configs.port,
         verbose:configs.verbose,
         httpsEnabled:true

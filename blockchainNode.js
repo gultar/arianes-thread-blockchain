@@ -1203,8 +1203,10 @@ class Node {
         console.log(this.chain.balance)
       })
 
-      socket.on('showForks', ()=>{
-        console.log(this.chain.blockForks)
+      socket.on('debughttps', ()=>{
+        console.log('enable:', this.httpsEnabled)
+        console.log('address:', this.address)
+        console.log('list', this.nodeList)
       })
 
       socket.on('verbose', ()=>{
