@@ -75,16 +75,19 @@ program
         httpsEnabled:true
       })
 
-     let started = await node.startServer()
-     if(started.error) throw new Error(started.error)
+     node.startServer()
+     .then( started =>{
+      if(started.error) throw new Error(started.error)
 
-    if(program.join){
-      node.joinPeers();
-    }
-
-    if(program.seed){
-      node.connectToPeer(program.seed);
-    }
+      if(program.join){
+        node.joinPeers();
+      }
+  
+      if(program.seed){
+        node.connectToPeer(program.seed);
+      }
+     })
+     
       
   });
 

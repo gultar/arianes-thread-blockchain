@@ -56,17 +56,17 @@ const { RateLimiterMemory } = require('rate-limiter-flexible');
 
 class Node {
   constructor(options){
-    // if(!options){
-    //   options.host = 'localhost'
-    //   options.port = 8000;
-    //   options.id = sha1(Math.random() * Date.now());
-    // }
+    if(!options){
+      options.host = 'localhost'
+      options.port = 8000;
+      options.id = sha1(Math.random() * Date.now());
+    }
     //Basic node configs
     this.host = options.host,
     this.port = options.port
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
-    this.address = //this.httpPrefix + '://' + this.host + ':' + this.port
+    this.address = options.address || `${this.httpPrefix}://${this.host}:${this.port}`
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
