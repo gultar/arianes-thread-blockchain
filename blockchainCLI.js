@@ -68,6 +68,7 @@ program
       }
 
       node = new Node({
+        address:configs.address,
         host:configs.host,
         port:configs.port,
         verbose:configs.verbose,

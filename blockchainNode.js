@@ -370,7 +370,7 @@ class Node {
           peer.on('connect', () =>{
             if(!this.connectionsToPeers[address]){
               
-              
+              console.log(address)
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
