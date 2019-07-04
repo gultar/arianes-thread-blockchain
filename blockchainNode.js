@@ -65,7 +65,7 @@ class Node {
     this.host = options.host,
     this.port = options.port
     this.httpsEnabled = options.httpsEnabled
-    this.address = (this.httpsEnabled ? `https://${this.host}:${this.port}` : `http://${this.host}:${this.port}`)
+    this.address = (options.httpsEnabled ? `https://${this.host}:${this.port}` : `http://${this.host}:${this.port}`)
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -379,7 +379,7 @@ class Node {
               }
               setTimeout(()=>{ 
                 peer.emit('getBlockchainStatus', status);
-                peer.emit('connectionRequest', {address:this.address}); 
+                peer.emit('connectionRequest', this.address); 
               },2000);
               this.connectionsToPeers[address] = peer;
               this.nodeList.addNewAddress(address)
@@ -925,7 +925,7 @@ class Node {
       delete this.peersConnected[peerAddress];
      })
 
-     socket.on('connectionRequest', async({address})=>{
+     socket.on('connectionRequest', async(address)=>{
        await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
        this.connectToPeer(address);
      });
