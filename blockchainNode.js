@@ -66,7 +66,7 @@ class Node {
     this.port = options.port
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
-    this.address = this.httpPrefix + '://' + this.host + ':' + this.port
+    this.address = //this.httpPrefix + '://' + this.host + ':' + this.port
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -151,6 +151,7 @@ class Node {
                 if(token && token != undefined){
                   token = JSON.parse(token)
                   let peerAddress = token.address
+                  
                   if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
                     if(!this.peersConnected[socket.handshake.headers.host]){
                       this.peersConnected[peerAddress] = socket;
@@ -335,7 +336,7 @@ class Node {
             'pingTimeout': 10000,
             'query':
             {
-              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey}),
+              token: JSON.stringify({ 'address':this.address }),
             }
           }
 
