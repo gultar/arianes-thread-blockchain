@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const Node = require('./blockchainNode');
+const Node = require('./node');
 const program = require('commander');
 const { logger, readFile } = require('./backend/tools/utils');
 const fs = require('fs')

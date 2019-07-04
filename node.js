@@ -5,6 +5,7 @@
 /********HTTP Server and protection************/
 const express = require('express');
 const http = require('http');
+const https = require('https')
 const bodyParser = require('body-parser');
 const RateLimit = require('express-rate-limit');
 const helmet = require('helmet');
@@ -56,13 +57,16 @@ const { RateLimiterMemory } = require('rate-limiter-flexible');
 class Node {
   constructor(options){
     if(!options){
-      options.address = 'http://localhost:8000'
+      options.host = 'localhost'
       options.port = 8000;
       options.id = sha1(Math.random() * Date.now());
     }
     //Basic node configs
-    this.address = options.address,
+    this.host = options.host,
     this.port = options.port
+    this.httpsEnabled = options.httpsEnabled
+    this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
+    this.address = options.address || `${this.httpPrefix}://${this.host}:${this.port}`
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -78,7 +82,6 @@ class Node {
     this.updated = false;
     this.isDownloading = false;
     this.minerStarted = false;
-    this.miner = {};
     this.nodeList = new NodeList();
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
@@ -119,16 +122,23 @@ class Node {
         app.use(express.static(__dirname+'/views'));
         express.json({ limit: '300kb' })
         app.use(helmet())
-        const server = http.createServer(app).listen(this.port);
-        // const options = await this.getCertificateAndPrivateKey();
-        // const server = require('https').createServer(options).listen(this.port)
+
+        if(this.httpsEnabled){
+          let sslConfig = await this.getCertificateAndPrivateKey()
+          this.server = https.createServer(sslConfig);
+        }else{
+          this.server = http.createServer();
+        }
+         
+        this.server.listen(this.port)
+
         this.loadNodeConfig()
-        this.initChainInfoAPI(app);
-        this.initHTTPAPI(app);
+        
         this.cleanMessageBuffer();
         this.minerConnector();
-
-        this.ioServer = socketIo(server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
+        
+        
+        this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
   
         this.ioServer.on('connection', (socket) => {
           
@@ -141,6 +151,7 @@ class Node {
                 if(token && token != undefined){
                   token = JSON.parse(token)
                   let peerAddress = token.address
+                  
                   if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
                     if(!this.peersConnected[socket.handshake.headers.host]){
                       this.peersConnected[peerAddress] = socket;
@@ -317,8 +328,6 @@ class Node {
       if(!this.connectionsToPeers[address]){
         let connectionAttempts = 0;
         let peer;
-        let timestamp = Date.now();
-        let randomOrder = Math.random();
         try{
           let config = {
             'reconnection limit' : 1000,
@@ -327,11 +336,14 @@ class Node {
             'pingTimeout': 10000,
             'query':
             {
-              token: JSON.stringify({ 'address':this.address, 'publicKey':this.publicKey}),
+              token: JSON.stringify({ 'address':this.address }),
             }
           }
 
-          if(address.includes('https')) config.secure = true
+          if(address.includes('https')){ 
+            config.secure = true
+            config.rejectUnauthorized = false
+          }
           
           peer = ioClient(address, config);
 
@@ -357,8 +369,8 @@ class Node {
 
           peer.on('connect', () =>{
             if(!this.connectionsToPeers[address]){
-              
-              peer.emit('connectionRequest', {address:this.address});
+
+              this.connectionsToPeers[address] = peer;
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
@@ -367,9 +379,13 @@ class Node {
                 bestBlockHeader: this.chain.getLatestBlock(),
                 length: this.chain.chain.length
               }
-              setTimeout(()=>{ peer.emit('getBlockchainStatus', status); },5000);
-              this.connectionsToPeers[address] = peer;
-              this.nodeList.addNewAddress(address)
+              peer.emit('connectionRequest', this.address);
+              this.nodeList.addNewAddress(address)  
+
+              setTimeout(()=>{
+                peer.emit('getBlockchainStatus', status);
+              },5000);
+              
               
             }else{
               // this.connectionsToPeers[address] = peer;
@@ -389,8 +405,7 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            // logger(`Received blockchain status from peer ${address}`);
-            // console.log(status)
+            logger(`Received blockchain status from peer ${address}`);
             if(!this.isDownloading){
               let updated = await this.receiveBlockchainStatus(peer, status)
               this.isDownloading = false
@@ -770,7 +785,6 @@ class Node {
   */
   initHTTPAPI(app){
     try{
-
       let rateLimiter = new RateLimit({
         windowMs: 1000, // 1 hour window 
         max: 100, // start blocking after 100 requests 
@@ -790,10 +804,6 @@ class Node {
       });
       
       app.set('json spaces', 2)
-
-      app.get('connect', (req, res)=>{
-        //
-      })
       
       app.get('/transaction', (req, res)=>{
         let tx = {};
@@ -912,7 +922,7 @@ class Node {
       delete this.peersConnected[peerAddress];
      })
 
-     socket.on('connectionRequest', async({address})=>{
+     socket.on('connectionRequest', async(address)=>{
        await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
        this.connectToPeer(address);
      });
@@ -1190,8 +1200,10 @@ class Node {
         console.log(this.chain.balance)
       })
 
-      socket.on('showForks', ()=>{
-        console.log(this.chain.blockForks)
+      socket.on('debughttps', ()=>{
+        console.log('enable:', this.httpsEnabled)
+        console.log('address:', this.address)
+        console.log('list', this.nodeList)
       })
 
       socket.on('verbose', ()=>{
@@ -1396,8 +1408,12 @@ class Node {
 
   minerConnector(){
     //Listen port 3000
-    let app = express().listen(parseInt(this.port)+2000, '127.0.0.1');
-    this.minerServer = socketIo(app);
+    let app = express()
+    this.initChainInfoAPI(app);
+    this.initHTTPAPI(app);
+    const server = http.createServer(app)
+    server.listen(parseInt(this.port)+2000, 'localhost');
+    this.minerServer = socketIo(server);
     logger('Miner connector listening on ',parseInt(this.port)+2000)
     this.minerServer.on('connection',(socket)=>{
 
@@ -1806,54 +1822,6 @@ class Node {
     })
   }
 
-  // generateWalletCreationReceipt(wallet){
-  //   const receipt = 
-  //   `Created New Wallet!
-  //    Wallet Name: ${wallet.name}
-  //    Public key:${wallet.publicKey}
-  //    Wallet id: ${wallet.id}
-  //    Keep your password hash safe!`;
-
-  //    return receipt;
-  // }
-
-  // forceMine(){
-  //   logger('Starting miner!')
-  //   this.outputToUI('Starting miner!')
-  //   this.startMiner();
-  // }
-
-  // /**
-  //   @desc Miner loop can be launched via the web UI or upon Node boot up
-  // */
-  // createMiner(){
-  //   if(this.chain instanceof Blockchain && this.minerStarted){
-
-  //     this.miner = new Miner({
-  //       chain:this.chain,
-  //       address:this.address,
-  //       publicKey:this.publicKey,
-  //       verbose:this.verbose,
-  //     })
-
-  //     this.miner.start((block)=>{
-  //       if(block){
-  //         let newHeader = this.chain.getBlockHeader(block.blockNumber);
-  //         this.sendPeerMessage('newBlockFound', newHeader);
-  //         this.createMiner();
-  //       }
-        
-  //     });
-  //   }else{
-  //     logger('ERROR: Could not start miner')
-  //   }
-  // }
-
-  // pauseMiner(state){
-  //   if(this.miner && typeof state == 'boolean'){
-  //     this.miner.minerPaused = state;
-  //   }
-  // }
 
 
   cashInCoinbaseTransactions(){
@@ -1959,6 +1927,7 @@ class Node {
     return new Promise(async (resolve, reject)=>{
       let config = {
         address:this.address,
+        host:this.host,
         port:this.port,
         id:this.id,
         publicKey:this.publicKey,

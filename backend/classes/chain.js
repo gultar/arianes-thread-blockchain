@@ -2108,13 +2108,16 @@ class Blockchain{
           })
           .catch(e => console.log('CHAIN SAVE ERROR:', e))
         })
+        logger('Saved blockchain state')
+      
+        const savedStates = await this.balance.saveStates();
+        if(!savedStates) resolve(false)
+        resolve(true)
+      }else{
+        logger('CHAINDB SAVE ERROR: Blockchain database does not exist ')
       }
       
-      logger('Saved blockchain state')
       
-      const savedStates = await this.balance.saveStates();
-      if(!savedStates) resolve(false)
-      resolve(true)
     })
   }
 
