@@ -370,6 +370,7 @@ class Node {
           peer.on('connect', () =>{
             if(!this.connectionsToPeers[address]){
               
+              this.connectionsToPeers[address] = peer;
               logger(chalk.green('Connected to ', address))
               this.UILog('Connected to ', address+' at : '+ displayTime())
               peer.emit('message', 'Connection established by '+ this.address);
@@ -380,7 +381,7 @@ class Node {
               }
               peer.emit('connectionRequest', this.address);
               setTimeout(()=>{
-                this.connectionsToPeers[address] = peer;
+                
                 this.nodeList.addNewAddress(address)  
               }, 1000)
               setTimeout(()=>{
