@@ -40,7 +40,7 @@ const sha1 = require('sha1')
 const chalk = require('chalk');
 const fs = require('fs');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-const EventEmitter = require('events')
+const EventEmitter = require('events').EventEmitter
 
 
 /**
@@ -139,14 +139,18 @@ class Node {
             port:this.peerDiscoveryPort,
           });
 
-          let peerEvents = new EventEmitter()
-          peerEvents.on('peerDiscovered', (peer)=> {
-            console.log(peer)
-            this.nodeList.addNewAddress(peer)
-            this.connectToPeer(peer)
-          })
+          
           this.peerDiscovery.initService()
           this.peerDiscovery.initBrowser()
+          this.peerDiscovery.collectPeers((emitter)=>{
+            emitter.on('peerDiscovered', (peer)=> {
+              console.log(peer)
+              let { host, port, address } = peer
+              this.nodeList.addNewAddress(address)
+              this.connectToPeer(address)
+            })
+          })
+          
         }
         
         this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
@@ -350,7 +354,7 @@ class Node {
               token: JSON.stringify({ 'address':this.address }),
             }
           }
-
+          
           if(address.includes('https')){ 
             config.secure = true
             config.rejectUnauthorized = false

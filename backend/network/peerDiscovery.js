@@ -1,6 +1,6 @@
 const dnssd = require('dnssd');
 const isIP = require('is-ip');
-const EventEmitter = require('events')
+const EventEmitter = require('events').EventEmitter
 
 class PeerDiscovery{
 
@@ -19,7 +19,6 @@ class PeerDiscovery{
     initBrowser(){
         this.browser = dnssd.Browser(dnssd.tcp(this.channel))
         .on('serviceUp', service => {
-            console.log(service)
             this.discoverNewPeer(service)
         })
         .start();
@@ -37,9 +36,11 @@ class PeerDiscovery{
         this.emitter.on('peerGone', (address)=> delete this.knownPeers[address] )
     }
 
+    collectPeers(callback){
+        callback(this.emitter)
+    }
 
-
-    discoverNewPeer(service){
+    discoverNewPeer(service, callback){
 
         let contact = {
             host:'',
@@ -54,6 +55,7 @@ class PeerDiscovery{
                     contact.port = service.port
                     contact.address = service.name
                     this.knownPeers[address] = contact
+                    console.log('Emitting')
                     this.emitter.emit('peerDiscovered', contact)
                 }
             }
