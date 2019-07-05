@@ -2,7 +2,7 @@ const dnssd = require('dnssd');
 const isIP = require('is-ip');
 const EventEmitter = require('events')
 
-class PeerDiscovery extends EventEmitter{
+class PeerDiscovery{
 
     constructor(opts){
         super()
@@ -47,7 +47,6 @@ class PeerDiscovery extends EventEmitter{
             address:'',
         }
         service.addresses.forEach((address)=>{
-            console.log(address)
             if(isIP.v4(address)){
                 if(!this.knownPeers[address]){
                     
@@ -55,8 +54,8 @@ class PeerDiscovery extends EventEmitter{
                     contact.port = service.port
                     contact.address = service.name
                     this.knownPeers[address] = contact
-                    console.log(contact)
-                    this.send('peerDiscovered', contact)
+                    let emitter = new EventEmitter()
+                    emitter.send('peerDiscovered', contact)
                 }
             }
         })
