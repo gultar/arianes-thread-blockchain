@@ -67,7 +67,7 @@ class PeerDiscovery{
         })
     }
 
-    findPeersOnBittorrentDHT(){
+    searchDHT(){
         return new Promise((resolve)=>{
             logger('Looking for peers on Bittorrent DHT')
             let potentialPeers = {}
