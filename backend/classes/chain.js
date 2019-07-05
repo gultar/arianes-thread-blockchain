@@ -1605,16 +1605,17 @@ class Blockchain{
 
         this.chainDB.get('blockchain')
         .then( async(fetchedChain) =>{
-          const removed = await this.chainDB.remove(fetchedChain._id, fetchedChain._rev)
-          
-          const saved = await this.chainDB.put({
-            _id:'blockchain',
-            _rev:fetchedChain._rev,
-            chain:this.chain
+          //Delete to avoid overinflation of DB with new entries
+          this.chainDB.remove(fetchedChain._id, fetchedChain._rev)
+          .then(async ()=>{
+            const saved = await this.chainDB.put({
+              _id:'blockchain',
+              chain:this.chain
+            })
+            .catch(e => console.log(e))
+            logger('Saved blockchain')
+            resolve(true)
           })
-          .catch(e => {})
-          logger('Saved blockchain')
-          resolve(true)
         })
         .catch( async (e)=> {
           logger('Creating new database entry for blockchain')
