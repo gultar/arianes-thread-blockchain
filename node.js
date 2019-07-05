@@ -420,6 +420,7 @@ class Node {
 
           peer.on('blockchainStatus', async (status)=>{
             logger(`Received blockchain status from peer ${address}`);
+            console.log(status)
             if(!this.isDownloading){
               let updated = await this.receiveBlockchainStatus(peer, status)
               this.isDownloading = false
@@ -594,6 +595,9 @@ class Node {
             // Possible major bug, will not sync if chain is longer but has different block at a given height
             let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
             let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
+
+            console.log('Peer',totalDifficulty)
+            console.log('This',thisTotalDifficulty)
   
             if(thisTotalDifficulty < totalDifficulty){
               logger('Attempting to download blocks from peer')
@@ -1114,12 +1118,10 @@ class Node {
         this.connectToPeer(address, (peer)=>{});
       });
 
-      socket.on('chaindb', async(chain)=>{
-        console.log(chaindb)
-        if(chain){
-          let chain = await this.chain.chainDB.get('blockchain')
-          console.log(chain)
-        } 
+      socket.on('fucku', async()=>{
+        console.log(this.chain.chain)
+        let chain = await this.chain.chainDB.get('blockchain')
+        console.log(chain)
       })
 
       socket.on('getBlockchain', ()=>{
