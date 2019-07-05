@@ -52,25 +52,20 @@ const EventEmitter = require('events').EventEmitter
 
 class Node {
   constructor(options){
-    if(!options){
-      options.host = 'localhost'
-      options.port = 8000;
-      options.id = sha1(Math.random() * Date.now());
-    }
     //Basic node configs
-    this.host = options.host,
-    this.port = options.port
+    this.host = options.host || 'localhost',
+    this.port = options.port || '8000'
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
-    this.address = options.address || `${this.httpPrefix}://${this.host}:${this.port}`;
+    this.address = `${this.httpPrefix}://${this.host}:${this.port}`
     this.minerPort = options.minerPort || parseInt(this.port) + 2000
-    this.id = options.id;
+    this.id = options.id || sha1(Math.random() * Date.now());
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
     this.enableLocalPeerDiscovery = options.enableLocalPeerDiscovery;
     this.enableDHTDiscovery = options.enableDHTDiscovery;
-    this.peerDiscoveryPort = options.peerDiscoveryPort || '4000';
-    this.noLocalhost = options.noLocalhost;
+    this.peerDiscoveryPort = options.peerDiscoveryPort || '6000';
+    this.noLocalhost = options.noLocalhost || false;
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];

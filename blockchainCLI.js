@@ -91,7 +91,6 @@ program
         }
       }
       console.log({
-        address:program.address ? program.address : null,
         host:program.hostname ? program.hostname : configs.host,
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
@@ -102,7 +101,6 @@ program
         noLocalhost:true,
       })
       node = new Node({
-        address:program.address ? program.address : null,
         host:program.hostname ? program.hostname : configs.host,
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
