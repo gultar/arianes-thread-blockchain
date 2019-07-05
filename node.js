@@ -67,9 +67,10 @@ class Node {
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
-    this.enableLocalPeerDiscovery = options.enableLocalPeerDiscovery
-    this.enableDHTDiscovery = options.enableDHTDiscovery
-    this.peerDiscoveryPort = options.peerDiscoveryPort || '4000'
+    this.enableLocalPeerDiscovery = options.enableLocalPeerDiscovery;
+    this.enableDHTDiscovery = options.enableDHTDiscovery;
+    this.peerDiscoveryPort = options.peerDiscoveryPort || '4000';
+    this.noLocalhost = options.noLocalhost;
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];

@@ -100,6 +100,7 @@ program
         enableLocalPeerDiscovery:discovery.local,
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
+        noLocalhost:true,
       })
 
      node.startServer()
