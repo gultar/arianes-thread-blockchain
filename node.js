@@ -1812,7 +1812,6 @@ class Node {
   async saveNodeConfig(){
     return new Promise(async (resolve, reject)=>{
       let config = {
-        address:this.address,
         host:this.host,
         port:this.port,
         id:this.id,
