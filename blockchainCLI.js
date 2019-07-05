@@ -50,7 +50,6 @@ program
   pool   - For managing transaction pool
   `
     )
-  .option('-a, --address <address>', 'Specify node full ip address')
   .option('-n, --hostname <hostname>', 'Specify node hostname')
   .option('-p, --port <port>', 'Specify node port')
   .option('-j, --join [network]', 'Joins network')

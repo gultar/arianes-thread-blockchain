@@ -57,7 +57,7 @@ class Node {
     this.port = options.port || '8000'
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
-    this.address = `${this.httpPrefix}://${this.host}:${this.port}`
+    this.address = `${this.httpPrefix}://${this.host}:${this.port}`;
     this.minerPort = options.minerPort || parseInt(this.port) + 2000
     this.id = options.id || sha1(Math.random() * Date.now());
     this.publicKey = options.publicKey;
@@ -128,8 +128,6 @@ class Node {
             }
             
             this.server.listen(this.port)
-
-            this.loadNodeConfig()
             this.cleanMessageBuffer();
             this.localAPI();
             
@@ -384,7 +382,7 @@ class Node {
           }
 
           if(this.noLocalhost && address.includes('localhost') ){
-            logger('No localhost')
+            logger('Connections to localhost not allowed')
             return null;
           }
           
@@ -1781,31 +1779,6 @@ class Node {
     
     
     
-  }
-
-
-  async loadNodeConfig(){
-    fs.exists('./config/nodeconfig.json', async (exists)=>{
-      if(exists){
-        let nodeConfigString = await readFile('./config/nodeconfig.json');
-        try{
-          if(nodeConfigString){
-            let nodeConfig = JSON.parse(nodeConfigString);
-            this.address = nodeConfig.address;
-            this.port = nodeConfig.port;
-            this.id = nodeConfig.id;
-            this.publicKey = nodeConfig.publicKey;
-            // this.accountTable = nodeConfig.accountTable;
-            logger('Loaded node config')
-          }
-          
-        }catch(e){
-          logger(e)
-        }
-      }else{
-        this.saveNodeConfig();
-      }
-    })
   }
 
   async saveNodeConfig(){
