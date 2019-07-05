@@ -80,9 +80,9 @@ class PeerDiscovery{
             sw.listen(this.port)
             sw.on('connection', (connection, peer) => {
                 if(connection){
-                    if(isIP.v4(peer.host)){
+                    if(isIP.v4(peer.host) && peer.host != 'localhost'){
                         let nodePort = parseInt(peer.port) + 2000 //To be changed and fixed to a port number
-                        let address = `https://${peer.host}:${nodePort}`
+                        let address = `https://${peer.host}:${nodePort}`;
                         peer.address = address
                         this.emitter.emit('peerDiscovered', peer)
                     }
