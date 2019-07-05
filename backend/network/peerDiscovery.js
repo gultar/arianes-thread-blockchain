@@ -54,7 +54,7 @@ class PeerDiscovery{
                     contact.port = service.port
                     contact.address = service.name
                     this.knownPeers[address] = contact
-                    this.emitter.send('peerDiscovered', contact)
+                    this.emitter.emit('peerDiscovered', contact)
                 }
             }
         })
