@@ -84,7 +84,6 @@ class Node {
     this.updated = false;
     this.isDownloading = false;
     this.minerStarted = false;
-    
   }
 
 
