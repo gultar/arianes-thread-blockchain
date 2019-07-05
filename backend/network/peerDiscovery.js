@@ -82,7 +82,7 @@ class PeerDiscovery{
                 if(connection){
                     if(isIP.v4(peer.host)){
                         let nodePort = parseInt(peer.port) + 2000 //To be changed and fixed to a port number
-                        let address = `${peer.host}:${nodePort}`
+                        let address = `https://${peer.host}:${nodePort}`
                         peer.address = address
                         this.emitter.emit('peerDiscovered', peer)
                     }
