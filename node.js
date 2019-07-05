@@ -146,8 +146,9 @@ class Node {
             emitter.on('peerDiscovered', (peer)=> {
               let { host, port, address } = peer
               logger('Found new peer', chalk.green(address))
-              this.nodeList.addNewAddress(address)
               this.connectToPeer(address)
+              // this.nodeList.addNewAddress(address)
+              
             })
           })
           
@@ -338,9 +339,10 @@ class Node {
     Basis for P2P connection
   */
   connectToPeer(address, callback){
-
+    
     if(address && this.address != address){
       if(!this.connectionsToPeers[address]){
+        
         let connectionAttempts = 0;
         let peer;
         try{
@@ -354,14 +356,13 @@ class Node {
               token: JSON.stringify({ 'address':this.address }),
             }
           }
-          
-          if(address.includes('https')){ 
+          console.log(address)
+          if(address && address.indexOf('https') >= 0){ 
             config.secure = true
             config.rejectUnauthorized = false
           }
           
           peer = ioClient(address, config);
-
           peer.heartbeatTimeout = 120000;
 
           if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
