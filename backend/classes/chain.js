@@ -29,10 +29,10 @@ const PouchDB = require('pouchdb');
 */
 class Blockchain{
 
-  constructor(chain=false){
-    this.chain = (chain?chain:[])
+  constructor(chain=[]){
+    this.chain = chain
     this.chainDB = new PouchDB('./data/chainDB');
-    this.balance = {}
+    this.balance = new BalanceTable()
     this.blockForks = {}
     this.isSyncingBlocks = false
     this.miningReward = 50;
@@ -70,20 +70,49 @@ class Blockchain{
             "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
           }
           
-          // this.balance.states = genesisBlock.state;
-          
-          let addedGenesisTx = await this.chainDB.put({
-              _id:genesisBlock.hash,
-              [genesisBlock.hash]:genesisBlock.transactions
-          })
-          .catch(e => console.log(e))
 
-          if(addedGenesisTx){
+          if(addedGenesisBlock){
               resolve(genesisBlock)
           }else{
               reject('ERROR: Could not create genesis block')
           }
     })
+  }
+
+  genesisBlockToDB(genesisBlock){
+    return new Promise(async (resolve)=>{
+      this.chainDB.put({
+        _id:'0',
+        ['0']:genesisBlock
+      })
+      .then((addedGenesisBlock)=>{
+        if(addedGenesisBlock){
+          this.chainDB.put({
+              _id:genesisBlock.hash,
+              [genesisBlock.hash]:genesisBlock.transactions
+          })
+          .then(()=>{
+            resolve(true)
+          })
+          .catch(e => {
+            logger('GENESIS DB STORE ERROR: ', e)
+            resolve(false)
+          })
+          
+        }else{
+          logger('Could not add Genesis block to database')
+          resolve(false)
+        }
+      })
+      .catch(async (e)=>{
+        console.log(e)
+        resolve(false)
+
+      })
+      
+      
+    })
+    
   }
 
   saveGenesisFile(){
@@ -216,21 +245,52 @@ class Blockchain{
               if(newBlock.actions && actionsExecuted){
                 newBlock.transactions['actions'] = newBlock.actions
               }
-              
-              let txConfirmed = await this.chainDB.put({
-                  _id:newBlock.hash,
-                  [newBlock.hash]:newBlock.transactions
+
+              let blockAdded;
+              blockAdded = await this.chainDB.put({
+                _id:newBlock.blockNumber.toString(),
+                [newBlock.blockNumber]:this.extractHeader(newBlock)
               })
-              .catch(e => console.log(e))
-                
-              if(txConfirmed){
-                Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-                if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
-                resolve(true);
+              .catch(async (e)=>{
+                let existingBlock = await this.chainDB.get(newBlock.blockNumber.toString())
+                .catch((e)=>{ 
+                  console.log('EXISTING BLOCK ERROR',e)
+                })
+                if(existingBlock){
+                  let deleted = await this.chainDB.remove(existingBlock._id, existingBlock._rev)
+                  .catch((e)=>{ 
+                      console.log('BLOCK DELETE ERROR:', e)
+                   })
+                  if(deleted){
+                    blockAdded = await this.chainDB.put({
+                      _id:newBlock.blockNumber.toString(),
+                      [newBlock.blockNumber]:this.extractHeader(newBlock)
+                    })
+                    .catch(e => console.log('SECOND TRIAL BLOCK ADD ERROR:', e))
+                  }
+                }
+              })
+
+              if(blockAdded){
+                  let txConfirmed = await this.chainDB.put({
+                    _id:newBlock.hash,
+                    [newBlock.hash]:newBlock.transactions
+                })
+                .catch(e => console.log('BLOCK BODY PUSH ERROR: ', e))
+                if(txConfirmed){
+                  Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                  if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+                  resolve(true);
+                }else{
+                    logger('ERROR: Could not add transactions to database')
+                    resolve(false)
+                }
               }else{
-                  logger('ERROR: Could not add transactions to database')
-                  resolve(false)
+                logger('MAJOR BLOCK ADD ERROR', blockAdded)
+                resolve(false)
               }
+                
+              
             }else{
               logger('WARNING: Block transactions already exist for block:', newBlock.hash.substr(0, 25))
               Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
@@ -1549,94 +1609,230 @@ class Blockchain{
         
     return found
   }
-  
 
-  static load(){
+  getBlockFromDB(blockNumberString){
     return new Promise(async(resolve)=>{
-
-          const instanciateBlockchain = (chainObj) =>{
-            return new Blockchain(chainObj.chain, chainObj.difficulty)
-          }
-          let blockchain = new Blockchain()
-          let _tempDB = new PouchDB('./data/chainDB')
-          _tempDB.get('blockchain')
-          .then( async (blockchainObj) =>{
-            //Blockchain exists in chainDB, fetch than instanciate
-            blockchain = instanciateBlockchain(blockchainObj);
-            blockchain.balance = new BalanceTable()
-            
-            let states = await blockchain.balance.loadAllStates()
-            if(!states) {
-              logger('ERROR: Could not load balance table')
-              resolve(false)
-            }
-            blockchain.balance.states = states
-            resolve(blockchain);
-
-          })
-          .catch(async(e) => { 
-            logger('Blockchain file does not exist')
-            logger('Generating new blockchain')
-            
-            let newBlockchain = new Blockchain();
-            let genesisBlock = await newBlockchain.loadGenesisFile()
-            newBlockchain.balance = new BalanceTable(genesisBlock.states)
-            let states = await newBlockchain.balance.loadAllStates()
-            if(!states) {
-              logger('ERROR: Could not load balance table')
-              resolve(false)
-            }
-            newBlockchain.balance.states = states;
-            newBlockchain.chain.push(genesisBlock)
-            newBlockchain.save();
-            resolve(newBlockchain); 
-          })
-
-          
+      if(!blockNumberString) resolve({error:'Block number is required to fetch block from db'})
+      let blockContainer = await this.chainDB.get(blockNumberString)
+      .catch(e => { resolve({error:e}) })
+      if(blockContainer){
+        let block = blockContainer[blockNumberString]
+        resolve(block)
+      }else{
+        logger(`Could not add block ${i} to chain`)
+        resolve({error:`Could not add block ${i} to chain`})
+      }
     })
+    
+  }
+
+  init(){
+    return new Promise(async (resolve, reject)=>{
+      logger('Loading all blocks')
+      this.loadBlocks()
+      .then(async (loaded)=>{
+        if(loaded){
+          
+          let states = await this.balance.loadAllStates()
+          if(states){
+            this.balance.states = states
+            resolve(true)
+          }else{
+            reject('ERROR: Could not load balance states')
+          }
+          
+        }else{
+          reject('Could not load blocks')
+        }
+        
+      })
+      .catch(e=>{
+        reject(e)
+      })
+    })
+  }
+  
+  loadBlocks(){
+    return new Promise(async (resolve, reject)=>{
+      //See if genesis block has been added to database
+      this.chainDB.get('0')
+      .then(async (genesisBlock)=>{
+        if(genesisBlock){
+
+          let lastBlockString = await readFile('./data/lastBlock.json')
+          if(lastBlockString){
+            let lastBlock = JSON.parse(lastBlockString)
+            logger('Loaded last known block')
+            //Loading all saved blocks up to last saved one
+            for(var blockNumber=0; blockNumber <= lastBlock.blockNumber; blockNumber++){
+              if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
+              
+              let block = await this.getBlockFromDB(blockNumber)
+              if(block.error) reject(block.error)
+
+              this.chain.push(block)
+              if(blockNumber == lastBlock.blockNumber){
+                logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
+                resolve(true)
+              }
+            }
+            
+          }else{
+            logger('Could not find lastBlock.json. Starting a new blockchain ')
+            resolve(true)
+          }
+        }else{
+          reject('ERROR: Could not find genesisBlock')
+        }
+      }) 
+      .catch(async (e)=>{  //Has not been added to database, must be new blockchain
+        logger('Genesis Block has not been created yet')
+        let genesisBlock = await this.loadGenesisFile()
+        this.balance.states = genesisBlock.states;
+        let saved = await this.balance.saveStates()
+        logger('Loaded genesis block from config file')
+        if(genesisBlock.error) reject(genesisBlock.error)
+        this.genesisBlockToDB(genesisBlock)
+        .then(async (added)=>{
+          if(added){
+            logger('Added genesis block to blockchain database')
+            this.chain.push(genesisBlock)
+            let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')
+            if(!lastBlock){
+              reject('ERROR: Could not save blockchain state')
+            }
+            resolve(true);
+          }else{
+            logger(added)
+            reject('Error adding genesis block to db')
+          }
+          
+        })
+        .catch(e => {
+          logger(e)
+          reject(e)
+        })
+        
+        // newBlockchain.balance = new BalanceTable(genesisBlock.states)
+
+      })
+
+        
+
+      
+    })
+    
   }
 
   save(){
-    return new Promise(async(resolve)=>{
-      if(this.chainDB){
+    return new Promise(async (resolve)=>{
+      let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')
+      if(!lastBlock){
+        logger('ERROR: Could not save blockchain state')
+        resolve(false)
+      }
+      resolve(true);
+    })
+  }
+
+  // static load(){
+  //   return new Promise(async(resolve, reject)=>{
 
         
 
+  //         const instanciateBlockchain = (chainObj) =>{
+  //           return new Blockchain(chainObj.chain, chainObj.difficulty)
+  //         }
+  //         let blockchain = new Blockchain()
+  //         let _tempDB = new PouchDB('./data/chainDB')
+  //         _tempDB.get('blockchain')
+  //         .then( async (blockchainObj) =>{
+  //           //Blockchain exists in chainDB, fetch than instanciate
+  //           blockchain = instanciateBlockchain(blockchainObj);
+  //           blockchain.balance = new BalanceTable()
+            
+  //           let states = await blockchain.balance.loadAllStates()
+  //           if(!states) {
+  //             logger('ERROR: Could not load balance table')
+  //             resolve(false)
+  //           }
+  //           blockchain.balance.states = states
+  //           resolve(blockchain);
 
-        this.chainDB.get('blockchain')
-        .then( async(fetchedChain) =>{
-          //Delete to avoid overinflation of DB with new entries
-          this.chainDB.remove(fetchedChain._id, fetchedChain._rev)
-          .then(async ()=>{
-            const saved = await this.chainDB.put({
-              _id:'blockchain',
-              chain:this.chain
-            })
-            .catch(e => console.log(e))
-            logger('Saved blockchain')
-            resolve(true)
-          })
-        })
-        .catch( async (e)=> {
-          logger('Creating new database entry for blockchain')
-          const saved = await this.chainDB.put({
-            _id:'blockchain',
-            chain:this.chain
-          })
-          .catch(e => console.log('CHAIN SAVE ERROR:', e))
-          logger('Saved blockchain')
-          resolve(true)
-        })
+  //         })
+  //         .catch(async(e) => { 
+  //           logger('Blockchain file does not exist')
+  //           logger('Generating new blockchain')
+            
+  //           let newBlockchain = new Blockchain();
+  //           let genesisBlock = await newBlockchain.loadGenesisFile()
+  //           newBlockchain.balance = new BalanceTable(genesisBlock.states)
+  //           let states = await newBlockchain.balance.loadAllStates()
+  //           if(!states) {
+  //             logger('ERROR: Could not load balance table')
+  //             resolve(false)
+  //           }
+  //           newBlockchain.balance.states = states;
+  //           let addedGenesisBlock = await newBlockchain.genesisBlockToDB(genesisBlock)
+  //           if(addedGenesisBlock){
+  //             newBlockchain.chain.push(genesisBlock)
+  //             newBlockchain.save();
+  //             resolve(newBlockchain); 
+  //           }else{
+  //             reject('Could not add Genesis block to blockchain')
+  //           }
+  //         })
+
+          
+  //   })
+  // }
+
+  // save(){
+  //   return new Promise(async(resolve)=>{
+  //     if(this.chainDB){
+
+  //       let blockchainState = await writeToFile(this.getLatestBlock(), './data/lastState.json')
+  //       if(!blockchainState){
+  //         logger('ERROR: Could not save blockchain state')
+  //       } 
+
+
+  //       this.chainDB.get('blockchain')
+  //       .then( async(fetchedChain) =>{
+  //         //Delete to avoid overinflation of DB with new entries
+  //         this.chainDB.remove(fetchedChain._id, fetchedChain._rev)
+  //         .then(async ()=>{
+  //           const saved = await this.chainDB.put({
+  //             _id:'blockchain',
+  //             chain:this.chain
+  //           })
+  //           .catch(e => console.log(e))
+  //           logger('Saved blockchain')
+  //           resolve(true)
+  //         })
+  //       })
+  //       .catch( async (e)=> {
+  //         logger('Creating new database entry for blockchain')
+  //         const saved = await this.chainDB.put({
+  //           _id:'blockchain',
+  //           chain:this.chain
+  //         })
+  //         .catch(e => console.log('CHAIN SAVE ERROR:', e))
+  //         logger('Saved blockchain')
+  //         resolve(true)
+  //       })
+
+        
         
       
        
-      }else{
-        logger('CHAINDB SAVE ERROR: Blockchain database does not exist ')
-      }
+  //     }else{
+  //       logger('CHAINDB SAVE ERROR: Blockchain database does not exist ')
+  //     }
       
       
-    })
-  }
+  //   })
+  // }
 
 }
 

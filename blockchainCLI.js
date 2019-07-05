@@ -90,16 +90,7 @@ program
             break;
         }
       }
-      console.log({
-        host:program.hostname ? program.hostname : configs.host,
-        port:program.port ? program.port : configs.port,
-        verbose:configs.verbose,
-        httpsEnabled:true,
-        enableLocalPeerDiscovery:discovery.local,
-        enableDHTDiscovery:discovery.dht,
-        peerDiscoveryPort:parseInt(configs.port) - 2000,
-        noLocalhost:true,
-      })
+
       node = new Node({
         host:program.hostname ? program.hostname : configs.host,
         port:program.port ? program.port : configs.port,

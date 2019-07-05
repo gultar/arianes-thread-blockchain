@@ -66,6 +66,12 @@ class Node {
     this.enableDHTDiscovery = options.enableDHTDiscovery;
     this.peerDiscoveryPort = options.peerDiscoveryPort || '6000';
     this.noLocalhost = options.noLocalhost || false;
+    //Parts of Node
+    this.chain = new Blockchain();
+    this.nodeList = new NodeList();
+    this.walletManager = new WalletManager();
+    this.accountCreator = new AccountCreator();
+    this.accountTable = new AccountTable();
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -73,15 +79,12 @@ class Node {
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-    this.chain = {};
+    
     this.blocksToValidate = []
     this.updated = false;
     this.isDownloading = false;
     this.minerStarted = false;
-    this.nodeList = new NodeList();
-    this.walletManager = new WalletManager();
-    this.accountCreator = new AccountCreator();
-    this.accountTable = new AccountTable();
+    
   }
 
 
@@ -91,133 +94,139 @@ class Node {
   */
   startServer(){
 
-    return new Promise(async (resolve)=>{
-      try{
+    return new Promise(async (resolve, reject)=>{
+      
+      console.log(chalk.cyan('\n******************************************'))
+      console.log(chalk.cyan('*')+' Starting node at '+this.address);
+      console.log(chalk.cyan('******************************************\n'))
 
-        console.log(chalk.cyan('\n******************************************'))
-        console.log(chalk.cyan('*')+' Starting node at '+this.address);
-        console.log(chalk.cyan('******************************************\n'))
-        
-        let nodeListLoaded = await this.nodeList.loadNodeList();
-        let mempoolLoaded = await Mempool.loadMempool();
-        let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
-        this.chain = await Blockchain.load()
-        
-        if(!this.chain) resolve({error:'Could not load Blockchain file'});
-        if(!nodeListLoaded) resolve({error:'Could not load node list'})
-        if(!mempoolLoaded) resolve({error:'Could not load Mempool'});
-        if(!accountsLoaded) resolve({error:'Could not load account table'})
-        
-        logger('Loaded peer node list');
-        logger('Loaded Blockchain');      
-        logger('Loaded transaction mempool');
-        logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
-        logger('Loaded account table');
-        
-
-        if(this.httpsEnabled){
-          let sslConfig = await this.getCertificateAndPrivateKey()
-          this.server = https.createServer(sslConfig);
-        }else{
-          this.server = http.createServer();
-        }
-        
-        this.server.listen(this.port)
-
-        this.loadNodeConfig()
-        this.cleanMessageBuffer();
-        this.localAPI();
-        
-        if(this.enableLocalPeerDiscovery){
+        this.chain.init()
+        .then(async (chainLoaded)=>{
           
-          this.peerDiscovery = new PeerDiscovery({
-            address:this.address,
-            host:this.host,
-            port:this.peerDiscoveryPort,
-          });
-
-          
-          this.peerDiscovery.find()
-          .then(()=>{
-            this.peerDiscovery.collectPeers((emitter)=>{
-              emitter.on('peerDiscovered', (peer)=> {
-                let { host, port, address } = peer
-                logger('Found new peer', chalk.green(address))
-                this.connectToPeer(address)
-              })
-            })
             
-          })
-          
-        }
-
-        if(this.enableDHTDiscovery){
-          this.peerDiscovery = new PeerDiscovery({
-            address:this.address,
-            host:this.host,
-            port:this.peerDiscoveryPort,
-          });
-          
-          this.peerDiscovery.findPeersOnBittorrentDHT()
-          .then(()=>{
-            this.peerDiscovery.collectPeers((emitter)=>{
-              emitter.on('peerDiscovered', (peer)=> {
-                let { host, port, address } = peer
-                logger('Found new peer', chalk.green(address))
-                this.connectToPeer(address)
-              })
-            })
-          })
-        }
-        
-        this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
-  
-        this.ioServer.on('connection', (socket) => {
-          
-          let token = socket.handshake.query.token;
-          
-          if(socket){
+            let nodeListLoaded = await this.nodeList.loadNodeList();
+            let mempoolLoaded = await Mempool.loadMempool();
+            let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
             
-                socket.on('message', (msg) => { logger('Client:', msg); });
+            
+            if(!nodeListLoaded) reject('Could not load node list')
+            if(!mempoolLoaded) reject('Could not load Mempool');
+            if(!accountsLoaded) reject('Could not load account table')
 
-                if(token && token != undefined){
-                  token = JSON.parse(token)
-                  let peerAddress = token.address
-                  
-                  if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
-                    if(!this.peersConnected[socket.handshake.headers.host]){
-                      this.peersConnected[peerAddress] = socket;
-                      this.nodeList.addNewAddress(peerAddress);
-                      this.nodeEventHandlers(socket, peerAddress);
-                    }else{
-                      //  logger('Peer is already connected to node')
-                    }
-                  }else{
-                    socket.emit('message', 'Connected to local node');
-                    this.externalEventHandlers(socket);
-                  } 
-                }else{
-                  socket.emit('message', 'Connected to local node');
-                  this.externalEventHandlers(socket);
-                }
+            logger('Loaded Blockchain'); 
+            logger('Loaded peer node list');
+            logger('Loaded transaction mempool');
+            logger('Loaded account table');
+            logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
+            
+            
+
+            if(this.httpsEnabled){
+              let sslConfig = await this.getCertificateAndPrivateKey()
+              this.server = https.createServer(sslConfig);
+            }else{
+              this.server = http.createServer();
+            }
+            
+            this.server.listen(this.port)
+
+            this.loadNodeConfig()
+            this.cleanMessageBuffer();
+            this.localAPI();
+            
+            if(this.enableLocalPeerDiscovery){
+              
+              this.peerDiscovery = new PeerDiscovery({
+                address:this.address,
+                host:this.host,
+                port:this.peerDiscoveryPort,
+              });
+
+              
+              this.peerDiscovery.find()
+              .then(()=>{
+                this.peerDiscovery.collectPeers((emitter)=>{
+                  emitter.on('peerDiscovered', (peer)=> {
+                    let { host, port, address } = peer
+                    logger('Found new peer', chalk.green(address))
+                    this.connectToPeer(address)
+                  })
+                })
                 
+              })
+              
+            }
+
+            if(this.enableDHTDiscovery){
+              this.peerDiscovery = new PeerDiscovery({
+                address:this.address,
+                host:this.host,
+                port:this.peerDiscoveryPort,
+              });
+              
+              this.peerDiscovery.findPeersOnBittorrentDHT()
+              .then(()=>{
+                this.peerDiscovery.collectPeers((emitter)=>{
+                  emitter.on('peerDiscovered', (peer)=> {
+                    let { host, port, address } = peer
+                    logger('Found new peer', chalk.green(address))
+                    this.connectToPeer(address)
+                  })
+                })
+              })
+            }
             
-            
-          }else{
-            logger(chalk.red('ERROR: Could not create socket'))
-          }
-    
-        });
-    
-        this.ioServer.on('disconnect', ()=>{ })
-    
-        this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
-    
-        resolve(true)
-      }catch(e){
-        console.log(e)
-        resolve({error:e})
-      }
+            this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
+      
+            this.ioServer.on('connection', (socket) => {
+              
+              let token = socket.handshake.query.token;
+              
+              if(socket){
+                
+                    socket.on('message', (msg) => { logger('Client:', msg); });
+
+                    if(token && token != undefined){
+                      token = JSON.parse(token)
+                      let peerAddress = token.address
+                      
+                      if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
+                        if(!this.peersConnected[socket.handshake.headers.host]){
+                          this.peersConnected[peerAddress] = socket;
+                          this.nodeList.addNewAddress(peerAddress);
+                          this.nodeEventHandlers(socket, peerAddress);
+                        }else{
+                          //  logger('Peer is already connected to node')
+                        }
+                      }else{
+                        socket.emit('message', 'Connected to local node');
+                        this.externalEventHandlers(socket);
+                      } 
+                    }else{
+                      socket.emit('message', 'Connected to local node');
+                      this.externalEventHandlers(socket);
+                    }
+                    
+                
+                
+              }else{
+                logger(chalk.red('ERROR: Could not create socket'))
+              }
+        
+            });
+        
+            this.ioServer.on('disconnect', ()=>{ })
+        
+            this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
+        
+            resolve(true)
+        })
+        .catch(e =>{
+          logger(e)
+          throw new Error(e)
+        })
+
+        
     })
   }
 
@@ -1137,10 +1146,16 @@ class Node {
         this.connectToPeer(address, (peer)=>{});
       });
 
+      socket.on('tryit',async (num)=>{
+        let block = await this.chain.chainDB.get(num.toString())
+        .catch(e => console.log(e))
+        console.log(block)
+      })
+
       socket.on('fucku', async()=>{
         console.log(this.chain.chain)
         let chain = await this.chain.chainDB.get('blockchain')
-        console.log(chain)
+        console.log(this.chain.chainDB)
       })
 
       socket.on('getBlockchain', ()=>{
@@ -1732,15 +1747,15 @@ class Node {
   save(){
     return new Promise(async (resolve, reject)=>{
       try{
-        let savedBlockchain = await this.chain.save();
+        let blockchainSaved = await this.chain.save()
         let savedStates = await this.chain.balance.saveStates();
         let savedNodeList = await this.nodeList.saveNodeList();
         let savedMempool = await Mempool.saveMempool();
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();
         let savedAccountTable = await this.accountTable.saveTable();
-        if(
-            savedBlockchain 
+        if( 
+               blockchainSaved
             && savedNodeList 
             && savedMempool
             && savedWalletManager
