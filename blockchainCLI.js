@@ -73,7 +73,7 @@ program
         verbose:configs.verbose,
         httpsEnabled:true,
         enableLocalPeerDiscovery:true,
-        peerDiscoveryPort:4000,
+        peerDiscoveryPort:parseInt(configs.port) - 2000,
       })
 
      node.startServer()
