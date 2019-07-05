@@ -640,15 +640,20 @@ class Node {
                     }else{
                       //Need to Validate Genesis Block
                       //Swap local genesis block with peer's genesis block
-                      this.chain[0] = genesisBlock
-                      let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                      if(downloaded.error){
-                        logger('Could not download blockchain')
-                        logger(downloaded.error)
-                        resolve(false)
-                      }else{
-                        resolve(true)
-                      }
+                      this.chain.genesisBlockSwap(genesisBlock)
+                      .then(async (swapped)=>{
+                        if(swapped.error) resolve(false)
+                        let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                        if(downloaded.error){
+                          logger('Could not download blockchain')
+                          logger(downloaded.error)
+                          resolve(false)
+                        }else{
+                          resolve(true)
+                        }
+                      })
+
+                      
                     }
   
                   })

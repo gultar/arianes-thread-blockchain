@@ -115,6 +115,35 @@ class Blockchain{
     
   }
 
+  genesisBlockSwap(peerGenesisBlock){
+    return new Promise(async (resolve)=>{
+      if(peerGenesisBlock){
+        if(peerGenesisBlock.hash !== this.chain[0].hash){
+          this.chain[0] = peerGenesisBlock
+          this.chainDB.get('0')
+          .then((currentGenesisBlockContainer)=>{
+            this.chain.put({
+              _id:'0',
+              _rev:currentGenesisBlockContainer._rev,
+              ['0']:peerGenesisBlock
+            })
+            .then(success => resolve(true))
+            .catch(e => {
+              resolve({error:e})
+            })
+          })
+          .catch((e)=>{
+            resolve({error:e})
+          })
+        }else{
+          resolve(true)
+        }
+
+      }
+    })
+    
+  }
+
   saveGenesisFile(){
     return new Promise(async (resolve)=>{
       let genesisBlock = await this.createGenesisBlock();
@@ -157,71 +186,6 @@ class Blockchain{
   }
 
   
-  
-  // static initBlockchain(){
-  //   return new Promise(async (resolve, reject)=>{
-  //     let blockchain = {};
-
-  //     const instanciateBlockchain = (chainObj) =>{
-  //       return new Blockchain(chainObj.chain, chainObj.difficulty)
-  //     }
-
-  //     logger('Initiating blockchain');
-  //     fs.exists('./data/blockchain.json', async (exists)=>{
-        
-  //       if(exists){
-  
-  //         // let blockchainFile = await readFile('./data/blockchain.json');
-  //         let [readErr, blockchainString] = await jsonc.safe.read('./data/blockchain.json')
-  //         if(readErr) { 
-  //           resolve(false)
-  //         }
-
-  //         let [parseErr, blockchainObject] = await jsonc.safe.parse(blockchainString)
-  //         if(parseErr){
-  //           resolve(false)
-  //         }
-
-  //         let _tempDB = new PouchDB('./data/chainDB')
-  //         let blockchainObj = await _tempDB.get('blockchain')
-  //         .catch(e => { 
-  //           blockchainObj = blockchainObject;
-  //           console.log('CHAIN LOAD ERROR:', e) 
-  //         })
-
-  //         blockchain = instanciateBlockchain(blockchainObj);
-  //         blockchain.balance = new BalanceTable()
-  //         let states = await blockchain.balance.loadAllStates()
-  //         if(!states) {
-  //           logger('ERROR: Could not load balance table')
-  //           resolve(false)
-  //         }
-  //         blockchain.balance.states = states
-  //         resolve(blockchain);
-  
-  //       }else{
-  
-  //         logger('Blockchain file does not exist')
-  //         logger('Generating new blockchain')
-          
-  //         let newBlockchain = new Blockchain();
-  //         let genesisBlock = await newBlockchain.loadGenesisFile()
-  //         newBlockchain.balance = new BalanceTable(genesisBlock.states)
-  //         let states = await newBlockchain.balance.loadAllStates()
-  //         if(!states) {
-  //           logger('ERROR: Could not load balance table')
-  //           resolve(false)
-  //         }
-  //         newBlockchain.balance.states = states;
-  //         newBlockchain.chain.push(newBlockchain.extractHeader(genesisBlock))
-  //         newBlockchain.saveBlockchain();
-  //         resolve(newBlockchain);
-  //       }
-  //     })
-     
-  //   })
-  
-  // }
 
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
