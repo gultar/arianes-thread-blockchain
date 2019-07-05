@@ -9,7 +9,7 @@ class PeerDiscovery{
 
     constructor(opts){
         let { address, host, port, channel } = opts
-        this.channel = channel || 'mainnet';
+        this.channel = channel || 'blockchain-mainnet';
         this.address = address;
         this.host = host;
         this.port = port;
@@ -95,6 +95,7 @@ class PeerDiscovery{
                     connected:false,
                 }
             })
+            sw.join(this.channel)
             resolve(true)
         })
         
