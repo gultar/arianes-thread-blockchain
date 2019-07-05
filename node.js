@@ -351,16 +351,14 @@ class Node {
             'max reconnection attempts' : 3,
             'pingInterval': 2000, 
             'pingTimeout': 10000,
+            'secure':true,
+            'rejectUnauthorized':false,
             'query':
             {
               token: JSON.stringify({ 'address':this.address }),
             }
           }
-          console.log(address)
-          if(address && address.indexOf('https') >= 0){ 
-            config.secure = true
-            config.rejectUnauthorized = false
-          }
+          
           
           peer = ioClient(address, config);
           peer.heartbeatTimeout = 120000;

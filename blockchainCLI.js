@@ -56,7 +56,6 @@ program
   .option('-j, --join [network]', 'Joins network')
   .option('-s, --seed <seed>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
-  .option('-s, --https', 'Enable https connection')
   .option('-p, --peerDiscovery', 'Enable peer discovery using various methods')
 
 program
@@ -75,11 +74,10 @@ program
         host:program.hostname ? program.hostname : configs.host,
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
-        httpsEnabled:program.https,
+        httpsEnabled:true,
         enableLocalPeerDiscovery:program.peerDiscovery,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
       })
-
 
      node.startServer()
      .then( started =>{
