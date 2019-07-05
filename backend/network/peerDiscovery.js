@@ -1,6 +1,9 @@
 const dnssd = require('dnssd');
 const isIP = require('is-ip');
 const EventEmitter = require('events').EventEmitter
+const Swarm = require('discovery-swarm')
+const { randomBytes } = require('crypto')
+const { logger } = require('../tools/utils')
 
 class PeerDiscovery{
 
@@ -14,6 +17,18 @@ class PeerDiscovery{
         this.browser;
         this.knownPeers = {}
         this.emitter = new EventEmitter()
+    }
+
+    find(){
+        return new Promise(()=>{
+            this.initBrowser()
+            this.initService()
+            setTimeout(async ()=>{
+                let stopped = await this.stopBrowser()
+                let stopped = await this.stopService()
+                resolve(true)
+            }, 20000)
+        })
     }
 
     initBrowser(){
@@ -34,6 +49,54 @@ class PeerDiscovery{
         this.service.start();
 
         this.emitter.on('peerGone', (address)=> delete this.knownPeers[address] )
+    }
+
+    stopBrowser(){
+        return new Promise((resolve)=>{
+            this.browser.stop((stopped)=>{
+                resolve(true)
+            })
+        })
+    }
+
+    stopService(){
+        return new Promise((resolve)=>{
+            this.service.stop((stopped)=>{
+                resolve(true)
+            })
+        })
+    }
+
+    findPeersOnBittorrentDHT(){
+        return new Promise((resolve)=>{
+            logger('Looking for peers on Bittorrent DHT')
+            let potentialPeers = {}
+            let sw = Swarm({
+                id: randomBytes(32).toString('hex'), // peer-id for user
+                utp: false, // use utp for discovery
+                tcp: true, // use tcp for discovery
+                maxConnections: 10,
+            })
+            sw.listen(this.port)
+            sw.on('connection', (connection, peer) => {
+                if(connection){
+                    let address = `${peer.host}:${peer.port}`
+                    potentialPeers[address].connected = true;
+                    potentialPeers[address].peer.address = address;
+                    this.emitter.emit('peerDiscovered', potentialPeers[address].peer)
+                } 
+                // console.log('connection', connection)
+            })
+            sw.on('peer', function(peer) {
+                let address = `${peer.host}:${peer.port}`
+                potentialPeers[address] = {
+                    peer:peer,
+                    connected:false,
+                }
+            })
+            resolve(true)
+        })
+        
     }
 
     collectPeers(callback){

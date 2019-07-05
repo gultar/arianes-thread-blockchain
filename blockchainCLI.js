@@ -56,7 +56,7 @@ program
   .option('-j, --join [network]', 'Joins network')
   .option('-s, --seed <seed>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
-  .option('-p, --peerDiscovery', 'Enable peer discovery using various methods')
+  .option('-d, --peerDiscovery [type]', 'Enable peer discovery using various methods')
 
 program
   .command('start')
@@ -68,6 +68,28 @@ program
       if(program.verbose){
         configs.verbose = true;
       }
+    let discovery = {}
+      if(program.peerDiscovery){
+        
+        switch(program.peerDiscovery){
+          
+          case 'local': 
+            discovery = {
+              local:true
+            }
+            break;
+          case 'dht':
+            discovery = {
+              dht:true
+            }
+            break;
+          default:
+            discovery = {
+              dht:true
+            }
+            break;
+        }
+      }
 
       node = new Node({
         address:program.address ? program.address : configs.address,
@@ -75,7 +97,8 @@ program
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
         httpsEnabled:true,
-        enableLocalPeerDiscovery:program.peerDiscovery,
+        enableLocalPeerDiscovery:discovery.local,
+        enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
       })
 

@@ -68,6 +68,7 @@ class Node {
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
     this.enableLocalPeerDiscovery = options.enableLocalPeerDiscovery
+    this.enableDHTDiscovery = options.enableDHTDiscovery
     this.peerDiscoveryPort = options.peerDiscoveryPort || '4000'
     //Network related parameters
     this.ioServer = {};
@@ -140,18 +141,37 @@ class Node {
           });
 
           
-          this.peerDiscovery.initService()
-          this.peerDiscovery.initBrowser()
-          this.peerDiscovery.collectPeers((emitter)=>{
-            emitter.on('peerDiscovered', (peer)=> {
-              let { host, port, address } = peer
-              logger('Found new peer', chalk.green(address))
-              this.connectToPeer(address)
-              // this.nodeList.addNewAddress(address)
-              
+          this.peerDiscovery.find()
+          .then(()=>{
+            this.peerDiscovery.collectPeers((emitter)=>{
+              emitter.on('peerDiscovered', (peer)=> {
+                let { host, port, address } = peer
+                logger('Found new peer', chalk.green(address))
+                this.connectToPeer(address)
+              })
             })
+            
           })
           
+        }
+
+        if(this.enableDHTDiscovery){
+          this.peerDiscovery = new PeerDiscovery({
+            address:this.address,
+            host:this.host,
+            port:this.peerDiscoveryPort,
+          });
+          
+          this.peerDiscovery.findPeersOnBittorrentDHT()
+          .then(()=>{
+            this.peerDiscovery.collectPeers((emitter)=>{
+              emitter.on('peerDiscovered', (peer)=> {
+                let { host, port, address } = peer
+                logger('Found new peer', chalk.green(address))
+                this.connectToPeer(address)
+              })
+            })
+          })
         }
         
         this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
@@ -398,6 +418,7 @@ class Node {
 
               setTimeout(()=>{
                 peer.emit('getBlockchainStatus', status);
+                peer.emit('getPeers')
               },5000);
               
               
@@ -411,6 +432,7 @@ class Node {
             if(peers && typeof peers == Array){
               peers.forEach(addr =>{
                 //Validate if ip address
+                logger('Peer sent a list of potential peers')
                 if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
                   this.nodeList.addNewAddress(addr)
                 }
