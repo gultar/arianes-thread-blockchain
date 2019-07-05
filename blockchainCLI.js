@@ -56,6 +56,7 @@ program
   .option('-s, --seed <seed>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-d, --peerDiscovery [type]', 'Enable peer discovery using various methods')
+  .option('-t, --peerDiscoveryPort <port>', 'Enable peer discovery using various methods')
 
 program
   .command('start')

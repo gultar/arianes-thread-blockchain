@@ -98,11 +98,6 @@ class PeerDiscovery{
                 }
             })
             sw.join(this.channel)
-            setTimeout(()=>{
-                logger('Leaving DHT channel', this.channel)
-                sw.leave(this.channel)
-                sw = null;
-            }, 30000)
             resolve(true)
         })
         
