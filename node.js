@@ -379,7 +379,11 @@ class Node {
               token: JSON.stringify({ 'address':this.address }),
             }
           }
-          
+
+          if(this.noLocalhost && address.includes('localhost') ){
+            logger('No localhost')
+            return null;
+          }
           
           peer = ioClient(address, config);
           peer.heartbeatTimeout = 120000;
