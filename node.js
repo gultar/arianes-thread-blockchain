@@ -144,8 +144,8 @@ class Node {
           this.peerDiscovery.initBrowser()
           this.peerDiscovery.collectPeers((emitter)=>{
             emitter.on('peerDiscovered', (peer)=> {
-              console.log(peer)
               let { host, port, address } = peer
+              logger('Found new peer', chalk.green(address))
               this.nodeList.addNewAddress(address)
               this.connectToPeer(address)
             })

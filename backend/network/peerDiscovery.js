@@ -49,13 +49,11 @@ class PeerDiscovery{
         }
         service.addresses.forEach((address)=>{
             if(isIP.v4(address)){
-                if(!this.knownPeers[address]){
-                    
+                if(!this.knownPeers[address] && this.address != address){
                     contact.host = address;
                     contact.port = service.port
                     contact.address = service.name
                     this.knownPeers[address] = contact
-                    console.log('Emitting')
                     this.emitter.emit('peerDiscovered', contact)
                 }
             }
