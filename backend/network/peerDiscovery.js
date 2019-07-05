@@ -46,17 +46,20 @@ class PeerDiscovery extends EventEmitter{
             port:'',
             address:'',
         }
-        for(var address in service.addresses){
+        service.addresses.forEach((address)=>{
+            console.log(address)
             if(isIP.v4(address)){
                 if(!this.knownPeers[address]){
+                    
                     contact.host = address;
                     contact.port = service.port
                     contact.address = service.name
                     this.knownPeers[address] = contact
+                    console.log(contact)
                     this.send('peerDiscovered', contact)
                 }
             }
-        }
+        })
         
     }
 }

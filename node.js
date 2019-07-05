@@ -141,6 +141,7 @@ class Node {
 
           let peerEvents = new EventEmitter()
           peerEvents.on('peerDiscovered', (peer)=> {
+            console.log(peer)
             this.nodeList.addNewAddress(peer)
             this.connectToPeer(peer)
           })
