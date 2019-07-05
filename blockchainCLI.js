@@ -90,9 +90,19 @@ program
             break;
         }
       }
-
+      console.log({
+        address:program.address ? program.address : null,
+        host:program.hostname ? program.hostname : configs.host,
+        port:program.port ? program.port : configs.port,
+        verbose:configs.verbose,
+        httpsEnabled:true,
+        enableLocalPeerDiscovery:discovery.local,
+        enableDHTDiscovery:discovery.dht,
+        peerDiscoveryPort:parseInt(configs.port) - 2000,
+        noLocalhost:true,
+      })
       node = new Node({
-        address:program.address ? program.address : configs.address,
+        address:program.address ? program.address : null,
         host:program.hostname ? program.hostname : configs.host,
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
