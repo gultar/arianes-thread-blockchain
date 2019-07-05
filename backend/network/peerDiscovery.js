@@ -18,7 +18,6 @@ class PeerDiscovery extends EventEmitter{
 
     initBrowser(){
         this.browser = dnssd.Browser(dnssd.tcp(this.channel))
-        console.log(this.browser)
         .on('serviceUp', service => {
             console.log(service)
             this.discoverNewPeer(service)
