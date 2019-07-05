@@ -71,7 +71,9 @@ program
         host:configs.host,
         port:configs.port,
         verbose:configs.verbose,
-        httpsEnabled:true
+        httpsEnabled:true,
+        enableLocalPeerDiscovery:true,
+        peerDiscoveryPort:4000,
       })
 
      node.startServer()

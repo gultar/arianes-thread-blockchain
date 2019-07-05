@@ -27,11 +27,11 @@ class PeerDiscovery extends EventEmitter{
     initService(){
 
         this.service = new dnssd.Advertisement(dnssd.tcp(this.channel), this.port, {
-            fullname:fullname,
+            fullname:this.address,
             name:this.address,
             host:this.host
         });
-        ad.start();
+        this.service.start();
 
         this.on('peerGone', (address)=> delete this.knownPeers[address] )
     }

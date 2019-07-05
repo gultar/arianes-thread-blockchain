@@ -31,12 +31,6 @@ const Mempool = require('./backend/classes/mempool'); //Instance not class
 const { displayTime, displayDate, logger, writeToFile, readFile, isHashPartOfMerkleTree } = require('./backend/tools/utils');
 const {
   isValidTransactionJSON,
-  // isValidChainLengthJSON,
-  // isValidWalletRequestJSON,
-  // isValidGetNextBlockJSON,
-  // isValidHeaderJSON,
-  // isValidCreateWalletJSON,
-  // isValidUnlockWalletJSON,
   isValidWalletBalanceJSON,
   isValidActionJSON,
   isValidBlockJSON
@@ -73,6 +67,8 @@ class Node {
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
+    this.enableLocalPeerDiscovery = options.enableLocalPeerDiscovery
+    this.peerDiscoveryPort = options.peerDiscoveryPort || '4000'
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -133,14 +129,14 @@ class Node {
 
         this.loadNodeConfig()
         this.cleanMessageBuffer();
-        this.minerConnector();
+        this.localAPI();
         
         if(this.enableLocalPeerDiscovery){
           
           this.peerDiscovery = new PeerDiscovery({
             address:this.address,
             host:this.host,
-            port:this.port,
+            port:this.peerDiscoveryPort,
           });
 
           let peerEvents = new EventEmitter()
@@ -608,6 +604,7 @@ class Node {
                       logger(genesisBlock.error)
                     }else{
                       //Need to Validate Genesis Block
+                      //Swap local genesis block with peer's genesis block
                       this.chain[0] = genesisBlock
                       let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                       if(downloaded.error){
@@ -1248,7 +1245,7 @@ class Node {
     
   }
 
-  minerConnector(){
+  localAPI(){
 
     let app = express()
     app.use(express.static(__dirname+'/views'));
@@ -1260,69 +1257,56 @@ class Node {
 
     const server = http.createServer(app)
     server.listen(this.minerPort, 'localhost');
-    this.minerServer = socketIo(server);
+    this.localServer = socketIo(server);
 
-    logger('Miner connector listening on ',this.minerPort)
-    this.minerServer.on('connection',(socket)=>{
+    logger('Local API accessible on ',this.minerPort)
+    this.localServer.on('connection',(socket)=>{
 
       if(socket.request.headers['user-agent'] !== 'node-XMLHttpRequest'){
         socket.emit('message', 'Connected to local node');
         this.externalEventHandlers(socket)
+      }else{
+        this.minerConnector(socket)
       }
-
-      logger('Miner connected!')
-      this.minerServer.socket = socket
-
-      this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-
-      this.minerServer.socket.on('newBlock', async (block)=>{
-        
-        if(block){
-          let synced = await this.chain.pushBlock(block);
-          if(synced.error){
-            logger(synced.error)
-  
-          }else{
-            if(synced.fork){
-              logger(synced.fork)
-            }
-            this.sendPeerMessage('newBlockFound', block);
-            this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-            
-          }
-        }else{
-          logger('ERROR: New mined block is undefined')
-        }
-      })
-  
-      this.minerServer.socket.on('getLatestBlock', ()=>{
-        if(this.chain instanceof Blockchain){
-          this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-        }else{
-          this.minerServer.socket.emit('error', {error: 'Chain is not ready'})
-        }
-      })
-
-      this.minerServer.socket.on('getTxHashList', ()=>{
-        this.minerServer.socket.emit('txHashList', Object.keys(Mempool.pendingTransactions))
-      })
-
-      this.minerServer.socket.on('getActionHashList', ()=>{
-        this.minerServer.socket.emit('actionHashList', Object.keys(Mempool.pendingActions))
-      })
-
-      this.minerServer.socket.on('getTx', (hash)=>{
-        this.minerServer.socket.emit('tx', Mempool.pendingTransactions[hash])
-      })
-
-      this.minerServer.socket.on('getAction', (hash)=>{
-        this.minerServer.socket.emit('action', Mempool.pendingActions[hash])
-      })
-
-      
-  
     })
    
+  }
+
+  minerConnector(api){
+    logger('Miner connected!');
+    api.emit('latestBlock', this.chain.getLatestBlock())
+    api.on('getTxHashList', ()=>{ api.emit('txHashList', Object.keys(Mempool.pendingTransactions)) })
+    api.on('getActionHashList', ()=>{ api.emit('actionHashList', Object.keys(Mempool.pendingActions)) })
+    api.on('getTx', (hash)=>{ api.emit('tx', Mempool.pendingTransactions[hash]) })
+    api.on('getAction', (hash)=>{ api.emit('action', Mempool.pendingActions[hash]) })
+    api.on('newBlock', async (block)=>{
+          
+      if(block){
+        let synced = await this.chain.pushBlock(block);
+        if(synced.error){
+          logger(synced.error)
+
+        }else{
+          if(synced.fork){
+            logger(synced.fork)
+          }
+          this.sendPeerMessage('newBlockFound', block);
+          this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+          
+        }
+      }else{
+        logger('ERROR: New mined block is undefined')
+      }
+    })
+    api.on('getLatestBlock', ()=>{
+      if(this.chain instanceof Blockchain){
+        api.emit('latestBlock', this.chain.getLatestBlock())
+      }else{
+        api.emit('error', {error: 'Chain is not ready'})
+      }
+    })
+  
+    this.localServer.socket = api
   }
 
 
@@ -1475,8 +1459,8 @@ class Node {
               //Need to validate more before stopping miner
               if(this.chain.validateBlockHeader(block)){
   
-                if(this.minerServer && this.minerServer.socket){
-                  this.minerServer.socket.emit('stopMining')
+                if(this.localServer && this.localServer.socket){
+                  this.localServer.socket.emit('stopMining')
                 }
   
                 let addedToChain = await this.chain.pushBlock(block);
@@ -1484,8 +1468,8 @@ class Node {
                   logger(addedToChain.error)
                 }
   
-                if(this.minerServer && this.minerServer.socket){
-                  this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                if(this.localServer && this.localServer.socket){
+                  this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                 }
                 
                 resolve(true);
