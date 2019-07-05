@@ -463,13 +463,7 @@ class Node {
           peer.on('disconnect', () =>{
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
-            if(this.enableLocalPeerDiscovery){
-              this.findPeersThroughDNSSD()
-            }else if(this.enableDHTDiscovery){
-              this.findPeersThroughBittorrentDHT()
-            }else{
-              this.broadcast('getPeers')
-            }
+            this.broadcast('getPeers')
             peer.destroy()
           })
 
