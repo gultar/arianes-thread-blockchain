@@ -132,45 +132,11 @@ class Node {
             this.localAPI();
             
             if(this.enableLocalPeerDiscovery){
-              
-              this.peerDiscovery = new PeerDiscovery({
-                address:this.address,
-                host:this.host,
-                port:this.peerDiscoveryPort,
-              });
-
-              
-              this.peerDiscovery.find()
-              .then(()=>{
-                this.peerDiscovery.collectPeers((emitter)=>{
-                  emitter.on('peerDiscovered', (peer)=> {
-                    let { host, port, address } = peer
-                    logger('Found new peer', chalk.green(address))
-                    this.connectToPeer(address)
-                  })
-                })
-                
-              })
-              
+              this.findPeersThroughDNSSD()
             }
 
             if(this.enableDHTDiscovery){
-              this.peerDiscovery = new PeerDiscovery({
-                address:this.address,
-                host:this.host,
-                port:this.peerDiscoveryPort,
-              });
-              
-              this.peerDiscovery.findPeersOnBittorrentDHT()
-              .then(()=>{
-                this.peerDiscovery.collectPeers((emitter)=>{
-                  emitter.on('peerDiscovered', (peer)=> {
-                    let { host, port, address } = peer
-                    logger('Found new peer', chalk.green(address))
-                    this.connectToPeer(address)
-                  })
-                })
-              })
+              this.findPeersThroughBittorrentDHT()
             }
             
             this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
@@ -344,6 +310,46 @@ class Node {
     }
   }
 
+  findPeersThroughDNSSD(){
+    this.peerDiscovery = new PeerDiscovery({
+      address:this.address,
+      host:this.host,
+      port:this.peerDiscoveryPort,
+    });
+
+    
+    this.peerDiscovery.find()
+    .then(()=>{
+      this.peerDiscovery.collectPeers((emitter)=>{
+        emitter.on('peerDiscovered', (peer)=> {
+          let { host, port, address } = peer
+          logger('Found new peer', chalk.green(address))
+          this.connectToPeer(address)
+        })
+      })
+      
+    })
+  }
+
+  findPeersThroughBittorrentDHT(){
+    this.peerDiscovery = new PeerDiscovery({
+      address:this.address,
+      host:this.host,
+      port:this.peerDiscoveryPort,
+    });
+    
+    this.peerDiscovery.searchDHT()
+    .then(()=>{
+      this.peerDiscovery.collectPeers((emitter)=>{
+        emitter.on('peerDiscovered', (peer)=> {
+          let { host, port, address } = peer
+          logger('Found new peer', chalk.green(address))
+          this.connectToPeer(address)
+        })
+      })
+    })
+  }
+
   getNumberOfConnectionsToPeers(){
     let connections = Object.keys(this.connectionsToPeers);
     return connections.length
@@ -457,7 +463,13 @@ class Node {
           peer.on('disconnect', () =>{
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
-            // this.seekOtherPeers()
+            if(this.enableLocalPeerDiscovery){
+              this.findPeersThroughDNSSD()
+            }else if(this.enableDHTDiscovery){
+              this.findPeersThroughBittorrentDHT()
+            }else{
+              this.broadcast('getPeers')
+            }
             peer.destroy()
           })
 

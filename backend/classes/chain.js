@@ -69,13 +69,7 @@ class Blockchain{
             "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
             "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
           }
-          
-
-          if(addedGenesisBlock){
-              resolve(genesisBlock)
-          }else{
-              reject('ERROR: Could not create genesis block')
-          }
+          resolve(genesisBlock)
     })
   }
 
