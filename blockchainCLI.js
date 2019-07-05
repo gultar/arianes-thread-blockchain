@@ -62,7 +62,6 @@ program
     
 
     let configs = await loadNodeConfig();
-      console.log(configs)
       if(program.verbose){
         configs.verbose = true;
       }

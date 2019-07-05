@@ -35,6 +35,7 @@
     "hex-to-binary": "^1.0.1",
     "hex2dec": "^1.1.2",
     "inquirer": "^6.4.1",
+    "is-ip": "^3.1.0",
     "js-sha256": "^0.9.0",
     "json-size": "^1.0.0",
     "jsonc": "^2.0.0",

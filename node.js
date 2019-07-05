@@ -20,6 +20,7 @@ const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountCreator = require('./backend/classes/accountCreator');
 const AccountTable = require('./backend/classes/accountTable');
+const PeerDiscovery = require('./backend/network/peerDiscovery')
 /*************Smart Contract VM************** */
 const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
@@ -45,6 +46,7 @@ const sha1 = require('sha1')
 const chalk = require('chalk');
 const fs = require('fs');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
+const EventEmitter = require('events')
 
 
 /**
@@ -66,7 +68,8 @@ class Node {
     this.port = options.port
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
-    this.address = options.address || `${this.httpPrefix}://${this.host}:${this.port}`
+    this.address = options.address || `${this.httpPrefix}://${this.host}:${this.port}`;
+    this.minerPort = options.minerPort || parseInt(this.port) + 2000
     this.id = options.id;
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -117,11 +120,7 @@ class Node {
         logger('Loaded transaction mempool');
         logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
         logger('Loaded account table');
-
-        let app = express()
-        app.use(express.static(__dirname+'/views'));
-        express.json({ limit: '300kb' })
-        app.use(helmet())
+        
 
         if(this.httpsEnabled){
           let sslConfig = await this.getCertificateAndPrivateKey()
@@ -129,14 +128,29 @@ class Node {
         }else{
           this.server = http.createServer();
         }
-         
+        
         this.server.listen(this.port)
 
         this.loadNodeConfig()
-        
         this.cleanMessageBuffer();
         this.minerConnector();
         
+        if(this.enableLocalPeerDiscovery){
+          
+          this.peerDiscovery = new PeerDiscovery({
+            address:this.address,
+            host:this.host,
+            port:this.port,
+          });
+
+          let peerEvents = new EventEmitter()
+          peerEvents.on('peerDiscovered', (peer)=> {
+            this.nodeList.addNewAddress(peer)
+            this.connectToPeer(peer)
+          })
+          this.peerDiscovery.initService()
+          this.peerDiscovery.initBrowser()
+        }
         
         this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
   
@@ -1092,25 +1106,26 @@ class Node {
   externalEventHandlers(socket){
     try{
       this.userInterfaces.push(socket)
+      socket.emit('message', 'Connected to local node');
 
-      socket.on('error', (err)=>{
-        logger(chalk.red(err));
-      })
+      socket.on('error', (err)=> logger(chalk.red(err)))
 
       socket.on('connectionRequest', (address)=>{
         this.connectToPeer(address, (peer)=>{});
       });
 
-      socket.on('peerCheckout', ()=>{
-        console.log(Object.keys(this.peersConnected))
-        console.log(Object.keys(this.connectionsToPeers))
-
-        console.log(this.peersConnected)
-        console.log(this.connectionsToPeers)
+      socket.on('chaindb', async(chain)=>{
+        console.log(chaindb)
+        if(chain){
+          let chain = await this.chain.chainDB.get('blockchain')
+          console.log(chain)
+        } 
       })
 
       socket.on('getBlockchain', ()=>{
-        socket.emit('blockchain', this.chain);
+        const Transaction = require('./backend/classes/transaction')
+        console.log(Transaction.getTransactionSize(this.chain.chain))
+        socket.emit('blockchain', Transaction.getTransactionSize(this.chain.chain));
       })
 
       socket.on('getAddress', (address)=>{
@@ -1118,7 +1133,6 @@ class Node {
       })
 
       socket.on('getKnownPeers', ()=>{
-        
         logger(this.nodeList.addresses)
         socket.emit('knownPeers', this.nodeList.addresses);
       })
@@ -1173,22 +1187,6 @@ class Node {
         
       })
 
-      socket.on('startMiner', ()=>{
-        this.minerStarted = true;
-        this.createMiner()
-      })
-
-      socket.on('stopMining', ()=>{
-        logger('Mining stopped')
-        this.UILog('Mining stopped')
-        console.log(this.connectionsToPeers)
-        if(process.ACTIVE_MINER){
-          
-          process.ACTIVE_MINER.send({abort:true});
-          
-        }
-      })
-
       socket.on('isChainValid', ()=>{
         let isValidChain = this.validateBlockchain();
         if(isValidChain){
@@ -1198,12 +1196,6 @@ class Node {
 
       socket.on('showBalances', ()=>{
         console.log(this.chain.balance)
-      })
-
-      socket.on('debughttps', ()=>{
-        console.log('enable:', this.httpsEnabled)
-        console.log('address:', this.address)
-        console.log('list', this.nodeList)
       })
 
       socket.on('verbose', ()=>{
@@ -1233,154 +1225,6 @@ class Node {
         this.findPeers()
       })
       
-      socket.on('test', async()=>{
-        const LoopyLoop = require('loopyloop')
-        const hexToBin = require('hex-to-binary')
-
-        let chain = []
-
-        const mineBlock = async (blockToMine) =>{
-          let block = blockToMine;
-            block.startMineTime = Date.now()
-            let miner =  new LoopyLoop(async () => {
-              
-              if(isValidProof(block, block.challenge)){
-                miner.stop()
-                block.endMineTime = Date.now()
-                block.timediff = (block.endMineTime - block.startMineTime);
-                return block
-              }else{
-                block.nonce = (Math.pow(2, 64) * Math.random())
-                // block.nonce++
-              }
-            })
-        
-            return miner
-        }
-        const calculateHash = (block) =>{
-          return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot)
-        }
-        const isValidProof = (block, target) =>{
-          
-          block.hash = calculateHash(block)
-          if(BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(target, 16))){
-            return true
-          }else{
-            
-            return false
-          }
-        }
-
-        function pad(n, width, z) {
-          z = z || '0';
-          n = n + '';
-          let array = (new Array(width - n.length + 1)).join(z)
-          return n.length >= width ? n :  '0x'+array + n;
-        }
-        
-        const setChallenge = (difficulty) =>{
-          if(difficulty == 0n) difficulty = 1n
-          let newChallenge = BigInt(Math.pow(2, 256) -1) / BigInt(difficulty)
-          return newChallenge.toString(16);
-        }
-
-        function setNewDifficulty(previousBlock, newBlock){
-          const mineTime = (newBlock.timestamp - previousBlock.timestamp) / 1000;
-          let adjustment = 1;
-          if(mineTime <= 0.2){
-            adjustment = 10
-          }else if(mineTime > 0.2 && mineTime <= 1){
-            adjustment = 2
-          }else if(mineTime > 1 && mineTime <= 10){
-            adjustment = 1
-          }else if(mineTime > 10 && mineTime <= 20){
-            adjustment = 0;
-          }else if(mineTime > 20 && mineTime <= 30){
-            adjustment = 0
-          }else if(mineTime > 30 && mineTime <= 40){
-            adjustment = -1
-          }else if(mineTime > 40 && mineTime <= 60){
-            adjustment = -2
-          }else if(mineTime > 60){
-            adjustment = -10
-          }
-          
-          let difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor((chain.length / 10000)-2))))
-          let modifier = Math.max(1 - Math.floor(mineTime / 10), -99)
-          let newDifficulty = BigInt(previousBlock.difficulty) + BigInt(previousBlock.difficulty / 32n) * BigInt(adjustment) + BigInt(difficultyBomb)
-          console.log('* Adjustment : ', adjustment)
-          console.log('* New difficulty value : ', BigInt(previousBlock.difficulty))
-          console.log('* To be added : ', BigInt(previousBlock.difficulty / 32n) * BigInt(modifier))
-          console.log('* Otherwise: : ', BigInt(previousBlock.difficulty / 32n) * BigInt(adjustment))
-          console.log('* Difficulty bomb:', BigInt(difficultyBomb))
-          return newDifficulty;
-        }
-
-        function pad(n, width, z) {
-          z = z || '0';
-          n = n + '';
-          return n.length >= width ? n : n + new Array(width - n.length + 1).join(z);
-        }
-        
-        const startMine = async (previousBlock) =>{
-          
-          let randomIndex = Math.floor(Math.random() * this.chain.chain.length)
-          let blockToConvert = this.chain.chain[randomIndex];
-          let header = this.chain.extractHeader(blockToConvert)
-          let block = header;//119647558363
-          block.timestamp = Date.now()
-          delete block.hash;
-          if(!previousBlock){
-            
-            block.difficulty = BigInt(parseInt('0x16F0F0', 16));
-            
-            block.challenge = setChallenge(block.difficulty)
-          }else{
-            block.difficulty = setNewDifficulty(previousBlock, block)
-            block.challenge = setChallenge(block.difficulty)
-          }
-          block.hash = '';
-          block.nonce = 0;
-          
-          if(block){
-            let mine = await mineBlock(block, block.difficulty)
-            mine
-                .on('started', () => {
-                  
-                })
-                .on('stopped', async () => {
-                  console.log('************************')
-                  console.log(`* Test number ${ chain.length } `);
-                  console.log(`* Difficulty ${block.difficulty} took approx. ${ block.timediff /1000 } seconds`);
-                  console.log('* Hash:', block.hash)
-                  console.log('* Nonce:', block.nonce)
-                  console.log('* Challenge', block.challenge)
-                  chain.push(block)
-                  if(chain.length <= 200){ startMine(block) }
-                  else{
-                    let median = 0;
-                    chain.forEach(block=>{
-                      median += block.timediff;
-
-                    })
-                    console.log('The average block time is :', median/chain.length)
-                  }
-                })
-                .on('error', (err) => {
-                  console.log(err)
-                })
-                .start()
-          }else{
-            console.log('Missing params')
-          }
-          
-        }
-
-        startMine()
-        
-        
-      })
-
       socket.on('rollback', async (number)=>{
         logger('Rolled back to block ', number)
         let endBlock = this.chain.chain.length-1
@@ -1407,15 +1251,26 @@ class Node {
   }
 
   minerConnector(){
-    //Listen port 3000
+
     let app = express()
+    app.use(express.static(__dirname+'/views'));
+    express.json({ limit: '300kb' })
+    app.use(helmet())
+
     this.initChainInfoAPI(app);
     this.initHTTPAPI(app);
+
     const server = http.createServer(app)
-    server.listen(parseInt(this.port)+2000, 'localhost');
+    server.listen(this.minerPort, 'localhost');
     this.minerServer = socketIo(server);
-    logger('Miner connector listening on ',parseInt(this.port)+2000)
+
+    logger('Miner connector listening on ',this.minerPort)
     this.minerServer.on('connection',(socket)=>{
+
+      if(socket.request.headers['user-agent'] !== 'node-XMLHttpRequest'){
+        socket.emit('message', 'Connected to local node');
+        this.externalEventHandlers(socket)
+      }
 
       logger('Miner connected!')
       this.minerServer.socket = socket
@@ -1423,6 +1278,7 @@ class Node {
       this.minerServer.socket.emit('latestBlock', this.chain.getLatestBlock())
 
       this.minerServer.socket.on('newBlock', async (block)=>{
+        
         if(block){
           let synced = await this.chain.pushBlock(block);
           if(synced.error){
@@ -1465,7 +1321,7 @@ class Node {
         this.minerServer.socket.emit('action', Mempool.pendingActions[hash])
       })
 
-      this.externalEventHandlers(this.minerServer.socket)
+      
   
     })
    

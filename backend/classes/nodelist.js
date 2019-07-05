@@ -2,8 +2,9 @@ const { logger, readFile, writeToFile } = require('../tools/utils')
 const fs = require('fs')
 
 class NodeList{
-    constructor(addresses=[], blackListed=[]){
+    constructor(addresses=[], contacts={}, blackListed=[]){
         this.addresses = addresses;
+        this.contacts = contacts
         this.blackListed = blackListed;
     }
 

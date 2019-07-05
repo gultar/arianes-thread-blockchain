@@ -42,22 +42,14 @@ class NetworkConnector{
         })
     }
 
-    start(){
+    start(extend){
         return new Promise((resolve)=>{
             this.build(this.config)
             .then( built =>{
                 logger(`RPC Interface listening on ${this.address}`)
                 this.httpServer.listen(this.port)
                 
-                this.ioServer.on('connection', (socket)=>{
-                    let address = socket.request.connection.remoteAddress;
-                    if(!this.peersConnected[address]){
-                        this.peersConnected[address] = socket;
-                        this.inboundChannels(socket, address)
-                    }else{
-                        socket.destroy()
-                    }
-                })
+                this.inboundChannels(extend)
                 resolve(true)
             })
             .catch( e => {
@@ -65,8 +57,6 @@ class NetworkConnector{
             })
             
         })
-        
-
     }
 
         getCertificateAndPrivateKey(){
@@ -153,7 +143,7 @@ class NetworkConnector{
         }
 
 
-    connect(peerAddress){
+    establishPeerConnection(peerAddress){
         return new Promise((resolve)=>{
             if(!this.connectionToPeers[peerAddress]){
                 let connectionAttempts = 0;
@@ -187,48 +177,75 @@ class NetworkConnector{
                     }
                 })
                 if(peer){
-                    this.outboundChannels(peer, peerAddress)
                     resolve(peer)
+                }else{
+                    resolve(false)
                 }
+            }else{
+                resolve(this.connectionToPeers[peerAddress])
             }
         })
         
     }
 
-    defineEventListener(){
+    connect(peerAddress, extendListeners){
+        return new Promise(async (resolve)=>{
+            let peer = await this.establishPeerConnection(peerAddress)
+            if(peer){
+                this.outboundChannels(peer, peerAddress, extendListeners)
+                
+                resolve(peer)
+            }else{
+                logger('Could not connect to peer', peerAddress)
+                resolve(false)
+            }
+        })
+    }
+
+    inboundChannels(extend){
         
+        this.ioServer.on('connection', (socket)=>{
+            let address = socket.request.connection.remoteAddress;
+            if(!this.peersConnected[address]){
+                this.peersConnected[address] = socket;
+                socket.on('message', (message)=>{
+                    logger(`Peer: ${message}`)
+                })
+                if(extend) extend(socket)
+                socket.on('connectionInfo', (info)=>{
+                    let { address, id } = info
+                    logger(`Establishing peer connection to node ${address}`);
+                    this.connect(address);
+                })
+        
+                socket.on('getPeers', ()=>{
+                    socket.emit('peers', this.knownPeers)
+                })
+        
+                socket.on('error', async(err)=>{
+                    logger(`Socket Error: ${err}`);
+                })
+             
+                socket.on('disconnect', async()=>{ 
+                    logger(`Peer ${address} has disconnected from this node`)
+                    delete this.peersConnected[address];
+                })
+                
+                
+            }else{
+                socket.destroy()
+            }
+            
+        })
+
+        this.ioServer.on('disconnect', ()=>{ })
+    
+        this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
+
     }
 
-    inboundChannels(socket, address, extend){
-        socket.on('message', (message)=>{
-            logger(`Peer: ${message}`)
-        })
+    outboundChannels(peer, address, extendListeners){
 
-        socket.on('connectionInfo', (info)=>{
-            let { address, id } = info
-            logger(`Establishing peer connection to node ${address}`);
-            this.connect(address);
-        })
-
-        socket.on('getPeers', ()=>{
-            socket.emit('peers', this.knownPeers)
-        })
-
-        socket.on('error', async(err)=>{
-            logger(`Socket Error: ${err}`);
-        })
-     
-        socket.on('disconnect', async()=>{ 
-            logger(`Peer ${address} has disconnected from this node`)
-            delete this.peersConnected[address];
-        })
-
-        if(extend) extend(socket)
-
-
-    }
-
-    outboundChannels(peer, address, extend){
         peer.on('connect', ()=>{
             if(!this.connectionToPeers[address]){
                 this.connectionToPeers[address] = peer;
@@ -240,6 +257,8 @@ class NetworkConnector{
                 peer.emit('connectionInfo', info)
             }
         })
+
+        if(extendListeners) extendListeners(peer)
 
         peer.on('message', (message)=>{
             logger(`Node: ${message}`)
@@ -257,8 +276,6 @@ class NetworkConnector{
             logger(`Connection to node ${address} dropped`)
             delete this.connectionToPeers[address]
         })
-
-        if(extend) extend(socket)
 
     }
 
@@ -288,13 +305,29 @@ const testNetworkConnector = async () =>{
         httpsEnabled:true
     })
     
-    myFirstRPC.start()
+    function extend(socket){
+        // console.log(socket)
+        socket.on('muppet', (msg)=>{
+            
+            console.log('Poubelle', msg)
+        })
+        // console.log(socket.listeners('muppet')[0]())
+    }
+
+    myFirstRPC.start(extend)
     .then((socket)=>{
         
     })
     mySecondRPC.start()
     .then((socket)=>{
-        myFirstRPC.connect(mySecondRPC.address, (peer)=>{})
+        myFirstRPC.connect(mySecondRPC.address )
+        .then((peer)=>{
+            // console.log(peer)
+            setTimeout(()=>{
+                peer.emit('muppet', 'POUBA')
+            }, 3000)
+        })
+        
     })
     
     
@@ -334,6 +367,8 @@ testNetworkConnector()
 // socket.on('connect', ()=>{
 //     console.log('Worked')
 // })
+
+
 
 // socket.on('message', (msg) => console.log(msg))
 // console.log('Listening on 3000')
