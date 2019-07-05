@@ -5,7 +5,6 @@ const EventEmitter = require('events')
 class PeerDiscovery{
 
     constructor(opts){
-        super()
         let { address, host, port, channel } = opts
         this.channel = channel || 'mainnet';
         this.address = address;
@@ -14,6 +13,7 @@ class PeerDiscovery{
         this.service;
         this.browser;
         this.knownPeers = {}
+        this.emitter = new EventEmitter()
     }
 
     initBrowser(){
@@ -34,7 +34,7 @@ class PeerDiscovery{
         });
         this.service.start();
 
-        this.on('peerGone', (address)=> delete this.knownPeers[address] )
+        this.emitter.on('peerGone', (address)=> delete this.knownPeers[address] )
     }
 
 
@@ -54,8 +54,7 @@ class PeerDiscovery{
                     contact.port = service.port
                     contact.address = service.name
                     this.knownPeers[address] = contact
-                    let emitter = new EventEmitter()
-                    emitter.send('peerDiscovered', contact)
+                    this.emitter.send('peerDiscovered', contact)
                 }
             }
         })
