@@ -81,9 +81,10 @@ class PeerDiscovery{
             sw.on('connection', (connection, peer) => {
                 if(connection){
                     let address = `${peer.host}:${peer.port}`
+                    peer.address = address
                     potentialPeers[address].connected = true;
                     potentialPeers[address].peer.address = address;
-                    this.emitter.emit('peerDiscovered', potentialPeers[address].peer)
+                    this.emitter.emit('peerDiscovered', peer)
                 } 
                 // console.log('connection', connection)
             })
