@@ -49,7 +49,7 @@ program
                             }else{
                                 console.log('ERROR: Could not find wallet')
                             }
-                    }, 3000)
+                    }, 1000)
                     
                         
                 }else{

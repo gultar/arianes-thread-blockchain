@@ -488,8 +488,9 @@ class Node {
     return new Promise(async (resolve)=>{
       let startHash = this.chain.getLatestBlock().hash;
       let lastHash = lastHeader.hash;
-      this.isDownloading = true;
       let length = lastHeader.blockNumber + 1;
+
+      this.isDownloading = true;
       
       const closeConnection = () =>{
         peer.off('nextBlock')
@@ -1082,13 +1083,13 @@ class Node {
         console.log(block)
       })
 
-      socket.on('fucku', async()=>{
-        console.log(this.chain.chain)
-        let chain = await this.chain.chainDB.get('blockchain')
-        console.log(this.chain.chainDB)
-      })
+      // socket.on('fucku', async()=>{
+      //   console.log(this.chain.chain)
+      //   let chain = await this.chain.chainDB.get('blockchain')
+      //   console.log(this.chain.chainDB)
+      // })
 
-      socket.on('getBlockchain', ()=>{
+      socket.on('getBlockchainSize', ()=>{
         const Transaction = require('./backend/classes/transaction')
         console.log(Transaction.getTransactionSize(this.chain.chain))
         socket.emit('blockchain', Transaction.getTransactionSize(this.chain.chain));
@@ -1245,7 +1246,9 @@ class Node {
 
   minerConnector(api){
     logger('Miner connected!');
+
     api.emit('latestBlock', this.chain.getLatestBlock())
+
     api.on('getTxHashList', ()=>{ api.emit('txHashList', Object.keys(Mempool.pendingTransactions)) })
     api.on('getActionHashList', ()=>{ api.emit('actionHashList', Object.keys(Mempool.pendingActions)) })
     api.on('getTx', (hash)=>{ api.emit('tx', Mempool.pendingTransactions[hash]) })
@@ -1536,7 +1539,7 @@ class Node {
   
         
                     Mempool.addTransaction(transaction);
-                    this.UILog('Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                    this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                     if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
                     
                     this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction

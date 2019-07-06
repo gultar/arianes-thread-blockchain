@@ -1002,8 +1002,8 @@ class Blockchain{
       if(parsedActualdifficulty == parsedRecalculatedDifficulty){
         return true;
       }else{
-        console.log('Difficulty recalculated: ', difficultyRecalculated)
-        console.log('Block difficulty: ', block.difficulty)
+        // console.log('Difficulty recalculated: ', difficultyRecalculated)
+        // console.log('Block difficulty: ', block.difficulty)
         return false;
       }
     }
@@ -1040,6 +1040,7 @@ class Blockchain{
       var isValidTimestamp = this.validateBlockTimestamp(block)
       var isValidDifficulty = this.validateDifficulty(block);
       var isValidChallenge = this.validateChallenge(block);
+      var areTransactionsValid = this.validateBlockTransactions(block)
       var merkleRootIsValid = false;
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
       //validate difficulty
@@ -1449,13 +1450,13 @@ class Blockchain{
           let isChecksumValid = this.validateChecksum(transaction);
           // let fiveBlocksHavePast = await this.waitFiveBlocks(transaction);
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
-          let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);
+          // let isAlreadyInChain = await this.getTransactionFromChain(transaction.hash);
           let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + this.calculateTransactionMiningFee(transaction));
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
           if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
           if(!hasTheRightMiningRewardAmount) resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
-          if(isAlreadyInChain) Mempool.deleteCoinbaseTransaction(transaction)
+          // if(isAlreadyInChain) Mempool.deleteCoinbaseTransaction(transaction)
           if(!isAttachedToMinedBlock) resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           if(!transactionSizeIsNotTooBig) resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'});
           
