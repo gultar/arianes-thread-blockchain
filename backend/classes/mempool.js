@@ -1,3 +1,8 @@
+/**
+ TFLB | Thousandfold Blockchain
+ @author: Sacha-Olivier Dulac
+*/
+
 const fs = require('fs')
 const { logger, readFile, writeToFile, createFile, merge } = require('../tools/utils')
 const {isValidTransactionJSON} = require('../tools/jsonvalidator')

@@ -1,3 +1,8 @@
+/**
+ TFLB | Thousandfold Blockchain
+ @author: Sacha-Olivier Dulac
+*/
+
 const Wallet = require('./wallet')
 const Action = require('./action')
 const sha256 = require('../tools/sha256');

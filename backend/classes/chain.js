@@ -1,3 +1,8 @@
+/**
+ TFLB | Thousandfold Blockchain
+ @author: Sacha-Olivier Dulac
+*/
+
 
 /////////////////////Blockchain///////////////////////
 const sha256 = require('../tools/sha256');
@@ -1526,23 +1531,45 @@ class Blockchain{
   */
   validateChecksum(transaction){
     if(transaction){
-       if(sha256(transaction.fromAddress+ transaction.toAddress+ transaction.amount+ transaction.data+ transaction.timestamp) === transaction.hash){
+       if(sha256(
+                transaction.fromAddress+ 
+                transaction.toAddress+ 
+                transaction.amount+ 
+                transaction.data+ 
+                transaction.timestamp
+                ) === transaction.hash){
         return true;
       }
     }
     return false;
   }
-
+  /**
+    Checks if the action hash matches its content
+    @param {object} $transaction - Action to be inspected
+    @return {boolean} Checksum is valid or not
+  */
   validateActionChecksum(action){
     if(action){
-      if(sha256(action.fromAccount.publicKey + action.type + action.task + action.data + action.fee + action.timestamp + action.contractRef) == action.hash){
+      if(sha256(
+                action.fromAccount.publicKey + 
+                action.type + 
+                action.task + 
+                action.data + 
+                action.fee + 
+                action.timestamp + 
+                action.contractRef
+                ) == action.hash){
        return true
       }else{
         return false;
       }
     }
   }
-
+  /**
+    Checks the validity of the transaction signature
+    @param {object} $transaction - Transaction to be inspected
+    @return {boolean} Signature is valid or not
+  */
   validateSignature(transaction){
     return new Promise(async (resolve, reject)=>{
       if(transaction){
@@ -1563,7 +1590,12 @@ class Blockchain{
       }
     })
   }
-
+  /**
+    Checks the validity of the action signature
+    @param {object} $transaction - Action to be inspected
+    @param {object} $ownerKey - Public key of the owner account
+    @return {boolean} Signature is valid or not
+  */
   validateActionSignature(action, ownerKey){
     return new Promise(async (resolve, reject)=>{
       if(action){
@@ -1585,6 +1617,11 @@ class Blockchain{
     })
   }
 
+   /**
+    Sets the transaction's mining fee based on file size
+    @param {object} $transaction - Transaction to be inspected
+    @return {number} Amount to be payed upon mining
+  */
   calculateTransactionMiningFee(transaction){
     let transactionBeforeSignature = {
       fromAddress:transaction.fromAddress,
@@ -1600,6 +1637,11 @@ class Blockchain{
     return sizeFee;
   }
 
+  /**
+    Determine whether a coinbase transaction is linked to a block
+    @param {object} $transaction - Transaction to be inspected
+    @return {object} Block to which the coinbase transaction is linked
+  */
   coinbaseTxIsAttachedToBlock(transaction){
     let found = false;
 
@@ -1611,6 +1653,11 @@ class Blockchain{
     return found
   }
 
+  /**
+    Fetches a block from chainDB
+    @param {string} $blockNumberString - Block number is converted to string before making query
+    @return {object} Block queried or error if is not found
+  */
   getBlockFromDB(blockNumberString){
     return new Promise(async(resolve)=>{
       if(!blockNumberString) resolve({error:'Block number is required to fetch block from db'})
@@ -1620,16 +1667,20 @@ class Blockchain{
         let block = blockContainer[blockNumberString]
         resolve(block)
       }else{
-        logger(`Could not add block ${i} to chain`)
-        resolve({error:`Could not add block ${i} to chain`})
+        resolve({error:`Could not find block ${i}`})
       }
     })
     
   }
 
+  /**
+    Fetches a block from chainDB
+    @param {string} $blockNumberString - Block number is converted to string before making query
+    @return {Promise} Block queried or error if is not found
+  */
   init(){
     return new Promise(async (resolve, reject)=>{
-      logger('Loading all blocks')
+      logger('Loading all blocks. Please wait...')
       this.loadBlocks()
       .then(async (loaded)=>{
         if(loaded){
@@ -1666,6 +1717,7 @@ class Blockchain{
             logger('Loaded last known block')
             //Loading all saved blocks up to last saved one
             for(var blockNumber=0; blockNumber <= lastBlock.blockNumber; blockNumber++){
+
               if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
               
               let block = await this.getBlockFromDB(blockNumber)
@@ -1687,15 +1739,21 @@ class Blockchain{
         }
       }) 
       .catch(async (e)=>{  //Has not been added to database, must be new blockchain
+        
         logger('Genesis Block has not been created yet')
         let genesisBlock = await this.loadGenesisFile()
-        this.balance.states = genesisBlock.states;
-        let saved = await this.balance.saveStates()
         logger('Loaded genesis block from config file')
         if(genesisBlock.error) reject(genesisBlock.error)
+
+        this.balance.states = genesisBlock.states;
+        let saved = await this.balance.saveStates()
+
+        
+
         this.genesisBlockToDB(genesisBlock)
         .then(async (added)=>{
           if(added){
+
             logger('Added genesis block to blockchain database')
             this.chain.push(genesisBlock)
             let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')
@@ -1703,18 +1761,17 @@ class Blockchain{
               reject('ERROR: Could not save blockchain state')
             }
             resolve(true);
+
           }else{
             logger(added)
             reject('Error adding genesis block to db')
           }
-          
         })
         .catch(e => {
           logger(e)
           reject(e)
         })
         
-        // newBlockchain.balance = new BalanceTable(genesisBlock.states)
 
       })
 
@@ -1735,105 +1792,6 @@ class Blockchain{
       resolve(true);
     })
   }
-
-  // static load(){
-  //   return new Promise(async(resolve, reject)=>{
-
-        
-
-  //         const instanciateBlockchain = (chainObj) =>{
-  //           return new Blockchain(chainObj.chain, chainObj.difficulty)
-  //         }
-  //         let blockchain = new Blockchain()
-  //         let _tempDB = new PouchDB('./data/chainDB')
-  //         _tempDB.get('blockchain')
-  //         .then( async (blockchainObj) =>{
-  //           //Blockchain exists in chainDB, fetch than instanciate
-  //           blockchain = instanciateBlockchain(blockchainObj);
-  //           blockchain.balance = new BalanceTable()
-            
-  //           let states = await blockchain.balance.loadAllStates()
-  //           if(!states) {
-  //             logger('ERROR: Could not load balance table')
-  //             resolve(false)
-  //           }
-  //           blockchain.balance.states = states
-  //           resolve(blockchain);
-
-  //         })
-  //         .catch(async(e) => { 
-  //           logger('Blockchain file does not exist')
-  //           logger('Generating new blockchain')
-            
-  //           let newBlockchain = new Blockchain();
-  //           let genesisBlock = await newBlockchain.loadGenesisFile()
-  //           newBlockchain.balance = new BalanceTable(genesisBlock.states)
-  //           let states = await newBlockchain.balance.loadAllStates()
-  //           if(!states) {
-  //             logger('ERROR: Could not load balance table')
-  //             resolve(false)
-  //           }
-  //           newBlockchain.balance.states = states;
-  //           let addedGenesisBlock = await newBlockchain.genesisBlockToDB(genesisBlock)
-  //           if(addedGenesisBlock){
-  //             newBlockchain.chain.push(genesisBlock)
-  //             newBlockchain.save();
-  //             resolve(newBlockchain); 
-  //           }else{
-  //             reject('Could not add Genesis block to blockchain')
-  //           }
-  //         })
-
-          
-  //   })
-  // }
-
-  // save(){
-  //   return new Promise(async(resolve)=>{
-  //     if(this.chainDB){
-
-  //       let blockchainState = await writeToFile(this.getLatestBlock(), './data/lastState.json')
-  //       if(!blockchainState){
-  //         logger('ERROR: Could not save blockchain state')
-  //       } 
-
-
-  //       this.chainDB.get('blockchain')
-  //       .then( async(fetchedChain) =>{
-  //         //Delete to avoid overinflation of DB with new entries
-  //         this.chainDB.remove(fetchedChain._id, fetchedChain._rev)
-  //         .then(async ()=>{
-  //           const saved = await this.chainDB.put({
-  //             _id:'blockchain',
-  //             chain:this.chain
-  //           })
-  //           .catch(e => console.log(e))
-  //           logger('Saved blockchain')
-  //           resolve(true)
-  //         })
-  //       })
-  //       .catch( async (e)=> {
-  //         logger('Creating new database entry for blockchain')
-  //         const saved = await this.chainDB.put({
-  //           _id:'blockchain',
-  //           chain:this.chain
-  //         })
-  //         .catch(e => console.log('CHAIN SAVE ERROR:', e))
-  //         logger('Saved blockchain')
-  //         resolve(true)
-  //       })
-
-        
-        
-      
-       
-  //     }else{
-  //       logger('CHAINDB SAVE ERROR: Blockchain database does not exist ')
-  //     }
-      
-      
-  //   })
-  // }
 
 }
 

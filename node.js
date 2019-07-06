@@ -1,4 +1,7 @@
-//node.js
+/**
+ TFLB | Thousandfold Blockchain
+ @author: Sacha-Olivier Dulac
+*/
 
 'use strict'
 
@@ -9,18 +12,18 @@ const https = require('https')
 const bodyParser = require('body-parser');
 const RateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+
 //*********** Websocket connection**************/
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 //************Blockchain classes****************/
-// const Wallet = require('./backend/classes/wallet');
 const Blockchain = require('./backend/classes/chain');
-// const Transaction = require('./backend/classes/transaction');
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountCreator = require('./backend/classes/accountCreator');
 const AccountTable = require('./backend/classes/accountTable');
-const PeerDiscovery = require('./backend/network/peerDiscovery')
+const PeerDiscovery = require('./backend/network/peerDiscovery');
+const SSLHandler = require('./backend/network/sslHandler')
 /*************Smart Contract VM************** */
 const callRemoteVM = require('./backend/contracts/build/callRemoteVM')
 /**************Live instances******************/
@@ -46,8 +49,7 @@ const EventEmitter = require('events').EventEmitter
 /**
   Instanciates a blockchain node
   @constructor
-  @param {string} $address - Peer Ip address
-  @param {number} $port - Connection on port
+  @param {object} $options - Options to configure node and all of its constituent parts
 */
 
 class Node {
@@ -72,6 +74,7 @@ class Node {
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
     this.accountTable = new AccountTable();
+    this.ssl = new SSLHandler()
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -88,8 +91,7 @@ class Node {
 
 
   /**
-    P2P Server with two main APIs. A socket.io API for fast communication with connected peers
-    and an HTTP Api for remote peer connections as well as routine tasks like updating blockchain.
+    Boots up Node's Websocket Server and local HTTP and Wesocket APIs
   */
   startServer(){
 
@@ -117,11 +119,9 @@ class Node {
             logger('Loaded transaction mempool');
             logger('Loaded account table');
             logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
-            
-            
 
             if(this.httpsEnabled){
-              let sslConfig = await this.getCertificateAndPrivateKey()
+              let sslConfig = await this.ssl.getCertificateAndPrivateKey()
               this.server = https.createServer(sslConfig);
             }else{
               this.server = http.createServer();
@@ -155,9 +155,11 @@ class Node {
                       
                       if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
                         if(!this.peersConnected[socket.handshake.headers.host]){
+
                           this.peersConnected[peerAddress] = socket;
                           this.nodeList.addNewAddress(peerAddress);
                           this.nodeEventHandlers(socket, peerAddress);
+
                         }else{
                           //  logger('Peer is already connected to node')
                         }
@@ -193,89 +195,7 @@ class Node {
     })
   }
 
-  getCertificateAndPrivateKey(){
-    return new Promise(async (resolve)=>{
-      
-      fs.exists('./certificates/cert.pem', async (certExists)=>{
-        if(!certExists) {
-          let options = await this.createSSL();
-          if(options){
-            logger('Loaded SSL certificate and private key')
-            resolve(options)
-          }else{
-            logger('ERROR: Could not generate certificate or private key')
-            resolve(false)
-          }
-        }else{
-          let certificate = await readFile('./certificates/cert.pem');
-          if(certificate){
-            let privateKey = await this.getSSLPrivateKey();
-            if(privateKey){
-              let options = {
-                key:privateKey,
-                cert:certificate
-              }
-              logger('Loaded SSL certificate and private key')
-              resolve(options)
-            }else{
-              logger('ERROR: Could not load SSL private key')
-              resolve(false)
-            }
-            
-          }else{
-            logger('ERROR: Could not load SSL certificate')
-            resolve(false)
-          }
-
-        }
-        
-        
-      })
-    })
-  }
-
-  getSSLPrivateKey(){
-    return new Promise(async(resolve)=>{
-      fs.exists('./certificates/priv.pem', async(privExists)=>{
-        if(!privExists) resolve(false)
-        let key = await readFile('./certificates/priv.pem')
-        if(key){
-          resolve(key)
-        }else{
-          logger('ERROR: Could not load SSL private key')
-          resolve(false)
-        }
-      })
-    })
-  }
-
-  createSSL(){
-    return new Promise(async (resolve)=>{
-      let generate = require('self-signed')
-      var pems = generate(null, {
-        keySize: 1024, // defaults to 1024
-        serial: '329485', // defaults to '01'
-        expire: new Date('10 December 2100'), // defaults to one year from today
-        pkcs7: false, // defaults to false, indicates whether to protect with PKCS#7
-        alt: [] // default undefined, alternate names if array of objects/strings
-      });
-      logger('Created SSL certificate')
-      let certWritten = await writeToFile(pems.cert, './certificates/cert.pem')
-      let privKeyWritten = await writeToFile( pems.private, './certificates/priv.pem');
-      let pubKeyWritten = await writeToFile(pems.public, './certificates/pub.pem');
-
-      if(certWritten && privKeyWritten && pubKeyWritten){
-        let options = {
-          cert:pems.cert,
-          key:pems.private
-        }
-        resolve(options)
-      }else{
-        resolve(false)
-      }
-    })
-  }
-
+  
   joinPeers(){
     try{
       if(this.nodeList.addresses){
@@ -638,6 +558,7 @@ class Node {
                 if(this.chain.getLatestBlock().blockNumber == 0){
                   this.downloadGenesisBlock(peer)
                   .then( async (genesisBlock)=>{
+
                     if(genesisBlock.error){
                       logger(genesisBlock.error)
                     }else{
@@ -646,6 +567,7 @@ class Node {
                       this.chain.genesisBlockSwap(genesisBlock)
                       .then(async (swapped)=>{
                         if(swapped.error) resolve(false)
+
                         let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                         if(downloaded.error){
                           logger('Could not download blockchain')
@@ -654,9 +576,9 @@ class Node {
                         }else{
                           resolve(true)
                         }
+
                       })
 
-                      
                     }
   
                   })
@@ -1817,6 +1739,7 @@ class Node {
     var that = this;
     setInterval(()=>{
       that.messageBuffer = {};
+      this.chain.save()
     }, this.messageBufferCleanUpDelay)
   }
 

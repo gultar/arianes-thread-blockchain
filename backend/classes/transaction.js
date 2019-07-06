@@ -1,4 +1,7 @@
-///////////////Transaction//////////////////
+/**
+ TFLB | Thousandfold Blockchain
+ @author: Sacha-Olivier Dulac
+*/
 
 const sha256 = require('../tools/sha256');
 const sha1 = require('sha1')

@@ -1,3 +1,8 @@
+/**
+ TFLB | Thousandfold Blockchain
+ @author: Sacha-Olivier Dulac
+*/
+
 const ECDSA = require('ecdsa-secp256r1');
 const { logger } = require('../tools/utils');
 const sha256 = require('../tools/sha256')
