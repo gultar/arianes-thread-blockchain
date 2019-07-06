@@ -204,49 +204,92 @@ class Blockchain{
                 newBlock.transactions['actions'] = newBlock.actions
               }
 
-              let blockAdded;
-              blockAdded = await this.chainDB.put({
+              this.chainDB.put({
                 _id:newBlock.blockNumber.toString(),
                 [newBlock.blockNumber]:this.extractHeader(newBlock)
               })
-              .catch(async (e)=>{
-                let existingBlock = await this.chainDB.get(newBlock.blockNumber.toString())
-                .catch((e)=>{ 
-                  console.log('EXISTING BLOCK ERROR',e)
-                })
-                if(existingBlock){
-                  let deleted = await this.chainDB.remove(existingBlock._id, existingBlock._rev)
-                  .catch((e)=>{ 
-                      console.log('BLOCK DELETE ERROR:', e)
-                   })
-                  if(deleted){
-                    blockAdded = await this.chainDB.put({
-                      _id:newBlock.blockNumber.toString(),
-                      [newBlock.blockNumber]:this.extractHeader(newBlock)
-                    })
-                    .catch(e => console.log('SECOND TRIAL BLOCK ADD ERROR:', e))
-                  }
-                }
-              })
-
-              if(blockAdded){
-                  let txConfirmed = await this.chainDB.put({
+              .then((blockAdded)=>{
+                if(blockAdded){
+                  this.chainDB.put({
                     _id:newBlock.hash,
                     [newBlock.hash]:newBlock.transactions
                 })
-                .catch(e => console.log('BLOCK BODY PUSH ERROR: ', e))
-                if(txConfirmed){
-                  Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-                  if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
-                  resolve(true);
-                }else{
+                .then((txConfirmed)=>{
+                  if(txConfirmed){
+                    Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                    if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+                    resolve(true);
+                  }else{
                     logger('ERROR: Could not add transactions to database')
                     resolve(false)
+                  }
+                })
+                .catch(e => console.log('BLOCK BODY PUSH ERROR: ', e))
+                  
+                }else{
+                  logger('MAJOR BLOCK ADD ERROR', blockAdded)
+                  resolve(false)
                 }
-              }else{
-                logger('MAJOR BLOCK ADD ERROR', blockAdded)
-                resolve(false)
-              }
+              })
+              .catch(async (e)=>{
+                //Beautifull, fantastic, .then flavoured callback hell, 
+                //Goddamn PouchDB doesn't let me use async / await
+
+                //Get existing block from DB
+                this.chainDB.get(newBlock.blockNumber.toString())
+                .then((existingBlock)=>{
+                  //Then delete existing block
+                  if(existingBlock){
+                    this.chainDB.remove(existingBlock._id, existingBlock._rev)
+                    .then((deleted)=>{
+                      if(deleted){
+                        //Then insert new block
+                        this.chainDB.put({
+                          _id:newBlock.blockNumber.toString(),
+                          [newBlock.blockNumber]:this.extractHeader(newBlock)
+                        })
+                        .then((blockAdded)=>{
+                          if(blockAdded){
+                            //then insert new block's transactions
+                            this.chainDB.put({
+                                  _id:newBlock.hash,
+                                  [newBlock.hash]:newBlock.transactions
+                              })
+                              .then((txConfirmed)=>{
+                                if(txConfirmed){
+                                  //Then delete existing transactions and actions from Mempool
+                                  Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+                                  if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+                                  resolve(true);
+                                }else{
+                                  logger('ERROR: Could not add transactions to database')
+                                  resolve(false)
+                                }
+                              })
+                            .catch(e => console.log('BLOCK BODY PUSH ERROR: ', e))
+                          }else{
+                            logger('Could not add new block')
+                            resolve(false)
+                          }
+                        })
+                        resolve(true)
+                      }
+                    })
+                    .catch((e)=>{ 
+                        console.log('BLOCK DELETE ERROR:', e)
+                     })
+                  }else{
+                    logger('Could not fetch existing block')
+                    resolve(false)
+                  }
+                })
+                .catch((e)=>{ 
+                  console.log('EXISTING BLOCK ERROR',e)
+                })
+                
+              })
+
+              
                 
               
             }else{
