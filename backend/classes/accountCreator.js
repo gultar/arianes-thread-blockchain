@@ -1,3 +1,8 @@
+/**
+ TFLB | Thousandfold Blockchain
+ @author: Sacha-Olivier Dulac
+*/
+
 const WalletManager = require('./walletManager');
 const Account = require('./account')
 

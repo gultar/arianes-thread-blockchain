@@ -27,10 +27,8 @@ let _ = require('private-parts').createKey();
 const PouchDB = require('pouchdb');
 /**
   * @desc Basic blockchain class.
-  * @param {number} $difficulty - block mining difficulty;
-  * @param {object} $pendingTransactions - Transaction pool;
-  * @param {number} $miningReward - Reward for mining a block;
-  * @param {number} $blocksize - minimum number of transactions per block;
+  * @param {Array} $chain Possibility of instantiating blockchain with existing chain. 
+  *                       Not handled by default
 */
 class Blockchain{
 
@@ -49,7 +47,7 @@ class Blockchain{
   async createGenesisBlock(){
     return new Promise(async (resolve)=>{
         let genesisBlock = new Block(1554987342039,
-          { //fromAddress, toAddress, amount, data='', type='', hash='', miningFee=false
+          { 
             'maxCurrency':new Transaction
             (
               'coinbase',
@@ -62,13 +60,15 @@ class Blockchain{
             ),
           } 
           , {});
-          genesisBlock.difficulty = '0x100000'//'0x2A353F';
+          genesisBlock.difficulty = '0x100000';//'0x2A353F';
           genesisBlock.totalDifficulty = genesisBlock.difficulty
-          genesisBlock.challenge = setNewChallenge(genesisBlock)//average 150 000 nonce/sec
+          genesisBlock.challenge = setNewChallenge(genesisBlock)
           genesisBlock.maxCoinSupply = Math.pow(10, 10);
           genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
           genesisBlock.calculateHash();
           genesisBlock.states = {
+            //Other public addresses can be added to initiate their balance in the genesisBlock
+            //Make sure at least one of the them has some funds, otherwise no transactions will be possible
             "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000, lastTransaction:'coinbase', },
             "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000, lastTransaction:'coinbase', },
             "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
@@ -77,7 +77,10 @@ class Blockchain{
           resolve(genesisBlock)
     })
   }
-
+  /**
+   * Stores Genesis block to database as well as coinstore transaction
+   * @param {Block} genesisBlock 
+   */
   genesisBlockToDB(genesisBlock){
     return new Promise(async (resolve)=>{
       this.chainDB.put({
@@ -114,6 +117,11 @@ class Blockchain{
     
   }
 
+  /**
+   * Replaces current Genesis block with another version
+   * Use carefully because it can invalidate the whole blockchain
+   * @param {Block} peerGenesisBlock 
+   */
   genesisBlockSwap(peerGenesisBlock){
     return new Promise(async (resolve)=>{
       if(peerGenesisBlock){
@@ -142,7 +150,10 @@ class Blockchain{
     })
     
   }
-
+  /**
+   * Creates a new genesisBlock json file in /config
+   * Needed to create a new blockchain
+   */
   saveGenesisFile(){
     return new Promise(async (resolve)=>{
       let genesisBlock = await this.createGenesisBlock();
@@ -155,6 +166,9 @@ class Blockchain{
     })
   }
 
+  /**
+   * Fetches existing genesisBlock
+   */
   loadGenesisFile(){
     return new Promise(async (resolve)=>{
       fs.exists('./config/genesis.json', async (exists)=>{
@@ -180,11 +194,16 @@ class Blockchain{
     })
   }
 
+  
   getLatestBlock(){
     return this.chain[this.chain.length - 1];
   }
 
-  
+  /**
+   * 
+   * @param {Block} newBlock 
+   * @param {boolean} silent 
+   */
 
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
@@ -294,9 +313,6 @@ class Blockchain{
                 
               })
 
-              
-                
-              
             }else{
               logger('WARNING: Block transactions already exist for block:', newBlock.hash.substr(0, 25))
               Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
@@ -383,7 +399,6 @@ class Blockchain{
                     }
                     return fork;
                   }else{
-                    //Has not fork so what the fuck
                     console.log('RootHash', rootHash)
                     console.log('RootIndex', rootIndex)
                     console.log('RootBlock', rootBlock)
@@ -425,10 +440,7 @@ class Blockchain{
                       let forkHeadBlock = fork[0];
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
-                      // for(var remove=0; remove < numberOfBlocks; remove++){
-                      //   let orphanedBlock = this.chain.pop()
-                      //   orphanedBlocks.push(orphanedBlock)
-                      // }
+                      
                       fork.forEach( async (block)=>{
                         let added = await this.pushBlock(block, true)
                         if(added.error){
@@ -505,8 +517,6 @@ class Blockchain{
     })
   }
 
- 
-
   hasEnoughTransactionsToMine(){
     if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
       return true
@@ -541,7 +551,12 @@ class Blockchain{
 
   }
 
- 
+ /**
+  * Calculates the total work done on the blockchain by adding all block
+  * difficulties, parsed to BigInt from hex
+  * @param {Blockchain} chain 
+  * @return {string} Total difficulty of given blockchain, expressed as a hex string
+  */
   calculateWorkDone(chain=this.chain){
     let total = 0n;
     chain.forEach( block=>{
@@ -552,6 +567,11 @@ class Blockchain{
     return total.toString(16);
   }
 
+  /**
+   * 
+  * @param {object} transaction Unvalidated transaction object 
+  * @return {boolean} Validity of transaction, or error object
+  */
   createTransaction(transaction){
     return new Promise((resolve, reject)=>{
       this.validateTransaction(transaction)
@@ -1656,7 +1676,7 @@ class Blockchain{
   /**
     Fetches a block from chainDB
     @param {string} $blockNumberString - Block number is converted to string before making query
-    @return {object} Block queried or error if is not found
+    @return {Promive<Block>} Block queried or error if is not found
   */
   getBlockFromDB(blockNumberString){
     return new Promise(async(resolve)=>{
@@ -1674,9 +1694,10 @@ class Blockchain{
   }
 
   /**
-    Fetches a block from chainDB
-    @param {string} $blockNumberString - Block number is converted to string before making query
-    @return {Promise} Block queried or error if is not found
+    Inits the blockchain by, first, fetching the last block/last state store in a JSON file
+    Then, if loaded, will download the entirety of the blockchain from database
+    Then will load balance state table
+    @return {Promise} Success or failure
   */
   init(){
     return new Promise(async (resolve, reject)=>{
@@ -1703,7 +1724,14 @@ class Blockchain{
       })
     })
   }
-  
+
+  /**
+    First, looks for genesisBlock in chain to see if blockchain has been created
+      - If so, will load last block and will go about downloading the entire chain
+      - If not, will load genesisBlock config from file (or create it) then will push it to 
+        database and will initiate balance state table
+    @return {Promise} Success or failure
+  */
   loadBlocks(){
     return new Promise(async (resolve, reject)=>{
       //See if genesis block has been added to database
@@ -1748,8 +1776,6 @@ class Blockchain{
         this.balance.states = genesisBlock.states;
         let saved = await this.balance.saveStates()
 
-        
-
         this.genesisBlockToDB(genesisBlock)
         .then(async (added)=>{
           if(added){
@@ -1782,6 +1808,9 @@ class Blockchain{
     
   }
 
+  /**
+   * Saves only the last block to JSON file
+   */
   save(){
     return new Promise(async (resolve)=>{
       let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')

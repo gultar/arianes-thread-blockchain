@@ -66,9 +66,9 @@ const setNewDifficulty =(previousBlock, newBlock)=>{
   // console.log('Minimum difficulty: ', minimumDifficulty)
   const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
   // console.log('Mine time:', mineTime)
-  const timeAdjustment = (10 - mineTime >= -99? (10 - mineTime) : -99)
+  const timeAdjustment = (20 - mineTime >= -99? (20 - mineTime) : -99)
   // console.log('Time adjustment:', timeAdjustment)
-  const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / 1024n) * BigInt(timeAdjustment)
+  const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / 512n) * BigInt(timeAdjustment)
   // console.log('Modifier:', modifier)
   const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / 100000)-2)))
   // console.log('Difficulty bomb', difficultyBomb)
