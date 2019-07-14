@@ -1151,6 +1151,8 @@ class Node {
 
       socket.on('getBalance', async (publicKey)=>{
         console.log(await this.chain.getBalance(publicKey))
+        let balance = 0;
+        
       })
 
       socket.on('getKnownPeers', ()=>{

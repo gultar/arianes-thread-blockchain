@@ -97,6 +97,56 @@ class BalanceTable{
         }
     }
 
+    rollbackTransactions(transactions){
+        return new Promise((resolve)=>{
+            let txHashes = Object.keys(transactions);
+            let errors = {}
+            txHashes.forEach((hash)=>{
+                let transaction = transactions[hash]
+                let fromAddress = transaction.fromAddress;
+                let toAddress = transaction.toAddress;
+                let amount = transaction.amount;
+                let hash = transaction.hash;
+                let miningFee = transaction.miningFee;
+
+                let givebackFromAddress = this.gain(fromAddress, amount+miningFee, hash)
+                let takebackToAddress = this.spend(toAddress, amount, hash)
+
+                if(givebackFromAddress.error){
+                    errors[hash] = givebackFromAddress.error
+                }
+
+                if(takebackToAddress.error){
+                    errors[hash] = takebackToAddress.error
+                }
+
+                if(Object.keys(errors).length > 0) resolve({error:errors})
+                resolve(true)
+            })
+        })
+    }
+
+    rollbackActions(action){
+        return new Promise((resolve)=>{
+            let errors = {}
+            let actionHashes = Object.keys(action);
+            actionHashes.forEach((hash)=>{
+                let action = action[hash]
+                let fromAddress = transaction.fromAddress;
+                let hash = transaction.hash;
+                let fee = transaction.miningFee;
+
+                let givebackFromAddress = this.gain(fromAddress, fee, hash)
+                if(givebackFromAddress.error){
+                    errors[hash] = givebackFromAddress.error
+                }
+
+                if(Object.keys(errors).length > 0) resolve({error:errors})
+                resolve(true)
+            })
+        })
+    }
+
     getBalance(publicKey){
         return this.states[publicKey]
     }

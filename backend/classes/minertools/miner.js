@@ -235,6 +235,7 @@ class Miner{
 
     async createCoinbase(){
       if(this.wallet){
+        
         let coinbase = new Transaction('coinbase', this.wallet.publicKey, this.miningReward)
         let unlocked = await this.wallet.unlock(this.keychain.password)
         
@@ -261,6 +262,7 @@ class Miner{
       let transactions = this.pool.pendingTransactions
       let actions = this.pool.pendingActions
       let coinbase = await this.createCoinbase()
+      
       transactions[coinbase.hash] = coinbase
       if(Object.keys(transactions).length > 0){
         let block = new Block(Date.now(), transactions, actions);

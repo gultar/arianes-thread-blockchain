@@ -259,7 +259,7 @@ class Blockchain{
               })
               .catch(async (e)=>{
                 //Beautifull, fantastic, .then flavoured callback hell, 
-                //Goddamn PouchDB doesn't let me use async / await
+                //Freakin' PouchDB doesn't let me use async / await properly
 
                 //Get existing block from DB
                 this.chainDB.get(newBlock.blockNumber.toString())
@@ -443,6 +443,16 @@ class Blockchain{
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
                       
+                      orphanedBlocks.forEach(async (block)=>{
+                        let transactions = await this.chainDB.get(block.hash)
+                        let rolledBackTransactions = await this.balance.rollbackTransactions(transactions)
+                        if(rolledBackTransactions.error) logger('TX ROLLBACK ERROR:', rolledBackTransactions.error)
+                        if(transactions.actions){
+                          let rolledBackActions = await this.balance.rollbackActions(transactions.actions)
+                          if(rolledBackActions.error) logger('ACTION ROLLBACK ERROR:', rolledBackActions.error)
+                        }
+                      })
+                      
                       fork.forEach( async (block)=>{
                         let added = await this.pushBlock(block, true)
                         if(added.error){
@@ -590,7 +600,7 @@ class Blockchain{
 
   createCoinbaseTransaction(publicKey, blockHash){
     
-    return new Promise((resolve, reject)=>{
+    return new Promise(async (resolve, reject)=>{
       if(publicKey){
         try{
           var miningReward = new Transaction('coinbase', publicKey, this.miningReward, blockHash)
@@ -653,58 +663,62 @@ class Blockchain{
     return false;
   }
 
+  // /**
+  //   Follows the account balance of a given wallet through all blocks
+  //   @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
+  // */
+  // getBalanceOfAddress(publicKey){
+  //   if(publicKey){
+  //     var address = publicKey;
+  //     let balance = 0;
+  //     var trans;
+  //     var action;
+  //     if(!publicKey){
+  //       logger("ERROR: Can't get balance of undefined publickey")
+  //       return false;
+  //     }
+  //       for(var block of this.chain){
+  //         let transaction = this.chainDB
+  //         for(var transHash of Object.keys(block.transactions)){
+            
+  //           trans = block.transactions[transHash]
+  //           if(trans){
+  //             if(trans.fromAddress == address){
+
+  //               balance = balance - trans.amount - trans.miningFee;
+  //             }
+
+  //             if(trans.toAddress == address){
+
+  //               balance = balance + trans.amount;
+  //             }
+
+  //           }
+            
+
+  //         }
+  //         if(block.actions){
+  //           for(var actionHash of Object.keys(block.actions)){
+  //             action = block.actions[actionHash]
+  //             if(action){
+  //               if(action.fromAccount.publicKey == address){
+  //                 balance = balance - action.fee;
+  //               }
+  //             }
+  //           }
+  //         }
+
+  //       }
+
+  //     return balance;
+  //   }
+
+  // }
+
   /**
     Follows the account balance of a given wallet through all blocks
     @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
   */
-  getBalanceOfAddress(publicKey){
-    if(publicKey){
-      var address = publicKey;
-      let balance = 0;
-      var trans;
-      var action;
-      if(!publicKey){
-        logger("ERROR: Can't get balance of undefined publickey")
-        return false;
-      }
-        for(var block of this.chain){
-          let transaction = this.chainDB
-          for(var transHash of Object.keys(block.transactions)){
-            
-            trans = block.transactions[transHash]
-            if(trans){
-              if(trans.fromAddress == address){
-
-                balance = balance - trans.amount - trans.miningFee;
-              }
-
-              if(trans.toAddress == address){
-
-                balance = balance + trans.amount;
-              }
-
-            }
-            
-
-          }
-          if(block.actions){
-            for(var actionHash of Object.keys(block.actions)){
-              action = block.actions[actionHash]
-              if(action){
-                if(action.fromAccount.publicKey == address){
-                  balance = balance - action.fee;
-                }
-              }
-            }
-          }
-
-        }
-
-      return balance;
-    }
-
-  }
-
   getBalance(publicKey){
       return new Promise(async (resolve)=>{
         var address = publicKey;
@@ -716,6 +730,11 @@ class Blockchain{
           resolve(false)
         }
           for(var block of this.chain){
+            if(block.blockNumber == 0){
+              if(block.states[publicKey]){
+                balance = block.states[publicKey].balance
+              }
+            } 
             let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
             transactions = transactions[transactions._id]
             if(transactions){
@@ -723,19 +742,17 @@ class Blockchain{
               
                     trans = transactions[transHash]
                     if(trans){
+
                       if(trans.fromAddress == address){
-        
-                        balance = balance - trans.amount - trans.miningFee;
+                        balance = balance - (trans.amount + trans.miningFee);
                       }
         
                       if(trans.toAddress == address){
-        
                         balance = balance + trans.amount;
                       }
         
                     }
                     
-        
                   }
                   if(transactions.actions){
                     for(var actionHash of Object.keys(transactions.actions)){
@@ -768,23 +785,30 @@ class Blockchain{
     
   }
 
-  gatherMiningFees(block){
-    if(block){
-      let reward = 0;
-      var txHashes = Object.keys(block.transactions);
-      var actionHashes = Object.keys(block.actions);
-      for(var hash of txHashes){
-        reward += block.transactions[hash].miningFee;
+  gatherMiningFees(transactions, actions){
+    return new Promise((resolve)=>{
+      if(transactions){
+        let reward = 0;
+        var txHashes = Object.keys(transactions);
+        for(var hash of txHashes){
+            reward += transactions[hash].miningFee;
+        }
+  
+        if(actions){
+          var actionHashes = Object.keys(transactions);
+          for(var hash of actionHashes){
+              reward += actions[hash].fee;
+          }
+        }
+        resolve(reward)
+      }else{
+        resolve(false)
       }
-
-      for(var hash of actionHashes){
-        reward += block.actions[hash].fee;
-      }
-
-      return reward;
-    }
+    })
 
   }
+
+  
 
   getMiningFees(block){
       return new Promise(async(resolve)=>{
