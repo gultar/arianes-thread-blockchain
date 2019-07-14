@@ -14,6 +14,7 @@ class Account{
         this.ownerKey = ownerKey;
         this.hash = sha256(JSON.stringify(this));
         this.ownerSignature = '';
+        this.type = 'User Account'
     }
 
     signAccount(wallet, password){

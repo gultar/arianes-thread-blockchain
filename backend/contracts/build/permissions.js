@@ -6,11 +6,15 @@ class Permissions{
         //Modify - Account can read/write and add new permissions
         //Write - Account can modify contract state with actions
         //Read - By default, everyone can read data from the contract
-        this.levels = ['owner','modify', 'write', 'read', ]
+        this.category = ['owner','modify', 'write', 'read', ]
+        this.level = {
+            'owner':4,'modify':3, 'write':2, 'read':1,
+        }
         this.accounts = {
             [owner.name]:{
                 account:owner,
-                level:'owner'
+                category:'owner',
+                level:this.level['owner']
             }
         }
     }
@@ -19,16 +23,16 @@ class Permissions{
         return new Promise((resolve)=>{
             if(accountPermissionPairs && Array.isArray(accountPermissionPairs)){
                 accountPermissionPairs.forEach( pair=>{
-                    let level = pair.level
+                    let category = pair.category
                     let account = pair.account
-                    if(level && account){
-                        let permissionSet = this.define(account, level)
+                    if(category && account){
+                        let permissionSet = this.define(account, category)
                         if(permissionSet.error) {
                             return { 
                                 error: {
                                     message:permissionSet.error,
                                     account:account, 
-                                    level:level
+                                    category:category
                                 }  
                             }
                         }
@@ -40,31 +44,29 @@ class Permissions{
                 })
     
                 resolve(true)
+            }else{
+                throw new Error('Need to provide an array of account/permission category pairs')
             }
         })
         
     }
 
-    define(account, level){
-        if(account && level){
-            if(this.levels.includes(level)){
+    define(account, category){
+        if(account && category){
+            if(this.category.includes(category)){
                 this.accounts[account.name] = {
                     account:account,
-                    level:level
+                    category:category,
+                    level:this.level[category]
                 }
                 return true;
             }else{
-                return { error:'PERMISSION ERROR: Invalid permission level' }
+                return { error:'PERMISSION ERROR: Invalid permission category' }
             }
         }else{
             return { error: 'PERMISSION ERROR: Invalid account structure' }
         }
         
-        // if(isValidAccountJSON(account)){
-            
-        // }else{
-        //     
-        // }
     }
 
 }
@@ -86,12 +88,12 @@ module.exports = Permissions
 // myPermissions.defineMultipleAccounts([
 //     {
 //         account:account3, 
-//         level:'write'
+//         category:'write'
 //     },
 //     {
-//         account:account4, level:'modify'
+//         account:account4, category:'modify'
 //     },
 //     {
-//         account:account5, level:'write'
+//         account:account5, category:'write'
 //     }
 // ])

@@ -1,58 +1,58 @@
 const launchVM = () =>{
-    const { VMScript, VM, NodeVM } = require('vm2');
-    const Contract = require('../toolbox/contract')
-    const Coin = require('../toolbox/coin')
+    // const ContractVM = require('./contractVM')
+    // const Sandbox = require('./sandbox')
+    const VM = require('../VM.js/index.js.js')
     const fs = require('fs')
+  
 
-    let vm = new VM({
-        sandbox: {
-            console: {
-            log: function(str) { console.log(str); }
-            },
-            Coin:Coin,
-            Contract:Contract,
-            returns: (output)=>{ console.log(output) }
-        }    
-    })
-
-    let vm2 = new NodeVM({
-      sandbox: {
-          console: {
-          log: function(str) { console.log(str); }
-          },
-          Coin:Coin,
-          Contract:Contract,
-          Error:class Error{
-            constructor(str){
-              console.log(str)
-            }
-          }
-      }    
-  })
-
-
-    process.on('message', async(message, code)=>{
+    process.on('message', async(message)=>{
         try{
           let type = typeof message
           switch(type){
             case 'object':
               if(message.code){
-                const script = new VMScript(message.code);
                 
-                let output = await vm2.run(script)
-                process.send({data:output})
+                try{
+                  let vm = new VM({
+                    code:message.code,
+                    type:'NodeVM'
+                  })
+
+                  vm.buildVM()
+                  vm.compileScript()
+                  vm.run()
+                  console.log(vm.result)
+
+                  // let vm = new ContractVM({
+                  //   ramLimit: 128,
+                  //   logging: true,
+                  // });
+                  // let state = {
+                  //   deploy:true
+                  // }
+                  // vm.setTimingLimits(1000);
+                  // vm.setCpuLimit(1000);
+                  // vm.compileScript(message.code, state);
+                  // vm.setState(state);
+                  // vm.execute();
+                  
+                  // state.deploy = false;
+                }catch(e){
+                  console.log(e)
+                }
+                // process.send({data:output})
               }else{
                 process.send('ERROR: Invalid data format provided')
               }
               break;
             case 'string':
-              console.log(message)
+              // console.log(message)
               process.send('pong')
               break
             
           }
         }catch(e){
-          process.send({error:e})
+          process.send({error:e.toString()})
         }
         
       })

@@ -33,7 +33,7 @@ const callRemoteVM = (code) =>{
                     
                     break;
                 case 'string':
-                        console.log(message)
+                        // console.log(message)
                         pingCounter = 0;
                     break
                 

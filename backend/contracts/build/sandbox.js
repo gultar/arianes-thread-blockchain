@@ -1,28 +1,47 @@
-const Contract = require('./authentication');
-const serializeActiveObjects = require('../toolbox/contractTools')
-let _ = require('private-parts').createKey();
-const authenticateAccount = require('./authentication');
-const Account = require('../../classes/account');
-const Wallet = require('../../classes/wallet');
-const { logger } = require('../../tools/utils');
-const Transaction = require('../../classes/transaction')
-const Action = require('../../classes/transaction')
+// const Contract = require('./authentication');
+// const { extendContract } = require('../toolbox/contractTools')
+// let _ = require('private-parts').createKey();
+// const authenticateAccount = require('./authentication');
+// const Account = require('../../classes/account');
+// const Wallet = require('../../classes/wallet');
+// const { logger } = require('../../tools/utils');
+// const Transaction = require('../../classes/transaction')
+// const Action = require('../../classes/transaction')
 
 
-class Sandbox{
-    constructor(){
-        this.tools = {};
-        this.classes = {};
-    }
+// class Sandbox{
+//     constructor(){
+//         this.tools = {};
+//         this.classes = {};
+//     }
 
-    exposeClasses(){
-        return({
-            Contract:Contract,
-            serialize:serializeActiveObjects,
-            Account:Account,
-            Transaction:Transaction,
-        })
-    }
-}
+//     exposeClasses(){
+//         return({
+//             Wallet:Wallet,
+//             extendContract:extendContract,
+//             Account:Account,
+//             Transaction:Transaction,
+//             logger:logger,
+//             Action:Action,
+//             authenticateAccount:authenticateAccount
+            
+            
+//         })
+//     }
+// }
 
-module.exports = Sandbox
+// module.exports = {
+//     "Wallet":Wallet,
+//     "extendContract":extendContract,
+//     "Account":Account,
+//     "Transaction":Transaction,
+//     "logger":logger,
+//     "Action":Action,
+//     "authenticateAccount":authenticateAccount,
+//     "console":{
+//         log:function(...args){
+//             console.log(...args)
+//         }
+//     }
+    
+// }

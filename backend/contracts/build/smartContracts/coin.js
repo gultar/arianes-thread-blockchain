@@ -1,29 +1,25 @@
-let _ = require('private-parts').createKey();
-const { authenticateAccount } = require('../authentication');
-const { inheritFromClass } = require('../../toolbox/contractTools')
-const Contract = require('../contract');
-const Account = require('../../../classes/account');
-const Wallet = require('../../../classes/wallet');
-const { logger } = require('../../../tools/utils');
-const Transaction = require('../../../classes/transaction')
-const Action = require('../../../classes/Action')
+
+// const { authenticateAccount } = require('../authentication');
+// const { extendContract, createContractInterface } = require('../../toolbox/contractTools')
+// const Account = require('../../../classes/account');
+// const Wallet = require('../../../classes/wallet');
+// const { logger } = require('../../../tools/utils');
+// const Action = require('../../../classes/Action')
+
+
 
 class Coin{
     constructor(symbol, maxSupply, creator, contractAccount){
         this.className = 'Coin'
         this.symbol = symbol;
-        _(this).maxSupply = maxSupply;
+        this.maxSupply = maxSupply;
         this.creator = creator;
+        this.contract = {}
         this.contractAccount = contractAccount
     }
 
-    initContract(){
-        let newThis = inheritFromClass(this, Contract)
-        this.hash = this.seal()
-        return newThis;
-    }
-    
     async issue(amount, creatorAccount, receivingAccount){
+        
         if(amount && creatorAccount && receivingAccount){
              if(
                 typeof amount == 'number' &&
@@ -33,34 +29,31 @@ class Coin{
               ){
     
                 // let isOwner = await this.requireAuth(creatorAccount)
-                console.log(this.permissions)
-                let isOwner = this.permissions.accounts[creatorAccount.name].level == 'owner'
+                let isOwner = this.hasPermission(creatorAccount.name, 'owner')
                 if(isOwner){
                    if(this.getSupply() > amount){
-                     _(this).maxSupply = _(this).maxSupply - amount;
-
+                     this.maxSupply = this.maxSupply - amount;
                     let issueAction = new Action({
                         name:this.contractAccount.name,
                         publicKey:this.contractAccount.ownerKey
                     }, 'contract action')
                     issueAction.contractRef = {
                         name:this.className,
-                        hash:this.seal
                     }
                     issueAction.task = {
                         task:'issue',
                         amount:amount,
                         toAccount:receivingAccount,
                     }
-
+                    issueAction.signature = creatorAccount.ownerSignature
                     issueAction.fee = 0;
 
                     issueAction.calculateActionHash()
 
-                    console.log(JSON.stringify(issueAction, null, 2))
+                    return issueAction
 
                    }else{
-                     logger('ERROR: Could not issue coins. Max supply is too low')
+                     logger('ERROR: Current coin supply does not allow for issuance of coins')
                    }
                    
                 }else{
@@ -77,7 +70,9 @@ class Coin{
     }
 
     getSupply(){
-        return _(this).maxSupply;
+
+        //Find a way to keep track of state using storage, not json table
+        return this.maxSupply;
     }
 
     async requireAuth(account){
@@ -104,36 +99,59 @@ class Coin{
     }
 }
 
-const test = async()=>{
-    let w = new Wallet();
-    await w.init('muppet', 'boom');
-    let w2 = new Wallet();
-    await w2.init('broom', 'kaboom');
-    let a = new Account('dumbo', w.publicKey);
-    let a2 = new Account('fellow', w2.publicKey);
-    let aCoin = new Account('coinAccount', w.publicKey)
-    let signed = await a.signAccount(w, 'boom');
-    let signed2 = await a2.signAccount(w2, 'kaboom');
-    let signedCoinAccount = await aCoin.signAccount(w, 'boom');
-    let coin = new Coin('CUP', 1000*1000, a, aCoin);
-    coin = coin.initContract()
-    coin.definePermissions([{
-            account:a,
-            level:'owner'
-        },
-        {
-            account:aCoin,
-            level:'read'
-        }
-    ])
-    let issue = await coin.issue(1000, a, a2);
-    console.log('***********************')
-    console.log(coin)
-    
 
-}
 
 test()
 
 
-module.exports = Coin
+// module.exports = Coin
+
+const test = async()=>{
+    // const Wallet = require('Wallet')
+    try{
+        let w = new Wallet();
+        console.log(1)
+        await w.init('muppet', 'boom');
+        console.log(2)
+        let w2 = new Wallet();
+        console.log(3)
+        // await w2.init('broom', 'kaboom');
+        console.log(4)
+        let a = new Account('dumbo', w.publicKey);
+        console.log(5)
+        // let a2 = new Account('fellow', w2.publicKey);
+        console.log(6)
+        let aCoin = new Account('coinAccount', w.publicKey)
+        console.log(aCoin)
+        let signed = await a.signAccount(w, 'boom');
+        console.log(8)
+        // let signed2 = await a2.signAccount(w2, 'kaboom');
+        console.log(9)
+        let signedCoinAccount = await aCoin.signAccount(w, 'boom');
+        console.log(10)
+        let coin = new Coin('CUP', 1000*1000, a, aCoin);
+        console.log(11)
+        coin.definePermissions([{
+                account:a,
+                category:'owner'
+            },
+            {
+                account:aCoin,
+                category:'read'
+            }
+        ])
+        
+        // let issue = await coin.issue(1000, a, a2);
+        // let issue2 = await coin.issue(1000, a2, aCoin)
+        // coin.seal()
+        // .then((str) => console.log(str))
+        console.log(JSON.stringify(coin))
+        // console.log(issue)
+        // console.log(issue2)
+        // console.log(await createContractInterface(coin))
+    }catch(e){
+        console.log(e)
+    }
+   
+
+}

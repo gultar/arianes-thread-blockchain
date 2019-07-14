@@ -53,10 +53,11 @@ function merkleRoot(dataSet){
 
 }
 
-function loopOverMethods(object){
+function getMethodNames(object){
   return new Promise((resolve)=>{
     let methods = []
     for (let name of Object.getOwnPropertyNames(Object.getPrototypeOf(object))) {
+      
       let method = name;
       if(method !== 'constructor'){
         methods.push(method)
@@ -389,4 +390,4 @@ module.exports = {
   merge,
   createTargetFile,
   validatePublicKey,
-  loopOverMethods, };
+  getMethodNames, };

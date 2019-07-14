@@ -8,14 +8,15 @@ const { logger } = require('../tools/utils')
 class PeerDiscovery{
 
     constructor(opts){
-        let { address, host, port, channel } = opts
+        let { address, host, port, channel, knownPeers } = opts
         this.channel = channel || 'blockchain-mainnet';
         this.address = address;
         this.host = host;
         this.port = port;
+        this.knownPeers = knownPeers || {}
         this.service;
         this.browser;
-        this.knownPeers = {}
+        this.swarm;
         this.emitter = new EventEmitter()
     }
 
@@ -54,6 +55,7 @@ class PeerDiscovery{
     stopBrowser(){
         return new Promise((resolve)=>{
             this.browser.stop((stopped)=>{
+                logger('DNSSD Browser stopped')
                 resolve(true)
             })
         })
@@ -62,6 +64,7 @@ class PeerDiscovery{
     stopService(){
         return new Promise((resolve)=>{
             this.service.stop((stopped)=>{
+                logger('DNSSD Service stopped')
                 resolve(true)
             })
         })
@@ -71,14 +74,14 @@ class PeerDiscovery{
         return new Promise((resolve)=>{
             logger('Looking for peers on Bittorrent DHT')
             let potentialPeers = {}
-            let sw = Swarm({
+            this.swarm = Swarm({
                 id: randomBytes(32).toString('hex'), // peer-id for user
                 utp: false, // use utp for discovery
                 tcp: true, // use tcp for discovery
                 maxConnections: 10,
             })
-            sw.listen(this.port)
-            sw.on('connection', (connection, peer) => {
+            this.swarm.listen(this.port)
+            this.swarm.on('connection', (connection, peer) => {
                 if(connection){
                     if(isIP.v4(peer.host) && peer.host != 'localhost'){
                         let nodePort = parseInt(peer.port) + 2000 //To be changed and fixed to a port number
@@ -90,14 +93,14 @@ class PeerDiscovery{
                 } 
                 // console.log('connection', connection)
             })
-            sw.on('peer', function(peer) {
+            this.swarm.on('peer', function(peer) {
                 let address = `${peer.host}:${peer.port}`
                 potentialPeers[address] = {
                     peer:peer,
                     connected:false,
                 }
             })
-            sw.join(this.channel)
+            this.swarm.join(this.channel)
             resolve(true)
         })
         
@@ -120,12 +123,35 @@ class PeerDiscovery{
                     contact.host = address;
                     contact.port = service.port
                     contact.address = service.name
-                    this.knownPeers[address] = contact
-                    this.emitter.emit('peerDiscovered', contact)
+                    contract.lastSeen = Date.now()
+                    if(!this.knownPeers[address]){
+                        this.knownPeers[address] = contact
+                        this.emitter.emit('peerDiscovered', contact)
+                    }
                 }
             }
         })
         
+    }
+
+    cleanUpPeers(){
+        let peerAddresses = Object.keys(this.knownPeers);
+        peerAddresses.forEach( address=>{
+            if(this.knownPeers[address]){
+                if(this.knownPeers[address].lastSeen < Date.now - (24 * 60 * 1000)){
+                    this.emitter.emit('peerInactive', this.knownPeers[address])
+                    delete this.knownPeers[address]
+                }
+
+            }
+        })
+    }
+
+    close(){
+        this.swarm.destroy(()=>{
+            this.emitter.removeAllListeners('peerDiscovered')
+            logger('DHT Peer discovery stopped')
+        })
     }
 }
 

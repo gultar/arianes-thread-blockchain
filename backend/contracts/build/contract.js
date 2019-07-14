@@ -1,8 +1,7 @@
 const Permissions = require('./permissions')
-const { serializeActiveObject } = require('../toolbox/contractTools')
-const Account = require('../../classes/account')
-const { loopOverMethods } = require('../../tools/utils')
 const sha256 = require('../../tools/sha256')
+const { extendContract, becomeContract } = require('../toolbox/contractTools')
+const createContractInterface = require('../toolbox/contractInterface')
 
 class Contract{
     constructor(name, creator, contractAccount, opts){
@@ -20,26 +19,37 @@ class Contract{
     }
 
     seal(){
-        try{
-            let contract = JSON.stringify(this)
-            let hash = sha256(contract)
-            return hash
-        }catch(e){
-            console.log(e)
-            return false
-        }
+        return new Promise(async (resolve)=>{
+            let contractInterface = await this.getInterface()
+            let stringed = JSON.stringify(contractInterface)
+            resolve(sha256(stringed))
+        })
     }
 
-    hasPermission(accountName, requiredPermission){
-        if(this.permissions.levels.includes(requiredPermission)){
-            if(this.permissions.accounts[accountName].level == requiredPermission){
-                return true;
+    getInterface(){
+        return new Promise(async (resolve)=>{
+            let contractInterface = await createContractInterface(this)
+            resolve(contractInterface)
+        })
+    }
+
+    //To be replaced by permission level instead
+    hasPermission(accountName, category){
+        if(this.permissions && this.permissions.accounts){
+            let requiredPermission = this.permissions.level[category]
+            if(this.permissions.category.includes(category)){
+                if(this.permissions.accounts[accountName] && this.permissions.accounts[accountName].level >= requiredPermission){
+                    return true;
+                }else{
+                    return false;
+                }
             }else{
                 return false;
             }
         }else{
-            return false;
+            return false
         }
+        
     }
 
     definePermissions(accounts){

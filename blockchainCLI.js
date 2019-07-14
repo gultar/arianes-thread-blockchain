@@ -4,6 +4,7 @@ const Node = require('./node');
 const program = require('commander');
 const { logger, readFile } = require('./backend/tools/utils');
 const fs = require('fs')
+const genesis = require('./backend/tools/getGenesis')
 
 
 let node;
@@ -99,7 +100,9 @@ program
         enableLocalPeerDiscovery:discovery.local,
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
+        networkChannel:'blockchain-mainnet',
         noLocalhost:true,
+        genesis:genesis
       })
 
      node.startServer()

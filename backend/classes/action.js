@@ -6,7 +6,7 @@ const jsonSize = require('json-size');
 class Action{
     constructor(fromAccount, type, task, data='', contractRef={}){
         this.fromAccount = fromAccount; //{ name, publicKey }
-        this.type = type; //GET, POST, PUT, DELETE, UPDATE
+        this.type = type; 
         this.task = task; //Function on the contract
         this.data = data;
         this.timestamp = Date.now();
@@ -23,6 +23,38 @@ class Action{
     setMiningFee(){
         let actionToWeigh = {
             fromAccount:this.fromAccount,
+            type:this.type,
+            task:this.task,
+            data:this.data,
+            timestamp:this.timestamp, 
+            contractRef:this.contractRef,
+        }
+        let size = jsonSize(actionToWeigh);
+        let sizeFee = size * 0.0001;
+        return sizeFee;
+    }
+
+    defineContractReference(contract){
+        this.contractRef = {
+            contractName:contract.name,
+            creator:contract.ownerKey
+        }
+        this.calculateActionHash()
+    }
+
+    defineTask({ call, type, params }){
+        this.task = {
+            call:call, //Contract method
+            type:type, //GET, SET, DELETE, UPDATE
+            params:params
+        }
+        this.calculateActionHash()
+    }
+
+    //Deprecated
+    setFee(){
+        let actionToWeigh = {
+            fromAccount:this.fromAccount,
             type:this.type,task:this.task,
             data:this.data,
             timestamp:this.timestamp, 
@@ -30,22 +62,12 @@ class Action{
         }
         let size = jsonSize(actionToWeigh);
         let sizeFee = size * 0.0001;
-        return sizeFee;
+        this.fee = sizeFee;
+        this.calculateActionHash()
     }
 
-    //Not practical at all
-    //Instead, treat as a seperate by transaction-like entity
-    // storeInTransaction(senderPublicKey){
-    //     try{
-    //         let transaction = new Transaction(senderPublicKey, 'storeInChain', 0, JSON.stringify(this))
-    //         transaction.type = 'action';
-    //         return transaction;
-    //     }catch(e){
-    //         console.log(e)
-    //     }
-    // }
+    
 
-    //Does it actually work?
     signAction(wallet, password, actionHash){
         return new Promise(async (resolve, reject)=>{
             if(wallet && password && actionHash && wallet instanceof Wallet){
@@ -53,6 +75,31 @@ class Action{
                if(unlocked){
                     let signature = await wallet.sign(actionHash);
                     if(signature){
+                        resolve(signature)
+                    }else{
+                        logger('ERROR: Could not sign action');
+                    }
+                }else{
+                    logger('ERROR: Could not unlock wallet')
+                    resolve(false);
+                }       
+                
+                
+            }else{
+                logger('ERROR: wallet and password are required to sign action')
+                resolve(false)
+            }   
+        })
+    }
+
+    sign(wallet, password){
+        return new Promise(async (resolve, reject)=>{
+            if(wallet && password && actionHash && wallet instanceof Wallet){
+               let unlocked = await wallet.unlock(password)
+               if(unlocked){
+                    let signature = await wallet.sign(this.hash);
+                    if(signature){
+                        this.signature = signature;
                         resolve(signature)
                     }else{
                         logger('ERROR: Could not sign action');

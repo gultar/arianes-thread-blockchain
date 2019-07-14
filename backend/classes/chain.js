@@ -45,37 +45,39 @@ class Blockchain{
   }
 
   async createGenesisBlock(){
-    return new Promise(async (resolve)=>{
-        let genesisBlock = new Block(1554987342039,
-          { 
-            'maxCurrency':new Transaction
-            (
-              'coinbase',
-              "coinbase", 
-              1000 * 1000 * 1000 * 1000, 
-              'Maximum allowed currency in circulation',
-              'coinbaseReserve',
-              false,
-              0
-            ),
-          } 
-          , {});
-          genesisBlock.difficulty = '0x100000';//'0x2A353F';
-          genesisBlock.totalDifficulty = genesisBlock.difficulty
-          genesisBlock.challenge = setNewChallenge(genesisBlock)
-          genesisBlock.maxCoinSupply = Math.pow(10, 10);
-          genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
-          genesisBlock.calculateHash();
-          genesisBlock.states = {
-            //Other public addresses can be added to initiate their balance in the genesisBlock
-            //Make sure at least one of the them has some funds, otherwise no transactions will be possible
-            "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000, lastTransaction:'coinbase', },
-            "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000, lastTransaction:'coinbase', },
-            "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
-            "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
-          }
-          resolve(genesisBlock)
-    })
+    let genesisBlock = new Block(1554987342039,
+      { 
+        'maxCurrency':new Transaction
+        (
+          'coinbase',
+          "coinbase", 
+          1000 * 1000 * 1000 * 1000, 
+          'Maximum allowed currency in circulation',
+          'coinbaseReserve',
+          false,
+          0
+        ),
+      }, {});
+      genesisBlock.difficulty = '0x100000';//'0x2A353F';
+      genesisBlock.totalDifficulty = genesisBlock.difficulty
+      genesisBlock.challenge = setNewChallenge(genesisBlock)
+      genesisBlock.maxCoinSupply = Math.pow(10, 10);
+      genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
+      genesisBlock.calculateHash();
+      genesisBlock.states = {
+        //Other public addresses can be added to initiate their balance in the genesisBlock
+        //Make sure at least one of the them has some funds, otherwise no transactions will be possible
+        "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000, lastTransaction:'coinbase', },
+        "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000, lastTransaction:'coinbase', },
+        "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
+        "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
+      }
+
+      return genesisBlock
+    // return new Promise(async (resolve)=>{
+        
+    //       resolve(genesisBlock)
+    // })
   }
   /**
    * Stores Genesis block to database as well as coinstore transaction
@@ -156,7 +158,7 @@ class Blockchain{
    */
   saveGenesisFile(){
     return new Promise(async (resolve)=>{
-      let genesisBlock = await this.createGenesisBlock();
+      let genesisBlock = this.createGenesisBlock();
       let saved = await writeToFile(genesisBlock, './config/genesis.json')
       if(saved){
         resolve(genesisBlock)
@@ -1545,6 +1547,76 @@ class Blockchain{
     
   }
 
+  validateContractAction(action, account){
+    return new Promise(async (resolve, reject)=>{
+      if(action){
+          //Is linked to calling action
+          //Is calling action actually calling contract
+          let isChecksumValid = await this.validateActionChecksum(action);
+          let hasMiningFee = action.fee > 0; //check if amount is correct
+          let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+          let balanceOfSendingAddr = await this.checkBalance(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
+          let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
+          let isLinkedToContract = this.isLinkedToContract()
+          // let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
+          // let isCreateAccount = action.type == 'account' && action.task == 'create';
+          
+
+          if(account && isValidAccountJSON(account)){ 
+            
+            let isSentByOwner = await this.validateActionSignature(action, account.ownerKey);
+      
+            if(!isSentByOwner){
+              resolve({error:"ERROR: Signature is not associated with sender account"})
+            }
+          
+          }else if(isCreateAccount){
+            let newAccount = action.data;
+            let isValidAccount = isValidAccountJSON(newAccount);
+
+            if(!isValidAccount){
+              resolve({error:"ERROR: Account contained in create account action is invalid"})
+            }
+
+          }else{
+            resolve({error:"ERROR: Could not find action's sender account"})
+          }
+
+        if(balanceOfSendingAddr < action.fee){
+          resolve({error:"ERROR: Sender's balance is too low"})
+        }
+
+        if(!isSignatureValid){
+          resolve({error:"ERROR: Action signature is invalid"})
+        }
+
+        if(!isChecksumValid){
+          resolve({error:"ERROR: Action checksum is invalid"})
+        }
+
+        if(!isLinkedToWallet){
+          resolve({error:"ERROR: Action ownerKey is invalid"})
+        }
+
+        if(!actionIsNotTooBig){
+          resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+        }
+  
+        if(!hasMiningFee){
+          resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
+        }
+
+        resolve(true);
+
+      }else{
+        resolve({error:'Account or Action is undefined'})
+      }
+      
+      
+    })
+    
+  }
+
   /**
     Checks if the transaction hash matches it content
     @param {object} $transaction - Transaction to be inspected
@@ -1815,6 +1887,7 @@ class Blockchain{
   save(){
     return new Promise(async (resolve)=>{
       let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')
+      
       if(!lastBlock){
         logger('ERROR: Could not save blockchain state')
         resolve(false)
