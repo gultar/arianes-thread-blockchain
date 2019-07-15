@@ -17,13 +17,14 @@ const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../
 const Transaction = require('./transaction');
 const BalanceTable = require('./balanceTable')
 const Block = require('./block');
-const { setNewChallenge, setNewDifficulty } = require('./challenge');
+const { setNewChallenge, setNewDifficulty, Difficulty } = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
 const Mempool = require('./mempool');
 const fs = require('fs');
 const jsonc = require('jsonc')
 let _ = require('private-parts').createKey();
+const genesis = require('../tools/getGenesis')
 const PouchDB = require('pouchdb');
 /**
   * @desc Basic blockchain class.
@@ -36,6 +37,7 @@ class Blockchain{
     this.chain = chain
     this.chainDB = new PouchDB('./data/chainDB');
     this.balance = new BalanceTable()
+    this.difficulty = new Difficulty(genesis)
     this.blockForks = {}
     this.isSyncingBlocks = false
     this.miningReward = 50;
@@ -1022,7 +1024,8 @@ class Blockchain{
   validateDifficulty(block){
     let previousBlock = this.chain[block.blockNumber - 1]
     if(previousBlock){
-      let difficultyRecalculated = setNewDifficulty(previousBlock, block);
+      
+      let difficultyRecalculated = this.difficulty.setNewDifficulty(previousBlock, block);
       let parsedRecalculatedDifficulty = BigInt(parseInt(difficultyRecalculated, 16))
       let parsedActualdifficulty = BigInt(parseInt(block.difficulty, 16))
       if(parsedActualdifficulty == parsedRecalculatedDifficulty){
@@ -1036,7 +1039,7 @@ class Blockchain{
   }
 
   validateChallenge(block){
-    let recalculatedChallenge = setNewChallenge(block)
+    let recalculatedChallenge = this.difficulty.setNewChallenge(block)
     let parsedRecalculatedChallenge = BigInt(parseInt(recalculatedChallenge, 16))
     let parsedActualChallenge = BigInt(parseInt(block.challenge, 16))
     if(parsedActualChallenge == parsedRecalculatedChallenge){

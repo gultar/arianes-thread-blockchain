@@ -6,7 +6,8 @@ const WalletManager = require('../walletManager')
 const { logger, displayTime } = require('../../tools/utils');
 const { isValidBlockJSON } = require('../../tools/jsonvalidator');
 const chalk = require('chalk');
-const { setNewDifficulty, setNewChallenge } = require('../challenge')
+const genesis = require('../../tools/getGenesis')
+const { setNewDifficulty, setNewChallenge, Difficulty } = require('../challenge')
 const ioClient = require('socket.io-client');
 class Miner{
     constructor(params){
@@ -14,7 +15,7 @@ class Miner{
         this.keychain = params.keychain;
         this.verbose = params.verbose;
         this.wallet = {}
-        // this.publicKey = params.publicKey;
+        this.genesis = genesis
         this.manager = new WalletManager()
         this.previousBlock = {}
         this.minerReady = false;
@@ -269,8 +270,9 @@ class Miner{
         block.startMineTime = Date.now()
         block.blockNumber = this.previousBlock.blockNumber + 1;
         block.previousHash = this.previousBlock.hash;
-        block.difficulty = setNewDifficulty(this.previousBlock, block);
-        block.challenge = setNewChallenge(block)
+        let difficulty = new Difficulty(this.genesis)
+        block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
+        block.challenge = difficulty.setNewChallenge(block)
         block.totalDifficulty = this.calculateTotalDifficulty(block)
         block.minedBy = this.wallet.publicKey;
         return block;

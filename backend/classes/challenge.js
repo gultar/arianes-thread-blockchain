@@ -5,6 +5,31 @@ process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
 process.IDEAL_BLOCK_TIME = 10; //seconds
 const MINIMUM_DIFFICULTY = parseInt('0x100000')
 
+class Difficulty{
+  constructor(genesisConfig){
+    this.difficultyBomb = genesisConfig.difficultyBomb || 100 * 1000;
+    this.minimumDifficulty = genesisConfig.difficulty
+    this.difficultyBoundDivider = genesisConfig.difficultyBoundDivider || 512
+  }
+
+  setNewDifficulty(previousBlock, newBlock){
+    const minimumDifficulty = BigInt(this.minimumDifficulty);
+    const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
+    const timeAdjustment = (20 - mineTime >= -99? (20 - mineTime) : -99)
+    const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / 512n) * BigInt(timeAdjustment)
+    const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / this.difficultyBomb)-2)))
+    let blockDiff = BigInt(parseInt(previousBlock.difficulty, 16)) + modifier + difficultyBomb
+    blockDiff = (blockDiff > minimumDifficulty ? blockDiff : minimumDifficulty)
+    return BigInt(blockDiff).toString(16)
+  }
+
+  setNewChallenge(block){
+    let difficulty = BigInt(parseInt(block.difficulty, 16))
+    if(difficulty == 0n) difficulty = 1n
+    let newChallenge = BigInt(Math.pow(2, 255) -1) / BigInt(difficulty)
+    return newChallenge.toString(16)
+  }
+}
 
 
 /**
@@ -87,4 +112,4 @@ const setNewChallenge = (block) =>{
 }
 
 
-module.exports = {setNewChallenge, setNewDifficulty};
+module.exports = {setNewChallenge, setNewDifficulty, Difficulty};
