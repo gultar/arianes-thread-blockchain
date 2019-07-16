@@ -38,12 +38,14 @@ class BalanceTable{
                 let coinsSpent = this.spend(fromAddress, amount+miningFee, hash);
                 if(!coinsSpent.error){
                     let coinsGained = this.gain(toAddress, amount, hash);
+                    
                     return true;
                 }else{
                     return coinsSpent.error;
                 }
             }else{
                 let coinsGained = this.gain(toAddress, amount, hash);
+                console.log(`${toAddress} gained ${amount}`)
                 return true;
             }
             
@@ -109,19 +111,15 @@ class BalanceTable{
                 let miningFee = transaction.miningFee;
 
                 let givebackFromAddress = this.gain(fromAddress, amount+miningFee, hash)
+
                 let takebackToAddress = this.spend(toAddress, amount, hash)
-
-                if(givebackFromAddress.error){
-                    errors[hash] = givebackFromAddress.error
-                }
-
                 if(takebackToAddress.error){
                     errors[hash] = takebackToAddress.error
                 }
-
-                if(Object.keys(errors).length > 0) resolve({error:errors})
-                resolve(true)
             })
+
+            if(Object.keys(errors).length > 0) resolve({error:errors})
+            else resolve(true)
         })
     }
 
@@ -136,13 +134,12 @@ class BalanceTable{
                 let fee = transaction.miningFee;
 
                 let givebackFromAddress = this.gain(fromAddress, fee, hash)
-                if(givebackFromAddress.error){
-                    errors[hash] = givebackFromAddress.error
-                }
 
-                if(Object.keys(errors).length > 0) resolve({error:errors})
-                resolve(true)
+                
             })
+
+            if(Object.keys(errors).length > 0) resolve({error:errors})
+            else resolve(true)
         })
     }
 

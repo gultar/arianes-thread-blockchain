@@ -446,6 +446,7 @@ class Blockchain{
                       
                       orphanedBlocks.forEach(async (block)=>{
                         let transactions = await this.chainDB.get(block.hash)
+                        console.log('Transactions:', transactions)
                         let rolledBackTransactions = await this.balance.rollbackTransactions(transactions)
                         if(rolledBackTransactions.error) logger('TX ROLLBACK ERROR:', rolledBackTransactions.error)
                         if(transactions.actions){
