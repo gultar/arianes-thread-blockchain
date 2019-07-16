@@ -6,6 +6,17 @@ const fs = require('fs')
 class BalanceTable{
     constructor(state){
         this.states = (state?state:{})
+        this.history = (history?history:{})
+    }
+
+    saveHistory(blockNumber){
+        if(blockNumber){
+            this.history[blockNumber] = this.states
+            return true
+        }else{
+            logger('ERROR: Need to specify block number')
+            return false
+        }
     }
 
     executeTransactionBlock(transactions){
@@ -38,15 +49,22 @@ class BalanceTable{
                 let coinsSpent = this.spend(fromAddress, amount+miningFee, hash);
                 if(!coinsSpent.error){
                     let coinsGained = this.gain(toAddress, amount, hash);
+                    if(coinsGained.error){
+                        return { error:coinsGained.error }
+                    }else{
+                        return true;
+                    }
                     
-                    return true;
                 }else{
-                    return coinsSpent.error;
+                    return { error:coinsSpent.error };
                 }
             }else{
                 let coinsGained = this.gain(toAddress, amount, hash);
-                console.log(`${toAddress} gained ${amount}`)
-                return true;
+                if(coinsGained.error){
+                    return { error:coinsGained.error }
+                }else{
+                    return true;
+                }
             }
             
             
@@ -95,52 +113,11 @@ class BalanceTable{
                 return coinsSpent.error;
             }
             
-            
         }
     }
 
-    rollbackTransactions(transactions){
-        return new Promise((resolve)=>{
-            let txHashes = Object.keys(transactions);
-            let errors = {}
-            txHashes.forEach((hash)=>{
-                let transaction = transactions[hash]
-                let fromAddress = transaction.fromAddress;
-                let toAddress = transaction.toAddress;
-                let amount = transaction.amount;
-                let miningFee = transaction.miningFee;
-
-                let givebackFromAddress = this.gain(fromAddress, amount+miningFee, hash)
-
-                let takebackToAddress = this.spend(toAddress, amount, hash)
-                if(takebackToAddress.error){
-                    errors[hash] = takebackToAddress.error
-                }
-            })
-
-            if(Object.keys(errors).length > 0) resolve({error:errors})
-            else resolve(true)
-        })
-    }
-
-    rollbackActions(action){
-        return new Promise((resolve)=>{
-            let errors = {}
-            let actionHashes = Object.keys(action);
-            actionHashes.forEach((hash)=>{
-                let action = action[hash]
-                let fromAddress = transaction.fromAddress;
-                let hash = transaction.hash;
-                let fee = transaction.miningFee;
-
-                let givebackFromAddress = this.gain(fromAddress, fee, hash)
-
-                
-            })
-
-            if(Object.keys(errors).length > 0) resolve({error:errors})
-            else resolve(true)
-        })
+    rollback(blockNumber){
+        this.states = this.history[blockNumber]
     }
 
     getBalance(publicKey){
@@ -148,37 +125,52 @@ class BalanceTable{
     }
 
     addNewWalletKey(publicKey){
-        this.states[publicKey] = {
-            balance:0,
-            lastTransaction:'unkown',
+        if(publicKey){
+            this.states[publicKey] = {
+                balance:0,
+                lastTransaction:'unkown',
+            }
+            let fingerprintString = JSON.stringify(this.states[publicKey])
+            this.states[publicKey].fingerprint = sha256(fingerprintString);
+        }else{
+            return false
         }
-        let fingerprintString = JSON.stringify(this.states[publicKey])
-        this.states[publicKey].fingerprint = sha256(fingerprintString);
+        
     }
 
     spend(publicKey, value, txHash){
-        if(!this.states[publicKey]) return {error:'Wallet does not exist'};
-        let walletState = this.states[publicKey];
-        if(walletState.balance > value){
-            walletState.balance -= value;
-            walletState.lastTransaction = txHash
-            let fingerprintString = JSON.stringify(walletState)
-            walletState.fingerprint = sha256(fingerprintString);
+        if(publicKey && value && txHash){
+            if(!this.states[publicKey]) return {error:'Wallet does not exist'};
+            let state = this.states[publicKey];
+            if(state.balance > value){
+                state.balance -= value;
+                state.lastTransaction = txHash
+            }else{
+                return { error:'ERROR: sending wallet does not have sufficient funds' }
+            }
+            return true;
         }else{
-            return { error:'ERROR: sending wallet does not have sufficient funds' }
+            return { error:'ERROR: missing required parameters (publicKey, value, txHash)' };
         }
         
-        return true;
     }
 
     gain(publicKey, value, txHash){
-        if(!this.states[publicKey]) this.addNewWalletKey(publicKey);
-        let walletState = this.states[publicKey];
-        walletState.balance += value;
-        walletState.lastTransaction = txHash
-        let fingerprintString = JSON.stringify(walletState)
-        walletState.fingerprint = sha256(fingerprintString);
-        return true;
+        if(publicKey && value && txHash){
+
+              if(!this.states[publicKey]){
+                let newWallet = this.addNewWalletKey(publicKey);
+                if(!newWallet) return {error:'ERROR: Public key of wallet is undefined'}
+              }
+              
+              let state = this.states[publicKey];
+              state.balance += value;
+              state.lastTransaction = txHash
+              return true;
+        }else{
+            return { error:'ERROR: missing required parameters (publicKey, value, txHash)' };
+        }
+        
     }
 
     loadAllStates(){

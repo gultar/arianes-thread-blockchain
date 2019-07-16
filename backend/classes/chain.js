@@ -213,36 +213,46 @@ class Blockchain{
           var isLinked = this.isBlockLinked(newBlock);
           
           if(isLinked){
-            
+            //Save balance history
+            this.balance.saveHistory(this.getLatestBlock().blockNumber)
+            //Push block header to chain
             this.chain.push(this.extractHeader(newBlock));
             if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
+            //Verify is already exists
             let exists = await this.chainDB.get(newBlock.hash).catch(e => {})
             if(!exists){
-
+              //If not, execute all transactions and actions
+              
               let executed = await this.balance.executeTransactionBlock(newBlock.transactions)
               if(executed.errors) resolve({ error: executed.errors })
 
               let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions)
               if(actionsExecuted.error) resolve({ error: executed.errors })
+              
               if(newBlock.actions && actionsExecuted){
                 newBlock.transactions['actions'] = newBlock.actions
               }
 
+              //Then add block header to database,
               this.chainDB.put({
                 _id:newBlock.blockNumber.toString(),
                 [newBlock.blockNumber]:this.extractHeader(newBlock)
               })
               .then((blockAdded)=>{
                 if(blockAdded){
+                  //Then put block body (transactions and actions)
                   this.chainDB.put({
                     _id:newBlock.hash,
                     [newBlock.hash]:newBlock.transactions
                 })
                 .then((txConfirmed)=>{
                   if(txConfirmed){
+                    //Then remove them from mempool
                     Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
                     if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+
                     resolve(true);
+
                   }else{
                     logger('ERROR: Could not add transactions to database')
                     resolve(false)
@@ -274,7 +284,7 @@ class Blockchain{
                         })
                         .then((blockAdded)=>{
                           if(blockAdded){
-                            //then insert new block's transactions
+                            //then insert new block's transactions and actions
                             this.chainDB.put({
                                   _id:newBlock.hash,
                                   [newBlock.hash]:newBlock.transactions
@@ -444,16 +454,17 @@ class Blockchain{
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
                       
-                      orphanedBlocks.forEach(async (block)=>{
-                        let transactions = await this.chainDB.get(block.hash)
-                        console.log('Transactions:', transactions)
-                        let rolledBackTransactions = await this.balance.rollbackTransactions(transactions)
-                        if(rolledBackTransactions.error) logger('TX ROLLBACK ERROR:', rolledBackTransactions.error)
-                        if(transactions.actions){
-                          let rolledBackActions = await this.balance.rollbackActions(transactions.actions)
-                          if(rolledBackActions.error) logger('ACTION ROLLBACK ERROR:', rolledBackActions.error)
-                        }
-                      })
+                      this.balance.rollback(forkHeadBlock.blockNumber)
+                      // orphanedBlocks.forEach(async (block)=>{
+                      //   let transactions = await this.chainDB.get(block.hash)
+                      //   console.log('Transactions:', transactions)
+                      //   let rolledBackTransactions = await this.balance.rollbackTransactions(transactions)
+                      //   if(rolledBackTransactions.error) logger('TX ROLLBACK ERROR:', rolledBackTransactions.error)
+                      //   if(transactions.actions){
+                      //     let rolledBackActions = await this.balance.rollbackActions(transactions.actions)
+                      //     if(rolledBackActions.error) logger('ACTION ROLLBACK ERROR:', rolledBackActions.error)
+                      //   }
+                      // })
                       
                       fork.forEach( async (block)=>{
                         let added = await this.pushBlock(block, true)
