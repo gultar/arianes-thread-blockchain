@@ -106,7 +106,6 @@ class BalanceTable{
                 let fromAddress = transaction.fromAddress;
                 let toAddress = transaction.toAddress;
                 let amount = transaction.amount;
-                let hash = transaction.hash;
                 let miningFee = transaction.miningFee;
 
                 let givebackFromAddress = this.gain(fromAddress, amount+miningFee, hash)
