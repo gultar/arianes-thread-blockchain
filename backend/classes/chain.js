@@ -76,10 +76,6 @@ class Blockchain{
       }
 
       return genesisBlock
-    // return new Promise(async (resolve)=>{
-        
-    //       resolve(genesisBlock)
-    // })
   }
   /**
    * Stores Genesis block to database as well as coinstore transaction
