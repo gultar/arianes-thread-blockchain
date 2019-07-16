@@ -359,6 +359,8 @@ class Blockchain{
            *           |-[f][f]X <-- [f] Case 2: Forked chain will be extended, then, if total difficulty is higher, 
            *           |              forked chain will be adopted, the other branch will be orphaned
            *           |-[f]X    <--  [f] Case 3: Handles more than one forked block
+           * Terms:
+           * - Fork root, is the block mined before block fork happens. Both blocks are linked to it
            * 
            */
           let forkRootBlockNumber = this.getIndexOfBlockHash(newBlock.previousHash)
@@ -384,6 +386,7 @@ class Blockchain{
 
             const extendFork = (newBlock) =>{
               let forkInfo = this.blockForks[newBlock.previousHash]
+
               if(forkInfo){
                 let rootHash = this.blockForks[newBlock.previousHash].root
                 let rootIndex = this.getIndexOfBlockHash(rootHash)
@@ -457,7 +460,7 @@ class Blockchain{
                           errors.push(added.error)
                         }else{
                           delete this.blockForks[block.hash]
-                          logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
+                          logger(chalk.yellow(`* Synced forked block ${chalk.white(block.blockNumber)}`))
                           logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
                           logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
                         } 
@@ -510,9 +513,13 @@ class Blockchain{
                   let resolved = await resolveFork(extendedFork)
                   if(resolved.error){
                     resolve({error:resolved.error})
-                  }else{
-                    logger(chalk.yellow(`* Finished switching branch`))
+                  }else if(resolved){
+                    logger(chalk.yellow(`* Finished syncing blockchain fork`))
                     logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                    resolve(true)
+                  }else{
+                    logger(chalk.yellow(`* Staying on main blockchain`))
+                    logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
                     resolve(true)
                   }
                 }else{
