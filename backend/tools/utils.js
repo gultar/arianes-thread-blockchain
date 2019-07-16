@@ -317,7 +317,7 @@ const parseToString = (data)=>{
       file = data.toString();
       break;
     default:
-      logger('ERROR: could not write this data type');
+      throw new Error('ERROR: could not write this data type')
       break;
 
   }

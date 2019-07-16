@@ -214,7 +214,8 @@ class Blockchain{
           
           if(isLinked){
             //Save balance history
-            this.balance.saveHistory(this.getLatestBlock().blockNumber)
+            let saved = await this.balance.saveHistory(newBlock.blockNumber - 1)
+            if(saved.error) resolve({error:saved.error})
             //Push block header to chain
             this.chain.push(this.extractHeader(newBlock));
             if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));

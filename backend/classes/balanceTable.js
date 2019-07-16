@@ -10,13 +10,21 @@ class BalanceTable{
     }
 
     saveHistory(blockNumber){
-        if(blockNumber){
-            this.history[blockNumber] = this.states
-            return true
-        }else{
-            logger('ERROR: Need to specify block number')
-            return false
-        }
+        return new Promise((resolve)=>{
+            if(blockNumber !== undefined){
+                let publicKeys = Object.keys(this.states)
+                this.history[blockNumber] = {}
+                publicKeys.forEach((key)=>{
+                    if(this.states[key]){
+                        this.history[blockNumber][key] = this.states[key]
+                    }
+                })
+                resolve(true)
+            }else{
+                resolve({error:'ERROR: Need to specify block number'})
+            }
+        })
+        
     }
 
     executeTransactionBlock(transactions){
