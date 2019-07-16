@@ -481,8 +481,9 @@ class Blockchain{
                       resolve({error:'Is not valid total difficulty'})
                     }
                   }else{
+                    //Keep extending main chain, can still receive uncle blocks
                     logger('Current chain has more work')
-                    resolve({error:'Current chain has more work'})
+                    resolve(false)
                   }
                   
                 }else{
