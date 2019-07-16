@@ -4,7 +4,7 @@ const { readFile, writeToFile, logger } = require('../tools/utils');
 const fs = require('fs')
 
 class BalanceTable{
-    constructor(state){
+    constructor(state, history){
         this.states = (state?state:{})
         this.history = (history?history:{})
     }
