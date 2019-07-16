@@ -13,7 +13,7 @@ let node;
 
 const loadNodeConfig = () =>{
   return new Promise(async (resolve)=>{
-    fs.exists('./config/nodeconfig.json', async (exists)=>{
+    fs.exists('./config/nodesconfig.json', async (exists)=>{
       if(exists){
         let nodeConfigString = await readFile('./config/nodesconfig.json');
         try{
