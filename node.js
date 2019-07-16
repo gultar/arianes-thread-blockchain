@@ -1829,7 +1829,7 @@ class Node {
         fastSync:this.fastSync
       }
   
-      let saved = await writeToFile(JSON.stringify(config, null, 2),'./config/nodeconfig.json');
+      let saved = await writeToFile(JSON.stringify(config, null, 2),'./config/nodesconfig.json');
       if(saved){
         logger('Saved node config')
         resolve(true)
