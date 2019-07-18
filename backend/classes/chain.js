@@ -199,6 +199,10 @@ class Blockchain{
     return this.chain[this.chain.length - 1];
   }
 
+  getNextBlock(){
+    return this.chain[this.chain.length - 1];
+  }
+
   /**
    * 
    * @param {Block} newBlock 
