@@ -458,50 +458,26 @@ class Blockchain{
                     let isValidTotalDifficulty = this.calculateWorkDone(fork)
                     if(isValidTotalDifficulty){
                       this.isSyncingBlocks = true
-                      let errors = []
 
                       let forkHeadBlock = fork[0];
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
-                      logger(`Chain is ${this.chain.length} blocks long`)
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
-                      logger(`Chain is now ${this.chain.length} blocks long`)
                       
-                      // for(var remove=0; remove < numberOfBlocks; remove++){
-                      //   let orphanedBlock = this.chain.pop()
-                      //   orphanedBlocks.push(orphanedBlock)
-                      // }
-                      fork.forEach( async (block)=>{
-                        this.chain.push(block)
-                        if(added.error){
-                          errors.push(added.error)
-                        }else{
-                          delete this.blockForks[block.hash]
-                          logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
-                          logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
-                          logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
-                        } 
-                      })
+                      this.chain.concat(fork)
+                      this.blockForks = {}
+                      logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                       
                       this.isSyncingBlocks = false;
-                      if(errors.length > 0){
-                        let numberOfAddedBlocks = numberOfBlocks - errors.length
-                        logger('Rolled back on block changes')
-                        for(var remove=0; remove < numberOfAddedBlocks; remove++){
-                          this.chain.pop()
-                        }
-                        this.chain.concat(orphanedBlocks) 
-                        resolve({error:errors})
-                      }
-                      else{
-                        resolve(true)
-                      }
+                      
+                      resolve(true)
+                      
                     }else{
                       logger('Is not valid total difficulty')
                       resolve({error:'Is not valid total difficulty'})
                     }
                   }else{
                     logger('Current chain has more work')
-                    resolve({error:'Current chain has more work'})
+                    resolve(false)
                   }
                   
                 }else{
