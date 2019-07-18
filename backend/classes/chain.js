@@ -337,6 +337,7 @@ class Blockchain{
             let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
             let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
             if( isLinkedToSomeBlock || isLinkedToBlockFork ){
+              
               let isBlockFork = await this.newBlockFork(newBlock)
               if(isBlockFork.error) resolve({error:isBlockFork.error})
               resolve(true)
@@ -409,6 +410,8 @@ class Blockchain{
                   let rootBlock = this.chain[rootIndex];
                   
                   let fork = rootBlock[existingFork.hash]
+                  console.log('Existing Fork', existingFork.hash)
+                  console.log('Fork',fork)
                   if(fork && Array.isArray(fork)){
                     fork.push(newBlock)
                     this.blockForks[newBlock.hash] = {
@@ -424,7 +427,6 @@ class Blockchain{
                     console.log('Newblock hash', newBlock.hash)
                     console.log('Newblock previous', newBlock.previousHash)
                     console.log('Block forks', this.blockForks)
-                    console.log('Fork',fork)
                     logger(chalk.red('Fork is not an array'))
                     return false
                   }
