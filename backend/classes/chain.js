@@ -69,10 +69,10 @@ class Blockchain{
       genesisBlock.states = {
         //Other public addresses can be added to initiate their balance in the genesisBlock
         //Make sure at least one of the them has some funds, otherwise no transactions will be possible
-        "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000, lastTransaction:'coinbase', },
-        "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000, lastTransaction:'coinbase', },
-        "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000, lastTransaction:'coinbase', },
-        "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000, lastTransaction:'coinbase', },
+        "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000 },
+        "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000 },
+        "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000 },
+        "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000 },
       }
 
       return genesisBlock
@@ -246,11 +246,14 @@ class Blockchain{
                     _id:newBlock.hash,
                     [newBlock.hash]:newBlock.transactions
                 })
-                .then((txConfirmed)=>{
+                .then(async (txConfirmed)=>{
                   if(txConfirmed){
                     //Then remove them from mempool
                     Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
                     if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+
+                    let saved = await this.balance.saveHistory(newBlock.blockNumber)
+                    if(!saved) logger('ERROR: An error occurred while saving balance table history')
 
                     resolve(true);
 
@@ -374,6 +377,7 @@ class Blockchain{
            * - Fork root, is the block mined before block fork happens. Both blocks are linked to it
            * 
            */
+          
           let forkRootBlockNumber = this.getIndexOfBlockHash(newBlock.previousHash)
           if(forkRootBlockNumber < 0 && !this.blockForks[newBlock.previousHash]){
             resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
@@ -454,26 +458,19 @@ class Blockchain{
                       let forkHeadBlock = fork[0];
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
+
                       
-                      this.balance.rollback(forkHeadBlock.blockNumber)
-                      // orphanedBlocks.forEach(async (block)=>{
-                      //   let transactions = await this.chainDB.get(block.hash)
-                      //   console.log('Transactions:', transactions)
-                      //   let rolledBackTransactions = await this.balance.rollbackTransactions(transactions)
-                      //   if(rolledBackTransactions.error) logger('TX ROLLBACK ERROR:', rolledBackTransactions.error)
-                      //   if(transactions.actions){
-                      //     let rolledBackActions = await this.balance.rollbackActions(transactions.actions)
-                      //     if(rolledBackActions.error) logger('ACTION ROLLBACK ERROR:', rolledBackActions.error)
-                      //   }
-                      // })
-                      
+                      // for(var remove=0; remove < numberOfBlocks; remove++){
+                      //   let orphanedBlock = this.chain.pop()
+                      //   orphanedBlocks.push(orphanedBlock)
+                      // }
                       fork.forEach( async (block)=>{
                         let added = await this.pushBlock(block, true)
                         if(added.error){
                           errors.push(added.error)
                         }else{
                           delete this.blockForks[block.hash]
-                          logger(chalk.yellow(`* Synced forked block ${chalk.white(block.blockNumber)}`))
+                          logger(chalk.yellow(`* Synced block from parallel branch ${chalk.white(block.blockNumber)}`))
                           logger(chalk.yellow(`* Hash: ${chalk.white(block.hash.substr(0, 25))}...`))
                           logger(chalk.yellow(`* Previous Hash: ${chalk.white(block.previousHash.substr(0, 25))}...`))
                         } 
@@ -497,9 +494,8 @@ class Blockchain{
                       resolve({error:'Is not valid total difficulty'})
                     }
                   }else{
-                    //Keep extending main chain, can still receive uncle blocks
                     logger('Current chain has more work')
-                    resolve(false)
+                    resolve({error:'Current chain has more work'})
                   }
                   
                 }else{
@@ -1823,9 +1819,10 @@ class Blockchain{
       .then(async (loaded)=>{
         if(loaded){
           
-          let states = await this.balance.loadAllStates()
-          if(states){
-            this.balance.states = states
+          let savedBalances = await this.balance.loadAllStates()
+          if(savedBalances){
+            this.balance.states = savedBalances.states
+            this.balance.history = savedBalances.history
             resolve(true)
           }else{
             reject('ERROR: Could not load balance states')

@@ -13,10 +13,18 @@ class BalanceTable{
         return new Promise((resolve)=>{
             if(blockNumber !== undefined){
                 let publicKeys = Object.keys(this.states)
-                this.history[blockNumber] = {}
+                if(!this.history[blockNumber]) this.history[blockNumber] = {}
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
-                        this.history[blockNumber][key] = this.states[key]
+                        this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key]))
+                        // if(blockNumber > 0){
+                        //     if(this.history[blockNumber - 1][key]){
+                        //         if(this.states[key].balance !== this.history[blockNumber - 1][key].balance){
+                                    
+                        //         }
+                        //     }
+                            
+                        // }
                     }
                 })
                 resolve(true)
@@ -125,7 +133,25 @@ class BalanceTable{
     }
 
     rollback(blockNumber){
-        this.states = this.history[blockNumber]
+        return new Promise((resolve)=>{
+            if(blockNumber !== undefined){
+                if(this.history[blockNumber]){
+                    let publicKeys = Object.keys(this.history[blockNumber])
+                
+                    publicKeys.forEach((key)=>{
+                        if(this.history[blockNumber] && this.history[blockNumber][key]){
+                            this.states[key] = this.history[blockNumber][key]
+                        }
+                    })
+                    resolve(true)
+                }else{
+                    resolve({error:`ERROR: Balance history at block ${blockNumber} does not exists`})
+                }
+               
+            }else{
+                resolve({error:'ERROR: Need to specify block number'})
+            }
+        })
     }
 
     getBalance(publicKey){
@@ -136,10 +162,7 @@ class BalanceTable{
         if(publicKey){
             this.states[publicKey] = {
                 balance:0,
-                lastTransaction:'unkown',
             }
-            let fingerprintString = JSON.stringify(this.states[publicKey])
-            this.states[publicKey].fingerprint = sha256(fingerprintString);
         }else{
             return false
         }
@@ -152,7 +175,6 @@ class BalanceTable{
             let state = this.states[publicKey];
             if(state.balance > value){
                 state.balance -= value;
-                state.lastTransaction = txHash
             }else{
                 return { error:'ERROR: sending wallet does not have sufficient funds' }
             }
@@ -173,7 +195,7 @@ class BalanceTable{
               
               let state = this.states[publicKey];
               state.balance += value;
-              state.lastTransaction = txHash
+            //   state.lastTransaction = txHash
               return true;
         }else{
             return { error:'ERROR: missing required parameters (publicKey, value, txHash)' };
@@ -221,10 +243,10 @@ class BalanceTable{
       saveStates(){
           return new Promise((resolve, reject)=>{
             try{
-                let saved = writeToFile(this.states, './data/balances.json');
+                let saved = writeToFile({states:this.states, history:this.history}, './data/balances.json');
                 if(saved){
                     logger('Saved balance states table');
-                    resolve(this.states)
+                    resolve(saved)
                 }
             }catch(e){
                 reject(e)
