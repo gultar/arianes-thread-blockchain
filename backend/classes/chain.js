@@ -381,7 +381,9 @@ class Blockchain{
           
           let forkRootBlockNumber = this.getIndexOfBlockHash(newBlock.previousHash)
           if(forkRootBlockNumber < 0 && !this.blockForks[newBlock.previousHash]){
+
             resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
+
           }else{
             
             const addNewFork = (newBlock) =>{
@@ -410,8 +412,8 @@ class Blockchain{
                   let rootBlock = this.chain[rootIndex];
                   
                   let fork = rootBlock[existingFork.hash]
-                  console.log('Existing Fork', existingFork.hash)
-                  console.log('Fork',fork)
+                  // console.log('Existing Fork', existingFork.hash)
+                  // console.log('Fork',fork)
                   if(fork && Array.isArray(fork)){
                     fork.push(newBlock)
                     this.blockForks[newBlock.hash] = {
@@ -450,37 +452,40 @@ class Blockchain{
                 if(fork && Array.isArray(fork)){
 
                   let numberOfBlocks = fork.length;
-                  logger(`Fork has ${numberOfBlocks} blocks`)
                   let lastBlock = fork[fork.length - 1]
-                  let forkTotalDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
-                  let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
-                  let forkChainHasMoreWork =  forkTotalDifficulty > currentTotalDifficulty
+                  // let forkTotalDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
+                  // let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
+                  // let forkChainHasMoreWork =  forkTotalDifficulty > currentTotalDifficulty
                   
-                  if(forkChainHasMoreWork){
-                    let isValidTotalDifficulty = this.calculateWorkDone(fork)
-                    if(isValidTotalDifficulty){
-                      this.isSyncingBlocks = true
 
-                      let forkHeadBlock = fork[0];
-                      let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
-                      let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
+                  this.isSyncingBlocks = true
+
+                  let forkHeadBlock = fork[0];
+                  let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
+                  let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
+                  
+                  //Rollback of balance here
+
+                  this.chain.concat(fork)
+                  this.blockForks = {}
+                  logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
+                  
+                  this.isSyncingBlocks = false;
+                  
+                  resolve(true)
+                  // if(forkChainHasMoreWork){
+                  //   let isValidTotalDifficulty = this.calculateWorkDone(fork)
+                  //   if(isValidTotalDifficulty){
                       
-                      this.chain.concat(fork)
-                      this.blockForks = {}
-                      logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                       
-                      this.isSyncingBlocks = false;
-                      
-                      resolve(true)
-                      
-                    }else{
-                      logger('Is not valid total difficulty')
-                      resolve({error:'Is not valid total difficulty'})
-                    }
-                  }else{
-                    logger('Current chain has more work')
-                    resolve(false)
-                  }
+                  //   }else{
+                  //     logger('Is not valid total difficulty')
+                  //     resolve({error:'Is not valid total difficulty'})
+                  //   }
+                  // }else{
+                  //   logger('Current chain has more work')
+                  //   resolve(false)
+                  // }
                   
                 }else{
                   resolve({error:'Fork provided is not an array'})
@@ -489,7 +494,7 @@ class Blockchain{
 
             }
               
-            if(forkRootBlockNumber){
+            if(forkRootBlockNumber  !== undefined){
               if(this.blockForks[newBlock.previousHash]){
                 console.log('Linked at index', forkRootBlockNumber)
                 console.log(this.blockForks[newBlock.previousHash])
