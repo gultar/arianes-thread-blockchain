@@ -421,6 +421,8 @@ class Blockchain{
                     console.log('RootHash', rootHash)
                     console.log('RootIndex', rootIndex)
                     console.log('RootBlock', rootBlock)
+                    console.log('Newblock hash', newBlock.hash)
+                    console.log('Newblock previous', newBlock.previousHash)
                     console.log('Block forks', this.blockForks)
                     console.log('Fork',fork)
                     logger(chalk.red('Fork is not an array'))
@@ -446,6 +448,7 @@ class Blockchain{
                 if(fork && Array.isArray(fork)){
 
                   let numberOfBlocks = fork.length;
+                  logger(`Fork has ${numberOfBlocks} blocks`)
                   let lastBlock = fork[fork.length - 1]
                   let forkTotalDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
                   let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
@@ -459,15 +462,16 @@ class Blockchain{
 
                       let forkHeadBlock = fork[0];
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
+                      logger(`Chain is ${this.chain.length} blocks long`)
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
-
+                      logger(`Chain is now ${this.chain.length} blocks long`)
                       
                       // for(var remove=0; remove < numberOfBlocks; remove++){
                       //   let orphanedBlock = this.chain.pop()
                       //   orphanedBlocks.push(orphanedBlock)
                       // }
                       fork.forEach( async (block)=>{
-                        let added = await this.pushBlock(block, true)
+                        this.chain.push(block)
                         if(added.error){
                           errors.push(added.error)
                         }else{
