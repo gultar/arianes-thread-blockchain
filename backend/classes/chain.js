@@ -400,14 +400,15 @@ class Blockchain{
             }
 
             const extendFork = (newBlock) =>{
-              let forkInfo = this.blockForks[newBlock.previousHash]
+              let existingFork = this.blockForks[newBlock.previousHash]
 
-              if(forkInfo){
+              if(existingFork){
                 let rootHash = this.blockForks[newBlock.previousHash].root
                 let rootIndex = this.getIndexOfBlockHash(rootHash)
                 if(rootIndex){
                   let rootBlock = this.chain[rootIndex];
-                  let fork = rootBlock[forkInfo.hash]
+                  
+                  let fork = rootBlock[existingFork.hash]
                   if(fork && Array.isArray(fork)){
                     fork.push(newBlock)
                     this.blockForks[newBlock.hash] = {
@@ -420,6 +421,7 @@ class Blockchain{
                     console.log('RootHash', rootHash)
                     console.log('RootIndex', rootIndex)
                     console.log('RootBlock', rootBlock)
+                    console.log('Block forks', this.blockForks)
                     console.log('Fork',fork)
                     logger(chalk.red('Fork is not an array'))
                     return false
