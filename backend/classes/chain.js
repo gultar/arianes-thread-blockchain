@@ -483,9 +483,10 @@ class Blockchain{
                       newBlock.transactions['actions'] = newBlock.actions
                     }
 
-                    let { existingBlock } = await this.chainDB.get(newBlock.blockNumber.toString()).catch(e=> console.log(e))
-                    if(existingBlock){
-                      console.log(existingBlock)
+                    let existingDBEntry = await this.chainDB.get(newBlock.blockNumber.toString()).catch(e=> console.log(e))
+                    if(existingDBEntry){
+                      let existingBlock = existingDBEntry[existingDBEntry._id] //THis is ugly
+
                       let deleted = await this.chainDB.remove({ _id:existingBlock.blockNumber, _rev:existingBlock._rev }).catch((e) => {
                         console.log(e)
                         
