@@ -487,10 +487,7 @@ class Blockchain{
                     if(existingDBEntry){
                       let existingBlock = existingDBEntry[existingDBEntry._id] //THis is ugly
 
-                      let deleted = await this.chainDB.remove({ _id:existingBlock.blockNumber, _rev:existingBlock._rev }).catch((e) => {
-                        console.log(e)
-                        
-                      })
+                      let deleted = await this.chainDB.remove({ _id:existingDBEntry._id, _rev:existingBlock._rev }).catch((e)=>{ console.log(e) })
                       if(deleted){
 
                         let addedFork = await this.chainDB.put({
