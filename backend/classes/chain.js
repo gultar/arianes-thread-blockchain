@@ -365,10 +365,10 @@ class Blockchain{
   newBlockFork(newBlock){
     return new Promise(async (resolve)=>{
       if(this.getLatestBlock().hash != newBlock.hash){
-          if(this.isSyncingBlocks){
-            this.cachedBlocks.push(newBlock)
-            resolve({ error:'Node is busy syncing new block' })
-          }
+          // if(this.isSyncingBlocks){
+          //   this.cachedBlocks.push(newBlock)
+          //   resolve({ error:'Node is busy syncing new block' })
+          // }
           /**
            * b: Canonical Block
            * f: Forked block
@@ -479,10 +479,10 @@ class Blockchain{
                   let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
                   let forkChainHasMoreWork =  forkTotalDifficulty > currentTotalDifficulty
                   
-
-                  this.isSyncingBlocks = true
-
                   if(forkChainHasMoreWork){
+
+                    this.isSyncingBlocks = true
+
                     let isValidTotalDifficulty = this.calculateWorkDone(fork)
                     if(isValidTotalDifficulty){
                       let forkHeadBlock = fork[0];
