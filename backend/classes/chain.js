@@ -471,19 +471,19 @@ class Blockchain{
                   // this.balance.rollback(forkHeadBlock.blockNumber)
                   //Rollback of balance here
 
-                  for(var newBlock of fork){
+                  for(var forkBlock of fork){
 
-                    let executed = await this.balance.executeTransactionBlock(newBlock.transactions)
+                    let executed = await this.balance.executeTransactionBlock(forkBlock.transactions)
                     if(executed.errors) resolve({ error: executed.errors })
 
-                    let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions)
+                    let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions)
                     if(actionsExecuted.error) resolve({ error: executed.errors })
                     
-                    if(newBlock.actions && actionsExecuted){
-                      newBlock.transactions['actions'] = newBlock.actions
+                    if(forkBlock.actions && actionsExecuted){
+                      forkBlock.transactions['actions'] = forkBlock.actions
                     }
 
-                    let existingDBEntry = await this.chainDB.get(newBlock.blockNumber.toString()).catch(e=> console.log(e))
+                    let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> console.log(e))
                     if(existingDBEntry){
                       let existingBlock = existingDBEntry[existingDBEntry._id] //THis is ugly
 
@@ -491,18 +491,19 @@ class Blockchain{
                       if(deleted){
 
                         let addedFork = await this.chainDB.put({
-                           _id:newBlock.blockNumber.toString(),
-                            [newBlock.blockNumber]:this.extractHeader(newBlock)
+                           _id:forkBlock.blockNumber.toString(),
+                            [forkBlock.blockNumber]:this.extractHeader(forkBlock)
                         }).catch(e => console.log(e))
                         if(addedFork){
                           let addedBlockBody = await this.chainDB.put({
-                            _id:newBlock.hash,
-                            [newBlock.hash]:newBlock.transactions
+                            _id:forkBlock.hash,
+                            [forkBlock.hash]:forkBlock.transactions
                           }).catch(e => console.log(e))
 
                           if(addedBlockBody){
-                            this.chain.push(this.extractHeader(newBlock))
-                            logger(chalk.yellow(`* Synced new block ${newBlock.hash.substr(0, 25)}... from fork `));
+                            console.log('Added block body',addedBlockBody)
+                            this.chain.push(this.extractHeader(forkBlock))
+                            logger(chalk.yellow(`* Synced new block ${forkBlock.hash.substr(0, 25)}... from fork `));
                           }
                         }
 
