@@ -1123,7 +1123,7 @@ class Blockchain{
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = this.validateBlockTimestamp(block)
-      var isValidDifficulty = this.validateDifficulty(block);
+      // var isValidDifficulty = this.validateDifficulty(block);
       var isValidChallenge = this.validateChallenge(block);
       var areTransactionsValid = this.validateBlockTransactions(block)
       var merkleRootIsValid = false;
@@ -1143,9 +1143,9 @@ class Blockchain{
         logger('ERROR: Hash value must be below challenge value')
       }
 
-      if(!isValidDifficulty){
-        logger('ERROR: Recalculated difficulty did not match block difficulty')
-      }
+      // if(!isValidDifficulty){
+      //   logger('ERROR: Recalculated difficulty did not match block difficulty')
+      // }
 
       if(!isValidChallenge){
         logger('ERROR: Recalculated challenge did not match block challenge')
