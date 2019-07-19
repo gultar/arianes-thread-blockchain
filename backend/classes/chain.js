@@ -483,52 +483,34 @@ class Blockchain{
                       forkBlock.transactions['actions'] = forkBlock.actions
                     }
 
-                    let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> console.log(e))
-                    console.log('Existing DB Entry:', existingDBEntry)
+                    let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> {/*console.log(e)*/})
+                    // console.log('Existing DB Entry:', existingDBEntry)
                     if(existingDBEntry){
                       let existingBlock = existingDBEntry[existingDBEntry._id] 
 
                       let deleted = await this.chainDB.remove(existingDBEntry._id, existingBlock._rev).catch((e)=>{
-                        console.log('ERROR REMOVING EXISTING BLOCK')
-                        console.log(e)
+                        /*console.log(e)*/
                        })
                       if(deleted){
-
-                        let addedFork = await this.chainDB.put({
-                           _id:forkBlock.blockNumber.toString(),
-                            [forkBlock.blockNumber]:this.extractHeader(forkBlock)
-                        }).catch(e => console.log(e))
-                        if(addedFork){
-                          let addedBlockBody = await this.chainDB.put({
-                            _id:forkBlock.hash,
-                            [forkBlock.hash]:forkBlock.transactions
-                          }).catch(e => console.log(e))
-
-                          if(addedBlockBody){
-                            console.log('Added block body',addedBlockBody)
-                            this.chain.push(this.extractHeader(forkBlock))
-                            logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
-                          }
-                        }
-
+                        logger(`Removed existing block ${existingBlock.blockNumber} from main chain`)
                       }
-                    }else{
-                      let addedFork = await this.chainDB.put({
-                        _id:forkBlock.blockNumber.toString(),
-                         [forkBlock.blockNumber]:this.extractHeader(forkBlock)
-                     }).catch(e => console.log(e))
-                     if(addedFork){
-                       let addedBlockBody = await this.chainDB.put({
-                         _id:forkBlock.hash,
-                         [forkBlock.hash]:forkBlock.transactions
-                       }).catch(e => console.log(e))
+                    }
 
-                       if(addedBlockBody){
-                         console.log('Added block body',addedBlockBody)
-                         this.chain.push(this.extractHeader(forkBlock))
-                         logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
-                       }
-                     }
+                    let addedFork = await this.chainDB.put({
+                        _id:forkBlock.blockNumber.toString(),
+                        [forkBlock.blockNumber]:this.extractHeader(forkBlock)
+                    }).catch(e => console.log(e))
+                    if(addedFork){
+                      let addedBlockBody = await this.chainDB.put({
+                        _id:forkBlock.hash,
+                        [forkBlock.hash]:forkBlock.transactions
+                      }).catch(e => console.log(e))
+
+                      if(addedBlockBody){
+                        console.log('Added block body',addedBlockBody)
+                        this.chain.push(this.extractHeader(forkBlock))
+                        logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
+                      }
                     }
                     
                   }
