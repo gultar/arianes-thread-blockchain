@@ -463,7 +463,6 @@ class Blockchain{
                 }).catch(e => console.log(e))
 
                 if(addedBlockBody){
-                  console.log('Added block body',addedBlockBody)
                   this.chain.push(this.extractHeader(forkBlock))
                   logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
                 }
