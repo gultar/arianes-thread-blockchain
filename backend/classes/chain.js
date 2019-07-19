@@ -406,7 +406,7 @@ class Blockchain{
                 return true
             }
 
-            const extendFork = (newBlock) =>{
+            const extendFork = async (newBlock) =>{
               let existingFork = this.blockForks[newBlock.previousHash]
 
               if(existingFork){
@@ -468,9 +468,48 @@ class Blockchain{
                   let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
                   let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
                   
+                  // this.balance.rollback(forkHeadBlock.blockNumber)
                   //Rollback of balance here
 
-                  this.chain.concat(fork)
+                  for(var newBlock of fork){
+
+                    let executed = await this.balance.executeTransactionBlock(newBlock.transactions)
+                    if(executed.errors) resolve({ error: executed.errors })
+
+                    let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions)
+                    if(actionsExecuted.error) resolve({ error: executed.errors })
+                    
+                    if(newBlock.actions && actionsExecuted){
+                      newBlock.transactions['actions'] = newBlock.actions
+                    }
+
+                    let exisitingBlock = await this.chainDB.get(newBlock.blockNumber).catch(e=> console.log(e))
+                    if(exisitingBlock){
+                      let deleted = await this.chainDB.remove({ _id:existingBlock._id, _rev:existingBlock._rev }).catch((e) => console.log(e))
+                      if(deleted){
+
+                        let addedFork = await this.chainDB.put({
+                          _id:newBlock.blockNumber.toString(),
+                            [newBlock.blockNumber]:this.extractHeader(newBlock)
+                        }).catch(e => console.log(e))
+                        if(addedFork){
+                          let addedBlockBody = await this.chainDB.put({
+                            _id:newBlock.hash,
+                            [newBlock.hash]:newBlock.transactions
+                          }).catch(e => console.log(e))
+
+                          if(addedBlockBody){
+                            this.chain.push(this.extractHeader(newBlock))
+                            logger(chalk.yellow(`* Synced new block ${newBlock.hash.substr(0, 25)}... from fork `));
+                          }
+                        }
+
+                      }
+                    }
+                    
+                  }
+
+                  
                   this.blockForks = {}
                   logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                   
@@ -510,7 +549,7 @@ class Blockchain{
               }
             }else{
               if(this.blockForks[newBlock.previousHash]){
-                let extendedFork = extendFork(newBlock)
+                let extendedFork = await extendFork(newBlock)
                 if(extendedFork){
                   let resolved = await resolveFork(extendedFork)
                   if(resolved.error){
