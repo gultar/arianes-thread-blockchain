@@ -451,7 +451,7 @@ class Blockchain{
               }
             }
 
-            const pushForkBlock = (forkBlock) =>{
+            const pushForkBlock = async (forkBlock) =>{
               let addedFork = await this.chainDB.put({
                   _id:forkBlock.blockNumber.toString(),
                   [forkBlock.blockNumber]:this.extractHeader(forkBlock)
