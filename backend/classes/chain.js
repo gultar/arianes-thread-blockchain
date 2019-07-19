@@ -411,11 +411,12 @@ class Blockchain{
 
               if(existingFork){
                 let rootHash = this.blockForks[newBlock.previousHash].root
+                let previousBlockHash = this.blockForks[newBlock.previousHash].previousHash
                 let rootIndex = this.getIndexOfBlockHash(rootHash)
                 if(rootIndex){
                   let rootBlock = this.chain[rootIndex];
                   
-                  let fork = rootBlock[existingFork.hash]
+                  let fork = rootBlock[previousBlockHash]
                   // console.log('Existing Fork', existingFork.hash)
                   // console.log('Fork',fork)
                   if(fork && Array.isArray(fork)){
