@@ -475,9 +475,9 @@ class Blockchain{
 
                   let numberOfBlocks = fork.length;
                   let lastBlock = fork[fork.length - 1]
-                  // let forkTotalDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
-                  // let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
-                  // let forkChainHasMoreWork =  forkTotalDifficulty > currentTotalDifficulty
+                  let forkTotalDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
+                  let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
+                  let forkChainHasMoreWork =  forkTotalDifficulty > currentTotalDifficulty
                   
 
                   this.isSyncingBlocks = true
@@ -515,30 +515,26 @@ class Blockchain{
                       pushForkBlock(forkBlock)
                     }
 
-
-                    
                   }
 
-                  
-                  this.blockForks = {}
-                  logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
-                  
-                  this.isSyncingBlocks = false;
-                  
-                  resolve(true)
-                  // if(forkChainHasMoreWork){
-                  //   let isValidTotalDifficulty = this.calculateWorkDone(fork)
-                  //   if(isValidTotalDifficulty){
+                  if(forkChainHasMoreWork){
+                    let isValidTotalDifficulty = this.calculateWorkDone(fork)
+                    if(isValidTotalDifficulty){
+                      this.blockForks = {}
+                      logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                       
+                      this.isSyncingBlocks = false;
                       
-                  //   }else{
-                  //     logger('Is not valid total difficulty')
-                  //     resolve({error:'Is not valid total difficulty'})
-                  //   }
-                  // }else{
-                  //   logger('Current chain has more work')
-                  //   resolve(false)
-                  // }
+                      resolve(true)
+                      
+                    }else{
+                      logger('Is not valid total difficulty')
+                      resolve({error:'Is not valid total difficulty'})
+                    }
+                  }else{
+                    logger('Current chain has more work')
+                    resolve(false)
+                  }
                   
                 }else{
                   resolve({error:'Fork provided is not an array'})
