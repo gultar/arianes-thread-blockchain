@@ -482,44 +482,43 @@ class Blockchain{
 
                   this.isSyncingBlocks = true
 
-                  let forkHeadBlock = fork[0];
-                  let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
-                  let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
-                  
-                  // this.balance.rollback(forkHeadBlock.blockNumber)
-                  //Rollback of balance here
-
-                  for(var forkBlock of fork){
-
-                    let executed = await this.balance.executeTransactionBlock(forkBlock.transactions)
-                    if(executed.errors) resolve({ error: executed.errors })
-
-                    let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions)
-                    if(actionsExecuted.error) resolve({ error: executed.errors })
-                    
-                    if(forkBlock.actions && actionsExecuted){
-                      forkBlock.transactions['actions'] = forkBlock.actions
-                    }
-
-                    let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> {/*console.log(e)*/})
-                    // console.log('Existing DB Entry:', existingDBEntry)
-                    if(existingDBEntry){
-                      let existingBlock = existingDBEntry[existingDBEntry._id] 
-
-                      let deleted = await this.chainDB.remove(existingDBEntry._id, existingBlock._rev).catch((e)=>{/*console.log(e)*/})
-                      if(deleted){
-                        pushForkBlock(forkBlock)
-                        logger(`Removed existing block ${existingBlock.blockNumber} from main chain`)
-                      }
-                    }else{
-                      pushForkBlock(forkBlock)
-                    }
-
-                  }
-
                   if(forkChainHasMoreWork){
                     let isValidTotalDifficulty = this.calculateWorkDone(fork)
                     if(isValidTotalDifficulty){
+                      let forkHeadBlock = fork[0];
+                      let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
+                      let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
+                      
+                      // this.balance.rollback(forkHeadBlock.blockNumber)
+                      //Rollback of balance here
+
+                      for(var forkBlock of fork){
+
+                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions)
+                        if(executed.errors) resolve({ error: executed.errors })
+
+                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions)
+                        if(actionsExecuted.error) resolve({ error: executed.errors })
+                        
+                        if(forkBlock.actions && actionsExecuted){
+                          forkBlock.transactions['actions'] = forkBlock.actions
+                        }
+
+                        let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> {/*console.log(e)*/})
+                        // console.log('Existing DB Entry:', existingDBEntry)
+                        if(existingDBEntry){
+                          let existingBlock = existingDBEntry[existingDBEntry._id] 
+
+                          let deleted = await this.chainDB.remove(existingDBEntry._id, existingBlock._rev).catch((e)=>{/*console.log(e)*/})
+                          if(deleted){
+                            pushForkBlock(forkBlock)
+                            logger(`Removed existing block ${existingBlock.blockNumber} from main chain`)
+                          }
+                        }else{
+                          pushForkBlock(forkBlock)
+                        }
+
+                      }
                       this.blockForks = {}
                       logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                       
