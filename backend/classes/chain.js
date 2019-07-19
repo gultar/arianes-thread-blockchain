@@ -451,6 +451,25 @@ class Blockchain{
               }
             }
 
+            const pushForkBlock = (forkBlock) =>{
+              let addedFork = await this.chainDB.put({
+                  _id:forkBlock.blockNumber.toString(),
+                  [forkBlock.blockNumber]:this.extractHeader(forkBlock)
+              }).catch(e => console.log(e))
+              if(addedFork){
+                let addedBlockBody = await this.chainDB.put({
+                  _id:forkBlock.hash,
+                  [forkBlock.hash]:forkBlock.transactions
+                }).catch(e => console.log(e))
+
+                if(addedBlockBody){
+                  console.log('Added block body',addedBlockBody)
+                  this.chain.push(this.extractHeader(forkBlock))
+                  logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
+                }
+              }
+            }
+
             const resolveFork = (fork) =>{
               return new Promise(async (resolve)=>{
                 if(fork && Array.isArray(fork)){
@@ -488,30 +507,16 @@ class Blockchain{
                     if(existingDBEntry){
                       let existingBlock = existingDBEntry[existingDBEntry._id] 
 
-                      let deleted = await this.chainDB.remove(existingDBEntry._id, existingBlock._rev).catch((e)=>{
-                        /*console.log(e)*/
-                       })
+                      let deleted = await this.chainDB.remove(existingDBEntry._id, existingBlock._rev).catch((e)=>{/*console.log(e)*/})
                       if(deleted){
+                        pushForkBlock(forkBlock)
                         logger(`Removed existing block ${existingBlock.blockNumber} from main chain`)
                       }
+                    }else{
+                      pushForkBlock(forkBlock)
                     }
 
-                    let addedFork = await this.chainDB.put({
-                        _id:forkBlock.blockNumber.toString(),
-                        [forkBlock.blockNumber]:this.extractHeader(forkBlock)
-                    }).catch(e => console.log(e))
-                    if(addedFork){
-                      let addedBlockBody = await this.chainDB.put({
-                        _id:forkBlock.hash,
-                        [forkBlock.hash]:forkBlock.transactions
-                      }).catch(e => console.log(e))
 
-                      if(addedBlockBody){
-                        console.log('Added block body',addedBlockBody)
-                        this.chain.push(this.extractHeader(forkBlock))
-                        logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
-                      }
-                    }
                     
                   }
 
