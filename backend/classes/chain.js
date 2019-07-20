@@ -209,7 +209,7 @@ class Blockchain{
    * @param {boolean} silent 
    */
 
-  pushBlock(newBlock, silent=false){
+  pushNewBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
         let isValidBlock = await this.validateBlock(newBlock);
@@ -361,6 +361,69 @@ class Blockchain{
 
   }
 
+  pushBlock(newBlock, silent=false){
+    return new Promise(async (resolve)=>{
+      if(isValidBlockJSON(newBlock)){
+        let isValidBlock = await this.validateBlock(newBlock);
+        if(isValidBlock){
+          var isLinked = this.isBlockLinked(newBlock);
+          
+          if(isLinked){
+            //Save balance history
+            let saved = await this.balance.saveHistory(newBlock.blockNumber - 1)
+            if(saved.error) resolve({error:saved.error})
+            //Push block header to chain
+            this.chain.push(this.extractHeader(newBlock));
+            if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
+            //Verify is already exists
+
+            let added = await this.putBlockToDB(newBlock)
+            if(added){
+              // let executed = await this.balance.executeTransactionBlock(newBlock.transactions)
+              // if(executed.errors) resolve({ error: executed.errors })
+
+              // let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions)
+              // if(actionsExecuted.error) resolve({ error: executed.errors })
+              
+              // if(newBlock.actions && actionsExecuted){
+              //   newBlock.transactions['actions'] = newBlock.actions
+              // }
+              
+              Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+              if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+
+              // let saved = await this.balance.saveHistory(newBlock.blockNumber)
+              // if(!saved) logger('ERROR: An error occurred while saving balance table history')
+
+              resolve(true);
+            }else{
+              resolve({ error:'Could not push new block' })
+            }
+
+          }else{
+            let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
+            let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
+            if( isLinkedToSomeBlock || isLinkedToBlockFork ){
+              
+              let isBlockFork = await this.newBlockFork(newBlock)
+              if(isBlockFork.error) resolve({error:isBlockFork.error})
+              resolve(true)
+            }else{
+              resolve(false)
+            }
+
+          }
+          
+        }else{
+          resolve({error:'Invalid block'})
+        }
+      }else{
+        resolve({error:'ERROR: New block undefined'})
+      }
+    })
+
+  }
+
   
   newBlockFork(newBlock){
     return new Promise(async (resolve)=>{
@@ -454,23 +517,24 @@ class Blockchain{
               }
             }
 
-            const pushForkBlock = async (forkBlock) =>{
-              let addedFork = await this.chainDB.put({
-                  _id:forkBlock.blockNumber.toString(),
-                  [forkBlock.blockNumber]:this.extractHeader(forkBlock)
-              }).catch(e => console.log(e))
-              if(addedFork){
-                let addedBlockBody = await this.chainDB.put({
-                  _id:forkBlock.hash,
-                  [forkBlock.hash]:forkBlock.transactions
-                }).catch(e => console.log(e))
-
-                if(addedBlockBody){
-                  this.chain.push(this.extractHeader(forkBlock))
-                  logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
-                }
-              }
-            }
+            // const pushForkBlock = async (forkBlock) =>{
+              
+            //   // let addedFork = await this.chainDB.put({
+            //   //     _id:forkBlock.blockNumber.toString(),
+            //   //     [forkBlock.blockNumber]:this.extractHeader(forkBlock)
+            //   // }).catch(e => console.log(e))
+            //   // if(addedFork){
+            //   //   let addedBlockBody = await this.chainDB.put({
+            //   //     _id:forkBlock.hash,
+            //   //     [forkBlock.hash]:forkBlock.transactions
+            //   //   }).catch(e => console.log(e))
+            //   let addedBlock = await this.putBlockToDB(forkBlock)
+            //     if(addedBlock){
+            //       this.chain.push(this.extractHeader(forkBlock))
+            //       logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
+            //     }
+            //   }
+            // }
 
             const resolveFork = (fork) =>{
               return new Promise(async (resolve)=>{
@@ -507,19 +571,26 @@ class Blockchain{
                           forkBlock.transactions['actions'] = forkBlock.actions
                         }
 
-                        let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> {/*console.log(e)*/})
-                        // console.log('Existing DB Entry:', existingDBEntry)
-                        if(existingDBEntry){
-                          let existingBlock = existingDBEntry[existingDBEntry._id] 
-
-                          let deleted = await this.chainDB.remove(existingDBEntry._id, existingBlock._rev).catch((e)=>{/*console.log(e)*/})
-                          if(deleted){
-                            pushForkBlock(forkBlock)
-                            logger(`Removed existing block ${existingBlock.blockNumber} from main chain`)
-                          }
-                        }else{
-                          pushForkBlock(forkBlock)
+                        let replaced = await this.replaceBlockFromDB(forkBlock)
+                        if(!replaced){
+                          let added = await this.putBlockToDB(forkBlock)
                         }
+
+                        logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
+
+                        // let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> {/*console.log(e)*/})
+                        // // console.log('Existing DB Entry:', existingDBEntry)
+                        // if(existingDBEntry){
+                        //   let existingBlock = existingDBEntry[existingDBEntry._id] 
+
+                        //   let deleted = await this.chainDB.remove(existingDBEntry._id, existingBlock._rev).catch((e)=>{/*console.log(e)*/})
+                        //   if(deleted){
+                        //     pushForkBlock(forkBlock)
+                        //     logger(`Removed existing block ${existingBlock.blockNumber} from main chain`)
+                        //   }
+                        // }else{
+                        //   pushForkBlock(forkBlock)
+                        // }
 
                       }
                       this.blockForks = {}
@@ -579,6 +650,217 @@ class Blockchain{
             } 
             
           }
+      }
+    })
+  }
+
+  putHeaderToDB(block){
+    return new Promise(async (resolve)=>{
+      this.chainDB.put({
+          _id:block.blockNumber.toString(),
+          [block.blockNumber]:this.extractHeader(block)
+      })
+      .then((addedHeader)=>{
+        resolve(addedHeader)
+      })
+      .catch(e => {
+        console.log(e)
+        resolve(false)
+      })
+    })
+  }
+
+  putBodyToDB(block){
+    return new Promise(async (resolve)=>{
+      if(block.actions){
+        block.transactions['actions'] = block.actions
+      }
+      this.chainDB.put({
+        _id:block.hash,
+        [block.hash]:block.transactions
+      })
+      .then((addedBody)=>{
+        resolve(addedBody)
+      })
+      .catch(e => {
+        console.log(e)
+        resolve(false)
+      })
+    })
+  }
+
+
+  putBlockToDB(block){
+    return new Promise(async (resolve)=>{
+      if(!block){
+        console.log('ERROR: Need to pass valid block')
+        resolve(false)
+      
+      }
+      let existingBlock = await this.fetchBlockFromDB(block.blockNumber)
+      if(existingBlock){
+        let deleted = await this.removeBlockFromDB(existingBlock)
+        if(deleted){
+          let headerAdded = await this.putHeaderToDB(block);
+          if(headerAdded){
+            let bodyAdded = await this.putBodyToDB(block);
+            resolve(bodyAdded)
+          }else{
+            resolve(false)
+          }
+        }else{
+          resolve(false)
+        }
+      }else{
+        let headerAdded = await this.putHeaderToDB(block);
+        if(headerAdded){
+          let bodyAdded = await this.putBodyToDB(block);
+          resolve(bodyAdded)
+        }else{
+          resolve(false)
+        }
+      }
+      
+    })
+  }
+
+  getHeaderFromDB(blockNumber){
+    return new Promise((resolve)=>{
+      if(blockNumber){
+        this.chainDB.get(blockNumber.toString())
+        .then( entry =>{
+          let header = entry[entry._id] 
+          resolve(header)
+        
+        })
+        .catch( e => {
+          // console.log('GET BLOCK HEADER ERROR', e)
+          resolve(false)
+        })
+      }else{
+        // console.log('VALID BLOCKNUMBER IS REQUIRED')
+        resolve(false)
+      }
+    })
+  }
+
+  getBodyFromDB(hash){
+    return new Promise((resolve)=>{
+      if(hash){
+        this.chainDB.get(hash)
+        .then( entry => {
+          let body = entry[entry._id]
+          resolve(body) 
+        })
+        .catch( e => {
+          // console.log('GET BLOCK BODY ERROR',e)
+          resolve(false)
+        })
+      }
+    })
+  }
+
+  fetchBlockFromDB(blockNumber){
+    return new Promise(async (resolve)=>{
+      let block = await this.getHeaderFromDB(blockNumber)
+      if(block){
+        let blockBody = await this.getBodyFromDB(block.hash)
+        if(blockBody){
+          if(blockBody.transactions && blockBody.transactions.actions){
+            block.actions = blockBody.transactions.actions
+          }
+          block.transactions = blockBody.transactions
+          resolve(block)
+        }else{
+          // console.log('ERROR Could not get block body')
+          resolve(false)
+        }
+      }else{
+        // console.log('ERROR Could not get block header')
+        resolve(false)
+      }
+    })
+  }
+
+  removeHeaderFromDB(blockNumber){
+    return new Promise(async (resolve)=>{
+      this.chainDB.get(blockNumber.toString())
+      .then(async (headerEntryFound)=>{
+        this.chainDB.remove(headerEntryFound._id, headerEntryFound._rev)
+        .then((deleted)=>{
+          resolve(deleted)
+        })
+        .catch( e => {
+          console.log('HEADER DELETE ERROR', e)
+          resolve(false)
+        })
+      })
+      .catch( e => {
+        console.log('HEADER GET ERROR', e)
+        resolve(false)
+      })
+    })
+  }
+
+  removeBodyFromDB(hash){
+    return new Promise(async (resolve)=>{
+      this.chainDB.get(hash)
+      .then(async (bodyEntryFound)=>{
+        this.chainDB.remove(bodyEntryFound._id, bodyEntryFound._rev)
+        .then((deleted)=>{
+          resolve(deleted)
+        })
+        .catch( e => {
+          console.log('BODY DELETE ERROR', e)
+          resolve(false)
+        })
+      })
+      .catch( e => {
+        console.log('BODY GET ERROR', e)
+        resolve(false)
+      })
+    })
+  }
+
+  removeBlockFromDB(block){
+    return new Promise(async (resolve)=>{
+      // let block = await this.getHeaderFromDB(blockNumber)
+      // if(block){
+        
+      // }else{
+      //   resolve(false)
+      // }
+      console.log('BLOCK:', block)
+      let headerDeleted = await this.removeHeaderFromDB(block.blockNumber)
+      if(headerDeleted){
+        let bodyDeleted = await this.removeHeaderFromDB(block.hash)
+        if(bodyDeleted){
+          resolve(bodyDeleted)
+        }
+      }else{
+        resolve(false)
+      }
+        
+    })
+  }
+
+  replaceBlockFromDB(newBlock){
+    return new Promise(async (resolve)=>{
+      let existingBlock = await this.fetchBlockFromDB(newBlock.blockNumber.toString())
+      if(existingBlock){
+        let deleted = await this.removeBlockFromDB(existingBlock)
+        if(deleted){
+          let added = await this.putBlockToDB(newBlock)
+          if(added){
+            resolve(added)
+          }else{
+            resolve(false)
+          }
+        }else{
+          resolve(false)
+        }
+      }else{
+        resolve(false)
       }
     })
   }
@@ -1840,7 +2122,7 @@ class Blockchain{
         let block = blockContainer[blockNumberString]
         resolve(block)
       }else{
-        resolve({error:`Could not find block ${i}`})
+        resolve({error:`Could not find block ${blockNumberString}`})
       }
     })
     

@@ -503,6 +503,7 @@ class Node {
         let connectionAttempts = 0;
         let peer;
         try{
+          
           let config = {
             'reconnection limit' : 1000,
             'max reconnection attempts' : 3,
