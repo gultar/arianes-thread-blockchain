@@ -36,7 +36,13 @@ class Miner{
       
       this.initWallet()
       if(url){
-        this.socket = ioClient(url)
+        let config = {
+          'query':
+            {
+              token: 'InitMiner',
+            }
+        }
+        this.socket = ioClient(url, config)
         this.socket.on('connect', ()=>{
           logger('Miner connected to ', url)
         })

@@ -534,7 +534,6 @@ class Blockchain{
                       resolve({error:'Is not valid total difficulty'})
                     }
                   }else{
-                    logger('Current chain has more work')
                     resolve(false)
                   }
                   
