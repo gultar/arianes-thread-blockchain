@@ -322,9 +322,7 @@ class Node {
       await rateLimiter.consume(socket.handshake.address).catch(e => { 
         // console.log("Peer sent too many 'getNextBlock' events") 
       }); // consume 1 point per event from IP
-      console.log('Has requested', hash)
       let index = this.chain.getIndexOfBlockHash(hash)
-      console.log('Index',index)
       if(index || index === 0){
         if(hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlock', {end:'End of blockchain'})
@@ -1243,7 +1241,7 @@ class Node {
             coinbaseTransactionHash:block.coinbaseTransactionHash
           }
 
-          console.log(blockInfo)
+          // console.log(blockInfo)
         }else{
           blockInfo = {
             error: 'header not found'
