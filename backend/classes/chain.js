@@ -832,7 +832,7 @@ class Blockchain{
       // }else{
       //   resolve(false)
       // }
-      console.log('BLOCK:', block)
+      // console.log('BLOCK:', block)
       let headerDeleted = await this.removeHeaderFromDB(block.blockNumber)
       if(headerDeleted){
         let bodyDeleted = await this.removeHeaderFromDB(block.hash)
