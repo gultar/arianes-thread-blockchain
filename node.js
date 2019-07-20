@@ -324,7 +324,7 @@ class Node {
       }); // consume 1 point per event from IP
       console.log('Has requested', hash)
       let index = this.chain.getIndexOfBlockHash(hash)
-      
+      console.log('Index',index)
       if(index || index === 0){
         if(hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlock', {end:'End of blockchain'})
