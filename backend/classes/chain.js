@@ -672,14 +672,16 @@ class Blockchain{
 
   putBodyToDB(block){
     return new Promise(async (resolve)=>{
-      if(block.actions){
-        block.transactions['actions'] = block.actions
+      if(block.actions && Object.keys(block.actions).length > 0){
+        
       }
+      
       this.chainDB.put({
         _id:block.hash,
         [block.hash]:block.transactions
       })
       .then((addedBody)=>{
+        delete block.transactions.actions
         resolve(addedBody)
       })
       .catch(e => {
@@ -1399,6 +1401,7 @@ class Blockchain{
   */
   async validateBlock(block){
     return new Promise(async (resolve)=>{
+      // console.log(block)
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = this.validateBlockTimestamp(block)
@@ -1730,9 +1733,12 @@ class Blockchain{
   isValidMerkleRoot(root, transactions){
       if(transactions && root){
         let recalculatedMerkleRoot = merkleRoot(transactions);
+        console.log(Object.keys(transactions))
         if(recalculatedMerkleRoot == root){
             return true;
         }else{
+            console.log('Root', root)
+            console.log('Recalc:', recalculatedMerkleRoot)
             return false;
         }
       }else{
