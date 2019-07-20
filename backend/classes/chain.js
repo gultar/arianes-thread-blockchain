@@ -1733,12 +1733,9 @@ class Blockchain{
   isValidMerkleRoot(root, transactions){
       if(transactions && root){
         let recalculatedMerkleRoot = merkleRoot(transactions);
-        console.log(Object.keys(transactions))
         if(recalculatedMerkleRoot == root){
             return true;
         }else{
-            console.log('Root', root)
-            console.log('Recalc:', recalculatedMerkleRoot)
             return false;
         }
       }else{
