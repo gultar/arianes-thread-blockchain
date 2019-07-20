@@ -575,7 +575,7 @@ class Blockchain{
                         if(!replaced){
                           let added = await this.putBlockToDB(forkBlock)
                         }
-
+                        this.chain.push(this.extractHeader(forkBlock))
                         logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
 
                         // let existingDBEntry = await this.chainDB.get(forkBlock.blockNumber.toString()).catch(e=> {/*console.log(e)*/})
