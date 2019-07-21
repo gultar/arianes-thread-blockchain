@@ -541,10 +541,10 @@ class Blockchain{
 
                       for(var forkBlock of fork){
                         console.log(forkBlock)
-                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions)
+                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions, forkBlock.blockNumber)
                         if(executed.errors) resolve({ error: executed.errors })
 
-                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions)
+                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions, forkBlock.blockNumber)
                         if(actionsExecuted.error) resolve({ error: executed.errors })
 
                         this.balance.saveHistory(forkBlock.blockNumber)
