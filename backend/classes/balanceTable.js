@@ -16,7 +16,7 @@ class BalanceTable{
                 
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
-                        if(!this.history[key][blockNumber]) this.history[key][blockNumber] = {}
+                        if(!this.history[key]) this.history[key] = this.states[key]
                         if(this.states[key].lastModified == blockNumber)
                         this.history[key][blockNumber] = JSON.parse(JSON.stringify(this.states[key]))
                     }
