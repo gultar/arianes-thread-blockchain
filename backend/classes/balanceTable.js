@@ -147,6 +147,7 @@ class BalanceTable{
                         if(this.history[blockNumber]){
                             if(this.history[blockNumber][key]){
                                 this.states[key] = this.history[blockNumber][key]
+                                this.states[key].lastModified = blockNumber
                                 logger('Rolled back to selected account state')
                             }else{
                                if(this.states[key] && this.states[key].lastModified){
