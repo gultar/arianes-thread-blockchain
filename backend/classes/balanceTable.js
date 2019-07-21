@@ -16,19 +16,8 @@ class BalanceTable{
                 if(!this.history[blockNumber]) this.history[blockNumber] = {}
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
-                        if(blockNumber > 1){
-                            if(this.history[blockNumber - 1] && this.history[blockNumber - 1][key]){
-                                let previousState = this.history[blockNumber - 1][key]
-                                if(this.states[key].balance != previousState.balance){
-                                    this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key])) //Pass object by value with stringify+parse
-                                }
-                            }
-                            
-                        }else if(blockNumber == 1){
-                            this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key])) //Pass object by value with stringify+parse
-                        }
-                        
-                        
+                        if(this.states[key].lastModified == blockNumber)
+                        this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key]))
                     }
                 })
                 resolve(true)
@@ -165,6 +154,7 @@ class BalanceTable{
                             
                         }
                     }
+                    this.saveHistory(blockNumber)
                     resolve(true)
                 }else{
                     resolve({error:`ERROR: Balance history at block ${blockNumber} does not exists`})
