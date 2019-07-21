@@ -152,8 +152,9 @@ class BalanceTable{
                         }
                         
                     }
+                    let saved = await this.saveHistory(blockNumber)
                 }
-                let saved = await this.saveHistory(blockNumber)
+                
                 resolve(true)
                
             }else{
