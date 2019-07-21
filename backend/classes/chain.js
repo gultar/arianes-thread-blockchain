@@ -546,6 +546,8 @@ class Blockchain{
 
                         let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions)
                         if(actionsExecuted.error) resolve({ error: executed.errors })
+
+                        this.balance.saveHistory(forkBlock.blockNumber)
                         
                         if(forkBlock.actions && actionsExecuted){
                           forkBlock.transactions['actions'] = forkBlock.actions
