@@ -1276,7 +1276,14 @@ class Node {
       })
 
       socket.on('showBalances', ()=>{
-        console.log(JSON.stringify(this.chain.balance, null, 2))
+        console.log(JSON.stringify(this.chain.balance.states, null, 2))
+      })
+
+      socket.on('showHistory', (key)=>{
+        if(this.chain.balance.history[key]){
+          console.log(JSON.stringify(this.chain.balance.history[key], null, 2))
+        }
+        
       })
 
       socket.on('verbose', ()=>{
