@@ -16,15 +16,19 @@ class BalanceTable{
                 if(!this.history[blockNumber]) this.history[blockNumber] = {}
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
-                        this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key]))
-                        // if(blockNumber > 0){
-                        //     if(this.history[blockNumber - 1][key]){
-                        //         if(this.states[key].balance !== this.history[blockNumber - 1][key].balance){
-                                    
-                        //         }
-                        //     }
+                        if(blockNumber > 1){
+                            if(this.history[blockNumber - 1] && this.history[blockNumber - 1][key]){
+                                let previousState = this.history[blockNumber - 1][key]
+                                if(this.states[key].balance != previousState.balance){
+                                    this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key])) //Pass object by value with stringify+parse
+                                }
+                            }
                             
-                        // }
+                        }else if(blockNumber == 1){
+                            this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key])) //Pass object by value with stringify+parse
+                        }
+                        
+                        
                     }
                 })
                 resolve(true)
@@ -35,13 +39,13 @@ class BalanceTable{
         
     }
 
-    executeTransactionBlock(transactions){
+    executeTransactionBlock(transactions, blockNumber){
         return new Promise((resolve)=>{
             let hashes = Object.keys(transactions);
             let errors = {}
             hashes.forEach( hash=>{
                 let tx = transactions[hash];
-                let executed = this.executeTransaction(tx)
+                let executed = this.executeTransaction(tx, blockNumber)
                 if(executed.error) errors[hash] = executed.error;
             })
             let numOfErrors = Object.keys(errors).length;
@@ -52,7 +56,7 @@ class BalanceTable{
         
     }
 
-    executeTransaction(transaction){
+    executeTransaction(transaction, blockNumber){
         if(isValidTransactionJSON(transaction)){
             
             let fromAddress = transaction.fromAddress;
@@ -62,9 +66,10 @@ class BalanceTable{
             let miningFee = transaction.miningFee;
 
             if(fromAddress !== 'coinbase'){
-                let coinsSpent = this.spend(fromAddress, amount+miningFee, hash);
+                let coinsSpent = this.spend(fromAddress, amount+miningFee, blockNumber);
                 if(!coinsSpent.error){
-                    let coinsGained = this.gain(toAddress, amount, hash);
+                    let coinsGained = this.gain(toAddress, amount, blockNumber);
+                    
                     if(coinsGained.error){
                         return { error:coinsGained.error }
                     }else{
@@ -75,7 +80,7 @@ class BalanceTable{
                     return { error:coinsSpent.error };
                 }
             }else{
-                let coinsGained = this.gain(toAddress, amount, hash);
+                let coinsGained = this.gain(toAddress, amount, blockNumber);
                 if(coinsGained.error){
                     return { error:coinsGained.error }
                 }else{
@@ -87,7 +92,7 @@ class BalanceTable{
         }
     }
 
-    executeActionBlock(actions){
+    executeActionBlock(actions, blockNumber){
         return new Promise((resolve)=>{
             
             if(actions){
@@ -96,7 +101,7 @@ class BalanceTable{
                     let errors = {}
                     hashes.forEach( hash=>{
                         let action = actions[hash];
-                        let executed = this.executeAction(action)
+                        let executed = this.executeAction(action, blockNumber)
                         if(executed.error) errors[hash] = executed.error;
                     })
                     let numOfErrors = Object.keys(errors).length;
@@ -115,14 +120,14 @@ class BalanceTable{
         
     }
 
-    executeAction(action){
+    executeAction(action, blockNumber){
         if(isValidActionJSON(action)){
             
             let fromAddress = action.fromAddress;
             let hash = action.hash;
             let fee = action.fee;
 
-            let coinsSpent = this.spend(fromAddress, fee, hash);
+            let coinsSpent = this.spend(fromAddress, fee, blockNumber);
             if(!coinsSpent.error){
                 return true;
             }else{
@@ -138,11 +143,27 @@ class BalanceTable{
                 if(this.history[blockNumber]){
                     let publicKeys = Object.keys(this.history[blockNumber])
                 
-                    publicKeys.forEach((key)=>{
-                        if(this.history[blockNumber] && this.history[blockNumber][key]){
-                            this.states[key] = this.history[blockNumber][key]
+                    for(var key of publicKeys){
+                        if(this.history[blockNumber]){
+                            if(this.history[blockNumber][key]){
+                                this.states[key] = this.history[blockNumber][key]
+                                logger('Rolled back to selected account state')
+                            }else{
+                               if(this.states[key] && this.states[key].lastModified){
+                                   let lastStateBlock = this.states[key].lastModified
+                                   if(lastStateBlock >= blockNumber && this.history[lastStateBlock][key]){
+                                        this.states[key] = this.history[lastStateBlock][key]
+                                        logger('Rolled back to last known account state')
+                                   }
+                                //    else{
+                                //        logger('Could not find history of key:', key)
+                                //    }
+                                   
+                               } 
+                            }
+                            
                         }
-                    })
+                    }
                     resolve(true)
                 }else{
                     resolve({error:`ERROR: Balance history at block ${blockNumber} does not exists`})
@@ -169,12 +190,13 @@ class BalanceTable{
         
     }
 
-    spend(publicKey, value, txHash){
-        if(publicKey && value && txHash){
+    spend(publicKey, value, blockNumber){
+        if(publicKey && value && blockNumber){
             if(!this.states[publicKey]) return {error:'Wallet does not exist'};
             let state = this.states[publicKey];
             if(state.balance > value){
                 state.balance -= value;
+                state.lastModified = blockNumber
             }else{
                 return { error:'ERROR: sending wallet does not have sufficient funds' }
             }
@@ -185,8 +207,8 @@ class BalanceTable{
         
     }
 
-    gain(publicKey, value, txHash){
-        if(publicKey && value && txHash){
+    gain(publicKey, value, blockNumber){
+        if(publicKey && value && blockNumber){
 
               if(!this.states[publicKey]){
                 let newWallet = this.addNewWalletKey(publicKey);
@@ -195,7 +217,7 @@ class BalanceTable{
               
               let state = this.states[publicKey];
               state.balance += value;
-            //   state.lastTransaction = txHash
+              state.lastModified = blockNumber
               return true;
         }else{
             return { error:'ERROR: missing required parameters (publicKey, value, txHash)' };
