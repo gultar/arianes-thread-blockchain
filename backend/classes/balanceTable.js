@@ -13,7 +13,6 @@ class BalanceTable{
         return new Promise((resolve)=>{
             if(blockNumber !== undefined){
                 let publicKeys = Object.keys(this.states)
-                logger('Saving state for block ', blockNumber)
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
                         if(!this.history[key]) this.history[key] = {}
