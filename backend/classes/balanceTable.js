@@ -44,7 +44,7 @@ class BalanceTable{
             })
             let numOfErrors = Object.keys(errors).length;
 
-            if(numOfErrors > 0) resolve({errors:errors})
+            if(numOfErrors > 0) resolve({errors:errors, blockNumber:blockNumber})
             else resolve(true)
         })
         
@@ -100,7 +100,7 @@ class BalanceTable{
                     })
                     let numOfErrors = Object.keys(errors).length;
         
-                    if(numOfErrors > 0) resolve({errors:errors})
+                    if(numOfErrors > 0) resolve({errors:errors, blockNumber:blockNumber})
                     else resolve(true)
                 }else{
                     resolve(false)
@@ -147,10 +147,13 @@ class BalanceTable{
                                let lastStateBlock = this.states[key].lastModified
                                if(this.history[key][lastStateBlock]){
                                     this.states[key].balance = this.history[key][lastStateBlock].balance
+                                    this.states[key].lastModified = blockNumber
                                     logger('Rolled back to last known account state')
                                }
                            
-                           } 
+                           }else{
+
+                           }
                         }
                         
                     }
@@ -192,6 +195,9 @@ class BalanceTable{
             }
             return true;
         }else{
+            console.log('Public Key', publicKey)
+            console.log('Value', value)
+            console.log('BlockNumber', blockNumber)
             return { error:'ERROR: missing required parameters (publicKey, value, txHash)' };
         }
         
@@ -210,6 +216,9 @@ class BalanceTable{
               state.lastModified = blockNumber
               return true;
         }else{
+            console.log('Public Key', publicKey)
+            console.log('Value', value)
+            console.log('BlockNumber', blockNumber)
             return { error:'ERROR: missing required parameters (publicKey, value, txHash)' };
         }
         
