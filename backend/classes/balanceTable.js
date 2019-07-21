@@ -128,7 +128,7 @@ class BalanceTable{
     }
 
     rollback(blockNumber){
-        return new Promise((resolve)=>{
+        return new Promise(async (resolve)=>{
             if(blockNumber !== undefined){
                 if(this.history[blockNumber]){
                     let publicKeys = Object.keys(this.history[blockNumber])
