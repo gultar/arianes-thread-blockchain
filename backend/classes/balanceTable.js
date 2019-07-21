@@ -143,7 +143,7 @@ class BalanceTable{
                         }else{
                            if(this.states[key] && this.states[key].lastModified){
                                let lastStateBlock = this.states[key].lastModified
-                               if(lastStateBlock >= blockNumber && this.history[key][lastStateBlock]){
+                               if(this.history[key][lastStateBlock]){
                                     this.states[key].balance = this.history[key][lastStateBlock].balance
                                     logger('Rolled back to last known account state')
                                }
