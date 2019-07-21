@@ -539,15 +539,8 @@ class Blockchain{
                       this.balance.rollback(forkHeadBlock.blockNumber)
                       //Rollback of balance here
 
-                      for(var forkBlock of fork){
-                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions, forkBlock.blockNumber)
-                        if(executed.errors) resolve({ error: executed.errors })
+                      for await(var forkBlock of fork){
 
-                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions, forkBlock.blockNumber)
-                        if(actionsExecuted.error) resolve({ error: executed.errors })
-
-                        this.balance.saveHistory(forkBlock.blockNumber)
-                        
                         if(forkBlock.actions && actionsExecuted){
                           forkBlock.transactions['actions'] = forkBlock.actions
                         }
@@ -557,6 +550,13 @@ class Blockchain{
                           replaced = await this.putBlockToDB(forkBlock)
                         }
 
+                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions, forkBlock.blockNumber)
+                        if(executed.errors) resolve({ error: executed.errors })
+
+                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions, forkBlock.blockNumber)
+                        if(actionsExecuted.error) resolve({ error: executed.errors })
+
+                        this.balance.saveHistory(forkBlock.blockNumber)
                         
                         this.chain.push(this.extractHeader(forkBlock))
                         logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
