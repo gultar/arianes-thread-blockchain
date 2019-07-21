@@ -540,7 +540,7 @@ class Blockchain{
                       //Rollback of balance here
 
                       for(var forkBlock of fork){
-
+                        console.log(forkBlock)
                         let executed = await this.balance.executeTransactionBlock(forkBlock.transactions)
                         if(executed.errors) resolve({ error: executed.errors })
 

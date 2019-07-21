@@ -151,8 +151,6 @@ class BalanceTable{
                                     logger('Rolled back to last known account state')
                                }
                            
-                           }else{
-
                            }
                         }
                         
