@@ -13,7 +13,7 @@ class BalanceTable{
         return new Promise((resolve)=>{
             if(blockNumber !== undefined){
                 let publicKeys = Object.keys(this.states)
-                
+                logger('Saving state for block ', blockNumber)
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
                         if(!this.history[key]) this.history[key] = {}
@@ -21,6 +21,8 @@ class BalanceTable{
                             this.history[key][blockNumber] = { balance:this.states[key].balance }
                         }
                         
+                    }else{
+                        logger(`ERROR: State with key ${key} does not exist`)
                     }
                 })
                 resolve(true)
@@ -152,7 +154,7 @@ class BalanceTable{
                         }
                         
                     }
-                    let saved = await this.saveHistory(blockNumber)
+                    
                 }
                 
                 resolve(true)

@@ -1374,7 +1374,7 @@ class Node {
       if(block){
         let synced = await this.chain.pushBlock(block);
         if(synced.error){
-          logger(synced.error)
+          console.log(synced.error)
 
         }else{
           if(synced.fork){
