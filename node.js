@@ -1377,9 +1377,6 @@ class Node {
           console.log(synced.error)
 
         }else{
-          if(synced.fork){
-            logger(synced.fork)
-          }
           this.sendPeerMessage('newBlockFound', block);
           this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
           
@@ -1555,7 +1552,7 @@ class Node {
   
                 let addedToChain = await this.chain.pushBlock(block);
                 if(addedToChain.error){
-                  logger(addedToChain.error)
+                  console.log(addedToChain.error)
                 }
   
                 if(this.localServer && this.localServer.socket){
