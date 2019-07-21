@@ -13,11 +13,12 @@ class BalanceTable{
         return new Promise((resolve)=>{
             if(blockNumber !== undefined){
                 let publicKeys = Object.keys(this.states)
-                if(!this.history[blockNumber]) this.history[blockNumber] = {}
+                
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
+                        if(!this.history[key][blockNumber]) this.history[key][blockNumber] = {}
                         if(this.states[key].lastModified == blockNumber)
-                        this.history[blockNumber][key] = JSON.parse(JSON.stringify(this.states[key]))
+                        this.history[key][blockNumber] = JSON.parse(JSON.stringify(this.states[key]))
                     }
                 })
                 resolve(true)
@@ -133,9 +134,9 @@ class BalanceTable{
                     let publicKeys = Object.keys(this.history[blockNumber])
                 
                     for(var key of publicKeys){
-                        if(this.history[blockNumber]){
-                            if(this.history[blockNumber][key]){
-                                this.states[key] = this.history[blockNumber][key]
+                        if(this.history[key]){
+                            if(this.history[key][blockNumber]){
+                                this.states[key] = this.history[key][blockNumber]
                                 this.states[key].lastModified = blockNumber
                                 logger('Rolled back to selected account state')
                             }else{
@@ -154,7 +155,8 @@ class BalanceTable{
                             
                         }
                     }
-                    this.saveHistory(blockNumber)
+                    let saved = await this.saveHistory(blockNumber)
+                    
                     resolve(true)
                 }else{
                     resolve({error:`ERROR: Balance history at block ${blockNumber} does not exists`})

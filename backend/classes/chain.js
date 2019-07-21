@@ -536,7 +536,7 @@ class Blockchain{
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
                       
-                      this.balance.rollback(forkHeadBlock.blockNumber)
+                      // this.balance.rollback(forkHeadBlock.blockNumber)
                       //Rollback of balance here
 
                       for(var forkBlock of fork){
