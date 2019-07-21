@@ -16,9 +16,11 @@ class BalanceTable{
                 
                 publicKeys.forEach((key)=>{
                     if(this.states[key]){
-                        if(!this.history[key]) this.history[key] = this.states[key]
-                        if(this.states[key].lastModified == blockNumber)
-                        this.history[key][blockNumber] = JSON.parse(JSON.stringify(this.states[key]))
+                        if(!this.history[key]) this.history[key] = {}
+                        if(this.states[key].lastModified == blockNumber){
+                            this.history[key][blockNumber] = { balance:this.states[key].balance }
+                        }
+                        
                     }
                 })
                 resolve(true)
@@ -130,37 +132,29 @@ class BalanceTable{
     rollback(blockNumber){
         return new Promise(async (resolve)=>{
             if(blockNumber !== undefined){
-                if(this.history[blockNumber]){
-                    let publicKeys = Object.keys(this.history[blockNumber])
+                let publicKeys = Object.keys(this.states)
                 
-                    for(var key of publicKeys){
-                        if(this.history[key]){
-                            if(this.history[key][blockNumber]){
-                                this.states[key] = this.history[key][blockNumber]
-                                this.states[key].lastModified = blockNumber
-                                logger('Rolled back to selected account state')
-                            }else{
-                               if(this.states[key] && this.states[key].lastModified){
-                                   let lastStateBlock = this.states[key].lastModified
-                                   if(lastStateBlock >= blockNumber && this.history[lastStateBlock][key]){
-                                        this.states[key] = this.history[lastStateBlock][key]
-                                        logger('Rolled back to last known account state')
-                                   }
-                                //    else{
-                                //        logger('Could not find history of key:', key)
-                                //    }
-                                   
-                               } 
-                            }
-                            
+                for(var key of publicKeys){
+                    if(this.history[key]){
+                        if(this.history[key][blockNumber]){
+                            this.states[key].balance = this.history[key][blockNumber].balance
+                            this.states[key].lastModified = blockNumber
+                            logger('Rolled back to selected account state')
+                        }else{
+                           if(this.states[key] && this.states[key].lastModified){
+                               let lastStateBlock = this.states[key].lastModified
+                               if(lastStateBlock >= blockNumber && this.history[key][lastStateBlock]){
+                                    this.states[key].balance = this.history[key][lastStateBlock].balance
+                                    logger('Rolled back to last known account state')
+                               }
+                           
+                           } 
                         }
+                        
                     }
-                    let saved = await this.saveHistory(blockNumber)
-                    
-                    resolve(true)
-                }else{
-                    resolve({error:`ERROR: Balance history at block ${blockNumber} does not exists`})
                 }
+                let saved = await this.saveHistory(blockNumber)
+                resolve(true)
                
             }else{
                 resolve({error:'ERROR: Need to specify block number'})

@@ -793,13 +793,7 @@ class Blockchain{
 
   removeBlockFromDB(block){
     return new Promise(async (resolve)=>{
-      // let block = await this.getHeaderFromDB(blockNumber)
-      // if(block){
-        
-      // }else{
-      //   resolve(false)
-      // }
-      // console.log('BLOCK:', block)
+      
       let headerDeleted = await this.removeHeaderFromDB(block.blockNumber)
       if(headerDeleted){
         let bodyDeleted = await this.removeHeaderFromDB(block.hash)
