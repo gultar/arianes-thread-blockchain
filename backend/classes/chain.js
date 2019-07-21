@@ -540,6 +540,15 @@ class Blockchain{
                       //Rollback of balance here
 
                       for await(var forkBlock of fork){
+                        
+                        this.chain.push(this.extractHeader(forkBlock))
+                        logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
+                        
+                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions, forkBlock.blockNumber)
+                        if(executed.errors) resolve({ error: executed.errors })
+
+                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions, forkBlock.blockNumber)
+                        if(actionsExecuted.error) resolve({ error: executed.errors })
 
                         if(forkBlock.actions && actionsExecuted){
                           forkBlock.transactions['actions'] = forkBlock.actions
@@ -550,19 +559,10 @@ class Blockchain{
                           replaced = await this.putBlockToDB(forkBlock)
                         }
 
-                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions, forkBlock.blockNumber)
-                        if(executed.errors) resolve({ error: executed.errors })
-
-                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions, forkBlock.blockNumber)
-                        if(actionsExecuted.error) resolve({ error: executed.errors })
-
                         this.balance.saveHistory(forkBlock.blockNumber)
                         
-                        this.chain.push(this.extractHeader(forkBlock))
-                        logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
-
-                      
                       }
+                      
                       this.blockForks = {}
                       logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                       
