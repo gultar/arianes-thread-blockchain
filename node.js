@@ -1336,7 +1336,7 @@ class Node {
         let numberOfBlocksToRemove = endBlock.blockNumber - number
         let blocks = this.chain.chain.splice(number, numberOfBlocksToRemove)
                       
-        let rolledBack = await this.balance.rollback(number)
+        let rolledBack = await this.chain.balance.rollback(number)
         if(rolledBack.error) throw new Error(rolledBack.error)
         console.log(`Removed ${blocks.length} blocks`)
       })
