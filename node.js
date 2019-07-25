@@ -1334,7 +1334,7 @@ class Node {
         logger('Rolled back to block ', number)
         let endBlock = this.chain.chain.length-1
         let numberOfBlocksToRemove = endBlock.blockNumber - number
-        let blocks = this.chain.splice(number, numberOfBlocksToRemove)
+        let blocks = this.chain.chain.splice(number, numberOfBlocksToRemove)
                       
         let rolledBack = await this.balance.rollback(number)
         if(rolledBack.error) throw new Error(rolledBack.error)
