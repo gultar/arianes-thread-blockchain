@@ -1,34 +1,77 @@
 const sha256 = require('../tools/sha256');
+const Database = require('./database')
 const { isValidTransactionJSON, isValidActionJSON } = require('../tools/jsonvalidator');
 const { readFile, writeToFile, logger } = require('../tools/utils');
 const fs = require('fs')
+const PouchDB = require('pouchdb')
 
 class BalanceTable{
     constructor(state, history){
         this.states = (state?state:{})
         this.history = (history?history:{})
+        this.stateDB = new Database('./data/stateDB')
     }
 
-    saveHistory(blockNumber){
-        return new Promise((resolve)=>{
-            if(blockNumber !== undefined){
-                let publicKeys = Object.keys(this.states)
-                publicKeys.forEach((key)=>{
-                    if(this.states[key]){
-                        if(!this.history[key]) this.history[key] = {}
-                        if(this.states[key].lastModified == blockNumber){
-                            this.history[key][blockNumber] = { balance:this.states[key].balance }
-                        }
+    // saveHistory(blockNumber){
+    //     return new Promise((resolve)=>{
+    //         if(blockNumber !== undefined){
+    //             let publicKeys = Object.keys(this.states)
+    //             publicKeys.forEach((key)=>{
+    //                 if(this.states[key]){
+    //                     if(!this.history[key]) this.history[key] = {}
+    //                     if(this.states[key].lastModified == blockNumber){
+    //                         this.history[key][blockNumber] = { balance:this.states[key].balance }
+    //                     }
                         
-                    }else{
-                        logger(`ERROR: State with key ${key} does not exist`)
-                    }
-                })
-                resolve(true)
+    //                 }else{
+    //                     logger(`ERROR: State with key ${key} does not exist`)
+    //                 }
+    //             })
+    //             resolve(true)
+    //         }else{
+    //             resolve({error:'ERROR: Need to specify block number'})
+    //         }
+    //     })
+        
+    // }
+
+    executeBlock(block){
+        return new Promise(async (resolve)=>{
+            if(!block) resolve({error:"Block to execute is of undefined"})
+
+            let executed = await this.executeTransactionBlock(block.transactions, block.blockNumber)
+            if(executed.errors) resolve({ error: executed.errors })
+    
+            let actionsExecuted = await this.executeActionBlock(block.actions, block.blockNumber)
+            if(actionsExecuted.error) resolve({ error: executed.errors })
+
+            let transactionsHashes = Object.keys(block.transactions)
+
+            let actionHashes = []
+            if(block.actions){
+                actionHashes = Object.keys(block.actions)
             }else{
-                resolve({error:'ERROR: Need to specify block number'})
+                actionHashes = []
             }
+
+            // this.saveHistory(block.blockNumber)
+
+            let added = await this.stateDB.put({
+                id:block.blockNumber.toString(),
+                key: 'blockState',
+                value: { 
+                    states:this.states,
+                    merkleRoot:block.merkleRoot,
+                    actionMerkleRoot:block.actionMerkleRoot,
+                    transactionsHashes:transactionsHashes,
+                    actionHashes:actionHashes
+                }
+            })
+
+            if(added.error) resolve({error:added.error})
+            else resolve(added)
         })
+        
         
     }
 
@@ -130,32 +173,46 @@ class BalanceTable{
         }
     }
 
+    // rollback(blockNumber){
+    //     return new Promise(async (resolve)=>{
+    //         if(blockNumber !== undefined){
+    //             let publicKeys = Object.keys(this.states)
+                
+    //             for(var key of publicKeys){
+    //                 if(this.history[key]){
+    //                     if(this.history[key][blockNumber]){
+    //                         this.states[key].balance = this.history[key][blockNumber].balance
+    //                         this.states[key].lastModified = blockNumber
+    //                     }else{
+    //                        if(this.states[key] && this.states[key].lastModified){
+    //                            let lastStateBlock = this.states[key].lastModified
+    //                            if(this.history[key][lastStateBlock]){
+    //                                 this.states[key].balance = this.history[key][lastStateBlock].balance
+    //                                 this.states[key].lastModified = blockNumber
+    //                            }
+                           
+    //                        }
+    //                     }
+                        
+    //                 }
+                    
+    //             }
+                
+    //             resolve(true)
+               
+    //         }else{
+    //             resolve({error:'ERROR: Need to specify block number'})
+    //         }
+    //     })
+    // }
+
     rollback(blockNumber){
         return new Promise(async (resolve)=>{
             if(blockNumber !== undefined){
-                let publicKeys = Object.keys(this.states)
-                
-                for(var key of publicKeys){
-                    if(this.history[key]){
-                        if(this.history[key][blockNumber]){
-                            this.states[key].balance = this.history[key][blockNumber].balance
-                            this.states[key].lastModified = blockNumber
-                            logger('Rolled back to selected account state')
-                        }else{
-                           if(this.states[key] && this.states[key].lastModified){
-                               let lastStateBlock = this.states[key].lastModified
-                               if(this.history[key][lastStateBlock]){
-                                    this.states[key].balance = this.history[key][lastStateBlock].balance
-                                    this.states[key].lastModified = blockNumber
-                                    logger('Rolled back to last known account state')
-                               }
-                           
-                           }
-                        }
-                        
-                    }
-                    
-                }
+                let blockState = await this.stateDB.get(blockNumber)
+                if(states.error) resolve({error:states.error})
+
+                this.states = blockState.states
                 
                 resolve(true)
                
@@ -192,10 +249,7 @@ class BalanceTable{
             }
             return true;
         }else{
-            console.log('Public Key', publicKey)
-            console.log('Value', value)
-            console.log('BlockNumber', blockNumber)
-            return { error:'ERROR: missing required parameters (publicKey, value, txHash)' };
+            return { error:'ERROR: missing required parameters (publicKey, value, blockNumber)' };
         }
         
     }

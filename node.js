@@ -1279,6 +1279,11 @@ class Node {
         console.log(JSON.stringify(this.chain.balance.states, null, 2))
       })
 
+      socket.on('showBlockState', async (number)=>{
+        let state = await this.chain.balance.stateDB.get(number.toString())
+        console.log(JSON.stringify(state, null, 1))
+      })
+
       socket.on('showHistory', (key)=>{
         if(this.chain.balance.history[key]){
           console.log(JSON.stringify(this.chain.balance.history[key], null, 2))

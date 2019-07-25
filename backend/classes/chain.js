@@ -69,10 +69,10 @@ class Blockchain{
       genesisBlock.states = {
         //Other public addresses can be added to initiate their balance in the genesisBlock
         //Make sure at least one of the them has some funds, otherwise no transactions will be possible
-        "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{  balance:10000 },
-        "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{  balance:10000 },
-        "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{  balance:10000 },
-        "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{  balance:10000 },
+        "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{ balance:10000 },
+        "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{ balance:10000 },
+        "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{ balance:10000 },
+        "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{ balance:10000 },
       }
 
       return genesisBlock
@@ -199,168 +199,11 @@ class Blockchain{
     return this.chain[this.chain.length - 1];
   }
 
-  getNextBlock(){
-    return this.chain[this.chain.length - 1];
-  }
-
   /**
-   * 
+   * Validate and add block to database and blockchain
    * @param {Block} newBlock 
    * @param {boolean} silent 
    */
-
-  // pushNewBlock(newBlock, silent=false){
-  //   return new Promise(async (resolve)=>{
-  //     if(isValidBlockJSON(newBlock)){
-  //       let isValidBlock = await this.validateBlock(newBlock);
-  //       if(isValidBlock){
-  //         var isLinked = this.isBlockLinked(newBlock);
-          
-  //         if(isLinked){
-  //           //Save balance history
-  //           let saved = await this.balance.saveHistory(newBlock.blockNumber - 1)
-  //           if(saved.error) resolve({error:saved.error})
-  //           //Push block header to chain
-  //           this.chain.push(this.extractHeader(newBlock));
-  //           if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
-  //           //Verify is already exists
-  //           let exists = await this.chainDB.get(newBlock.hash).catch(e => {})
-  //           if(!exists){
-  //             //If not, execute all transactions and actions
-              
-  //             let executed = await this.balance.executeTransactionBlock(newBlock.transactions)
-  //             if(executed.errors) resolve({ error: executed.errors })
-
-  //             let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions)
-  //             if(actionsExecuted.error) resolve({ error: executed.errors })
-              
-  //             if(newBlock.actions && actionsExecuted){
-  //               newBlock.transactions['actions'] = newBlock.actions
-  //             }
-
-  //             //Then add block header to database,
-  //             this.chainDB.put({
-  //               _id:newBlock.blockNumber.toString(),
-  //               [newBlock.blockNumber]:this.extractHeader(newBlock)
-  //             })
-  //             .then((blockAdded)=>{
-  //               if(blockAdded){
-  //                 //Then put block body (transactions and actions)
-  //                 this.chainDB.put({
-  //                   _id:newBlock.hash,
-  //                   [newBlock.hash]:newBlock.transactions
-  //               })
-  //               .then(async (txConfirmed)=>{
-  //                 if(txConfirmed){
-  //                   //Then remove them from mempool
-  //                   Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-  //                   if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
-
-  //                   let saved = await this.balance.saveHistory(newBlock.blockNumber)
-  //                   if(!saved) logger('ERROR: An error occurred while saving balance table history')
-
-  //                   resolve(true);
-
-  //                 }else{
-  //                   logger('ERROR: Could not add transactions to database')
-  //                   resolve(false)
-  //                 }
-  //               })
-  //               .catch(e => console.log('BLOCK BODY PUSH ERROR: ', e))
-                  
-  //               }else{
-  //                 logger('MAJOR BLOCK ADD ERROR', blockAdded)
-  //                 resolve(false)
-  //               }
-  //             })
-  //             .catch(async (e)=>{
-  //               //Beautifull, fantastic, .then flavoured callback hell, 
-  //               //Freakin' PouchDB doesn't let me use async / await properly
-
-  //               //Get existing block from DB
-  //               this.chainDB.get(newBlock.blockNumber.toString())
-  //               .then((existingBlock)=>{
-  //                 //Then delete existing block
-  //                 if(existingBlock){
-  //                   this.chainDB.remove(existingBlock._id, existingBlock._rev)
-  //                   .then((deleted)=>{
-  //                     if(deleted){
-  //                       //Then insert new block
-  //                       this.chainDB.put({
-  //                         _id:newBlock.blockNumber.toString(),
-  //                         [newBlock.blockNumber]:this.extractHeader(newBlock)
-  //                       })
-  //                       .then((blockAdded)=>{
-  //                         if(blockAdded){
-  //                           //then insert new block's transactions and actions
-  //                           this.chainDB.put({
-  //                                 _id:newBlock.hash,
-  //                                 [newBlock.hash]:newBlock.transactions
-  //                             })
-  //                             .then((txConfirmed)=>{
-  //                               if(txConfirmed){
-  //                                 //Then delete existing transactions and actions from Mempool
-  //                                 Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-  //                                 if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
-  //                                 resolve(true);
-  //                               }else{
-  //                                 logger('ERROR: Could not add transactions to database')
-  //                                 resolve(false)
-  //                               }
-  //                             })
-  //                           .catch(e => console.log('BLOCK BODY PUSH ERROR: ', e))
-  //                         }else{
-  //                           logger('Could not add new block')
-  //                           resolve(false)
-  //                         }
-  //                       })
-  //                       resolve(true)
-  //                     }
-  //                   })
-  //                   .catch((e)=>{ 
-  //                       console.log('BLOCK DELETE ERROR:', e)
-  //                    })
-  //                 }else{
-  //                   logger('Could not fetch existing block')
-  //                   resolve(false)
-  //                 }
-  //               })
-  //               .catch((e)=>{ 
-  //                 console.log('EXISTING BLOCK ERROR',e)
-  //               })
-                
-  //             })
-
-  //           }else{
-  //             logger('WARNING: Block transactions already exist for block:', newBlock.hash.substr(0, 25))
-  //             Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-  //             resolve(true)
-  //           }
-
-  //         }else{
-  //           let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
-  //           let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
-  //           if( isLinkedToSomeBlock || isLinkedToBlockFork ){
-              
-  //             let isBlockFork = await this.newBlockFork(newBlock)
-  //             if(isBlockFork.error) resolve({error:isBlockFork.error})
-  //             resolve(true)
-  //           }else{
-  //             resolve(false)
-  //           }
-
-  //         }
-          
-  //       }else{
-  //         resolve({error:'Invalid block'})
-  //       }
-  //     }else{
-  //       resolve({error:'ERROR: New block undefined'})
-  //     }
-  //   })
-
-  // }
-
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
@@ -369,9 +212,7 @@ class Blockchain{
           var isLinked = this.isBlockLinked(newBlock);
           
           if(isLinked){
-            //Save balance history
-            // let saved = await this.balance.saveHistory(newBlock.blockNumber - 1)
-            // if(saved.error) resolve({error:saved.error})
+
             //Push block header to chain
             this.chain.push(this.extractHeader(newBlock));
             if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
@@ -379,18 +220,9 @@ class Blockchain{
 
             let added = await this.putBlockToDB(newBlock)
             if(added){
-              let executed = await this.balance.executeTransactionBlock(newBlock.transactions, newBlock.blockNumber)
-              if(executed.errors) resolve({ error: executed.errors })
 
-              let actionsExecuted = await this.balance.executeActionBlock(newBlock.actions, newBlock.blockNumber)
-              if(actionsExecuted.error) resolve({ error: executed.errors })
-
-              let saved = await this.balance.saveHistory(newBlock.blockNumber)
-              if(!saved) logger('ERROR: An error occurred while saving balance table history')
-              
-              // if(newBlock.actions && actionsExecuted){
-              //   newBlock.transactions['actions'] = newBlock.actions
-              // }
+              let executed = await this.balance.executeBlock(newBlock)
+              if(executed.error) resolve({error:executed.error})
               
               Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
               if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
@@ -537,6 +369,7 @@ class Blockchain{
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
                       
                       let rolledBack = await this.balance.rollback(forkHeadBlock.blockNumber - 1)
+                      if(rolledBack.error) resolve({error:rolledBack.error})
                       //Rollback of balance here
 
                       for await(var forkBlock of fork){
@@ -544,11 +377,8 @@ class Blockchain{
                         this.chain.push(this.extractHeader(forkBlock))
                         logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
                         
-                        let executed = await this.balance.executeTransactionBlock(forkBlock.transactions, forkBlock.blockNumber)
-                        if(executed.errors) resolve({ error: executed.errors })
-
-                        let actionsExecuted = await this.balance.executeActionBlock(forkBlock.actions, forkBlock.blockNumber)
-                        if(actionsExecuted.error) resolve({ error: executed.errors })
+                        let executed = await this.balance.executeBlock(forkBlock)
+                        if(executed.error) resolve({error:executed.error})
 
                         if(forkBlock.actions && actionsExecuted){
                           forkBlock.transactions['actions'] = forkBlock.actions
@@ -559,13 +389,12 @@ class Blockchain{
                           replaced = await this.putBlockToDB(forkBlock)
                         }
 
-                        this.balance.saveHistory(forkBlock.blockNumber)
+                        // this.balance.saveHistory(forkBlock.blockNumber)
                         
                       }
 
                       this.blockForks = {}
                       logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
-                      
                       this.isSyncingBlocks = false;
                       
                       resolve(true)
@@ -1963,6 +1792,7 @@ class Blockchain{
     }
     return false;
   }
+
   /**
     Checks if the action hash matches its content
     @param {object} $transaction - Action to be inspected
@@ -1985,6 +1815,7 @@ class Blockchain{
       }
     }
   }
+
   /**
     Checks the validity of the transaction signature
     @param {object} $transaction - Transaction to be inspected
@@ -2010,9 +1841,10 @@ class Blockchain{
       }
     })
   }
+
   /**
     Checks the validity of the action signature
-    @param {object} $transaction - Action to be inspected
+    @param {object} $action - Action to be inspected
     @param {object} $ownerKey - Public key of the owner account
     @return {boolean} Signature is valid or not
   */
@@ -2151,6 +1983,8 @@ class Blockchain{
               
               let block = await this.getBlockFromDB(blockNumber)
               if(block.error) reject(block.error)
+
+              //Could plug in balance loading from DB here
 
               this.chain.push(block)
               if(blockNumber == lastBlock.blockNumber){
