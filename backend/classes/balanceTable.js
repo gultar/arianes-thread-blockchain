@@ -212,6 +212,7 @@ class BalanceTable{
                 let blockState = await this.stateDB.get(blockNumber.toString())
                 if(blockState){
                     if(blockState.error) resolve({error:blockState.error})
+                    console.log('Block State',blockState)
                     this.states = blockState.states
                     resolve(true)
                 }else{
