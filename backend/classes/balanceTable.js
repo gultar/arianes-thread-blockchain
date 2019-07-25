@@ -210,12 +210,14 @@ class BalanceTable{
         return new Promise(async (resolve)=>{
             if(blockNumber !== undefined){
                 let blockState = await this.stateDB.get(blockNumber)
-                if(blockState.error) resolve({error:blockState.error})
-
-                this.states = blockState.states
+                if(blockState){
+                    if(blockState.error) resolve({error:blockState.error})
+                    this.states = blockState.states
+                    resolve(true)
+                }else{
+                    resolve({error:'Could not complete rollback. Missing block state'})
+                }
                 
-                resolve(true)
-               
             }else{
                 resolve({error:'ERROR: Need to specify block number'})
             }
