@@ -210,7 +210,7 @@ class BalanceTable{
         return new Promise(async (resolve)=>{
             if(blockNumber !== undefined){
                 let blockState = await this.stateDB.get(blockNumber)
-                if(states.error) resolve({error:states.error})
+                if(blockState.error) resolve({error:blockState.error})
 
                 this.states = blockState.states
                 
