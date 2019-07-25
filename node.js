@@ -1333,15 +1333,11 @@ class Node {
       socket.on('rollback', async (number)=>{
         logger('Rolled back to block ', number)
         let endBlock = this.chain.chain.length-1
-        let blocks = []
-        for(var i=endBlock; i > number; i--){
-          let block = this.chain.chain.pop()
-          var blockTx = await this.chain.chainDB.get(block.hash).catch(e => console.log(e))
-          let deleted = await this.chain.chainDB.remove(blockTx._id, blockTx._rev).catch(e => console.log(e))
-          
-          blocks.unshift(block)
-          
-        }
+        let numberOfBlocksToRemove = endBlock.blockNumber - number
+        let blocks = this.chain.splice(number, numberOfBlocksToRemove)
+                      
+        let rolledBack = await this.balance.rollback(number)
+        if(rolledBack.error) throw new Error(rolledBack.error)
         console.log(`Removed ${blocks.length} blocks`)
       })
 
