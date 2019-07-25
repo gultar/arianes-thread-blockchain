@@ -75,7 +75,6 @@ class Database{
             if(!this.isValidDBEntry(dbEntry)) resolve({error: "Db entry to delete is of invalid format"})
             this.database.remove(dbEntry._id, dbEntry._rev)
             .then((deleted)=>{
-               console.log(deleted)
                resolve(deleted)
             })
             .catch(e => {
