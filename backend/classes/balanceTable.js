@@ -43,7 +43,7 @@ class BalanceTable{
             if(executed.errors) resolve({ error: executed.errors })
     
             let actionsExecuted = await this.executeActionBlock(block.actions, block.blockNumber)
-            if(actionsExecuted.error) resolve({ error: executed.errors })
+            if(actionsExecuted.error) resolve({ error: actionsExecuted.errors })
 
             let transactionsHashes = Object.keys(block.transactions)
 
@@ -209,7 +209,7 @@ class BalanceTable{
     rollback(blockNumber){
         return new Promise(async (resolve)=>{
             if(blockNumber !== undefined){
-                let blockState = await this.stateDB.get(blockNumber)
+                let blockState = await this.stateDB.get(blockNumber.toString())
                 if(blockState){
                     if(blockState.error) resolve({error:blockState.error})
                     this.states = blockState.states
@@ -217,7 +217,7 @@ class BalanceTable{
                 }else{
                     resolve({error:'Could not complete rollback. Missing block state'})
                 }
-                
+
             }else{
                 resolve({error:'ERROR: Need to specify block number'})
             }

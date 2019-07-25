@@ -380,7 +380,7 @@ class Blockchain{
                         let executed = await this.balance.executeBlock(forkBlock)
                         if(executed.error) resolve({error:executed.error})
 
-                        if(forkBlock.actions && actionsExecuted){
+                        if(forkBlock.actions){
                           forkBlock.transactions['actions'] = forkBlock.actions
                         }
 
