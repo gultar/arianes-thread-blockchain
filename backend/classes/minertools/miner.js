@@ -352,7 +352,7 @@ class Miner{
       
       
       if(Object.keys(transactions).length > 0 && !this.buildingBlock){
-        this.buildNewBlock = true
+        this.buildingBlock = true
         if(!this.nextCoinbase){
           this.nextCoinbase = await this.createCoinbase()
           transactions[this.nextCoinbase.hash] = this.nextCoinbase
@@ -370,7 +370,7 @@ class Miner{
           block.challenge = difficulty.setNewChallenge(block)
           block.totalDifficulty = this.calculateTotalDifficulty(block)
           block.minedBy = this.wallet.publicKey;
-          this.buildNewBlock = false
+          this.buildingBlock = false
           return block;
         }else{
           return this.nextBlock
