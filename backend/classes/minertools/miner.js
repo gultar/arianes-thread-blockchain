@@ -112,6 +112,7 @@ class Miner{
                   this.pool.pendingTransactions = {}
                   this.pool.pendingActions = {}
                   this.nextBlock = false
+                  this.nextCoinbase = false
                   this.updateTransactions()
                   .then( updated =>{
                     logger('Fetched other transactions')
@@ -269,23 +270,17 @@ class Miner{
     async buildNewBlock(){
       let transactions = this.pool.pendingTransactions
       let actions = this.pool.pendingActions
-      
-      
+
+      if(!this.nextCoinbase){
+        this.nextCoinbase = await this.createCoinbase()
+        transactions[this.nextCoinbase.hash] = this.nextCoinbase
+      }
       
       if(Object.keys(transactions).length > 0){
         if(!this.nextBlock){
           let block = new Block(Date.now(), transactions, actions);
+          block.coinbaseTransactionHash = this.nextCoinbase.hash
           this.nextBlock = block
-          if(!block.coinbaseTransactionHash){
-            this.createCoinbase()
-            .then((coinbase)=>{
-              block.coinbaseTransactionHash = coinbase.hash
-              block.transactions[coinbase.hash] = coinbase
-            })
-            .then((e)=>{
-              throw new Error(e)
-            })
-          }
           block.startMineTime = Date.now()
           block.blockNumber = this.previousBlock.blockNumber + 1;
           block.previousHash = this.previousBlock.hash;
