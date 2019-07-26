@@ -351,14 +351,13 @@ class Miner{
 
       
       
-      if(Object.keys(transactions).length > 0 && !this.buildingBlock){
-        this.buildingBlock = true
-        if(!this.nextCoinbase){
-          this.nextCoinbase = await this.createCoinbase()
-          transactions[this.nextCoinbase.hash] = this.nextCoinbase
-        }
-        if(!this.nextBlock){
-          
+      if(Object.keys(transactions).length > 0){
+        if(!this.buildingBlock){
+          this.buildingBlock = true
+          if(!this.nextCoinbase){
+            this.nextCoinbase = await this.createCoinbase()
+            transactions[this.nextCoinbase.hash] = this.nextCoinbase
+          }
           let block = new Block(Date.now(), transactions, actions);
           block.coinbaseTransactionHash = this.nextCoinbase.hash
           this.nextBlock = block
@@ -375,9 +374,6 @@ class Miner{
         }else{
           return this.nextBlock
         }
-        
-      }else{
-        return this.nextBlock
       }
       
     }
