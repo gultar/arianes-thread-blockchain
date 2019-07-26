@@ -87,54 +87,128 @@ class Miner{
       }
     }
 
-    async start(){
+    // async start(){
       
-        this.minerLoop = setInterval(async ()=>{
-          if(!this.minerStarted){
-            let updated = await this.updateTransactions() //Not mandatory as there may not have any actions to mine
-            if(updated){
-              let actionsUpdated = await this.updateActions()
-              let block = await this.buildNewBlock();
-              if(block){
-                this.minerStarted = true
-                logger('Starting to mine next block')
-                logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
-                logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
-                if(actionsUpdated)
-                logger('At difficulty: ', parseInt(block.difficulty, 16))
-                let success = await block.mine(block.difficulty);
-                if(success){
-                  block.endMineTime = Date.now()
-                  block = success;
-                  this.successMessage(block)
-                  this.socket.emit('newBlock', block)
-                  this.pause()
-                  this.pool.pendingTransactions = {}
-                  this.pool.pendingActions = {}
-                  this.nextBlock = false
-                  this.nextCoinbase = false
-                  this.updateTransactions()
-                  .then( updated =>{
-                    logger('Fetched other transactions')
+    //     this.minerLoop = setInterval(async ()=>{
+    //       if(!this.minerStarted){
+    //         // let updated = await this.updateTransactions() //Not mandatory as there may not have any actions to mine
+    //         let updated = await this.getTransactionsToMine()
+    //         if(updated){
+    //           let actionsUpdated = await this.updateActions()
+    //           let block = await this.buildNewBlock();
+    //           if(block){
+    //             this.minerStarted = true
+    //             logger('Starting to mine next block')
+    //             logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
+    //             logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
+    //             if(actionsUpdated)
+    //             logger('At difficulty: ', parseInt(block.difficulty, 16))
+    //             let success = await block.mine(block.difficulty);
+    //             if(success){
+    //               block.endMineTime = Date.now()
+    //               block = success;
+    //               this.successMessage(block)
+    //               this.socket.emit('newBlock', block)
+    //               this.pause()
+    //               this.pool.pendingTransactions = {}
+    //               this.pool.pendingActions = {}
+    //               this.nextBlock = false
+    //               this.nextCoinbase = false
+    //               this.getTransactionsToMine()
+    //               .then( updated =>{
+    //                 logger('Fetched other transactions')
                     
-                  })
-                }else{
-                  logger('Mining unsuccessful')
-                  this.minerStarted = false;
+    //               })
+    //               // this.updateTransactions()
+    //               // .then( updated =>{
+    //               //   logger('Fetched other transactions')
+                    
+    //               // })
+    //             }else{
+    //               logger('Mining unsuccessful')
+    //               this.minerStarted = false;
                   
-                }
-              }else{
-                this.minerStarted = false
-              }
-            }else{
-              logger('Transaction pool not yet updated')
-            }
+    //             }
+    //           }else{
+    //             this.minerStarted = false
+    //           }
+    //         }else{
+    //           logger('Transaction pool not yet updated')
+    //         }
 
-          }
-        }, 1000)
+    //       }
+    //     }, 1000)
   
       
       
+    // }
+
+    async start(){
+      
+      let updated = await this.getTransactionsToMine()
+      if(updated){
+        let actionsUpdated = await this.updateActions()
+        let block = await this.buildNewBlock();
+        if(block){
+          this.minerStarted = true
+          logger('Starting to mine next block')
+          logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
+          logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
+          if(actionsUpdated)
+          logger('At difficulty: ', parseInt(block.difficulty, 16))
+          let success = await block.mine(block.difficulty);
+          if(success){
+            block.endMineTime = Date.now()
+            block = success;
+            this.successMessage(block)
+            this.socket.emit('newBlock', block)
+            this.pause()
+            this.pool.pendingTransactions = {}
+            this.pool.pendingActions = {}
+            this.nextBlock = false
+            this.nextCoinbase = false
+            this.getTransactionsToMine()
+            .then( updated =>{
+              logger('Fetched other transactions')
+              
+            })
+            // this.updateTransactions()
+            // .then( updated =>{
+            //   logger('Fetched other transactions')
+              
+            // })
+          }else{
+            logger('Mining unsuccessful')
+            this.minerStarted = false;
+            
+          }
+        }else{
+          this.minerStarted = false
+        }
+      }else{
+        logger('Transaction pool not yet updated')
+      }
+    
+        
+        
+      }
+
+    getTransactionsToMine(){
+      return new Promise((resolve)=>{
+        this.socket.emit('fetchTransactions')
+        this.socket.on('newTransactions', (transactions)=>{
+          if(transactions){
+            this.pool.pendingTransactions = transactions
+            
+            this.socket.off('newTransactions')
+            resolve(true)
+          }else{
+            setTimeout(()=>{
+              this.socket.emit('fetchTransactions')
+            }, 1000)
+          }
+        })
+      })
     }
 
     updateTransactions(){

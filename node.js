@@ -1409,8 +1409,20 @@ class Node {
 
     api.on('getTxHashList', ()=>{ api.emit('txHashList', Object.keys(Mempool.pendingTransactions)) })
     api.on('getActionHashList', ()=>{ api.emit('actionHashList', Object.keys(Mempool.pendingActions)) })
-    api.on('getTx', (hash)=>{ api.emit('tx', Mempool.pendingTransactions[hash]) })
-    api.on('getAction', (hash)=>{ api.emit('action', Mempool.pendingActions[hash]) })
+    api.on('getTx', (hash)=>{ 
+      api.emit('tx', Mempool.pendingTransactions[hash]) 
+    })
+    api.on('fetchTransactions', async ()=>{
+      if(Mempool.sizeOfPool() > 0){
+        let transactions = await Mempool.gatherTransactionsForBlock()
+        api.emit('newTransactions', transactions)
+      }else{
+        api.emit('newTransactions', false)
+      }
+    })
+    api.on('getAction', (hash)=>{ 
+      api.emit('action', Mempool.pendingActions[hash])
+    })
     api.on('newBlock', async (block)=>{
           
       if(block){

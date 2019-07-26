@@ -131,16 +131,26 @@ class Mempool{
 
     gatherTransactionsForBlock(){
         return new Promise(async(resolve)=>{
-            let transactions = this.pendingTransactions;
-            let batch = {}
-            if(this.calculateSizeOfBatch(transactions) <= this.maxBatchSize){
-                logger('Gathering all transactions. Batch under 50 000 bytes')
-                batch = transactions
+            if(this.pendingTransactions && Object.keys(this.pendingTransactions).length > 0){
+                let transactions = JSON.parse(JSON.stringify(this.pendingTransactions));
+                let batch = {}
+                if(this.calculateSizeOfBatch(transactions) <= this.maxBatchSize){
+                    batch = transactions
+                }else{
+                    batch = await this.gatherPartialBatch(transactions);
+                }
+                batch = await this.orderTransactionsByTimestamp(batch)
+                resolve(batch);
+                // if(deleted){
+                    
+                // }else{
+                //     logger('ERROR: Could not delete transactions from Mempool')
+                //     resolve(false)
+                // }
             }else{
-                batch = await this.gatherPartialBatch(transactions);
+                resolve(false)
             }
-            batch = await this.orderTransactionsByTimestamp(batch)
-            resolve(batch);
+            
         })
         
         
@@ -165,8 +175,17 @@ class Mempool{
     }
 
     gatherActionsForBlock(){
-        let actions = this.pendingActions;
-        return actions;
+        return new Promise(async (resolve)=>{
+            let actions = JSON.parse(JSON.stringify(this.pendingActions));
+            let deleted = await this.deleteActionsFromMinedBlock(actions)
+            if(deleted){
+                resolve(actions)
+            }else{
+                logger('ERROR: Could not delete actions from Mempool')
+                resolve(false)
+            }
+        })
+        
     }
 
     calculateSizeOfBatch(transactions){

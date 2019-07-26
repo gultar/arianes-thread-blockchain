@@ -224,19 +224,27 @@ class Blockchain{
               let executed = await this.balance.executeBlock(newBlock)
               if(executed.error) resolve({error:executed.error})
 
-              let actionsDeleted = false  
+              
               let deleted = await Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-              if(newBlock.actions){
-                actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)
-              } 
-
-              if(deleted && actionsDeleted){
-                resolve(true);
-              }else if(deleted){
+              if(deleted){
                 resolve(true);
               }else{
-                resolve({error:'Could not delete transactions or actions from Mempool'})
+                resolve({error:'ERROR: Could not delete transactions from Mempool'})
               }
+
+              // let actionsDeleted = false  
+              // let deleted = await Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+              // if(newBlock.actions){
+              //   actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+              // } 
+
+              // if(deleted && actionsDeleted){
+              //   resolve(true);
+              // }else if(deleted){
+              //   resolve(true);
+              // }else{
+              //   resolve({error:'Could not delete transactions or actions from Mempool'})
+              // }
             }else{
               resolve({ error:'Could not push new block' })
             }
@@ -1563,7 +1571,7 @@ class Blockchain{
         }else{
             console.log('Root:', root)
             console.log('Recalculated:', recalculatedMerkleRoot)
-            console.log('Transaction Hashes', Object.keys(transactions))
+            console.log('Transaction', transactions)
             return false;
         }
       }else{
