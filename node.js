@@ -1354,7 +1354,7 @@ class Node {
       
       socket.on('rollback', async (number)=>{
         logger('Rolled back to block ', number)
-        let totalBlockNumber = this.chain.chain.length
+        let totalBlockNumber = this.chain.getLatestBlock().blockNumber
         let numberOfBlocksToRemove = totalBlockNumber - number
         let blocks = this.chain.chain.splice(number, numberOfBlocksToRemove)
                       
