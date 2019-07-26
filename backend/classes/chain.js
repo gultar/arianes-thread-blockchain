@@ -566,8 +566,9 @@ class Blockchain{
         let blockBody = await this.getBodyFromDB(block.hash)
         if(blockBody){
           if(blockBody.transactions && blockBody.transactions.actions){
-            block.actions = blockBody.transactions.actions
+            block.actions = JSON.parse(JSON.stringify(blockBody.transactions.actions))
           }
+          delete blockBody.transactions.actions
           block.transactions = blockBody.transactions
           resolve(block)
         }else{
@@ -1527,6 +1528,9 @@ class Blockchain{
         if(recalculatedMerkleRoot == root){
             return true;
         }else{
+            console.log('Root:', root)
+            console.log('Recalculated:', recalculatedMerkleRoot)
+            console.log('Transaction Hashes', Object.keys(transactions))
             return false;
         }
       }else{
@@ -1574,15 +1578,21 @@ class Blockchain{
             if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
             if(!hasEnoughFunds) resolve({error:'REJECTED: Sender does not have sufficient funds'});
 
+            resolve(true)
+
           }else if(isMiningReward){
             
             let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
 
             if(isValidCoinbaseTransaction.error) resolve({error:isValidCoinbaseTransaction.error})
 
+            if(isValidCoinbaseTransaction && !isValidCoinbaseTransaction.error){
+              resolve(true)
+            }
+
           }
           
-          resolve(true)
+          
          
               
         }catch(err){
