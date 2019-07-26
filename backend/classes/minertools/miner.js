@@ -270,9 +270,13 @@ class Miner{
       let actions = this.pool.pendingActions
       let coinbase = await this.createCoinbase()
       
-      transactions[coinbase.hash] = coinbase
+      
       if(Object.keys(transactions).length > 0){
         let block = new Block(Date.now(), transactions, actions);
+        if(!block.coinbaseTransactionHash){
+          block.coinbaseTransactionHash = coinbase.hash
+          block.transactions[coinbase.hash] = coinbase
+        }
         block.startMineTime = Date.now()
         block.blockNumber = this.previousBlock.blockNumber + 1;
         block.previousHash = this.previousBlock.hash;
