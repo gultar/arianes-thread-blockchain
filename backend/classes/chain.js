@@ -567,8 +567,9 @@ class Blockchain{
         if(blockBody){
           if(blockBody.transactions && blockBody.transactions.actions){
             block.actions = JSON.parse(JSON.stringify(blockBody.transactions.actions))
+            delete blockBody.transactions.actions
           }
-          delete blockBody.transactions.actions
+          
           block.transactions = blockBody.transactions
           resolve(block)
         }else{
