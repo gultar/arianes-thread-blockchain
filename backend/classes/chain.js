@@ -671,7 +671,6 @@ class Blockchain{
           resolve(false)
         }
       }else{
-        logger('No existing block to be replaced')
         resolve(false)
       }
     })

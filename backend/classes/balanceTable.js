@@ -213,10 +213,8 @@ class BalanceTable{
             if(blockNumber !== undefined){
                 let entry = await this.stateDB.get(blockNumber.toString())
                 if(entry){
-                    console.log('Current State', this.states)
                     if(entry.error) resolve({error:entry.error})
                     this.states = entry.blockState.states
-                    console.log('RolledBack State', this.states)
                     resolve(true)
                 }else{
                     resolve({error:'Could not complete rollback. Missing block state'})
