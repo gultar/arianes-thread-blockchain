@@ -776,7 +776,7 @@ class Node {
                   .then( async (genesisBlock)=>{
 
                     if(genesisBlock.error){
-                      logger(genesisBlock.error)
+                      console.log(genesisBlock.error)
                     }else{
                       //Need to Validate Genesis Block
                       //Swap local genesis block with peer's genesis block
@@ -787,7 +787,7 @@ class Node {
                         let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                         if(downloaded.error){
                           logger('Could not download blockchain')
-                          logger(downloaded.error)
+                          console.log(downloaded.error)
                           resolve(false)
                         }else{
                           peer.send('getBlockchainStatus')
