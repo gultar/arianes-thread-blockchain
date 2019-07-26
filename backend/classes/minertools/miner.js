@@ -93,7 +93,7 @@ class Miner{
           if(!this.minerStarted){
             let updated = await this.updateTransactions() //Not mandatory as there may not have any actions to mine
             if(updated){
-            let actionsUpdated = await this.updateActions()
+              let actionsUpdated = await this.updateActions()
               let block = await this.buildNewBlock();
               if(block){
                 this.minerStarted = true
@@ -111,6 +111,7 @@ class Miner{
                   this.pause()
                   this.pool.pendingTransactions = {}
                   this.pool.pendingActions = {}
+                  this.nextBlock = false
                   this.updateTransactions()
                   .then( updated =>{
                     logger('Fetched other transactions')
@@ -272,20 +273,26 @@ class Miner{
       
       
       if(Object.keys(transactions).length > 0){
-        let block = new Block(Date.now(), transactions, actions);
-        if(!block.coinbaseTransactionHash){
-          block.coinbaseTransactionHash = coinbase.hash
-          block.transactions[coinbase.hash] = coinbase
+        if(!this.nextBlock){
+          let block = new Block(Date.now(), transactions, actions);
+          this.nextBlock = block
+          if(!block.coinbaseTransactionHash){
+            block.coinbaseTransactionHash = coinbase.hash
+            block.transactions[coinbase.hash] = coinbase
+          }
+          block.startMineTime = Date.now()
+          block.blockNumber = this.previousBlock.blockNumber + 1;
+          block.previousHash = this.previousBlock.hash;
+          let difficulty = new Difficulty(this.genesis)
+          block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
+          block.challenge = difficulty.setNewChallenge(block)
+          block.totalDifficulty = this.calculateTotalDifficulty(block)
+          block.minedBy = this.wallet.publicKey;
+          return block;
+        }else{
+          return this.nextBlock
         }
-        block.startMineTime = Date.now()
-        block.blockNumber = this.previousBlock.blockNumber + 1;
-        block.previousHash = this.previousBlock.hash;
-        let difficulty = new Difficulty(this.genesis)
-        block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
-        block.challenge = difficulty.setNewChallenge(block)
-        block.totalDifficulty = this.calculateTotalDifficulty(block)
-        block.minedBy = this.wallet.publicKey;
-        return block;
+        
       }
       
     }
