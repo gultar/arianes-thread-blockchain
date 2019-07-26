@@ -349,13 +349,16 @@ class Miner{
       let transactions = this.pool.pendingTransactions
       let actions = this.pool.pendingActions
 
-      if(!this.nextCoinbase){
-        this.nextCoinbase = await this.createCoinbase()
-        transactions[this.nextCoinbase.hash] = this.nextCoinbase
-      }
       
-      if(Object.keys(transactions).length > 0){
+      
+      if(Object.keys(transactions).length > 0 && !this.buildingBlock){
+        this.buildNewBlock = true
+        if(!this.nextCoinbase){
+          this.nextCoinbase = await this.createCoinbase()
+          transactions[this.nextCoinbase.hash] = this.nextCoinbase
+        }
         if(!this.nextBlock){
+          
           let block = new Block(Date.now(), transactions, actions);
           block.coinbaseTransactionHash = this.nextCoinbase.hash
           this.nextBlock = block
@@ -367,11 +370,14 @@ class Miner{
           block.challenge = difficulty.setNewChallenge(block)
           block.totalDifficulty = this.calculateTotalDifficulty(block)
           block.minedBy = this.wallet.publicKey;
+          this.buildNewBlock = false
           return block;
         }else{
           return this.nextBlock
         }
         
+      }else{
+        return this.nextBlock
       }
       
     }
