@@ -804,7 +804,7 @@ class Node {
                   let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                   if(downloaded.error){
                     logger('Could not download blockchain')
-                    logger(downloaded.error)
+                    console.log(downloaded.error)
                     resolve(false)
                   }else{
                     peer.send('getBlockchainStatus')
