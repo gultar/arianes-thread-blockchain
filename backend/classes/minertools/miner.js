@@ -311,9 +311,13 @@ class Miner{
         process.ACTIVE_MINER.kill()
         process.ACTIVE_MINER = false;
         this.minerStarted = false;
+        this.pool.pendingTransactions = {}
+        this.pool.pendingActions = {}
+        this.nextBlock = false
+        this.nextCoinbase = false
         
       }
-      if(this.minerLoop) clearInterval(this.minerLoop)
+      // if(this.minerLoop) clearInterval(this.minerLoop)
     }
 
     async createCoinbase(){
