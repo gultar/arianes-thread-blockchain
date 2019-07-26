@@ -368,11 +368,10 @@ class Blockchain{
                       let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
                       let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
                       
-                      let rolledBack = await this.balance.rollback(forkHeadBlock.blockNumber - 1)
+                      let rolledBack = await this.balance.rollback(forkRootBlockNumber)
                       if(rolledBack.error) resolve({error:rolledBack.error})
-                      //Rollback of balance here
-
-                      for await(var forkBlock of fork){
+                       //Rollback of balance here
+                       for await(var forkBlock of fork){
                         
                         this.chain.push(this.extractHeader(forkBlock))
                         logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
@@ -388,8 +387,6 @@ class Blockchain{
                         if(!replaced){
                           replaced = await this.putBlockToDB(forkBlock)
                         }
-
-                        // this.balance.saveHistory(forkBlock.blockNumber)
                         
                       }
 
@@ -649,12 +646,15 @@ class Blockchain{
           if(added){
             resolve(added)
           }else{
+            logger('An error occurred while putting block to DB')
             resolve(false)
           }
         }else{
+          logger('ERROR: Could not delete block to be replaced from DB')
           resolve(false)
         }
       }else{
+        logger('No existing block to be replaced')
         resolve(false)
       }
     })

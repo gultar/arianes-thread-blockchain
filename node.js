@@ -720,7 +720,6 @@ class Node {
       let startHash = this.chain.getLatestBlock().hash;
       let lastHash = lastHeader.hash;
       let length = lastHeader.blockNumber + 1;
-      logger('Requesting block after ', startHash)
 
       this.isDownloading = true;
       
@@ -728,39 +727,40 @@ class Node {
         peer.off('nextBlock')
         this.isDownloading = false;
       }
-        peer.on('nextBlock', async (block)=>{
-          
-          if(block.end){
-            logger('Blockchain updated successfully!')
-            closeConnection()
-            resolve(true)
-          }else if(block.error){
-            logger(block.error)
-            closeConnection()
-            resolve({ error:block.error })
-          }else{
-            if(block.previousHash != lastHash){
-              let isBlockPushed = await this.chain.pushBlock(block);
-              if(isBlockPushed.error){
-                closeConnection()
-                resolve({ error: isBlockPushed.error })
-              }else{
-                peer.emit('getNextBlock', block.hash)
-              }
-            }else{
-              let isBlockFork = await this.chain.newBlockFork(block)
-              if(isBlockFork.error){
-                closeConnection()
-                resolve({error:isBlockFork.error})
-              }else{
-                peer.emit('getNextBlock', block.hash)
-                resolve(true)
-              }
 
+      peer.on('nextBlock', async (block)=>{
+        
+        if(block.end){
+          logger('Blockchain updated successfully!')
+          closeConnection()
+          resolve(true)
+        }else if(block.error){
+          logger(block.error)
+          closeConnection()
+          resolve({ error: block.error })
+        }else{
+          if(block.previousHash != lastHash){
+            let isBlockPushed = await this.chain.pushBlock(block);
+            if(isBlockPushed.error){
+              closeConnection()
+              resolve({ error: isBlockPushed.error })
+            }else{
+              peer.emit('getNextBlock', block.hash)
             }
-            
+          }else{
+            let isBlockFork = await this.chain.newBlockFork(block)
+            if(isBlockFork.error){
+              closeConnection()
+              resolve({ error: isBlockFork.error })
+            }else{
+              peer.emit('getNextBlock', block.hash)
+              resolve(true)
+            }
+
           }
-        })
+          
+        }
+      })
       
       peer.emit('getNextBlock', startHash);
 
@@ -1130,12 +1130,6 @@ class Node {
         this.connectToPeer(address, (peer)=>{});
       });
 
-      socket.on('tryit',async (num)=>{
-        let block = await this.chain.chainDB.get(num.toString())
-        .catch(e => console.log(e))
-        console.log(block)
-      })
-
       socket.on('getBlockchainSize', async ()=>{
         let total = 0;
         console.log('Calculating, please wait...')
@@ -1299,6 +1293,17 @@ class Node {
       socket.on('showBlockState', async (number)=>{
         let state = await this.chain.balance.stateDB.get(number.toString())
         console.log(JSON.stringify(state, null, 1))
+      })
+
+      socket.on('getRawBlockHeader', async(number)=>{
+        if(number){
+          let header = await this.chain.chainDB.get(number.toString()).catch(e => console.log(e))
+          console.log(header)
+        }
+      })
+
+      socket.on('getBlockForks', ()=>{
+        console.log(this.chain.blockForks)
       })
 
       socket.on('showBalanceHistory', async ()=>{

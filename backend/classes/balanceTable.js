@@ -70,6 +70,8 @@ class BalanceTable{
 
             if(added.error) resolve({error:added.error})
             else resolve(added)
+
+            
         })
         
         
