@@ -337,11 +337,12 @@ class Node {
 
           let nextBlock = this.chain.extractHeader(this.chain.chain[index + 1]);
           let transactions = await this.chain.chainDB.get(nextBlock.hash)
+          .catch(e => console.log(e))
           let actions = {}
-            .catch(e => console.log(e))
+            
             if(transactions){
               transactions = transactions[transactions._id]
-               
+
               if(transactions.actions){
                 actions = JSON.parse(JSON.stringify(transactions.actions))
                 delete transactions.actions
