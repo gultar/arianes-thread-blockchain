@@ -720,13 +720,13 @@ class Node {
           }else if(block.error){
             logger(block.error)
             closeConnection()
-            resolve({error:block.error})
+            resolve({ error:block.error })
           }else{
             if(block.previousHash != lastHash){
               let isBlockPushed = await this.chain.pushBlock(block);
               if(isBlockPushed.error){
                 closeConnection()
-                resolve({ error: 'Block could not be pushed' })
+                resolve({ error: isBlockPushed.error })
               }else{
                 peer.emit('getNextBlock', block.hash)
               }
