@@ -269,7 +269,7 @@ class Miner{
     async buildNewBlock(){
       let transactions = this.pool.pendingTransactions
       let actions = this.pool.pendingActions
-      let coinbase = await this.createCoinbase()
+      
       
       
       if(Object.keys(transactions).length > 0){
@@ -277,6 +277,7 @@ class Miner{
           let block = new Block(Date.now(), transactions, actions);
           this.nextBlock = block
           if(!block.coinbaseTransactionHash){
+            let coinbase = await this.createCoinbase()
             block.coinbaseTransactionHash = coinbase.hash
             block.transactions[coinbase.hash] = coinbase
           }
