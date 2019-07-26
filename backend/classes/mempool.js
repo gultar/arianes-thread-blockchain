@@ -176,34 +176,40 @@ class Mempool{
     
 
     deleteTransactionsFromMinedBlock(transactions){
-        
-        if(typeof transactions == 'object'){
-            let txHashes = Object.keys(transactions);
-        
-            for(var hash of txHashes){
-                if(this.pendingTransactions.hasOwnProperty(hash)){
-                    delete this.pendingTransactions[hash];
+        return new Promise((resolve)=>{
+            if(typeof transactions == 'object'){
+                let txHashes = Object.keys(transactions);
+            
+                for(var hash of txHashes){
+                    if(this.pendingTransactions.hasOwnProperty(hash)){
+                        delete this.pendingTransactions[hash];
+                    }
                 }
+                resolve(true)
+            }else{
+                logger('ERROR: Transactions to delete are undefined')
+                resolve(false)
             }
-        }else{
-            logger('ERROR: Transactions to delete are undefined')
-        }
-        
+        })
     }
 
     deleteActionsFromMinedBlock(actions){
-        
-        if(typeof actions == 'object'){
-            let actionHashes = Object.keys(actions);
-        
-            for(var hash of actionHashes){
-                if(this.pendingActions.hasOwnProperty(hash)){
-                    delete this.pendingActions[hash];
+        return new Promise((resolve)=>{
+            if(typeof actions == 'object'){
+                let actionHashes = Object.keys(actions);
+            
+                for(var hash of actionHashes){
+                    if(this.pendingActions.hasOwnProperty(hash)){
+                        delete this.pendingActions[hash];
+                    }
                 }
+                resolve(true)
+            }else{
+                logger('ERROR: Actions to delete are undefined')
+                resolve(false)
             }
-        }else{
-            logger('ERROR: Actions to delete are undefined')
-        }
+        })
+        
         
     }
 

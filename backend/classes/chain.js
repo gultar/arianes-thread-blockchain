@@ -223,11 +223,20 @@ class Blockchain{
 
               let executed = await this.balance.executeBlock(newBlock)
               if(executed.error) resolve({error:executed.error})
-              
-              Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-              if(newBlock.actions) Mempool.deleteActionsFromMinedBlock(newBlock.actions)
 
-              resolve(true);
+              let actionsDeleted = false  
+              let deleted = await Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+              if(newBlock.actions){
+                actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+              } 
+
+              if(deleted && actionsDeleted){
+                resolve(true);
+              }else if(deleted){
+                resolve(true);
+              }else{
+                resolve({error:'Could not delete transactions or actions from Mempool'})
+              }
             }else{
               resolve({ error:'Could not push new block' })
             }
@@ -1179,6 +1188,25 @@ class Blockchain{
     }
   }
 
+  validateUniqueCoinbaseTx(block){
+    return new Promise((resolve)=>{
+      let transactionHashes = Object.keys(block.transactions);
+      let coinbase = false
+      for(var hash of transactionHashes){
+        let tx = block.transactions[hash]
+        if(tx.fromAddress == 'coinbase'){
+          if(!coinbase){
+            coinbase = tx;
+          }else{
+            resolve(false)
+          }
+        }
+      }
+
+      resolve(true)
+    })
+  }
+
 
   /**
     Criterias for validation are as follows:
@@ -1198,7 +1226,7 @@ class Blockchain{
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = this.validateBlockTimestamp(block)
-      // var isValidDifficulty = this.validateDifficulty(block);
+      var hasOnlyOneCoinbaseTx = await this.validateUniqueCoinbaseTx(block)
       var isValidChallenge = this.validateChallenge(block);
       var areTransactionsValid = this.validateBlockTransactions(block)
       var merkleRootIsValid = false;
@@ -1216,6 +1244,10 @@ class Blockchain{
 
       if(!hashIsBelowChallenge){
         logger('ERROR: Hash value must be below challenge value')
+      }
+
+      if(!hasOnlyOneCoinbaseTx){
+        logger('ERROR: Block must contain only one coinbase transaction')
       }
 
       // if(!isValidDifficulty){
