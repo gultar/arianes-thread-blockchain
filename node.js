@@ -327,24 +327,32 @@ class Node {
         if(hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlock', {end:'End of blockchain'})
         }else{
-          let nextBlock = await this.chain.fetchBlockFromDB(index + 1)
-          if(nextBlock){
-            socket.emit('nextBlock', nextBlock)
-          }else{
-            socket.emit('nextBlock', {error:'Could not find nextBlock'})
-          }
+          // let nextBlock = await this.chain.fetchBlockFromDB(index + 1)
+          // if(nextBlock){
+          //   socket.emit('nextBlock', nextBlock)
+          // }else{
+          //   socket.emit('nextBlock', {error:'Could not find nextBlock'})
+          // }
 
 
-          // let nextBlock = this.chain.extractHeader(this.chain.chain[index + 1]);
-          // let transactions = await this.chain.chainDB.get(nextBlock.hash)
-          //   .catch(e => console.log(e))
-          //   if(transactions){
-          //     transactions = transactions[transactions._id]
-          //     nextBlock.transactions = transactions;
-          //     socket.emit('nextBlock', nextBlock)
-          //   }else{
-          //     socket.emit('nextBlock', {error:'Could not find transactions'})
-          //   }
+          let nextBlock = this.chain.extractHeader(this.chain.chain[index + 1]);
+          let transactions = await this.chain.chainDB.get(nextBlock.hash)
+          let actions = {}
+            .catch(e => console.log(e))
+            if(transactions){
+              transactions = transactions[transactions._id]
+               
+              if(transactions.actions){
+                actions = JSON.parse(JSON.stringify(transactions.actions))
+                delete transactions.actions
+                nextBlock.actions = actions
+              }
+              
+              nextBlock.transactions = transactions;
+              socket.emit('nextBlock', nextBlock)
+            }else{
+              socket.emit('nextBlock', {error:'Could not find transactions'})
+            }
           
         }
         
