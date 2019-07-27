@@ -353,22 +353,29 @@ class Miner{
       
       if(Object.keys(transactions).length > 0){
         if(!this.buildingBlock){
+
           this.buildingBlock = true
+
           if(!this.nextCoinbase){
             this.nextCoinbase = await this.createCoinbase()
             transactions[this.nextCoinbase.hash] = this.nextCoinbase
           }
+
           let block = new Block(Date.now(), transactions, actions);
           block.coinbaseTransactionHash = this.nextCoinbase.hash
           this.nextBlock = block
+
           block.startMineTime = Date.now()
           block.blockNumber = this.previousBlock.blockNumber + 1;
           block.previousHash = this.previousBlock.hash;
+
           let difficulty = new Difficulty(this.genesis)
           block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
           block.challenge = difficulty.setNewChallenge(block)
           block.totalDifficulty = this.calculateTotalDifficulty(block)
+
           block.minedBy = this.wallet.publicKey;
+          
           this.buildingBlock = false
           return block;
         }else{

@@ -117,6 +117,23 @@ program
 })
 
 program
+.command('resetChain')
+.description('Requests some general information about the blockchain')
+.action(()=>{
+    const { exec } = require('child_process');
+    exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/*', (err, stdout, stderr) => {
+        if (err) {
+          // node couldn't execute the command
+          return;
+        }
+      
+        // the *entire* stdout and stderr (buffered)
+        console.log(`stdout: ${stdout}`);
+        console.log(`stderr: ${stderr}`);
+      });
+})
+
+program
 .command('testSign <wallet> <password>')
 .description('Requests some general information about the blockchain')
 .action((walletname, password)=>{
