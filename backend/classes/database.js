@@ -1,9 +1,10 @@
 const PouchDB = require('pouchdb')
+PouchDB.plugin(require('pouchdb-upsert'));
 const Validator = require('jsonschema').Validator;
 
 class Database{
     constructor(path){
-        this.database = new PouchDB(path)
+        this.database = new PouchDB(path, {auto_compaction: true})
     }
 
     get(id){
@@ -70,10 +71,44 @@ class Database{
         })
       }
 
+      add(entry){
+        return new Promise(async (resolve)=>{
+            if(!entry) resolve({error:'Cannot put to Database: object to put is undefined'})
+            if(!entry._id) resolve({error:'Cannot put to Database: entry is of invalid format'})
+
+            let exists = await this.get(entry._id)
+            if(exists){
+                if(exists.error) resolve({error:exists.error})
+
+                if(!entry._rev) entry._rev = exists._rev
+
+                this.database.put(entry)
+                .then((okay)=>{
+                    resolve(okay)
+                })
+                .catch(e => {
+                    resolve({error:e})
+                })
+                
+
+            }else{
+                this.database.put(entry)
+                .then((okay)=>{
+                    resolve(okay)
+                })
+                .catch(e => {
+                    resolve({error:e})
+                })
+            }
+
+            
+        })
+      }
+
       delete(dbEntry){
         return new Promise((resolve)=>{
             if(!this.isValidDBEntry(dbEntry)) resolve({error: "Db entry to delete is of invalid format"})
-            this.database.remove(dbEntry._id, dbEntry._rev)
+            this.database.remove(dbEntry)
             .then((deleted)=>{
                resolve(deleted)
             })

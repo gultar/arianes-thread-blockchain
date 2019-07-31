@@ -66,6 +66,31 @@ const isValidActionJSON = (action)=>{
     }
 }
 
+const isValidContractDeployJSON = (deployResult)=>{
+    var v = new Validator();
+    var schema = {
+        "id":"/contractDeploy",
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "contractAPI": {"type": "object"},
+            "state": {"type": "object"},
+        },
+        "required": ["name", "contractAPI"]
+    };
+
+    if(deployResult){
+        v.addSchema(schema, "/contractDeploy")
+        let valid = v.validate(deployResult, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
 const isValidAccountJSON = (account)=>{
     var v = new Validator();
     var schema = {

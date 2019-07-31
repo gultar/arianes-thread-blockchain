@@ -1,7 +1,7 @@
 const launchVM = () =>{
     // const ContractVM = require('./contractVM')
     // const Sandbox = require('./sandbox')
-    const VM = require('../VM.js/index.js.js')
+    const ContractVM = require('../VM.js')
     const fs = require('fs')
   
 
@@ -13,7 +13,7 @@ const launchVM = () =>{
               if(message.code){
                 
                 try{
-                  let vm = new VM({
+                  let vm = new ContractVM({
                     code:message.code,
                     type:'NodeVM'
                   })
@@ -21,32 +21,17 @@ const launchVM = () =>{
                   vm.buildVM()
                   vm.compileScript()
                   vm.run()
-                  console.log(vm.result)
-
-                  // let vm = new ContractVM({
-                  //   ramLimit: 128,
-                  //   logging: true,
-                  // });
-                  // let state = {
-                  //   deploy:true
-                  // }
-                  // vm.setTimingLimits(1000);
-                  // vm.setCpuLimit(1000);
-                  // vm.compileScript(message.code, state);
-                  // vm.setState(state);
-                  // vm.execute();
-                  
-                  // state.deploy = false;
+                  .then((result)=>{
+                      process.send({executed:result})
+                  })
                 }catch(e){
                   console.log(e)
                 }
-                // process.send({data:output})
               }else{
-                process.send('ERROR: Invalid data format provided')
+                process.send({error:'ERROR: Invalid data format provided'})
               }
               break;
             case 'string':
-              // console.log(message)
               process.send('pong')
               break
             

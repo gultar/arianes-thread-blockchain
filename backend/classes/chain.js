@@ -232,19 +232,20 @@ class Blockchain{
                 resolve({error:'ERROR: Could not delete transactions from Mempool'})
               }
 
-              // let actionsDeleted = false  
-              // let deleted = await Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-              // if(newBlock.actions){
-              //   actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)
-              // } 
+              let actionsDeleted = false
+              if(newBlock.actions){
+                actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)  
+              } 
+              
 
-              // if(deleted && actionsDeleted){
-              //   resolve(true);
-              // }else if(deleted){
-              //   resolve(true);
-              // }else{
-              //   resolve({error:'Could not delete transactions or actions from Mempool'})
-              // }
+              if(deleted && actionsDeleted){
+                resolve(true);
+              }else if(deleted){
+                resolve(true);
+              }else{
+                resolve({error:'Could not delete transactions or actions from Mempool'})
+              }
+
             }else{
               resolve({ error:'Could not push new block' })
             }
@@ -483,8 +484,9 @@ class Blockchain{
 
   putBodyToDB(block){
     return new Promise(async (resolve)=>{
+      
       if(block.actions && Object.keys(block.actions).length > 0){
-        
+        block.transactions['actions'] = block.actions
       }
       
       this.chainDB.put({
@@ -1718,31 +1720,31 @@ class Blockchain{
             resolve({error:"ERROR: Could not find action's sender account"})
           }
 
-        if(balanceOfSendingAddr < action.fee){
-          resolve({error:"ERROR: Sender's balance is too low"})
-        }
+          if(balanceOfSendingAddr < action.fee){
+            resolve({error:"ERROR: Sender's balance is too low"})
+          }
 
-        if(!isSignatureValid){
-          resolve({error:"ERROR: Action signature is invalid"})
-        }
+          if(!isSignatureValid){
+            resolve({error:"ERROR: Action signature is invalid"})
+          }
 
-        if(!isChecksumValid){
-          resolve({error:"ERROR: Action checksum is invalid"})
-        }
+          if(!isChecksumValid){
+            resolve({error:"ERROR: Action checksum is invalid"})
+          }
 
-        if(!isLinkedToWallet){
-          resolve({error:"ERROR: Action ownerKey is invalid"})
-        }
+          if(!isLinkedToWallet){
+            resolve({error:"ERROR: Action ownerKey is invalid"})
+          }
 
-        if(!actionIsNotTooBig){
-          resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
-        }
-  
-        if(!hasMiningFee){
-          resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
-        }
+          if(!actionIsNotTooBig){
+            resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+          }
+    
+          if(!hasMiningFee){
+            resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
+          }
 
-        resolve(true);
+          resolve(true);
 
       }else{
         resolve({error:'Account or Action is undefined'})

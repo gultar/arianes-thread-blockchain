@@ -3,8 +3,8 @@ const { logger, readFile, writeToFile } = require('../tools/utils.js')
 const fs = require('fs')
 
 class AccountTable{
-    constructor(accounts={}){
-        this.accounts = accounts;
+    constructor(){
+        this.accounts = {}
         this.state = {}
     }
 
@@ -12,6 +12,7 @@ class AccountTable{
         return new Promise((resolve, reject)=>{
             if(!this.accounts[account.name]){
                 this.accounts[account.name] = account;
+                this.saveTable()
                 resolve(true)
             }else{
                 resolve(false)
@@ -100,13 +101,15 @@ class AccountTable{
         })
        }
 
-      saveTable(){
+      saveTable(silent=false){
           return new Promise((resolve, reject)=>{
             try{
                 let saved = writeToFile(this.accounts, './data/accounts.json');
                 if(saved){
-                    logger('Saved account table');
+                    if(!silent) logger('Saved account table');
                     resolve(true)
+                }else{
+                    logger('ERROR: Could not save account table')
                 }
             }catch(e){
                 reject(e)

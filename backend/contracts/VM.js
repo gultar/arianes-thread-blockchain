@@ -1,5 +1,6 @@
+
+
 const { VM, VMScript, NodeVM } = require('vm2');
-const deploy = require('./toolbox/contractTools')
 let _ = require('private-parts').createKey();
 const Permissions = require('./build/permissions');
 const Account = require('../classes/account');
@@ -20,9 +21,6 @@ class Signals extends EventEmitter{
     }
 }
 
-let code = fs.readFileSync(__dirname+'/toolbox/token.js').toString()
-let iface = {}
-let stateStorage = {}
 let signals = new Signals()
 
 class Sandbox{
@@ -44,13 +42,16 @@ class Sandbox{
                     "makeExternal":makeExternal,
                     "getFunctionArguments":getFunctionArguments,
                     "deploy":function(contractInterface){
-                        iface = contractInterface
+                        signals.emit('deployed', contractInterface)
                     },
                     "save":function(state){
-                        stateStorage = state
+                        signals.emit('saved', state)
                     },
                     "commit":function(result){
                         signals.emit('commited', result)
+                    },
+                    "fail":function(failure){
+                        signals.emit('failed', failure)
                     }
                 }
             }
@@ -86,18 +87,29 @@ class ContractVM{
         return new Promise((resolve)=>{
             try{
                 this.vm.run(this.compiled)
+                signals.on('saved', (savedState)=>{
+                    this.sandbox.stateStorage = savedState
+                })
+                signals.on('deployed', (contractAPI)=>{
+                    resolve({
+                        contractAPI:contractAPI,
+                        state:this.sandbox.stateStorage
+                    })
+                })
                 signals.on('commited', (action)=>{
                     resolve({
-                        result:{
-                            state:stateStorage,
-                            interface:iface,
-                            action:action
-                        }
+                        result:action,
+                        state:this.sandbox.stateStorage
+                    })
+                })
+                signals.on('failed', (failure)=>{
+                    resolve({
+                        error:failure,
                     })
                 })
                 
             }catch(e){
-
+                resolve({error:e})
             }
         })
     }
@@ -106,18 +118,6 @@ class ContractVM{
 }
 
 module.exports = ContractVM
-
-let myVm = new ContractVM({
-    code:code,
-    type:'NodeVM'
-})
-myVm.buildVM()
-
-myVm.compileScript()
-myVm.run()
-.then((result)=>{
-    console.log(result)
-})
 
 
 

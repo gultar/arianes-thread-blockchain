@@ -42,10 +42,12 @@ class Action{
         this.calculateActionHash()
     }
 
-    defineTask({ call, type, params }){
-        this.task = {
-            call:call, //Contract method
-            type:type, //GET, SET, DELETE, UPDATE
+    defineTask({ contractName, method, params }){
+        this.type = 'contract'
+        this.task = 'call'
+        this.data = {
+            contractName:contractName, //Contract method
+            method:method,
             params:params
         }
         this.calculateActionHash()

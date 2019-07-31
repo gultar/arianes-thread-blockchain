@@ -235,6 +235,7 @@ class BalanceTable{
             this.states[publicKey] = {
                 balance:0,
             }
+            return true
         }else{
             return false
         }
@@ -262,7 +263,7 @@ class BalanceTable{
         if(publicKey && value && blockNumber){
 
               if(!this.states[publicKey]){
-                let newWallet = this.addNewWalletKey(publicKey);
+                let newWallet =  this.addNewWalletKey(publicKey);
                 if(!newWallet) return {error:'ERROR: Public key of wallet is undefined'}
               }
               

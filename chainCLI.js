@@ -120,17 +120,31 @@ program
 .command('resetChain')
 .description('Requests some general information about the blockchain')
 .action(()=>{
+    const inquirer = require('inquirer');
     const { exec } = require('child_process');
-    exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/*', (err, stdout, stderr) => {
-        if (err) {
-          // node couldn't execute the command
-          return;
+    let validation = {
+        type: 'input', name: 'validation', message: 'Are you sure you want to delete all blockchain files? ("yes" or "no")' 
+    }
+    inquirer.prompt(validation)
+    .then((answer)=>{
+        if(answer.validation == 'yes' || answer.validation == 'y' || answer.validation == '1'){
+            exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/* data/contractDB/* data/contractStateDB/* data/accounts.json', (err, stdout, stderr) => {
+                if (err) {
+                  // node couldn't execute the command
+                  return;
+                }
+                console.log('Deleted all blockchain files')
+                // the *entire* stdout and stderr (buffered)
+                if(stdout) console.log(`stdout: ${stdout}`);
+                if(stderr) console.log(`stderr: ${stderr}`);
+                
+              });
+        }else{
+            console.log('Blockchain files were left untouched')
         }
-      
-        // the *entire* stdout and stderr (buffered)
-        console.log(`stdout: ${stdout}`);
-        console.log(`stderr: ${stderr}`);
-      });
+        
+    })
+    
 })
 
 program

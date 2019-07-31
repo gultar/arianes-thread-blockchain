@@ -1,7 +1,7 @@
 const { isValidAccountJSON } = require('../../tools/jsonvalidator')
 const Account = require('../../classes/account')
 class Permissions{
-    constructor(owner){
+    constructor(owner, presetAccounts){
         //Owner - Account can do anything from modifying contract state directly to deleting it
         //Modify - Account can read/write and add new permissions
         //Write - Account can modify contract state with actions
@@ -10,12 +10,16 @@ class Permissions{
         this.level = {
             'owner':4,'modify':3, 'write':2, 'read':1,
         }
-        this.accounts = {
-            [owner.name]:{
-                account:owner,
-                category:'owner',
-                level:this.level['owner']
+        if(!presetAccounts){
+            this.accounts = {
+                [owner.name]:{
+                    account:owner,
+                    category:'owner',
+                    level:this.level['owner']
+                }
             }
+        }else{
+            this.accounts = presetAccounts
         }
     }
 
@@ -67,6 +71,24 @@ class Permissions{
             return { error: 'PERMISSION ERROR: Invalid account structure' }
         }
         
+    }
+
+    hasPermission(account, category){
+        if(account && category){
+            if(this.category.includes(category)){
+                let level = this.level[category]
+                let permission = this.accounts[account.name]
+                if(permission){
+                    return permission.level >= level
+                }else{
+                    return false
+                }
+            }else{
+                return { error:'PERMISSION ERROR: Invalid permission category' }
+            }
+        }else{
+            return { error: 'PERMISSION ERROR: Invalid account structure' }
+        }
     }
 
 }

@@ -45,6 +45,7 @@ class Miner{
         this.socket = ioClient(url, config)
         this.socket.on('connect', ()=>{
           logger('Miner connected to ', url)
+          this.getTransactionsToMine()
         })
 
         this.socket.on('txHashList', (list)=>{
@@ -72,10 +73,21 @@ class Miner{
               this.pool.pendingActions[action.hash] = action;
             }
         })
+        this.socket.on('newTransactions', (transactions)=>{
+          if(transactions){
+            this.pool.pendingTransactions = transactions
+            this.getActionsToMine()
+            if(!this.minerStarted) this.start()
+          }
+        })
+        this.socket.on('newActions', (actions)=>{
+          if(actions){
+            this.pool.pendingActions = actions
+          }
+        })
         this.socket.on('latestBlock', (block)=>{
-          clearInterval(this.minerLoop)
-          this.previousBlock = block; 
-          this.start()
+          this.previousBlock = block;
+          this.start() 
         })
         this.socket.on('stopMining', ()=>{ this.pause() })
         this.socket.on('startMining', ()=>{ this.start() })
@@ -87,125 +99,74 @@ class Miner{
       }
     }
 
-    // async start(){
-      
-    //     this.minerLoop = setInterval(async ()=>{
-    //       if(!this.minerStarted){
-    //         // let updated = await this.updateTransactions() //Not mandatory as there may not have any actions to mine
-    //         let updated = await this.getTransactionsToMine()
-    //         if(updated){
-    //           let actionsUpdated = await this.updateActions()
-    //           let block = await this.buildNewBlock();
-    //           if(block){
-    //             this.minerStarted = true
-    //             logger('Starting to mine next block')
-    //             logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
-    //             logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
-    //             if(actionsUpdated)
-    //             logger('At difficulty: ', parseInt(block.difficulty, 16))
-    //             let success = await block.mine(block.difficulty);
-    //             if(success){
-    //               block.endMineTime = Date.now()
-    //               block = success;
-    //               this.successMessage(block)
-    //               this.socket.emit('newBlock', block)
-    //               this.pause()
-    //               this.pool.pendingTransactions = {}
-    //               this.pool.pendingActions = {}
-    //               this.nextBlock = false
-    //               this.nextCoinbase = false
-    //               this.getTransactionsToMine()
-    //               .then( updated =>{
-    //                 logger('Fetched other transactions')
-                    
-    //               })
-    //               // this.updateTransactions()
-    //               // .then( updated =>{
-    //               //   logger('Fetched other transactions')
-                    
-    //               // })
-    //             }else{
-    //               logger('Mining unsuccessful')
-    //               this.minerStarted = false;
-                  
-    //             }
-    //           }else{
-    //             this.minerStarted = false
-    //           }
-    //         }else{
-    //           logger('Transaction pool not yet updated')
-    //         }
+    sizeOfPool(){
+      return Object.keys(this.pool.pendingTransactions).length
+    }
 
-    //       }
-    //     }, 1000)
-  
-      
-      
-    // }
+    sizeOfActionPool(){
+      return Object.keys(this.pool.pendingActions).length
+    }
 
     async start(){
-      
-      let updated = await this.getTransactionsToMine()
-      if(updated){
-        let actionsUpdated = await this.updateActions()
-        let block = await this.buildNewBlock();
-        if(block){
+        
+        let readyToMine = this.sizeOfPool() > 0
+        if(readyToMine){
           this.minerStarted = true
-          logger('Starting to mine next block')
-          logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
-          logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
-          if(actionsUpdated)
-          logger('At difficulty: ', parseInt(block.difficulty, 16))
-          let success = await block.mine(block.difficulty);
-          if(success){
-            block.endMineTime = Date.now()
-            block = success;
-            this.successMessage(block)
-            this.socket.emit('newBlock', block)
-            this.pause()
-            this.pool.pendingTransactions = {}
-            this.pool.pendingActions = {}
-            this.nextBlock = false
-            this.nextCoinbase = false
-            this.getTransactionsToMine()
-            .then( updated =>{
-              logger('Fetched other transactions')
+          let actionsGathered = await this.getActionsToMine()
+          if(actionsGathered) logger(`Found actions ${this.sizeOfActionPool()} to mine`)
+          let block = await this.buildNewBlock();
+          if(block){
+            logger('Starting to mine next block')
+            logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
+            logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
+            logger('At difficulty: ', parseInt(block.difficulty, 16))
+            let success = await block.mine(block.difficulty);
+            if(success){
+              block.endMineTime = Date.now()
+              block = success;
+              this.successMessage(block)
+              this.socket.emit('newBlock', block)
+              this.pause()
+              this.pool.pendingTransactions = {}
+              this.pool.pendingActions = {}
+              this.nextBlock = false
+              this.nextCoinbase = false
               
-            })
-            // this.updateTransactions()
-            // .then( updated =>{
-            //   logger('Fetched other transactions')
+            }else{
+              logger('Mining unsuccessful')
+              this.minerStarted = false;
               
-            // })
+            }
           }else{
-            logger('Mining unsuccessful')
-            this.minerStarted = false;
-            
+            this.minerStarted = false
           }
-        }else{
-          this.minerStarted = false
         }
-      }else{
-        logger('Transaction pool not yet updated')
-      }
-    
-        
-        
+
       }
 
     getTransactionsToMine(){
+      this.transactionUpdate = setInterval(()=>{
+        if(!this.fetchingTransactions && !this.buildingBlock && !this.mining && !this.minerStarted){
+          this.socket.emit('fetchTransactions')
+        }
+      }, 1000)
+    }
+
+    getActionsToMine(){
       return new Promise((resolve)=>{
-        this.socket.emit('fetchTransactions')
-        this.socket.on('newTransactions', (transactions)=>{
-          if(transactions){
-            this.pool.pendingTransactions = transactions
-            
-            this.socket.off('newTransactions')
+        let timedOut = setTimeout(()=>{
+          this.socket.off('newActions')
+          resolve(false)
+        }, 2000)
+        this.socket.emit('fetchActions')
+        this.socket.on('newActions', (actions)=>{
+          if(actions){
+            this.pool.pendingActions = actions;
+            clearTimeout(timedOut)
+            this.socket.off('newActions')
             resolve(true)
           }else{
-            setTimeout(()=>{
-              this.socket.emit('fetchTransactions')
-            }, 1000)
+            resolve(false)
           }
         })
       })
@@ -348,13 +309,13 @@ class Miner{
     async buildNewBlock(){
       let transactions = this.pool.pendingTransactions
       let actions = this.pool.pendingActions
-
-      
       
       if(Object.keys(transactions).length > 0){
         if(!this.buildingBlock){
 
           this.buildingBlock = true
+
+          transactions = this.orderTransactionsByTimestamp(transactions)
 
           if(!this.nextCoinbase){
             this.nextCoinbase = await this.createCoinbase()
@@ -383,6 +344,34 @@ class Miner{
         }
       }
       
+    }
+
+    orderTransactionsByTimestamp(transactions){
+      if(typeof transactions == 'object'){
+          logger('Ordering transactions by timestamp')
+          let txHashes = Object.keys(transactions);
+          let orderedTransaction = {};
+          let txAndTimestamp = {};
+  
+          if(txHashes){
+            txHashes.forEach( hash =>{
+              let transaction = transactions[hash];
+              txAndTimestamp[transaction.timestamp] = hash;
+            })
+  
+            let timestamps = Object.keys(txAndTimestamp);
+            timestamps.sort(function(a, b){return a-b});
+            timestamps.forEach( timestamp=>{
+              let hash = txAndTimestamp[timestamp];
+              let transaction = transactions[hash];
+              orderedTransaction[hash] = transaction;
+            })
+  
+            return orderedTransaction;
+  
+          }
+  
+      }
     }
 
     calculateTotalDifficulty(block){

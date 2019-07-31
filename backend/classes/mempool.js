@@ -15,6 +15,7 @@ class Mempool{
         this.pendingCoinbaseTransactions = {};
         this.pendingActions = {};
         this.maxBatchSize = 50000
+        this.busyGathering = false
     }
 
     addTransaction(transaction){
@@ -129,61 +130,69 @@ class Mempool{
         return Object.keys(this.pendingTransactions).length;
     }
 
+    sizeOfActionPool(){
+        return Object.keys(this.pendingActions).length;
+    }
+
     gatherTransactionsForBlock(){
-        return new Promise(async(resolve)=>{
-            if(this.pendingTransactions && Object.keys(this.pendingTransactions).length > 0){
-                let transactions = JSON.parse(JSON.stringify(this.pendingTransactions));
-                let batch = {}
-                if(this.calculateSizeOfBatch(transactions) <= this.maxBatchSize){
-                    batch = transactions
+        if(this.busyGathering) {
+            return false
+        }else{
+            return new Promise(async(resolve)=>{
+                if(this.pendingTransactions && Object.keys(this.pendingTransactions).length > 0){
+                    let transactions = JSON.parse(JSON.stringify(this.pendingTransactions));
+                    let batch = {}
+                    if(this.calculateSizeOfBatch(transactions) <= this.maxBatchSize){
+                        batch = transactions
+                        this.busyGathering = false
+                    }else{
+                        batch = await this.gatherPartialBatch(transactions);
+                        this.busyGathering = false
+                    }
+                    resolve(batch);
                 }else{
-                    batch = await this.gatherPartialBatch(transactions);
+                    resolve(false)
                 }
-                batch = await this.orderTransactionsByTimestamp(batch)
-                resolve(batch);
-                // if(deleted){
-                    
-                // }else{
-                //     logger('ERROR: Could not delete transactions from Mempool')
-                //     resolve(false)
-                // }
-            }else{
-                resolve(false)
-            }
-            
-        })
-        
+                
+            })
+        }
         
     }
 
     gatherPartialBatch(transactions){
         return new Promise((resolve)=>{
+            this.busyGathering = true
             let hashes = Object.keys(transactions);
             let batch = {};
-            hashes.forEach( hash=>{
+            
+            for(var hash of hashes){
                 if(this.calculateSizeOfBatch(batch) <= this.maxBatchSize){
                     batch[hash] = transactions[hash];
-                }else{
-                    resolve(batch)
                 }
-                
-            })
-            logger(`Gathering partial batch of ${Object.keys(batch).length} transactions`)
+            }
+            logger(`Gathering a batch of ${Object.keys(batch).length} transactions`)
             resolve(batch)
+            
         })
         
     }
 
     gatherActionsForBlock(){
-        return new Promise(async (resolve)=>{
-            let actions = JSON.parse(JSON.stringify(this.pendingActions));
-            let deleted = await this.deleteActionsFromMinedBlock(actions)
-            if(deleted){
-                resolve(actions)
+        return new Promise(async(resolve)=>{
+            if(this.pendingActions && Object.keys(this.pendingActions).length > 0){
+                let actions = JSON.parse(JSON.stringify(this.pendingActions));
+                let batch = {}
+                if(this.calculateSizeOfBatch(actions) <= this.maxBatchSize){
+                    batch = actions
+                }else{
+                    batch = await this.gatherPartialBatch(actions);
+                }
+                batch = await this.orderTransactionsByTimestamp(batch)
+                resolve(batch);
             }else{
-                logger('ERROR: Could not delete actions from Mempool')
                 resolve(false)
             }
+            
         })
         
     }

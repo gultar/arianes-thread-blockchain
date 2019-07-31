@@ -4,7 +4,6 @@
 */
 
 'use strict'
-
 /********HTTP Server and protection************/
 const express = require('express');
 const http = require('http');
@@ -21,6 +20,7 @@ const Blockchain = require('./backend/classes/chain');
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountCreator = require('./backend/classes/accountCreator');
+const ContractTable = require('./backend/classes/contractTable')
 const AccountTable = require('./backend/classes/accountTable');
 const PeerDiscovery = require('./backend/network/peerDiscovery');
 const SSLHandler = require('./backend/network/sslHandler')
@@ -75,6 +75,7 @@ class Node {
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
     this.accountTable = new AccountTable();
+    this.contractTable = new ContractTable();
     this.ssl = new SSLHandler()
     //Network related parameters
     this.ioServer = {};
@@ -121,7 +122,8 @@ class Node {
             logger('Loaded peer node list');
             logger('Loaded transaction mempool');
             logger('Loaded account table');
-            logger('Number of transactions in pool: '+Mempool.sizeOfPool());     
+            logger('Number of transactions in pool: '+Mempool.sizeOfPool());
+            logger('Number of actions in pool: '+Mempool.sizeOfActionPool());
 
             if(this.httpsEnabled){
               let sslConfig = await this.ssl.getCertificateAndPrivateKey()
@@ -1082,7 +1084,7 @@ class Node {
               if(!actionEmitted.error){
                 res.send(JSON.stringify(actionEmitted, null, 2));
               }else{
-                res.send(actionEmitted.error)
+                res.send({error:actionEmitted.error})
               }
             })
           }else{
@@ -1183,54 +1185,14 @@ class Node {
         socket.emit('chainInfo', this.getChainInfo());
       })
 
-      socket.on('vm', ()=>{
-        const file = require('fs').readFileSync('./backend/contracts/toolbox/token.js').toString()
-        const executeCode = `
-      //   const test = async()=>{
-      //     try{
-      //         let w = new Wallet();
-      //         await w.init('muppet', 'boom');
-      //         // console.log(w)
-      //         let w2 = new Wallet();
-      //          await w2.init('broom', 'kaboom');
-      //         // console.log(w2)
-      //         let a = new Account('dumbo', w.publicKey);
-      //         // console.log(a)
-      //          let a2 = new Account('fellow', w2.publicKey);
-      //         // console.log(a2)
-      //         let aCoin = new Account('coinAccount', w.publicKey)
-      //         // console.log(aCoin)
-      //         let signed = await a.signAccount(w, 'boom');
-      //         // console.log(signed)
-      //          let signed2 = await a2.signAccount(w2, 'kaboom');
-      //         // console.log(signed2)
-      //         let signedCoinAccount = await aCoin.signAccount(w, 'boom');
-      //         // console.log(signedCoinAccount)
-      //         let coin = new Coin('CUP', 1000*1000, a, aCoin);
-              
-              
-      //         coin.permissions.define(a2, 'read')
-              
-      //         coin.issue(1000, a, a2)
-      //         .then((action)=>{
-      //             // console.log(action)
-      //         })
-      //         // console.log(coin)
-      //         let inf = await coin.getInterface()
-      //         console.log(inf)
-              
-              
-      //     }catch(e){
-      //         console.log(e)
-      //     }
-         
-      
-      // }
-      
-      
-      // test()`
-      console.log(file+executeCode)
-        callRemoteVM(file)
+      socket.on('contract', async (name)=>{
+          let contract = await this.contractTable.getContract(name)
+          console.log(contract)
+      })
+
+      socket.on('getState', async (contractName)=>{
+          let state = await this.contractTable.getState(contractName)
+          console.log(state)
       })
 
       socket.on('getBlockHeader', (blockNumber)=>{
@@ -1413,13 +1375,23 @@ class Node {
       api.emit('tx', Mempool.pendingTransactions[hash]) 
     })
     api.on('fetchTransactions', async ()=>{
-      if(Mempool.sizeOfPool() > 0){
+      if(Mempool.sizeOfPool() > 0 && !this.gatheringTransactions){
+        this.gatheringTransactions = true
         let transactions = await Mempool.gatherTransactionsForBlock()
-        api.emit('newTransactions', transactions)
-      }else{
-        api.emit('newTransactions', false)
+        if(transactions){
+          api.emit('newTransactions', transactions)
+          this.gatheringTransactions = false
+        }
       }
     })
+
+    api.on('fetchActions', async ()=>{
+      if(Mempool.sizeOfActionPool() > 0){
+        let actions = await Mempool.gatherActionsForBlock()
+        api.emit('newActions', actions)
+      }
+    })
+
     api.on('getAction', (hash)=>{ 
       api.emit('action', Mempool.pendingActions[hash])
     })
@@ -1439,9 +1411,11 @@ class Node {
         logger('ERROR: New mined block is undefined')
       }
     })
-    api.on('getLatestBlock', ()=>{
+    api.on('getLatestBlock', (minersPreviousBlock)=>{
       if(this.chain instanceof Blockchain){
-        api.emit('latestBlock', this.chain.getLatestBlock())
+        if(minersPreviousBlock.blockNumber <= this.chain.getLatestBlock().blockNumber){
+          api.emit('latestBlock', this.chain.getLatestBlock())
+        }
       }else{
         api.emit('error', {error: 'Chain is not ready'})
       }
@@ -1486,7 +1460,7 @@ class Node {
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
   async handlePeerMessage({ type, originAddress, messageId, data, relayPeer }){
-    
+      
     if(data){
       try{
         let peerMessage = { 
@@ -1505,7 +1479,8 @@ class Node {
               break;
             case 'action':
               let action = JSON.parse(data);
-              this.receiveAction(action);
+              let executed = await this.receiveAction(action);
+              if(executed.error) console.log(executed.error)
               break
             case 'newBlockFound':
               let added = await this.handleNewBlockFound(data);
@@ -1549,29 +1524,35 @@ class Node {
   }
 
   receiveAction(action){
-    if(action && isValidActionJSON(action)){
-      //Check if is owner of contract or has permission
-      let account = this.accountTable.getAccount(action.fromAccount.name)
-      this.chain.validateAction(action, account)
-      .then(isValid =>{
-        if(isValid){
-          //Action will be added to Mempool only is valid and if corresponds with contract call
-          
-          
-          let mapsToContractCall = this.handleAction(action);
-          if(mapsToContractCall){
-            //Execution success message
-            //Need to avoid executing call on everynode simultaneously 
-            //Also need to avoid any security breach when signing actions
-            if(this.verbose) logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
-          
-          }
-        }else{
+    return new Promise(async (resolve)=>{
+      if(action && isValidActionJSON(action)){
+        //Check if is owner of contract or has permission
+        let account = await this.accountTable.getAccount(action.fromAccount.name)
+        if(!account) resolve({error:'ERROR: Could not find linked account of action'})
+
+        let isValid = await this.chain.validateAction(action, account)
+        if(!isValid){
           logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
+          resolve({error:'ERROR: Received invalid action'})
+        }
+        //Action will be added to Mempool only is valid and if corresponds with contract call
+        let mapsToContractCall = await this.handleAction(action);
+        if(mapsToContractCall.error){
+          logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
+          console.log(mapsToContractCall.error)
+          resolve({error:mapsToContractCall.error})
+        }else{
+          //Execution success message
+          //Need to avoid executing call on everynode simultaneously 
+          //Also need to avoid any security breach when signing actions
+          if(this.verbose) logger(chalk.yellow('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+          resolve(true)
         }
         
-      })
-    }
+      }else{
+        resolve({error:'ERROR: Received action of invalid'})
+      }
+    })
   }
 
   getChainInfo(){
@@ -1732,72 +1713,205 @@ class Node {
   }
 
   handleAction(action){
-    switch(action.type){
-      case 'account':
-        if(action.task == 'create'){
-          this.accountTable.addAccount(action.data);
+    return new Promise(async (resolve)=>{
+      switch(action.type){
+        case 'account':
+          if(action.task == 'create'){
+            let added = await this.accountTable.addAccount(action.data);
+            if(added){
+              Mempool.addAction(action)
+              resolve(true)
+            }else{
+              resolve({error:'ERROR: Account already exists'})
+            }
+          }
+
+          break;
+        case 'contract':
+          if(action.task == 'deploy'){
+            
+            let deployed = await this.deployContract(action)
+            if(deployed.error){
+              resolve({error:deployed.error})
+            }else{
+              Mempool.addAction(action)
+              resolve(true)
+            }
+            
+          }
+
+          if(action.task == 'call'){
+            let executed = await this.executeAction(action)
+            if(executed.error){
+              resolve({error:executed.error})
+            }else{
+              Mempool.addAction(action)
+              resolve(true)
+            }
+          }
+          resolve({error:'ERROR: Unknown contract task'})
+          break;
+        default:
+          resolve({error:'ERROR: Invalid contract call'})
+      }
+      
+      
+    })
+  }
+
+  deployContract(action){
+    return new Promise(async (resolve)=>{
+      let data = action.data
+      let account = await this.accountTable.getAccount(action.fromAccount.name)
+      
+      if(account){
+        //Validate Contract and Contract API
+        let contractEntry = {
+          name:data.name,
+          contractAPI:data.contractAPI,
+          initParams:data.initParams,
+          account:account, 
+          code:data.code,
+          state:data.state
         }
-        break;
-      case 'getValue':
-        this.executeAction(action)
-        break;
-      case 'setValue':
-        this.executeAction(action)
-        break;
-      default:
-        logger('ERROR: Invalid contract call')
-        return false;
-    }
-    Mempool.addAction(action)
-    return true;
+
+        let added = await this.contractTable.addContract(contractEntry)
+        if(added){
+          if(added.error) resolve({error:added.error})
+          logger(`Deployed contract ${contractEntry.name}`)
+          resolve(true)
+        }else{
+          resolve({error:'ERROR: Could not add contract to table'})
+        }
+       
+        
+      }else{
+        resolve({error:'ACTION ERROR: Could not get contract account'})
+      }
+    })
   }
 
   executeAction(action){
-    //To be implemented
-  }
-
-  broadcastNewAction(action){
-    return new Promise((resolve, reject)=>{
+    return new Promise(async (resolve)=>{
       try{
-
-        let linkedAccount = this.accountTable.getAccount(action.fromAccount.name);
-
-        if(!action.signature){
-          logger('ERROR: Action could not be emitted. Missing signature')
-          resolve({error:'Action could not be emitted. Missing signature'})
-        }else{
-
-          if(action.type == 'account' && action.task == 'create' && linkedAccount ){
-            resolve({error:"Account already exists"});
+        let account = await this.accountTable.getAccount(action.fromAccount.name)
+        if(account){
+          
+          let contract = await this.contractTable.getContract(action.data.contractName)
+          if(contract){
+            if(contract.error) resolve({error:contract.error})
             
-          }else{
-            this.chain.validateAction(action, linkedAccount)
-            .then(valid=>{
-              if(valid && !valid.error){
-                let mapsToContractCall = this.handleAction(action);
-                if(mapsToContractCall){
-                  //Execution success message
-                  //Need to avoid executing call on everynode simultaneously 
-                  //Also need to avoid any security breach when signing actions
-                  if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-                  this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate transaction
+            let contractState = await this.contractTable.getState(action.data.contractName)
+            if(!contractState) resolve({error:'Could not find contract state'})
+  
+            let initParams = JSON.parse(contract.initParams)
+  
+            let method = action.data.method
+            let params = action.data.params
+  
+            let instruction = `
+              let failure = ''
+
+              async function execute(){
+                let instance = {};
+                const fail = require('fail')
+                try{
+                  const commit = require('commit')
+                  const save = require('save')
+                  
+  
+                  let actionString = '${JSON.stringify(action)}'
+                  let paramsString = '${JSON.stringify(params)}'
+                  let initParamsString = '${JSON.stringify(initParams)}'
+                  let callerAccountString = '${JSON.stringify(account)}'
+                  let currentStateString = '${JSON.stringify(contractState)}'
+  
+                  let callerAccount = JSON.parse(callerAccountString)
+                  let params = JSON.parse(paramsString)
+                  let initParams = JSON.parse(initParamsString)
+                  let currentState = JSON.parse(currentStateString)
+                  let action = JSON.parse(actionString);
+                  params.action = action
+                  instance = new ${action.data.contractName}(initParams)
+                  instance.setState(currentState)
+                  let result = await instance['${method}'](params, callerAccount)
+                  save(instance.state)
+                  commit(result)
+                  
+                  
+                }catch(err){
+                  failure = err.message
                 }
+                  
                 
-                resolve(action)
-              }else{
-                logger('ERROR: Action is invalid')
-                resolve({error:valid.error})
               }
+  
+              execute()
+              if(failure) throw new Error(failure)
+            `
+
+            let ContractVM = require('./backend/contracts/VM')
+            let vm = new ContractVM({
+              code:contract.code + instruction,
+              type:'NodeVM'
             })
+            vm.buildVM()
+            vm.compileScript()
+              let result = await vm.run()
+              if(result.error){
+                resolve({error:result.error.message})
+              }else{
+                if(result.state){
+                  this.contractTable.updateContractState('Token', result.state)
+                  resolve(true)
+                }else{
+                  resolve({error:'An error occurred'})
+                }
+              }
+              
+          }else{
+            resolve({error:'Unkown contract name'})
           }
           
         }
-        
-        
-        
       }catch(e){
-        console.log(e)
+        resolve({error:e})
       }
+
+
+
+    })
+  }
+
+  broadcastNewAction(action){
+    return new Promise(async (resolve)=>{
+        if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
+
+        //Check if is owner of contract or has permission
+        let account = await this.accountTable.getAccount(action.fromAccount.name)
+        // if(!account) resolve({error:'ERROR: Could not find linked account of action'})
+
+        let isValid = await this.chain.validateAction(action, account)
+        if(!isValid){
+          logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
+          resolve({error:'ERROR: Received invalid action'})
+        }
+        //Action will be added to Mempool only is valid and if corresponds with contract call
+        let mapsToContractCall = await this.handleAction(action);
+        if(mapsToContractCall.error){
+          logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
+          resolve({error:mapsToContractCall.error})
+        }else{
+          //Execution success message
+          //Need to avoid executing call on everynode simultaneously 
+          //Also need to avoid any security breach when signing actions
+          if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
+          this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
+          resolve(action)
+        }
+
+        
+        
     })
   }
 
@@ -1851,9 +1965,9 @@ class Node {
         let savedStates = await this.chain.balance.saveStates();
         let savedNodeList = await this.nodeList.saveNodeList();
         let savedMempool = await Mempool.saveMempool();
+        let savedAccountTable = await this.accountTable.saveTable();
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();
-        let savedAccountTable = await this.accountTable.saveTable();
         if( 
                blockchainSaved
             && savedNodeList 
