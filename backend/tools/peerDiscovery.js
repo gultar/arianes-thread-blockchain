@@ -6,7 +6,7 @@ class PeerDiscovery{
     constructor(opts){
         this.host = opts.host || '127.0.0.1';
         this.port = opts.port || 32110;
-        this.channel = opts.channel || 'thousandfold-blocks'
+        this.channel = opts.channel || 'mainnet'
         this.swarm = swarm({
             id: randomBytes(32).toString('hex'), // peer-id for user
             utp: false, // use utp for discovery
