@@ -9,7 +9,7 @@ class PeerDiscovery{
         this.channel = opts.channel || 'mainnet'
         this.swarm = swarm({
             id: randomBytes(32).toString('hex'), // peer-id for user
-            utp: false, // use utp for discovery
+            utp: true, // use utp for discovery
             tcp: true, // use tcp for discovery
             maxConnections: 10, // max number of connections.
           })
