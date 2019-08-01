@@ -9,7 +9,7 @@ class BalanceTable{
     constructor(state, history){
         this.states = (state?state:{})
         this.history = (history?history:{})
-        this.stateDB = new Database('./data/stateDB')
+        this.stateDB = new Database('./data/balanceDB')
     }
 
     // saveHistory(blockNumber){

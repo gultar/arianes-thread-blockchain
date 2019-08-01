@@ -1,45 +1,29 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger, readFile, writeToFile } = require('../tools/utils.js') 
 const fs = require('fs')
-const Database = require('./database')
 
 class AccountTable{
     constructor(){
         this.accounts = {}
-        this.accountsDB = new Database('./data/accountsDB')
+        this.state = {}
     }
 
-    
-
     addAccount(account){
-        return new Promise(async (resolve)=>{
-            let existing = await this.accountsDB.get(account.name)
-            if(!existing){
-                this.accounts[account.name] = account
-                let added = this.accountsDB.add({
-                    _id:account.name,
-                    account:account
-                })
-                resolve(added)
+        return new Promise((resolve, reject)=>{
+            if(!this.accounts[account.name]){
+                this.accounts[account.name] = account;
+                this.saveTable()
+                resolve(true)
             }else{
-                if(existing.error) resolve({error:existing.error})
-                resolve({error:'ERROR: Account already exists'})
+                resolve(false)
             }
         })
       }
 
       getAccount(name){
-          return new Promise(async (resolve)=>{
-            if(this.accounts){
-                let accountEntry = await this.accountsDB.get(name)
-                if(accountEntry){
-                    if(accountEntry.error) resolve({error:accountEntry.error})
-                    resolve(accountEntry.account)
-                }else{
-                    resolve(false)
-                }
-            }
-          })
+        if(this.accounts){
+            return this.accounts[name];
+        }
       }
 
       getAccountsOfKey(key){
@@ -54,7 +38,6 @@ class AccountTable{
         return accounts
       }
 
-      //Deprecated
       deleteAccount(name, signature){
           return new Promise(async(resolve, reject)=>{
             try{
@@ -83,7 +66,10 @@ class AccountTable{
           })
       }
 
-      //Deprecated
+      setAccountState(){
+
+      }
+
       loadAllAccountsFromFile(){
         return new Promise(async (resolve, reject)=>{
          try{
@@ -115,7 +101,6 @@ class AccountTable{
         })
        }
 
-       //Deprecated
       saveTable(silent=false){
           return new Promise((resolve, reject)=>{
             try{

@@ -1529,7 +1529,7 @@ class Node {
       if(action && isValidActionJSON(action)){
         //Check if is owner of contract or has permission
         let account = await this.accountTable.getAccount(action.fromAccount.name)
-        if(!account) resolve({error:'ERROR: Could not find linked account of action'})
+        // if(!account) resolve({error:'ERROR: Could not find linked account of action'})
 
         let isValid = await this.chain.validateAction(action, account)
         if(!isValid){
