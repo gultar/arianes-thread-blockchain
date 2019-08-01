@@ -58,7 +58,7 @@ program
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-d, --peerDiscovery [type]', 'Enable peer discovery using various methods')
   .option('-t, --peerDiscoveryPort <port>', 'Enable peer discovery using various methods')
-  .option('-l, --dhtDisconnectDelay', 'Length of time after which the node disconnects from dht network')
+  .option('-l, --dhtDisconnectDelay <delay>', 'Length of time after which the node disconnects from dht network')
 
 program
   .command('start')
