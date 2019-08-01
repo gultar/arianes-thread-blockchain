@@ -2002,7 +2002,6 @@ class Node {
         port:this.port,
         id:this.id,
         publicKey:this.publicKey,
-        verbose:this.verbose,
         fastSync:this.fastSync
       }
   
