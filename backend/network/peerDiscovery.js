@@ -9,7 +9,7 @@ class PeerDiscovery{
 
     constructor(opts){
         let { address, host, port, channel, knownPeers } = opts
-        this.channel = channel || 'blockchain-mainnet';
+        this.channel = channel || 'mainnet';
         this.address = address;
         this.host = host;
         this.port = port;
