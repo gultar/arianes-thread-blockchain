@@ -25,8 +25,8 @@ class PeerDiscovery{
             this.initBrowser()
             this.initService()
             setTimeout(async ()=>{
-                let stopped = await this.stopBrowser()
-                let stopped = await this.stopService()
+                let stoppedBrowser = await this.stopBrowser()
+                let stoppedService = await this.stopService()
                 resolve(true)
             }, 20000)
         })

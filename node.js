@@ -482,6 +482,7 @@ class Node {
           }, this.dhtLookupTime )
   
           emitter.on('peerDiscovered', (peer)=> {
+            logger('Potential peer', peer.address)
             if(!this.connectionsToPeers[peer.address]){
               let { host, port, address } = peer
               logger('Found new peer', chalk.green(address))
