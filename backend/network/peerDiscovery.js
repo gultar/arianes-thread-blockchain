@@ -123,7 +123,7 @@ class PeerDiscovery{
                     contact.host = address;
                     contact.port = service.port
                     contact.address = service.name
-                    contract.lastSeen = Date.now()
+                    contact.lastSeen = Date.now()
                     if(!this.knownPeers[address]){
                         this.knownPeers[address] = contact
                         this.emitter.emit('peerDiscovered', contact)
