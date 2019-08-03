@@ -9,12 +9,12 @@ const sha256 = require('../tools/sha256');
 const { logger } = require('../tools/utils');
 
 class Account{
-    constructor(name, ownerKey){
+    constructor(name, ownerKey, type){
         this.name = name;
         this.ownerKey = ownerKey;
         this.hash = sha256(JSON.stringify(this));
         this.ownerSignature = '';
-        this.type = 'User Account'
+        this.type = type
     }
 
     signAccount(wallet, password){

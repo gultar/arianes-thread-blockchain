@@ -39,7 +39,7 @@ const isValidActionJSON = (action)=>{
         "id":"/action",
         "type": "object",
         "properties": {
-            "fromAccount": {"type": "object"},
+            "fromAccount": {"type": "string"},
             "type": {"type": "string"},
             "task": {"type": "string"},
             "data": {"type": [

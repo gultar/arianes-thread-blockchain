@@ -170,7 +170,6 @@ class Mempool{
                     batch[hash] = transactions[hash];
                 }
             }
-            logger(`Gathering a batch of ${Object.keys(batch).length} transactions`)
             resolve(batch)
             
         })

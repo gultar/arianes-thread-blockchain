@@ -49,7 +49,7 @@ class Token{
                     permissions: new Permissions(account),
                 }
     
-                return { success:`Token ${name} has been created with max supply of ${maxSupply}`}
+                return { success:`Token ${symbol} has been created with max supply of ${maxSupply}`}
     
             }else{
                 throw new Error('Token already exists')
@@ -62,62 +62,61 @@ class Token{
     }
 
     async issue(issueParams){
-        let { symbol, amount, issuerAccount, receivingAccount } = issueParams
+        let { symbol, amount, issuerAccount, receiverAccount } = issueParams
         if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
         if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
         if(!issuerAccount) throw new Error('Creator account of token is required')
-        if(!receivingAccount) throw new Error('Receiving account is required')
+        if(!receiverAccount) throw new Error('Receiving account is required')
 
         let token = this.state.tokens[symbol]
         
         if(token && typeof token == 'object'){
-            let permissionedAccount = token.permissions.accounts[issuerAccount.name]
-            if(permissionedAccount){
-                let isAllowed = permissionedAccount.level == token.permissions.level['owner'] //hasPermission(issuerAccount.name, 'owner')
-            
+
+            let hasSomePermission = token.permissions.accounts[issuerAccount]
+            if(hasSomePermission){
+
+                let isAllowed = hasSomePermission.level == token.permissions.level['owner']
                 if(isAllowed){
+
+                    if(issuerAccount == receiverAccount) throw new Error('Cannot issue coins to owner account')
                     
                     if(token.supply > amount){
                         
                         token.supply -= amount;
-        
-                        let issueAction = new ContractAction({
-                            name:this.contractAccount.name,
-                            publicKey:this.contractAccount.ownerKey
-                        })
                         
                         let nonce = Object.keys(token.history).length + 1
 
-                        
-                        
-                        //Need to create a balance table for this contract and for each currency
-                        issueAction.defineTask({
-                            contractName:"Token",
-                            method:"issue",
-                            params:{
-                                amount:amount,
-                                toAccount:receivingAccount
-                            }
-                        })
-
-                        issueAction.setReference(issueParams.action)
-                        
                         this.substract(amount)
 
                         token.history[nonce] = {
+                            actionType:'issue',
                             from:issuerAccount,
-                            to:receivingAccount,
+                            to:receiverAccount,
+                            amount:amount,
                             timestamp:Date.now()
                         }
+
+                        if(token.accountBalances){
+                            let receiverBalance = token.accountBalances[receiverAccount]
+                            
+                            token.accountBalances[issuerAccount] = token.supply
+                            token.accountBalances[receiverAccount] = receiverBalance + amount
+
+                        }else{
+                            token.accountBalances = {
+                                [issuerAccount]:token.supply,
+                                [receiverAccount]:amount
+                            }
+                        }
         
-                        return issueAction
+                        return { success:`Issued ${amount} CHARM tokens to account ${receiverAccount}` }
         
                     }else{
                         throw new Error('ERROR: Current coin supply does not allow for issuance of coins')
                     }
                 
                 }else{
-                    throw new Error("Account" +issuerAccount.name+ "is not authorized to issue coins");
+                    throw new Error("Account" +issuerAccount+ "is not authorized to issue coins");
                 }
             }else{
                 throw new Error('Caller account does not have existing permissions')
@@ -131,6 +130,20 @@ class Token{
 
     }
 
+    getBalanceOfAccount(params, callingAccount){
+        let { account, symbol } = params;
+        let token = this.state.tokens[symbol]
+        if(!token) throw new Error(`Token ${symbol} does not exist`)
+        
+        let balances = token.accountBalances
+        if(!balances) throw new Error(`Account balances of token ${symbol} have not been set yet`)
+        
+        let accountBalance = balances[account]
+        if(!accountBalance) throw new Error(`Could not find balance of account ${account}`)
+
+        return accountBalance
+    }
+
     async getInterface(){
         let external = makeExternal({
             name:this.name,
@@ -141,11 +154,15 @@ class Token{
             },
             issue:{
                 issue:this.issue, 
-                args:["symbol", "amount", "issuerAccount", "receivingAccount"],
+                args:["symbol", "amount", "issuerAccount", "receiverAccount"],
             },
             getSupply:{
                 getSupply:this.getSupply,
                 args:["symbol"]
+            },
+            getBalanceOfAccount:{
+                getBalanceOfAccount:this.getBalanceOfAccount,
+                args:['account','symbol']
             }
         })
         let contractAPI = await createContractInterface(external)

@@ -2,8 +2,6 @@ const launchVM = () =>{
     // const ContractVM = require('./contractVM')
     // const Sandbox = require('./sandbox')
     const ContractVM = require('../VM.js')
-    const fs = require('fs')
-  
 
     process.on('message', async(message)=>{
         try{
@@ -22,10 +20,14 @@ const launchVM = () =>{
                   vm.compileScript()
                   vm.run()
                   .then((result)=>{
-                      process.send({executed:result})
+                      if(result.error) process.send({error:result.error.message})
+                      else process.send({executed:result})
+                  })
+                  .catch((e)=>{
+                    process.send({error:e})
                   })
                 }catch(e){
-                  console.log(e)
+                  process.send({error:e})
                 }
               }else{
                 process.send({error:'ERROR: Invalid data format provided'})
@@ -37,7 +39,7 @@ const launchVM = () =>{
             
           }
         }catch(e){
-          process.send({error:e.toString()})
+          process.send({error:e})
         }
         
       })

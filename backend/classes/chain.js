@@ -15,7 +15,14 @@ const {
   readFile, } = require('../tools/utils');
 const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../tools/jsonvalidator');
 const Transaction = require('./transaction');
-const BalanceTable = require('./balanceTable')
+const BalanceTable = require('./balanceTable');
+const AccountTable = require('./accountTable');
+const ContractTable = require('./contractTable')
+
+/*************Smart Contract VM************** */
+const callRemoteVM = require('../contracts/build/callRemoteVM')
+/******************************************** */
+
 const Block = require('./block');
 const { setNewChallenge, setNewDifficulty, Difficulty } = require('./challenge');
 const chalk = require('chalk');
@@ -37,6 +44,8 @@ class Blockchain{
     this.chain = chain
     this.chainDB = new PouchDB('./data/chainDB');
     this.balance = new BalanceTable()
+    this.accountTable = new AccountTable();
+    this.contractTable = new ContractTable();
     this.difficulty = new Difficulty(genesis)
     this.blockForks = {}
     this.isSyncingBlocks = false
@@ -212,7 +221,7 @@ class Blockchain{
           var isLinked = this.isBlockLinked(newBlock);
           
           if(isLinked){
-
+            this.isBusy = true
             //Push block header to chain
             this.chain.push(this.extractHeader(newBlock));
             if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
@@ -220,33 +229,35 @@ class Blockchain{
 
             let added = await this.putBlockToDB(newBlock)
             if(added){
-
-              let executed = await this.balance.executeBlock(newBlock)
+              
+              let executed = await this.balance.runBlock(newBlock)
               if(executed.error) resolve({error:executed.error})
 
-              
               let deleted = await Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-              if(deleted){
-                resolve(true);
-              }else{
-                resolve({error:'ERROR: Could not delete transactions from Mempool'})
-              }
+              if(!deleted) resolve({error:'ERROR: Could not delete transactions from Mempool'})
 
-              let actionsDeleted = false
               if(newBlock.actions){
-                actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)  
-              } 
-              
+                let allActionsExecuted = await this.executeActionBlock(newBlock.actions)
 
-              if(deleted && actionsDeleted){
+                let actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)
+                if(!actionsDeleted) resolve({error:'ERROR: Could not delete actions from Mempool'})
+
+                this.isBusy = false
+
+                if(allActionsExecuted.errors) resolve({error:allActionsExecuted.errors})
+                else{
+                  resolve(true)
+                }
+                
+              }else if(!newBlock.actions){
+
+                this.isBusy = false
                 resolve(true);
-              }else if(deleted){
-                resolve(true);
-              }else{
-                resolve({error:'Could not delete transactions or actions from Mempool'})
               }
 
             }else{
+
+              this.isBusy = false
               resolve({ error:'Could not push new block' })
             }
 
@@ -256,9 +267,14 @@ class Blockchain{
             if( isLinkedToSomeBlock || isLinkedToBlockFork ){
               
               let isBlockFork = await this.newBlockFork(newBlock)
-              if(isBlockFork.error) resolve({error:isBlockFork.error})
-              resolve(true)
+              if(isBlockFork){
+                this.isBusy = false
+                if(isBlockFork.error) resolve({error:isBlockFork.error})
+                resolve(true)
+              }
+              
             }else{
+              this.isBusy = false
               resolve(false)
             }
 
@@ -850,7 +866,7 @@ class Blockchain{
   //           for(var actionHash of Object.keys(block.actions)){
   //             action = block.actions[actionHash]
   //             if(action){
-  //               if(action.fromAccount.publicKey == address){
+  //               if(action.fromAccount.ownerKey == address){
   //                 balance = balance - action.fee;
   //               }
   //             }
@@ -864,65 +880,65 @@ class Blockchain{
 
   // }
 
-  /**
-    Follows the account balance of a given wallet through all blocks
-    @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
-  */
-  getBalance(publicKey){
-      return new Promise(async (resolve)=>{
-        var address = publicKey;
-        let balance = 0;
-        var trans;
-        var action;
-        if(!publicKey){
-          logger("ERROR: Can't get balance of undefined publickey")
-          resolve(false)
-        }
-          for(var block of this.chain){
-            if(block.blockNumber == 0){
-              if(block.states[publicKey]){
-                balance = block.states[publicKey].balance
-              }
-            } 
-            let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
-            transactions = transactions[transactions._id]
-            if(transactions){
-                for(var transHash of Object.keys(transactions)){
+  // /**
+  //   Follows the account balance of a given wallet through all blocks
+  //   @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
+  // */
+  // getBalance(publicKey){
+  //     return new Promise(async (resolve)=>{
+  //       var address = publicKey;
+  //       let balance = 0;
+  //       var trans;
+  //       var action;
+  //       if(!publicKey){
+  //         logger("ERROR: Can't get balance of undefined publickey")
+  //         resolve(false)
+  //       }
+  //         for(var block of this.chain){
+  //           if(block.blockNumber == 0){
+  //             if(block.states[publicKey]){
+  //               balance = block.states[publicKey].balance
+  //             }
+  //           } 
+  //           let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+  //           transactions = transactions[transactions._id]
+  //           if(transactions){
+  //               for(var transHash of Object.keys(transactions)){
               
-                    trans = transactions[transHash]
-                    if(trans){
+  //                   trans = transactions[transHash]
+  //                   if(trans){
 
-                      if(trans.fromAddress == address){
-                        balance = balance - (trans.amount + trans.miningFee);
-                      }
+  //                     if(trans.fromAddress == address){
+  //                       balance = balance - (trans.amount + trans.miningFee);
+  //                     }
         
-                      if(trans.toAddress == address){
-                        balance = balance + trans.amount;
-                      }
+  //                     if(trans.toAddress == address){
+  //                       balance = balance + trans.amount;
+  //                     }
         
-                    }
+  //                   }
                     
-                  }
-                  if(transactions.actions){
-                    for(var actionHash of Object.keys(transactions.actions)){
-                      action = transactions.actions[actionHash]
-                      if(action){
-                        if(action.fromAccount.publicKey == address){
-                          balance = balance - action.fee;
-                        }
-                      }
-                    }
-                  }
-            }
+  //                 }
+  //                 if(transactions.actions){
+  //                   for(var actionHash of Object.keys(transactions.actions)){
+  //                     action = transactions.actions[actionHash]
+  //                     if(action){
+  //                       if(action.fromAccount.ownerKey == address){
+  //                         balance = balance - action.fee;
+  //                       }
+  //                     }
+  //                   }
+  //                 }
+  //           }
 
   
-          }
+  //         }
   
-        resolve(balance)
-      })
+  //       resolve(balance)
+  //     })
     
 
-  }
+  // }
 
   checkBalance(publicKey){
     let walletState = this.balance.getBalance(publicKey)
@@ -1032,7 +1048,7 @@ class Blockchain{
           
           action = Mempool.pendingActions[actionHash]
           if(action){
-            if(action.fromAccount.publicKey == address){
+            if(action.fromAccount.ownerKey == address){
               balance = balance - action.fee;
             }
           }
@@ -1687,39 +1703,233 @@ class Blockchain{
 
   }
 
-  validateAction(action, account){
+  executeActionBlock(actions){
+    return new Promise(async (resolve)=>{
+      if(actions){
+        let hashes = Object.keys(actions);
+        let errors = {}
+        for(var hash of hashes){
+          let action = actions[hash]
+
+          let result = await this.handleAction(action)
+          if(result.error){
+            errors[action.hash] = result.error
+          }
+        }
+
+        if(Object.keys(errors) > 0){
+          resolve({errors:errors})
+        }else{
+          resolve(true)
+        }
+        
+      }else{
+        resolve({error:'Missing action block'})
+      }
+    })
+  }
+
+  handleAction(action){
+    return new Promise(async (resolve)=>{
+      switch(action.type){
+        case 'account':
+          if(action.task == 'create'){
+            let added = await this.accountTable.addAccount(action.data);
+            if(added){
+              resolve(true)
+            }else{
+              resolve({error:'ERROR: Account already exists'})
+            }
+          }
+
+          break;
+        case 'contract':
+          if(action.task == 'deploy'){
+            
+            let deployed = await this.deployContract(action)
+            if(deployed.error){
+              resolve({error:deployed.error})
+            }else{
+              resolve(true)
+            }
+            
+          }
+
+          if(action.task == 'call'){
+            let executed = await this.executeAction(action)
+            if(executed.error){
+              resolve({error:executed.error})
+            }else{
+              resolve(executed)
+            }
+          }
+          resolve({error:'ERROR: Unknown contract task'})
+          break;
+        default:
+          resolve({error:'ERROR: Invalid contract call'})
+      }
+      
+      
+    })
+  }
+
+  deployContract(action){
+    return new Promise(async (resolve)=>{
+      let data = action.data
+      let account = await this.accountTable.getAccount(action.fromAccount)
+      
+      if(account){
+        //Validate Contract and Contract API
+        let contractEntry = {
+          name:data.name,
+          contractAPI:data.contractAPI,
+          initParams:data.initParams,
+          account:account, 
+          code:data.code,
+          state:data.state
+        }
+
+        let added = await this.contractTable.addContract(contractEntry)
+        if(added){
+          if(added.error) resolve({error:added.error})
+          logger(`Deployed contract ${contractEntry.name}`)
+          resolve(true)
+        }else{
+          resolve({error:'ERROR: Could not add contract to table'})
+        }
+       
+        
+      }else{
+        resolve({error:'ACTION ERROR: Could not get contract account'})
+      }
+    })
+  }
+
+  executeAction(action){
+    return new Promise(async (resolve)=>{
+      try{
+        let account = await this.accountTable.getAccount(action.fromAccount)
+        if(account){
+          let contract = await this.contractTable.getContract(action.data.contractName)
+          if(contract){
+            if(contract.error) resolve({error:contract.error})
+            
+            let contractState = await this.contractTable.getState(action.data.contractName)
+            if(!contractState) resolve({error:'Could not find contract state'})
+  
+            let initParams = JSON.parse(contract.initParams)
+  
+            let method = action.data.method
+            let params = action.data.params
+  
+            let instruction = `
+              let failure = ''
+
+              async function execute(){
+                let instance = {};
+                
+                try{
+                  const commit = require('commit')
+                  const save = require('save')
+                  
+  
+                  let actionString = '${JSON.stringify(action)}'
+                  let paramsString = '${JSON.stringify(params)}'
+                  let initParamsString = '${JSON.stringify(initParams)}'
+                  let callerAccountString = '${JSON.stringify(account)}'
+                  let currentStateString = '${JSON.stringify(contractState)}'
+  
+                  let callerAccount = JSON.parse(callerAccountString)
+                  let params = JSON.parse(paramsString)
+                  let initParams = JSON.parse(initParamsString)
+                  let currentState = JSON.parse(currentStateString)
+                  let action = JSON.parse(actionString);
+                  params.callingAction = action
+
+                  instance = new ${action.data.contractName}(initParams)
+                  instance.setState(currentState)
+                  let result = await instance['${method}'](params, callerAccount)
+                  save(instance.state)
+                  commit(result)
+                  
+                  
+                }catch(err){
+                  failure = err
+                }
+                  
+                
+              }
+  
+              execute()
+              .then(()=>{
+                if(failure) throw new Error(failure.message)
+                fail(e)
+              })
+              .catch((e)=>{
+                fail(e)
+              })
+              
+            `
+              let result = await callRemoteVM(contract.code + instruction)
+              
+              if(result.error){
+                resolve({error:result.error})
+              }else{
+                if(result.state){
+                  this.contractTable.updateContractState('Token', result.state)
+                  resolve(result.value)
+                }else{
+                  resolve({error:'An error occurred'})
+                }
+              }
+              
+          }else{
+            resolve({error:'Unkown contract name'})
+          }
+          
+        }else{
+          resolve({error:'Unkown account name'})
+        }
+      }catch(e){
+        resolve({error:e.message})
+      }
+
+
+
+    })
+  }
+
+
+
+  validateAction(action){
     return new Promise(async (resolve, reject)=>{
       if(action){
-
-          let isChecksumValid = await this.validateActionChecksum(action);
-          let hasMiningFee = action.fee > 0; //check if amount is correct
-          let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
-          let balanceOfSendingAddr = await this.checkBalance(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
-          let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
-          let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
           let isCreateAccount = action.type == 'account' && action.task == 'create';
+          let account = await this.accountTable.getAccount(action.fromAccount)
           
+          if(isCreateAccount){
 
-          if(account && isValidAccountJSON(account)){ 
-            
-            let isSentByOwner = await this.validateActionSignature(action, account.ownerKey);
-      
-            if(!isSentByOwner){
-              resolve({error:"ERROR: Signature is not associated with sender account"})
-            }
-          
-          }else if(isCreateAccount){
+            if(account) resolve({error:'An account with that name already exists'})
             let newAccount = action.data;
             let isValidAccount = isValidAccountJSON(newAccount);
 
-            if(!isValidAccount){
-              resolve({error:"ERROR: Account contained in create account action is invalid"})
-            }
+            if(!isValidAccount) resolve({error:"ERROR: Account contained in create account action is invalid"})
 
-          }else{
-            resolve({error:"ERROR: Could not find action's sender account"})
+            account = newAccount;
           }
 
+          let isExistingAccount = ( account? true : false )
+          let isChecksumValid = await this.validateActionChecksum(action);
+          let hasMiningFee = action.fee > 0; //check if amount is correct
+          let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+          let balanceOfSendingAddr = await this.checkBalance(account.ownerKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.ownerKey);
+          let isLinkedToWallet = validatePublicKey(account.ownerKey);
+          let isSignatureValid = await this.validateActionSignature(action, account.ownerKey);
+
+          if(!isExistingAccount){
+            resolve({error:'ERROR: Account does not exist'})
+          }
+          
           if(balanceOfSendingAddr < action.fee){
             resolve({error:"ERROR: Sender's balance is too low"})
           }
@@ -1763,32 +1973,10 @@ class Blockchain{
           let isChecksumValid = await this.validateActionChecksum(action);
           let hasMiningFee = action.fee > 0; //check if amount is correct
           let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
-          let balanceOfSendingAddr = await this.checkBalance(action.fromAccount.publicKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.publicKey);
-          let isLinkedToWallet = validatePublicKey(action.fromAccount.publicKey);
+          let balanceOfSendingAddr = await this.checkBalance(action.fromAccount.ownerKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.ownerKey);
+          let isLinkedToWallet = validatePublicKey(action.fromAccount.ownerKey);
           let isLinkedToContract = this.isLinkedToContract()
-          // let isSignatureValid = await this.validateActionSignature(action, action.fromAccount.publicKey);
-          // let isCreateAccount = action.type == 'account' && action.task == 'create';
           
-
-          if(account && isValidAccountJSON(account)){ 
-            
-            let isSentByOwner = await this.validateActionSignature(action, account.ownerKey);
-      
-            if(!isSentByOwner){
-              resolve({error:"ERROR: Signature is not associated with sender account"})
-            }
-          
-          }else if(isCreateAccount){
-            let newAccount = action.data;
-            let isValidAccount = isValidAccountJSON(newAccount);
-
-            if(!isValidAccount){
-              resolve({error:"ERROR: Account contained in create account action is invalid"})
-            }
-
-          }else{
-            resolve({error:"ERROR: Could not find action's sender account"})
-          }
 
         if(balanceOfSendingAddr < action.fee){
           resolve({error:"ERROR: Sender's balance is too low"})
@@ -1853,13 +2041,12 @@ class Blockchain{
   validateActionChecksum(action){
     if(action){
       if(sha256(
-                action.fromAccount.publicKey + 
+                action.fromAccount + 
                 action.type + 
                 action.task + 
                 action.data + 
                 action.fee + 
-                action.timestamp + 
-                action.contractRef
+                action.timestamp
                 ) == action.hash){
        return true
       }else{
@@ -1902,7 +2089,7 @@ class Blockchain{
   */
   validateActionSignature(action, ownerKey){
     return new Promise(async (resolve, reject)=>{
-      if(action){
+      if(action && ownerKey){
         if(validatePublicKey(ownerKey)){
           const publicKey = await ECDSA.fromCompressedPublicKey(ownerKey);
           if(publicKey){
@@ -1989,6 +2176,13 @@ class Blockchain{
       this.loadBlocks()
       .then(async (loaded)=>{
         if(loaded){
+
+          // let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
+          // if(accountsLoaded){
+          //   resolve(true)
+          // }else{
+          //   reject('ERROR: Could not load account table')
+          // }
           
           let savedBalances = await this.balance.loadAllStates()
           if(savedBalances){

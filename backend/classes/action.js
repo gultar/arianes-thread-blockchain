@@ -5,7 +5,7 @@ const jsonSize = require('json-size');
 
 class Action{
     constructor(fromAccount, type, task, data='', contractRef={}){
-        this.fromAccount = fromAccount; //{ name, publicKey }
+        this.fromAccount = fromAccount; 
         this.type = type; 
         this.task = task; //Function on the contract
         this.data = data;
@@ -17,7 +17,7 @@ class Action{
     }
 
     calculateActionHash(){
-       return sha256(this.fromAccount.publicKey + this.type + this.task + this.data + this.fee + this.timestamp + this.contractRef)
+       return sha256(this.fromAccount + this.type + this.task + this.data + this.fee + this.timestamp)
     }
 
     setMiningFee(){

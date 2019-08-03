@@ -98,7 +98,7 @@ class ContractVM{
                 })
                 signals.on('commited', (action)=>{
                     resolve({
-                        result:action,
+                        value:action,
                         state:this.sandbox.stateStorage
                     })
                 })

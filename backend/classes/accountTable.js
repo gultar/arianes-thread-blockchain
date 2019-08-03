@@ -15,7 +15,6 @@ class AccountTable{
         return new Promise(async (resolve)=>{
             let existing = await this.accountsDB.get(account.name)
             if(!existing){
-                this.accounts[account.name] = account
                 let added = this.accountsDB.add({
                     _id:account.name,
                     account:account
@@ -30,14 +29,15 @@ class AccountTable{
 
       getAccount(name){
           return new Promise(async (resolve)=>{
-            if(this.accounts){
-                let accountEntry = await this.accountsDB.get(name)
-                if(accountEntry){
-                    if(accountEntry.error) resolve({error:accountEntry.error})
-                    resolve(accountEntry.account)
-                }else{
+            let accountEntry = await this.accountsDB.get(name)
+            if(accountEntry){
+                if(accountEntry.error){
+                    logger(accountEntry.error)
                     resolve(false)
                 }
+                resolve(accountEntry.account)
+            }else{
+                resolve(false)
             }
           })
       }

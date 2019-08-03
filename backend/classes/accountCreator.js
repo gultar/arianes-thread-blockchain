@@ -12,14 +12,14 @@ class AccountCreator{
         this.manager = new WalletManager();
     }
 
-    async createAccount(name, walletName, password){
+    async createAccount(name, accountType, walletName, password){
         return new Promise(async (resolve, reject) =>{
           
           try{
             if(name && walletName && password){
                 
                 let wallet = await this.manager.loadByWalletName(walletName);
-                let account = new Account(name, wallet.publicKey);
+                let account = new Account(name, wallet.publicKey, accountType);
                 let signature = await account.signAccount(wallet, password);
                 account.ownerSignature = signature
                 resolve(account)

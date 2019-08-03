@@ -87,7 +87,6 @@ class Miner{
         })
         this.socket.on('latestBlock', (block)=>{
           this.previousBlock = block;
-          this.start() 
         })
         this.socket.on('stopMining', ()=>{ this.pause() })
         this.socket.on('startMining', ()=>{ this.start() })
@@ -131,7 +130,9 @@ class Miner{
               this.pool.pendingActions = {}
               this.nextBlock = false
               this.nextCoinbase = false
-              
+              this.socket.emit('isReady')
+              this.socket.emit('getLatestBlock', block)
+
             }else{
               logger('Mining unsuccessful')
               this.minerStarted = false;

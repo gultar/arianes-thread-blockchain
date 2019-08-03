@@ -58,7 +58,7 @@ class Permissions{
     define(account, category){
         if(account && category){
             if(this.category.includes(category)){
-                this.accounts[account.name] = {
+                this.accounts[account] = {
                     account:account,
                     category:category,
                     level:this.level[category]
@@ -77,7 +77,7 @@ class Permissions{
         if(account && category){
             if(this.category.includes(category)){
                 let level = this.level[category]
-                let permission = this.accounts[account.name]
+                let permission = this.accounts[account]
                 if(permission){
                     return permission.level >= level
                 }else{
@@ -94,28 +94,3 @@ class Permissions{
 }
 
 module.exports = Permissions
-
-// let myPermissions = new Permissions("I'm the owner of this, bitch")
-// let account1 = new Account('poubelle', 'key')
-// let account2 = new Account('garbage', 'clé')
-// let account3 = new Account('jupette', 'toupette')
-// let account4 = new Account('kopek', 'rouble')
-// let account5 = new Account('mongole', 'cheval')
-// let addedFirst = myPermissions.define(account1, 'write')
-
-
-// if(addedFirst.error) console.log(addedFirst)
-// let addedSecond = myPermissions.define(account2, 'modify')
-// if(addedSecond.error) console.log(addedSecond)
-// myPermissions.defineMultipleAccounts([
-//     {
-//         account:account3, 
-//         category:'write'
-//     },
-//     {
-//         account:account4, category:'modify'
-//     },
-//     {
-//         account:account5, category:'write'
-//     }
-// ])

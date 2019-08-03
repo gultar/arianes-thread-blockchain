@@ -35,14 +35,14 @@ class BalanceTable{
         
     // }
 
-    executeBlock(block){
+    runBlock(block){
         return new Promise(async (resolve)=>{
             if(!block) resolve({error:"Block to execute is of undefined"})
 
             let executed = await this.executeTransactionBlock(block.transactions, block.blockNumber)
             if(executed.errors) resolve({ error: executed.errors })
     
-            let actionsExecuted = await this.executeActionBlock(block.actions, block.blockNumber)
+            let actionsExecuted = await this.payActionBlock(block.actions, block.blockNumber)
             if(actionsExecuted.error) resolve({ error: actionsExecuted.errors })
 
             let transactionsHashes = Object.keys(block.transactions)
@@ -130,7 +130,7 @@ class BalanceTable{
         }
     }
 
-    executeActionBlock(actions, blockNumber){
+    payActionBlock(actions, blockNumber){
         return new Promise((resolve)=>{
             
             if(actions){
@@ -139,7 +139,7 @@ class BalanceTable{
                     let errors = {}
                     hashes.forEach( hash=>{
                         let action = actions[hash];
-                        let executed = this.executeAction(action, blockNumber)
+                        let executed = this.payAction(action, blockNumber)
                         if(executed.error) errors[hash] = executed.error;
                     })
                     let numOfErrors = Object.keys(errors).length;
@@ -158,7 +158,7 @@ class BalanceTable{
         
     }
 
-    executeAction(action, blockNumber){
+    payAction(action, blockNumber){
         if(isValidActionJSON(action)){
             
             let fromAddress = action.fromAddress;

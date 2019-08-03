@@ -10,7 +10,7 @@ const callRemoteVM = (code) =>{
             let keepAlive = setInterval(()=>{
                 child.send('ping')
                 pingCounter++;
-                if(pingCounter > 5){
+                if(pingCounter > 3){
                     console.log('Aborting process');
                     child.kill()
                     clearInterval(keepAlive)
@@ -24,7 +24,7 @@ const callRemoteVM = (code) =>{
                         if(message.executed){
                             child.kill()
                             clearInterval(keepAlive)
-                            resolve({executed:message.executed})
+                            resolve(message.executed)
                         }else if(message.error){
                             child.kill()
                             clearInterval(keepAlive)
@@ -45,10 +45,9 @@ const callRemoteVM = (code) =>{
             child.on('error', function(data) {
                 console.log('stderr: ' + data);
                 clearInterval(keepAlive)
+                resolve({error:'A VM error occurred'})
             });
-            child.on('close', function() {
-                console.log('Child process closed')
-            })
+            child.on('close', function() { })
         }else{
             console.log('ERROR: Missing required code parameter')
         }
