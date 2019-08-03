@@ -410,7 +410,7 @@ class Blockchain{
                         this.chain.push(this.extractHeader(forkBlock))
                         logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
                         
-                        let executed = await this.balance.executeBlock(forkBlock)
+                        let executed = await this.balance.runBlock(forkBlock)
                         if(executed.error) resolve({error:executed.error})
 
                         if(forkBlock.actions){
@@ -1757,11 +1757,16 @@ class Blockchain{
 
           if(action.task == 'call'){
             let executed = await this.executeAction(action)
-            if(executed.error){
-              resolve({error:executed.error})
+            if(executed){
+              if(executed.error){
+                resolve({error:executed.error})
+              }else{
+                resolve(executed)
+              }
             }else{
-              resolve(executed)
+              resolve({error:'Function has returned nothing'})
             }
+            
           }
           resolve({error:'ERROR: Unknown contract task'})
           break;
@@ -1821,9 +1826,13 @@ class Blockchain{
   
             let method = action.data.method
             let params = action.data.params
+
+            console.log('Method', method)
+            console.log('Outside params', params)
   
             let instruction = `
               let failure = ''
+              let fail = require('fail')
 
               async function execute(){
                 let instance = {};
@@ -1840,10 +1849,15 @@ class Blockchain{
                   let currentStateString = '${JSON.stringify(contractState)}'
   
                   let callerAccount = JSON.parse(callerAccountString)
+                  console.log('Account',callerAccount)
                   let params = JSON.parse(paramsString)
+                  console.log('Params',params)
                   let initParams = JSON.parse(initParamsString)
+                  console.log('Init params', initParams)
                   let currentState = JSON.parse(currentStateString)
+                  console.log('Current state',currentState)
                   let action = JSON.parse(actionString);
+                  console.log('Action',action)
                   params.callingAction = action
 
                   instance = new ${action.data.contractName}(initParams)
@@ -1921,7 +1935,7 @@ class Blockchain{
           let isExistingAccount = ( account? true : false )
           let isChecksumValid = await this.validateActionChecksum(action);
           let hasMiningFee = action.fee > 0; //check if amount is correct
-          let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+          let actionIsNotTooBig = (Transaction.getTransactionSize(action) / 1024) < this.transactionSizeLimit;
           let balanceOfSendingAddr = await this.checkBalance(account.ownerKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.ownerKey);
           let isLinkedToWallet = validatePublicKey(account.ownerKey);
           let isSignatureValid = await this.validateActionSignature(action, account.ownerKey);
@@ -1947,6 +1961,8 @@ class Blockchain{
           }
 
           if(!actionIsNotTooBig){
+            //console.log(action)
+            console.log(Transaction.getTransactionSize(action))
             resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
           }
     

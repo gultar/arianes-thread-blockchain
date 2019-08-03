@@ -34,7 +34,12 @@ const launchVM = () =>{
               }
               break;
             case 'string':
-              process.send('pong')
+              if(message === 'getMemUsage'){
+                process.send({memUsage: process.memoryUsage()});
+              }else{
+                process.send('pong')
+              }
+              
               break
             
           }

@@ -185,7 +185,7 @@ class Node {
             resolve(true)
         })
         .catch(e =>{
-          logger(e)
+          console.log(e)
           throw new Error(e)
         })
 

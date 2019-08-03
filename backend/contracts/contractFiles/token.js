@@ -9,7 +9,6 @@ const getFunctionArguments = require('getFunctionArguments')
 const deploy = require('deploy')
 const save = require('save')
 const commit = require('commit')
-const fail = require('fail')
 
 class Token{
     constructor(init){
@@ -130,6 +129,55 @@ class Token{
 
     }
 
+    async transfer(issueParams){
+        let { symbol, amount, senderAccount, receiverAccount } = issueParams
+        if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
+        if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
+        if(!senderAccount) throw new Error('Creator account of token is required')
+        if(!receiverAccount) throw new Error('Receiving account is required')
+
+        let token = this.state.tokens[symbol]
+        
+        if(token && typeof token == 'object'){
+
+                let senderBalance = this.getBalanceOfAccount(senderAccount, symbol)
+                let hasEnoughFunds = senderBalance >= amount
+
+                if(hasEnoughFunds){
+
+                    if(senderAccount == receiverAccount) throw new Error('Cannot transfer coins to the same account')
+                
+                        let nonce = Object.keys(token.history).length + 1
+
+                        token.history[nonce] = {
+                            actionType:'transfer',
+                            from:senderAccount,
+                            to:receiverAccount,
+                            amount:amount,
+                            timestamp:Date.now()
+                        }
+
+                        if(!token.accountBalances) throw new Error('Account balances have not yet been set. Token must have been issued first')
+                        let receiverBalance = token.accountBalances[receiverAccount]
+                            
+                        token.accountBalances[senderAccount] = senderBalance - amount
+                        token.accountBalances[receiverAccount] = receiverBalance + amount
+
+                        return { success:`Account ${senderAccount} transfered ${amount} ${symbol} tokens to account ${receiverAccount}` }
+                
+                }else{
+                    throw new Error("Account" +senderAccount+ "is not authorized to issue coins");
+                }
+           
+
+        }else{
+            throw new Error(`Token ${symbol} does not exist`)
+        }
+        
+     
+
+    }
+
     getBalanceOfAccount(params, callingAccount){
         let { account, symbol } = params;
         let token = this.state.tokens[symbol]
@@ -167,6 +215,14 @@ class Token{
         })
         let contractAPI = await createContractInterface(external)
         return contractAPI
+    }
+
+    block(){
+        let limit = 10000000000000000000000
+        let counter
+        while(counter < limit){
+            counter++
+        }
     }
 
     getSupply(symbol){

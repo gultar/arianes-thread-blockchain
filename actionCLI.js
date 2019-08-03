@@ -279,7 +279,11 @@ program
                 if(contract){
 
                     if(!initParams) initParams = {}
+                    else if(typeof initParams == 'string'){
+                        initParams = JSON.parse(initParams)
+                    }
                     initParams.contractAccount = accountName;
+                    
                     initParams = JSON.stringify(initParams)
 
                     let walletManager = new WalletManager();
