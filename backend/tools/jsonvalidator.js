@@ -285,7 +285,7 @@ const isValidHeaderJSON = (header)=>{
                 "actionMerkleRoot":{"type":"string"},
                 "txHashes":{"type":"object"},
             },
-        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot","txHashes"]
+        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot"]
     }
 
     if(header){
