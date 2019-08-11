@@ -282,9 +282,10 @@ const isValidHeaderJSON = (header)=>{
                 "hash":{"type":"string"},
                 "nonce":{"type":"number"},
                 "merkleRoot":{"type":"string"},
-                "actionMerkleRoot":{"type":"string"}
+                "actionMerkleRoot":{"type":"string"},
+                "txHashes":{"type":"object"},
             },
-        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot"]
+        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot","txHashes"]
     }
 
     if(header){
@@ -317,6 +318,7 @@ const isValidBlockJSON = (header)=>{
                 "merkleRoot":{"type":"string"},
                 "actionMerkleRoot":{"type":"string"},
                 "challenge":{"type":"string"},
+                "transactions":{"type":"object"},
                 "actions":{"type":"object"},
                 "difficulty":{"type":"string"}
             },
@@ -328,7 +330,8 @@ const isValidBlockJSON = (header)=>{
             "nonce", 
             "merkleRoot", 
             "challenge",
-            "difficulty"
+            "difficulty",
+            "transactions",
         ]
     }
 

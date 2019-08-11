@@ -1973,7 +1973,9 @@ class Blockchain{
                     params.callingAction = action
 
                     instance = new ${action.data.contractName}(initParams)
+
                     instance.setState(currentState)
+                    
                     let result = await instance['${method}'](params, callerAccount)
                     save(instance.state)
                     commit(result)
