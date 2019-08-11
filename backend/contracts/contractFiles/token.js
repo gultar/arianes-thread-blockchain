@@ -24,10 +24,6 @@ class Token{
         this.state = state;
     }
 
-    substract(amount){
-        this.supply -= amount
-    }
-
     createToken(params, account){
         let { symbol, name, maxSupply } = params
         if(!symbol) throw new Error('Symbol is required')
@@ -61,7 +57,8 @@ class Token{
     }
 
     async issue(issueParams){
-        let { symbol, amount, issuerAccount, receiverAccount } = issueParams
+        return new Promise((resolve)=>{
+            let { symbol, amount, issuerAccount, receiverAccount } = issueParams
         if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
         if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
         if(!issuerAccount) throw new Error('Creator account of token is required')
@@ -70,7 +67,6 @@ class Token{
         let token = this.state.tokens[symbol]
         
         if(token && typeof token == 'object'){
-
             let hasSomePermission = token.permissions.accounts[issuerAccount]
             if(hasSomePermission){
 
@@ -85,9 +81,7 @@ class Token{
                         
                         let nonce = Object.keys(token.history).length + 1
 
-                        this.substract(amount)
-
-                        token.history[nonce] = {
+                        this.state.tokens[symbol].history[nonce] = {
                             actionType:'issue',
                             from:issuerAccount,
                             to:receiverAccount,
@@ -96,19 +90,19 @@ class Token{
                         }
 
                         if(token.accountBalances){
-                            let receiverBalance = token.accountBalances[receiverAccount]
+                            let receiverBalance = this.state.tokens[symbol].accountBalances[receiverAccount]
                             
-                            token.accountBalances[issuerAccount] = token.supply
-                            token.accountBalances[receiverAccount] = receiverBalance + amount
+                            this.state.tokens[symbol].accountBalances[issuerAccount] = token.supply
+                            this.state.tokens[symbol].accountBalances[receiverAccount] = receiverBalance + amount
 
                         }else{
-                            token.accountBalances = {
+                            this.state.tokens[symbol].accountBalances = {
                                 [issuerAccount]:token.supply,
                                 [receiverAccount]:amount
                             }
                         }
         
-                        return { success:`Issued ${amount} CHARM tokens to account ${receiverAccount}` }
+                        resolve({ success:`Issued ${amount} ${symbol} tokens to account ${receiverAccount}` })
         
                     }else{
                         throw new Error('ERROR: Current coin supply does not allow for issuance of coins')
@@ -124,23 +118,25 @@ class Token{
         }else{
             throw new Error(`Token ${symbol} does not exist`)
         }
-        
-     
-
+        })
     }
 
-    async transfer(issueParams){
-        let { symbol, amount, senderAccount, receiverAccount } = issueParams
-        if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
-        if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
-        if(!senderAccount) throw new Error('Creator account of token is required')
-        if(!receiverAccount) throw new Error('Receiving account is required')
+    transfer(transferParams){
+        return new Promise((resolve)=>{
+            let { symbol, amount, senderAccount, receiverAccount } = transferParams
+            if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
+            if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
+            if(!senderAccount) throw new Error('Sender account is required')
+            if(!receiverAccount) throw new Error('Receiving account is required')
 
-        let token = this.state.tokens[symbol]
-        
-        if(token && typeof token == 'object'){
+            let token = this.state.tokens[symbol]
 
-                let senderBalance = this.getBalanceOfAccount(senderAccount, symbol)
+            if(token){
+
+                let senderBalance = this.getBalanceOfAccount({
+                    senderAccount:senderAccount,
+                    symbol:symbol
+                })
                 let hasEnoughFunds = senderBalance >= amount
 
                 if(hasEnoughFunds){
@@ -163,25 +159,24 @@ class Token{
                         token.accountBalances[senderAccount] = senderBalance - amount
                         token.accountBalances[receiverAccount] = receiverBalance + amount
 
-                        return { success:`Account ${senderAccount} transfered ${amount} ${symbol} tokens to account ${receiverAccount}` }
+                        resolve({ success:`Account ${senderAccount} transfered ${amount} ${symbol} tokens to account ${receiverAccount}` })
                 
                 }else{
                     throw new Error("Account" +senderAccount+ "is not authorized to issue coins");
                 }
-           
 
-        }else{
-            throw new Error(`Token ${symbol} does not exist`)
-        }
-        
-     
-
+            }else{
+                throw new Error(`Token ${symbol} does not exist`)
+            }
+    
+        })
     }
 
-    getBalanceOfAccount(params, callingAccount){
+    getBalanceOfAccount(params){
         let { account, symbol } = params;
         let token = this.state.tokens[symbol]
         if(!token) throw new Error(`Token ${symbol} does not exist`)
+        
         
         let balances = token.accountBalances
         if(!balances) throw new Error(`Account balances of token ${symbol} have not been set yet`)
@@ -194,35 +189,31 @@ class Token{
 
     async getInterface(){
         let external = makeExternal({
-            name:this.name,
-            contractAccount:this.contractAccount,
             createToken:{
                 createToken:this.createToken,
-                args:["symbol", "name", "maxSupply", "creator"]
+                args:["symbol", "name", "maxSupply", "creator"],
+                description:'Creates a token that is exchangeable through actions'
             },
             issue:{
                 issue:this.issue, 
                 args:["symbol", "amount", "issuerAccount", "receiverAccount"],
+                description:'Creator of token may issue tokens to another account'
             },
-            getSupply:{
-                getSupply:this.getSupply,
-                args:["symbol"]
+            transfer:{
+                transfer:this.transfer,
+                args:["symbol", "amount", "senderAccount", "receiverAccount"],
+                description:'An account holding tokens may transfer to another account'
             },
-            getBalanceOfAccount:{
-                getBalanceOfAccount:this.getBalanceOfAccount,
-                args:['account','symbol']
+            readOnly:{
+                getBalanceOfAccount:{
+                    getBalanceOfAccount:this.getBalanceOfAccount,
+                    args:['account','symbol'],
+                    description:`Get an account's balance of a given token`
+                }
             }
         })
         let contractAPI = await createContractInterface(external)
         return contractAPI
-    }
-
-    block(){
-        let limit = 10000000000000000000000
-        let counter
-        while(counter < limit){
-            counter++
-        }
     }
 
     getSupply(symbol){

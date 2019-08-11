@@ -219,11 +219,12 @@ class Blockchain{
         let isValidBlock = await this.validateBlock(newBlock);
         if(isValidBlock){
           var isLinked = this.isBlockLinked(newBlock);
-          
           if(isLinked){
             this.isBusy = true
             //Push block header to chain
-            this.chain.push(this.extractHeader(newBlock));
+            let newHeader = this.extractHeader(newBlock)
+            this.chain.push(newHeader);
+            
             if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
             //Verify is already exists
 
@@ -237,7 +238,7 @@ class Blockchain{
               if(!deleted) resolve({error:'ERROR: Could not delete transactions from Mempool'})
 
               if(newBlock.actions){
-                let allActionsExecuted = await this.executeActionBlock(newBlock.actions)
+                let allActionsExecuted = await this.executeActionBlock(newBlock)
 
                 let actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)
                 if(!actionsDeleted) resolve({error:'ERROR: Could not delete actions from Mempool'})
@@ -364,7 +365,7 @@ class Blockchain{
                     console.log('Newblock hash', newBlock.hash)
                     console.log('Newblock previous', newBlock.previousHash)
                     console.log('Block forks', this.blockForks)
-                    logger(chalk.red('Fork is not an array'))
+                    logger('ERROR: Fork is not an array')
                     return false
                   }
 
@@ -372,12 +373,12 @@ class Blockchain{
                   //Again, root is not part of the chain
                   console.log('RootHash', rootHash)
                   console.log('RootIndex', rootIndex)
-                  logger(chalk.red('Root is not part of the chain'))
+                  logger('ERROR: Root is not part of the chain')
                   return false
                 }
               }else{
                 //Is not linked or would need to be added
-                logger(chalk.red('Could not find fork info'))
+                logger('ERROR: Could not find fork info')
                 return false
               }
             }
@@ -399,37 +400,41 @@ class Blockchain{
                     let isValidTotalDifficulty = this.calculateWorkDone(fork)
                     if(isValidTotalDifficulty){
                       let forkHeadBlock = fork[0];
-                      let numberOfBlocksToRemove = this.chain.length - forkHeadBlock.blockNumber
-                      let orphanedBlocks = this.chain.splice(forkHeadBlock.blockNumber, numberOfBlocksToRemove)
-                      
-                      let rolledBack = await this.balance.rollback(forkHeadBlock.blockNumber - 1)
-                      if(rolledBack.error) resolve({error:rolledBack.error})
-                       //Rollback of balance here
-                       for await(var forkBlock of fork){
+                      let rolledBack = await this.rollbackToBlock(forkHeadBlock.blockNumber - 1)
+                      if(rolledBack){
+                        if(rolledBack.error) resolve({error:rolledBack.error})
+                        else{
+                          for await(var forkBlock of fork){
                         
-                        this.chain.push(this.extractHeader(forkBlock))
-                        logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
-                        
-                        let executed = await this.balance.runBlock(forkBlock)
-                        if(executed.error) resolve({error:executed.error})
+                            let newHeader = this.extractHeader(forkBlock)
+                            this.chain.push(newHeader);
+    
+                            logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
+                            
+                            let executed = await this.balance.runBlock(forkBlock)
+                            if(executed.error) resolve({error:executed.error})
 
-                        if(forkBlock.actions){
-                          forkBlock.transactions['actions'] = forkBlock.actions
+                            let actionsExecuted = await this.executeActionBlock(forkBlock)
+                            if(actionsExecuted.error) resolve({error:actionsExecuted.error})
+    
+                            if(forkBlock.actions){
+                              forkBlock.transactions['actions'] = forkBlock.actions
+                            }
+    
+                            let replaced = await this.replaceBlockFromDB(forkBlock)
+                            if(!replaced){
+                              replaced = await this.putBlockToDB(forkBlock)
+                            }
+                            
+                          }
+    
+                          this.blockForks = {}
+                          logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
+                          this.isSyncingBlocks = false;
+                          
+                          resolve(true)
                         }
-
-                        let replaced = await this.replaceBlockFromDB(forkBlock)
-                        if(!replaced){
-                          replaced = await this.putBlockToDB(forkBlock)
-                        }
-                        
                       }
-
-                      this.blockForks = {}
-                      logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
-                      this.isSyncingBlocks = false;
-                      
-                      resolve(true)
-                      
                     }else{
                       logger('Is not valid total difficulty')
                       resolve({error:'Is not valid total difficulty'})
@@ -593,17 +598,20 @@ class Blockchain{
 
   fetchBlockFromDB(blockNumber){
     return new Promise(async (resolve)=>{
+      if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
       let block = await this.getHeaderFromDB(blockNumber)
       if(block){
         let blockBody = await this.getBodyFromDB(block.hash)
         if(blockBody){
-          if(blockBody.transactions && blockBody.transactions.actions){
-            block.actions = JSON.parse(JSON.stringify(blockBody.transactions.actions))
-            delete blockBody.transactions.actions
+          block.transactions = blockBody
+
+          if(blockBody.actions){
+            block.actions = JSON.parse(JSON.stringify(blockBody.actions))
+            delete blockBody.actions
+            resolve(block)
+          }else{
+            resolve(block)
           }
-          
-          block.transactions = blockBody.transactions
-          resolve(block)
         }else{
           // console.log('ERROR Could not get block body')
           resolve(false)
@@ -611,6 +619,76 @@ class Blockchain{
       }else{
         // console.log('ERROR Could not get block header')
         resolve(false)
+      }
+    })
+  }
+
+  getTransactionFromDB(hash){
+    return new Promise(async (resolve)=>{
+      let lastBlock = this.getLatestBlock()
+      let found = false;
+      for await(var block of this.chain){
+        if(block.txHashes){
+          if(block.txHashes.includes(hash)){
+            let body = await this.fetchBlockFromDB(block.blockNumber)
+            if(body){
+              let transaction = body.transactions[hash];
+              found = true
+              resolve(transaction)
+            }else{
+              resolve(false)
+            }
+          }else{
+            if(lastBlock.blockNumber == block.blockNumber && !found){
+              logger('Could not find anything for hash', hash)
+              resolve(false)
+            }
+          }
+        }else{
+          if(lastBlock.blockNumber == block.blockNumber && !found){
+            logger('Could not find anything for hash', hash)
+            resolve(false)
+          }
+        }
+
+      }
+    })
+  }
+
+  getActionFromDB(hash){
+    return new Promise(async (resolve)=>{
+      let lastBlock = this.getLatestBlock()
+      let found = false;
+      for await(var block of this.chain){
+        if(block.actionHashes){
+          if(block.actionHashes.includes(hash)){
+            let body = await this.fetchBlockFromDB(block.blockNumber)
+            if(body){
+              if(body.actions){
+                let action = body.actions[hash];
+                found = true
+                resolve(action)
+              }else{
+                logger(`Body of block ${block.blockNumber} does not contain actions even though it should`)
+                resolve(false)
+              }
+            }else{
+              logger(`Body of block ${block.blockNumber} does not exist`)
+              resolve(false)
+            }
+          }else{
+            if(lastBlock.blockNumber == block.blockNumber && !found){
+              logger('Could not find anything for hash', hash)
+              resolve(false)
+            }
+          }
+        }else{
+          if(lastBlock.blockNumber == block.blockNumber && !found){
+            logger('Could not find anything for hash', hash)
+            resolve(false)
+          }
+        }
+        
       }
     })
   }
@@ -828,117 +906,7 @@ class Blockchain{
     return false;
   }
 
-  // /**
-  //   Follows the account balance of a given wallet through all blocks
-  //   @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
-  // */
-  // getBalanceOfAddress(publicKey){
-  //   if(publicKey){
-  //     var address = publicKey;
-  //     let balance = 0;
-  //     var trans;
-  //     var action;
-  //     if(!publicKey){
-  //       logger("ERROR: Can't get balance of undefined publickey")
-  //       return false;
-  //     }
-  //       for(var block of this.chain){
-  //         let transaction = this.chainDB
-  //         for(var transHash of Object.keys(block.transactions)){
-            
-  //           trans = block.transactions[transHash]
-  //           if(trans){
-  //             if(trans.fromAddress == address){
 
-  //               balance = balance - trans.amount - trans.miningFee;
-  //             }
-
-  //             if(trans.toAddress == address){
-
-  //               balance = balance + trans.amount;
-  //             }
-
-  //           }
-            
-
-  //         }
-  //         if(block.actions){
-  //           for(var actionHash of Object.keys(block.actions)){
-  //             action = block.actions[actionHash]
-  //             if(action){
-  //               if(action.fromAccount.ownerKey == address){
-  //                 balance = balance - action.fee;
-  //               }
-  //             }
-  //           }
-  //         }
-
-  //       }
-
-  //     return balance;
-  //   }
-
-  // }
-
-  // /**
-  //   Follows the account balance of a given wallet through all blocks
-  //   @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
-  // */
-  // getBalance(publicKey){
-  //     return new Promise(async (resolve)=>{
-  //       var address = publicKey;
-  //       let balance = 0;
-  //       var trans;
-  //       var action;
-  //       if(!publicKey){
-  //         logger("ERROR: Can't get balance of undefined publickey")
-  //         resolve(false)
-  //       }
-  //         for(var block of this.chain){
-  //           if(block.blockNumber == 0){
-  //             if(block.states[publicKey]){
-  //               balance = block.states[publicKey].balance
-  //             }
-  //           } 
-  //           let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
-  //           transactions = transactions[transactions._id]
-  //           if(transactions){
-  //               for(var transHash of Object.keys(transactions)){
-              
-  //                   trans = transactions[transHash]
-  //                   if(trans){
-
-  //                     if(trans.fromAddress == address){
-  //                       balance = balance - (trans.amount + trans.miningFee);
-  //                     }
-        
-  //                     if(trans.toAddress == address){
-  //                       balance = balance + trans.amount;
-  //                     }
-        
-  //                   }
-                    
-  //                 }
-  //                 if(transactions.actions){
-  //                   for(var actionHash of Object.keys(transactions.actions)){
-  //                     action = transactions.actions[actionHash]
-  //                     if(action){
-  //                       if(action.fromAccount.ownerKey == address){
-  //                         balance = balance - action.fee;
-  //                       }
-  //                     }
-  //                   }
-  //                 }
-  //           }
-
-  
-  //         }
-  
-  //       resolve(balance)
-  //     })
-    
-
-  // }
 
   checkBalance(publicKey){
     let walletState = this.balance.getBalance(publicKey)
@@ -1376,8 +1344,14 @@ class Blockchain{
           merkleRoot:block.merkleRoot,
           actionMerkleRoot:block.actionMerkleRoot,
           difficulty:block.difficulty,
+          totalDifficulty:block.totalDifficulty,
           challenge:block.challenge,
+          txHashes:Object.keys(block.transactions),
           minedBy:block.minedBy,
+        }
+
+        if(block.actions){
+          header.actionHashes = Object.keys(block.actions)
         }
 
         return header
@@ -1401,7 +1375,12 @@ class Blockchain{
           difficulty:block.difficulty,
           totalDifficulty:block.totalDifficulty,
           challenge:block.challenge,
+          txHashes:Object.keys(block.transactions),
           minedBy:block.minedBy,
+        }
+
+        if(block.actions){
+          header.actionHashes = Object.keys(block.actions)
         }
 
         return header
@@ -1447,7 +1426,7 @@ class Blockchain{
         let atBlockNumber = isValid.conflict;
         //Need to replace with side chain algorithm
         if(allowRollback){
-          this.rollBackBlocks(atBlockNumber-1);
+          this.rollbackToBlock(atBlockNumber-1);
           logger('Rolled back chain up to block number ', atBlockNumber-1)
           return true;
         }else{
@@ -1458,16 +1437,79 @@ class Blockchain{
       return true;
   }
 
-  rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon
-    if(typeof blockIndex == 'number'){
-      var orphanedBlocks = [];
-      let length = this.chain.length;
-      let numberOfBlocks = length - blockIndex;
-      orphanedBlocks = this.chain.splice(-1, numberOfBlocks);
-      orphanedBlocks.forEach((block)=>{})
+  // rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon
+  //   if(typeof blockIndex == 'number'){
+  //     var orphanedBlocks = [];
+  //     let length = this.chain.length;
+  //     let numberOfBlocks = length - blockIndex;
+  //     orphanedBlocks = this.chain.splice(-1, numberOfBlocks);
+  //     orphanedBlocks.forEach((block)=>{})
 
-      return orphanedBlocks;
-    }
+  //     return orphanedBlocks;
+  //   }
+  // }
+
+  rollbackToBlock(number){
+    return new Promise(async (resolve)=>{
+
+      const collectActionHashes = async (blocks) =>{
+        return new Promise(async (resolve)=>{
+          let actionHashes = []
+          for(var block of blocks){
+            if(block.actionHashes){
+              actionHashes = [  ...actionHashes, ...block.actionHashes ]
+            }else{
+              console.log('No action hashes')
+            }
+          }
+          resolve(actionHashes)
+        })
+      }
+
+      let errors = {}
+      let totalBlockNumber = this.getLatestBlock().blockNumber
+      let newLastBlock = this.chain[number];
+      let numberOfBlocksToRemove = totalBlockNumber - number;
+      let blocks = this.chain.slice(number + 1, number + 1 + numberOfBlocksToRemove)// this.chain.chain.splice(number + 1, numberOfBlocksToRemove)
+      
+      let rolledBack = await this.balance.rollback(number)
+      if(rolledBack.error) throw new Error(rolledBack.error)
+      
+      let newestToOldestBlocks = blocks.reverse()
+      let actionHashes = await collectActionHashes(newestToOldestBlocks)
+
+      if(actionHashes.length > 0){
+        for await(var hash of actionHashes){
+          let action = await this.getActionFromDB(hash);
+          if(action){
+            if(action.type == 'contract'){
+              if(action.task == 'call'){
+                let contractName = action.data.contractName;
+                let rolledBack = await this.contractTable.rollbackState(contractName, action)
+                if(rolledBack.error) errors[hash] = rolledBack.error
+
+              }else if(action.task == 'deploy'){
+                let contractName = action.data.name;
+                let deleted = await this.contractTable.removeContract(contractName);
+                if(deleted.error) errors[hash] = deleted.error
+
+              }
+              
+            }else if(action.type == 'account'){
+              let account = action.data
+              let removed = await this.accountTable.deleteAccount(account.name, account.signature);
+              if(removed.error) errors[hash] = removed.error
+            }
+            
+          }
+        }
+      }
+      let backToNormal = newestToOldestBlocks.reverse()
+      let removed = this.chain.splice(number + 1, numberOfBlocksToRemove)
+      logger('Rolled back to block ', number)
+      if(Object.keys(errors).length > 0) resolve({error:errors})
+      else resolve(true)
+    })
   }
 
   unwrapBlock(block){
@@ -1703,15 +1745,16 @@ class Blockchain{
 
   }
 
-  executeActionBlock(actions){
+  executeActionBlock(block){
     return new Promise(async (resolve)=>{
-      if(actions){
+      if(block){
+        let actions = block.actions
         let hashes = Object.keys(actions);
         let errors = {}
         for(var hash of hashes){
           let action = actions[hash]
 
-          let result = await this.handleAction(action)
+          let result = await this.handleAction(action, block.blockNumber)
           if(result.error){
             errors[action.hash] = result.error
           }
@@ -1729,7 +1772,7 @@ class Blockchain{
     })
   }
 
-  handleAction(action){
+  handleAction(action, blockNumber){
     return new Promise(async (resolve)=>{
       switch(action.type){
         case 'account':
@@ -1756,7 +1799,58 @@ class Blockchain{
           }
 
           if(action.task == 'call'){
-            let executed = await this.executeAction(action)
+            let executed = await this.executeAction(action, blockNumber)
+            if(executed){
+              if(executed.error){
+                resolve({error:executed.error})
+              }else{
+                resolve(executed)
+              }
+            }else{
+              resolve({error:'Function has returned nothing'})
+            }
+            
+          }
+          resolve({error:'ERROR: Unknown contract task'})
+          break;
+        default:
+          resolve({error:'ERROR: Invalid contract call'})
+      }
+      
+      
+    })
+  }
+
+  testHandleAction(action, blockNumber){
+    return new Promise(async (resolve)=>{
+      switch(action.type){
+        case 'account':
+          if(action.task == 'create'){
+            let account = action.data
+            let existing = await this.accountTable.accountsDB.get(account.name)
+            if(!existing){
+              resolve(true)
+            }else{
+              if(existing.error) resolve({error:existing.error})
+              resolve({error:'ERROR: Account already exists'})
+            }
+          }
+
+          break;
+        case 'contract':
+          if(action.task == 'deploy'){
+            
+            let deployed = await this.testDeployContract(action)
+            if(deployed.error){
+              resolve({error:deployed.error})
+            }else{
+              resolve(true)
+            }
+            
+          }
+
+          if(action.task == 'call'){
+            let executed = await this.testExecuteAction(action, blockNumber)
             if(executed){
               if(executed.error){
                 resolve({error:executed.error})
@@ -1810,7 +1904,27 @@ class Blockchain{
     })
   }
 
-  executeAction(action){
+  testDeployContract(action){
+    return new Promise(async (resolve)=>{
+      let data = action.data
+      let account = await this.accountTable.getAccount(action.fromAccount)
+      
+      if(account){
+
+        let alreadyExists = await this.contractTable.contractDB.get(data.name)
+        if(!alreadyExists){
+            resolve({ success:`Deployed contract ${data.name} successfully` })
+        }else{
+            resolve({error:'A contract with that name already exists'})
+        }
+
+      }else{
+        resolve({error:'ACTION ERROR: Could not get contract account'})
+      }
+    })
+  }
+
+  executeAction(action, blockNumber){
     return new Promise(async (resolve)=>{
       try{
         let account = await this.accountTable.getAccount(action.fromAccount)
@@ -1819,83 +1933,84 @@ class Blockchain{
           if(contract){
             if(contract.error) resolve({error:contract.error})
             
-            let contractState = await this.contractTable.getState(action.data.contractName)
-            if(!contractState) resolve({error:'Could not find contract state'})
-  
-            let initParams = JSON.parse(contract.initParams)
-  
-            let method = action.data.method
-            let params = action.data.params
+            let isExternalFunction = contract.contractAPI[action.data.method]
+            if(!isExternalFunction) resolve({error:'Method call is not part of contract API'})
+            else{
+              let contractState = await this.contractTable.getState(action.data.contractName)
+              if(!contractState) resolve({error:'Could not find contract state'})
+    
+              let initParams = JSON.parse(contract.initParams)
+    
+              let method = action.data.method
+              let params = action.data.params
 
-            console.log('Method', method)
-            console.log('Outside params', params)
-  
-            let instruction = `
-              let failure = ''
-              let fail = require('fail')
+    
+              let instruction = `
+                let failure = ''
+                let fail = require('fail')
 
-              async function execute(){
-                let instance = {};
-                
-                try{
-                  const commit = require('commit')
-                  const save = require('save')
+                async function execute(){
+                  let instance = {};
                   
-  
-                  let actionString = '${JSON.stringify(action)}'
-                  let paramsString = '${JSON.stringify(params)}'
-                  let initParamsString = '${JSON.stringify(initParams)}'
-                  let callerAccountString = '${JSON.stringify(account)}'
-                  let currentStateString = '${JSON.stringify(contractState)}'
-  
-                  let callerAccount = JSON.parse(callerAccountString)
-                  console.log('Account',callerAccount)
-                  let params = JSON.parse(paramsString)
-                  console.log('Params',params)
-                  let initParams = JSON.parse(initParamsString)
-                  console.log('Init params', initParams)
-                  let currentState = JSON.parse(currentStateString)
-                  console.log('Current state',currentState)
-                  let action = JSON.parse(actionString);
-                  console.log('Action',action)
-                  params.callingAction = action
+                  try{
+                    const commit = require('commit')
+                    const save = require('save')
+                    
+                    let callerAccountString = '${JSON.stringify(account)}'
+                    let callerAccount = JSON.parse(callerAccountString)
 
-                  instance = new ${action.data.contractName}(initParams)
-                  instance.setState(currentState)
-                  let result = await instance['${method}'](params, callerAccount)
-                  save(instance.state)
-                  commit(result)
+                    let paramsString = '${JSON.stringify(params)}'
+                    let params = JSON.parse(paramsString)
+
+                    let initParamsString = '${JSON.stringify(initParams)}'
+                    let initParams = JSON.parse(initParamsString)
+
+                    let currentStateString = '${JSON.stringify(contractState)}'
+                    let currentState = JSON.parse(currentStateString)
+
+                    let actionString = '${JSON.stringify(action)}'
+                    let action = JSON.parse(actionString);
+                    params.callingAction = action
+
+                    instance = new ${action.data.contractName}(initParams)
+                    instance.setState(currentState)
+                    let result = await instance['${method}'](params, callerAccount)
+                    save(instance.state)
+                    commit(result)
+                    
+                    
+                  }catch(err){
+                    failure = err
+                  }
+                    
                   
-                  
-                }catch(err){
-                  failure = err
                 }
-                  
+    
+                execute()
+                .then(()=>{
+                  if(failure) throw new Error(failure.message)
+                  fail(e)
+                })
+                .catch((e)=>{
+                  fail(e)
+                })
                 
-              }
-  
-              execute()
-              .then(()=>{
-                if(failure) throw new Error(failure.message)
-                fail(e)
-              })
-              .catch((e)=>{
-                fail(e)
-              })
-              
-            `
-              let result = await callRemoteVM(contract.code + instruction)
-              
-              if(result.error){
-                resolve({error:result.error})
-              }else{
-                if(result.state){
-                  this.contractTable.updateContractState('Token', result.state)
-                  resolve(result.value)
+              `
+                let result = await callRemoteVM(contract.code + instruction)
+                
+                if(result.error){
+                  resolve({error:result.error})
                 }else{
-                  resolve({error:'An error occurred'})
+                  if(result.state){
+                    this.contractTable.updateContractState(action.data.contractName, result.state, action, blockNumber)
+                    
+                    resolve(result.value)
+                  }else{
+                    resolve({error:'An error occurred'})
+                  }
                 }
               }
+            
               
           }else{
             resolve({error:'Unkown contract name'})
@@ -1913,6 +2028,138 @@ class Blockchain{
     })
   }
 
+  testExecuteAction(action, blockNumber){
+    return new Promise(async (resolve)=>{
+      try{
+        let account = await this.accountTable.getAccount(action.fromAccount)
+        if(account){
+          let contract = await this.contractTable.getContract(action.data.contractName)
+          if(contract){
+            if(contract.error) resolve({error:contract.error})
+            
+            let contractHasReadOnly = contract.contractAPI.readOnly;
+            let isReadOnly = false;
+            if(contractHasReadOnly){
+              isReadOnly = contract.contractAPI.readOnly[action.data.method];
+            }
+            
+            let isExternalFunction = contract.contractAPI[action.data.method]
+            if(!isExternalFunction && !isReadOnly){
+              resolve({error:'Method call is not part of contract API'})
+            }else{
+              let contractState = await this.contractTable.getState(action.data.contractName)
+              if(!contractState) resolve({error:'Could not find contract state'})
+
+              let initParams = JSON.parse(contract.initParams)
+    
+              let method = action.data.method
+              let params = action.data.params
+
+    
+              let instruction = `
+                let failure = ''
+                let fail = require('fail')
+
+                async function execute(){
+                  let instance = {};
+                  
+                  try{
+                    const commit = require('commit')
+                    const save = require('save')
+                    
+    
+                    let actionString = '${JSON.stringify(action)}'
+                    let paramsString = '${JSON.stringify(params)}'
+                    let initParamsString = '${JSON.stringify(initParams)}'
+                    let callerAccountString = '${JSON.stringify(account)}'
+                    let currentStateString = '${JSON.stringify(contractState)}'
+                    
+                    let callerAccount = JSON.parse(callerAccountString)
+                    let params = JSON.parse(paramsString)
+                    let initParams = JSON.parse(initParamsString)
+                    let currentState = JSON.parse(currentStateString)
+                    let action = JSON.parse(actionString);
+                    params.callingAction = action
+                    instance = new ${action.data.contractName}(initParams)
+                    await instance.setState(currentState)
+                    let result = await instance['${method}'](params, callerAccount)
+                    save(instance.state)
+                    commit(result)
+                    
+                    
+                  }catch(err){
+                    failure = err
+                  }
+                    
+                  
+                }
+    
+                execute()
+                .then(()=>{
+                  if(failure) throw new Error(failure.message)
+                  fail(e)
+                })
+                .catch((e)=>{
+                  fail(e)
+                })
+                
+              `
+                let result = await callRemoteVM(contract.code + instruction)
+                
+                if(result.error){
+                  resolve({error:result.error})
+                }else{
+                  resolve(result.value)
+                }
+            }
+
+          }else{
+            resolve({error:'Unkown contract name'})
+          }
+          
+        }else{
+          resolve({error:'Unkown account name'})
+        }
+      }catch(e){
+        resolve({error:e.message})
+      }
+    })
+  }
+
+  rollbackActionBlock(actions){
+      return new Promise(async (resolve)=>{
+          if(actions){    
+              let hashes = Object.keys(actions)
+              let endIndex = hashes.length - 1
+              let errors = {}
+              for(var index=endIndex; index >= 0; index--){
+                  let hash = hashes[index];
+                  let action = actions[hash]
+                  let rolledBack = await this.rollbackAction(action)
+                  if(rolledBack.error) errors[action.hash] = rolledBack.error
+              }
+          }else{
+              resolve({error:'Action block is undefined'})
+          }
+      })
+  }
+
+  rollbackAction(action){
+      return new Promise((resolve)=>{
+          if(action.type == 'account'){
+            if(action.task == 'create'){
+
+            }
+          }else if(action.type == 'contract'){
+            if(action.task == 'deploy'){
+              
+            }else if(action.task == 'call'){
+
+            }
+
+          }
+      })
+  }
 
 
   validateAction(action){

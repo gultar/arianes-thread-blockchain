@@ -77,7 +77,7 @@ class Miner{
           if(transactions){
             this.pool.pendingTransactions = transactions
             this.getActionsToMine()
-            if(!this.minerStarted) this.start()
+            
           }
         })
         this.socket.on('newActions', (actions)=>{
@@ -89,7 +89,11 @@ class Miner{
           this.previousBlock = block;
         })
         this.socket.on('stopMining', ()=>{ this.pause() })
-        this.socket.on('startMining', ()=>{ this.start() })
+        this.socket.on('startMining', ()=>{ 
+          if(!this.minerStarted){
+            this.start()
+          }
+        })
         this.socket.on('error', error => console.log('ERROR',error))
         this.socket.on('disconnect', ()=>{
           logger('Connection to node dropped')
@@ -107,12 +111,10 @@ class Miner{
     }
 
     async start(){
-        
-        let readyToMine = this.sizeOfPool() > 0
-        if(readyToMine){
+       
+        if(this.readyToMine){
           this.minerStarted = true
-          let actionsGathered = await this.getActionsToMine()
-          if(actionsGathered) logger(`Found actions ${this.sizeOfActionPool()} to mine`)
+          
           let block = await this.buildNewBlock();
           if(block){
             logger('Starting to mine next block')
@@ -126,13 +128,6 @@ class Miner{
               this.successMessage(block)
               this.socket.emit('newBlock', block)
               this.pause()
-              this.pool.pendingTransactions = {}
-              this.pool.pendingActions = {}
-              this.nextBlock = false
-              this.nextCoinbase = false
-              this.socket.emit('isReady')
-              this.socket.emit('getLatestBlock', block)
-
             }else{
               logger('Mining unsuccessful')
               this.minerStarted = false;
@@ -147,10 +142,19 @@ class Miner{
 
     getTransactionsToMine(){
       this.transactionUpdate = setInterval(()=>{
-        if(!this.fetchingTransactions && !this.buildingBlock && !this.mining && !this.minerStarted){
-          this.socket.emit('fetchTransactions')
+        if(!this.buildingBlock && !this.mining && !this.minerStarted){
+          if(this.sizeOfPool() > 0){
+            if(!this.readyToMine){
+              this.socket.emit('isReady')
+              this.readyToMine = true
+            }
+            
+          }else{
+            this.socket.emit('fetchTransactions')
+          }
         }
-      }, 1000)
+        
+      }, 500)
     }
 
     getActionsToMine(){
@@ -163,6 +167,7 @@ class Miner{
         this.socket.on('newActions', (actions)=>{
           if(actions){
             this.pool.pendingActions = actions;
+            logger(`Found actions ${this.sizeOfActionPool()} to mine`)
             clearTimeout(timedOut)
             this.socket.off('newActions')
             resolve(true)
@@ -234,10 +239,6 @@ class Miner{
       
     }
 
-    updateChainStatus(){
-
-    }
-
     getTxList(){
       return new Promise((resolve)=>{
         this.socket.emit('getTxHashList')
@@ -275,8 +276,9 @@ class Miner{
         this.minerStarted = false;
         this.pool.pendingTransactions = {}
         this.pool.pendingActions = {}
-        this.nextBlock = false
-        this.nextCoinbase = false
+        this.nextBlock = false;
+        this.nextCoinbase = false;
+        this.readyToMine = false;
         
       }
       // if(this.minerLoop) clearInterval(this.minerLoop)
@@ -322,8 +324,8 @@ class Miner{
             this.nextCoinbase = await this.createCoinbase()
             transactions[this.nextCoinbase.hash] = this.nextCoinbase
           }
-
-          let block = new Block(Date.now(), transactions, actions);
+          let transactionsToAdd = JSON.parse(JSON.stringify(transactions))
+          let block = new Block(Date.now(), transactionsToAdd, actions);
           block.coinbaseTransactionHash = this.nextCoinbase.hash
           this.nextBlock = block
 

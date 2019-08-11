@@ -42,10 +42,6 @@ program
 .description('Requests some general information about the blockchain')
 .action(async (accountName, walletName, password)=>{
 
-    if(program.accountType != 'user' || program.accountType != 'contract'){
-
-    }
-
     let accountType = program.accountType || 'user'
 
     if(!program.url){
@@ -225,7 +221,7 @@ program
                             axios.post(`${address}/action`, action)
                             .then( response => {
                                 if(response.data.result){
-                                    console.log({ result:response.data.result })
+                                    console.log(response.data.result)
                                 }else{
                                     if(response.data.error){
                                         console.log('An error occurred:', response.data.error)

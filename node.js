@@ -1081,6 +1081,7 @@ class Node {
                 res.send({error:actionEmitted.error})
               }
             })
+
           }else{
             res.send('ERROR: Invalid transaction format')
           }
@@ -1204,7 +1205,15 @@ class Node {
         socket.emit('chainInfo', this.getChainInfo());
       })
 
-      socket.on('contract', async (name)=>{
+      socket.on('startLookingForPeers', (method)=>{
+        if(method == 'dht'){
+          this.findPeersThroughBittorrentDHT()
+        }else if(method == 'dnssd'){
+          this.findPeersThroughDNSSD()
+        }
+      })
+
+      socket.on('getContract', async (name)=>{
           let contract = await this.chain.contractTable.getContract(name)
           console.log(contract)
       })
@@ -1225,50 +1234,26 @@ class Node {
           console.log(JSON.stringify(state,null,2))
       })
 
+      socket.on('getStateEntry', async (contractName)=>{
+        let state = await this.chain.contractTable.getStateEntry(contractName)
+        console.log(JSON.stringify(state,null,2))
+      })
+
       socket.on('getBlockHeader', (blockNumber)=>{
         let block = this.chain.chain[blockNumber];
-        let blockInfo = {}
-        if(block){
-          
-          blockInfo = {
-            blockNumber:block.blockNumber,
-            timestamp:block.timestamp,
-            previousHash:block.previousHash,
-            hash:block.hash,
-            merkleRoot:block.merkleRoot,
-            nonce:block.nonce,
-            valid:block.valid,
-            minedBy:block.minedBy,
-            challenge:block.challenge,
-            totalChallenge:block.totalChallenge,
-            startMineTime:block.startMineTime,
-            endMineTime:block.endMineTime,
-            totalSumTransited:block.totalSumTransited,
-            coinbaseTransactionHash:block.coinbaseTransactionHash
-          }
+        socket.emit('header', { header:block })
+      })
 
-          // console.log(blockInfo)
-        }else{
-          blockInfo = {
-            error: 'header not found'
-          }
-        }
-        socket.emit('header', blockInfo)
+      socket.on('getStateOfAction', async (name, hash)=>{
+        let state = await this.chain.contractTable.getStateOfAction(name, hash)
+        console.log(JSON.stringify(state, null, 2))
       })
 
       socket.on('getBlock', async(blockNumber)=>{
-        let hasBlock = this.chain.chain[blockNumber]
-        if(isValidBlockJSON(hasBlock)){
-          let block = this.chain.extractHeader(this.chain.chain[blockNumber])
-          let transactions = await this.chain.chainDB.get(block.hash)
-            .catch(e => console.log(e))
-            transactions = transactions[transactions._id]
-          block.transactions = transactions
+        let block = await this.chain.fetchBlockFromDB(blockNumber)
+        if(block){
           socket.emit('block', block)
-        }else{
-          socket.emit('block', {error:'ERROR: Block not found'})
         }
-        
       })
 
       socket.on('isChainValid', ()=>{
@@ -1317,6 +1302,14 @@ class Node {
         
       })
 
+      socket.on('rollbackState', (name, hash)=>{
+        let action = {
+          hash:hash
+        }
+        let rolledBack = this.chain.contractTable.rollbackState(name, action)
+        console.log(rolledBack)
+      })
+
       socket.on('verbose', ()=>{
         
         if(this.verbose){
@@ -1345,14 +1338,18 @@ class Node {
       })
       
       socket.on('rollback', async (number)=>{
-        logger('Rolled back to block ', number)
-        let totalBlockNumber = this.chain.getLatestBlock().blockNumber
-        let numberOfBlocksToRemove = totalBlockNumber - number
-        let blocks = this.chain.chain.splice(number, numberOfBlocksToRemove)
-                      
-        let rolledBack = await this.chain.balance.rollback(number)
-        if(rolledBack.error) throw new Error(rolledBack.error)
-        console.log(`Removed ${blocks.length} blocks`)
+        let rolledback = await this.chain.rollbackToBlock(number)
+        console.log(rolledback)
+      })
+
+      socket.on('getTransactionFromDB', async (hash)=>{
+        let transaction = await this.chain.getTransactionFromDB(hash)
+        console.log(transaction)
+      })
+
+      socket.on('getActionFromDB', async (hash)=>{
+        let action = await this.chain.getActionFromDB(hash)
+        console.log(action)
       })
 
       socket.on('disconnect', ()=>{
@@ -1399,7 +1396,7 @@ class Node {
     let isReady = false
     api.emit('latestBlock', this.chain.getLatestBlock())
 
-    api.on('isReady', ()=>{ isReady = true })
+    api.on('isReady', ()=>{ api.emit('startMining') })
     api.on('getTxHashList', ()=>{ api.emit('txHashList', Object.keys(Mempool.pendingTransactions)) })
     api.on('getActionHashList', ()=>{ api.emit('actionHashList', Object.keys(Mempool.pendingActions)) })
     api.on('getTx', (hash)=>{ 
@@ -1932,10 +1929,16 @@ class Node {
         if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
         resolve({error:isValid.error})
       }else{
-        this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
-        //Action will be added to Mempool only is valid and if corresponds with contract call
-        Mempool.addAction(action)
-        resolve({action:action})
+
+        let success = await this.chain.testHandleAction(action)
+        if(success.error) resolve({error:success.error})
+        else if(!success.error){
+          this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
+          //Action will be added to Mempool only is valid and if corresponds with contract call
+          Mempool.addAction(action)
+          resolve({action:action, success:success})
+        }
+        
       }
         
     })
@@ -1949,9 +1952,9 @@ class Node {
       if(!isValid || isValid.error){
         resolve({error:isValid.error})
       }else{
-        let result = await this.chain.handleAction(action)
+        let result = await this.chain.testHandleAction(action)
         if(result.error) resolve({error:result.error})
-        resolve({action:action, result:result})
+        else resolve({action:action, result:result})
       }
         
     })

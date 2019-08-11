@@ -34,7 +34,7 @@ const callRemoteVM = (code) =>{
                             clearInterval(keepAlive)
                             resolve({error:message.error})
                         }else if(message.memUsage){
-                            console.log({used:message.memUsage.heapUsed})
+                            //console.log({used:message.memUsage.heapUsed})
                         }else{
                             child.kill()
                             clearInterval(keepAlive)
@@ -55,7 +55,6 @@ const callRemoteVM = (code) =>{
                 resolve({error:'A VM error occurred'})
             });
             child.on('close', function() { 
-                console.log('Process killed')
             })
         }else{
             console.log('ERROR: Missing required code parameter')
