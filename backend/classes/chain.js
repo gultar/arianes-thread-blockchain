@@ -1976,8 +1976,8 @@ class Blockchain{
                     instance = new ${action.data.contractName}(initParams)
 
                     instance.setState(currentState)
-                    
-                    let result = await instance['${method}'](params, callerAccount)
+                    console.log('Account:', callerAccount.name)
+                    let result = await instance['${method}'](params, callerAccount.name)
                     save(instance.state)
                     commit(result)
                     
@@ -2085,7 +2085,7 @@ class Blockchain{
                     params.callingAction = action
                     instance = new ${action.data.contractName}(initParams)
                     await instance.setState(currentState)
-                    let result = await instance['${method}'](params, callerAccount)
+                    let result = await instance['${method}'](params, callerAccount.name)
                     save(instance.state)
                     commit(result)
                     

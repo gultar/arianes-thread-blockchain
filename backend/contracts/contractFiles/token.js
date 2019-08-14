@@ -56,9 +56,9 @@ class Token{
 
     }
 
-    async issue(issueParams){
+    async issue(issueParams, issuerAccount){
         return new Promise((resolve)=>{
-            let { symbol, amount, issuerAccount, receiverAccount } = issueParams
+            let { symbol, amount, receiverAccount } = issueParams
         if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
         if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
         if(!issuerAccount) throw new Error('Creator account of token is required')
@@ -121,9 +121,9 @@ class Token{
         })
     }
 
-    transfer(transferParams){
+    transfer(transferParams, senderAccount){
         return new Promise((resolve)=>{
-            let { symbol, amount, senderAccount, receiverAccount } = transferParams
+            let { symbol, amount, receiverAccount } = transferParams
             if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
             if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
             if(!senderAccount) throw new Error('Sender account is required')
