@@ -283,7 +283,7 @@ const isValidHeaderJSON = (header)=>{
                 "nonce":{"type":"number"},
                 "merkleRoot":{"type":"string"},
                 "actionMerkleRoot":{"type":"string"},
-                "txHashes":{"type":"object"},
+                "txHashes":{"type":"array"},
             },
         "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot"]
     }
@@ -294,7 +294,7 @@ const isValidHeaderJSON = (header)=>{
         if(valid.errors.length == 0){
             return true
         }else{
-            
+            console.log(valid.errors)
             return false;
         }
         
@@ -348,6 +348,50 @@ const isValidBlockJSON = (header)=>{
     }
 }
 
+const isValidGenesisBlockJSON = (header)=>{
+    var v = new Validator();
+    var headerSchema = {
+        "id":"/block",
+        "type":"object",
+        "header":{"type":"object"},
+            "properties":{
+                "blockNumber":{"type":"number"},
+                "timestamp":{"type":"number"},
+                "previousHash":{"type":"string"},
+                "hash":{"type":"string"},
+                "nonce":{"type":"number"},
+                "merkleRoot":{"type":"string"},
+                "actionMerkleRoot":{"type":"string"},
+                "challenge":{"type":"string"},
+                "actions":{"type":"object"},
+                "difficulty":{"type":"string"},
+                "balances":{"type":"object"}
+            },
+        "required": [
+            "blockNumber", 
+            "timestamp", 
+            "previousHash",
+            "hash", 
+            "nonce", 
+            "merkleRoot", 
+            "challenge",
+            "difficulty",
+        ]
+    }
+
+    if(header){
+        v.addSchema(headerSchema, "/block")
+        let valid = v.validate(header, headerSchema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            console.log(valid.errors)
+            return false;
+        }
+        
+    }
+}
+
 module.exports = { 
     isValidTransactionJSON, 
     isValidChainLengthJSON, 
@@ -360,4 +404,5 @@ module.exports = {
     isValidActionJSON,
     isValidAccountJSON,
     isValidBlockJSON,
+    isValidGenesisBlockJSON,
  };

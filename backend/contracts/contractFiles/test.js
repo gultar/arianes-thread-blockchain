@@ -13,6 +13,7 @@ class FuckUp{
     }
 
     fuckup(){
+        let counter
         while(true){
             counter++
         }
@@ -30,7 +31,16 @@ class FuckUp{
 
     getInterface(){
         return {
-            fuckup:{"type":"function","name":"fuckup"}
+            fuckup:{"type":"function","name":"fuckup"},
+            boom:{"type":"function","name":"boom"}
         }
     }
 }
+
+let acorn = require('acorn');
+
+let test = FuckUp.toString()
+
+acorn.parse(test, (token)=>{
+    console.log(token)
+})

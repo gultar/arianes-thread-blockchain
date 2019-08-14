@@ -71,106 +71,6 @@ function getMethodNames(object){
   
 }
 
-// function test(){
-  
-//   const RoutingTable = require('kademlia-routing-table')
-// const { randomBytes } = require('crypto')
-// function getId(value){
-//   let address = value
-//   if(!address){
-//     address = Math.random().toString()
-//   } 
-//   let sha1 = require('sha1')
-//   let id = sha1(address.toString())
-//   return id
-// }
-
-// function getRandomIp(){
-//   let address = new Array(4);
-//   for(var i=0;i < address.length; i++){
-//     address[i] = Math.floor(Math.random() * 255)
-//   }
-//   return address.join('.')
-// }
-
-// function getRandomPort(){
-//   return Math.floor(Math.random() * 20000)
-// }
-
-
-// // Create a new table that stores nodes "close" to the passed in id.
-// // The id should be uniformily distributed, ie a hash, random bytes etc.
-// const table = new RoutingTable(sha1('150')) //randomBytes(32)
-// // const jsonStr = `[{"id":"10","contact":{"address":"http://30.148.44.189:12531","port":12531}},
-// // {"id":"11","contact":{"address":"http://17.74.149.176:6880","port":6880}},
-// // {"id":"12","contact":{"address":"http://84.133.168.125:8839","port":8839}},
-// // {"id":"13","contact":{"address":"http://57.119.155.81:1011","port":1011}},
-// // {"id":"14","contact":{"address":"http://12.220.183.117:5334","port":5334}},
-// // {"id":"15","contact":{"address":"http://225.206.126.120:11657","port":11657}},
-// // {"id":"16","contact":{"address":"http://63.29.228.190:12306","port":12306}},
-// // {"id":"17","contact":{"address":"http://124.126.0.33:2247","port":2247}},
-// // {"id":"18","contact":{"address":"http://122.9.104.144:10732","port":10732}},
-// // {"id":"19","contact":{"address":"http://200.75.67.31:10772","port":10772}}]
-// // `
-// // const json = JSON.parse(jsonStr)
-// // json.forEach( line=>{
-// //   line.id = getId(line.contact.address)
-// //   table.add(line)
-// // })
-
-// for(var i=0; i < 100; i++){
-//   let host = getRandomIp();
-//   let port = getRandomPort();
-//   let address = `http://${host}:${port}`;
-//   let jsonstr = 
-//   table.add({
-//     id: getId(address),//getId(address),
-//     contact:{
-//       address:address,
-//       port:port
-//     }
-//   })
-// }
-// // Add a node to the routing table
-// // table.add({
-// //   id: getId()//randomBytes(32), // this field is required
-// //   // populate with any other data you want to store
-// // })
- 
-// table.on('row', function (row) {
-//   console.log('Row:', row)
-//   // A new row has been added to the routing table
-//   // This row represents row.index similar bits to the table.id
- 
-//   row.on('full', function (node) {
-//     console.log('Full:',node)
-//     // The row is full and cannot be split, so node cannot be added.
-//     // If any of the nodes in the row are "worse", based on
-//     // some application specific metric then we should remove
-//     // the worst node from the row and re-add the node.
-//   })
-// })
- 
-// // Get the 20 nodes "closest" to a passed in id
-                             
-// const closest = table.closest('4000000000000000000000000000000000000000', 3)//randomBytes(32), 20)
-// console.log(closest)
-// // setTimeout(()=>{
-
-// // })
-// // table.rows.forEach( row=>{
-// //   // console.log(row)
-// //   row.nodes.forEach( node=>{
-// //     console.log(node)
-// //     console.log('*********')
-// //   })
-// // })
-// // console.log(table.get('4b2256dd7c9496fb749f2ae722dad1ceab72be1c'))
-
-// }
-
-// test()
-
 const encrypt = (text, password) =>{
   var cipher = crypto.createCipher(algorithm,password)
   var crypted = cipher.update(text,'utf8','hex')
@@ -217,6 +117,38 @@ const readFile = async (filename) =>{
 
   })
   
+}
+
+const getCPUPercent = () =>{
+  'use strict'
+
+  // see: https://github.com/nodejs/node/pull/6157
+
+  var startTime  = process.hrtime()
+  var startUsage = process.cpuUsage()
+
+  // spin the CPU for 500 milliseconds
+  var now = Date.now()
+  while (Date.now() - now < 500)
+
+  var elapTime = process.hrtime(startTime)
+  var elapUsage = process.cpuUsage(startUsage)
+
+  var elapTimeMS = secNSec2ms(elapTime)
+  var elapUserMS = secNSec2ms(elapUsage.user)
+  var elapSystMS = secNSec2ms(elapUsage.system)
+  var cpuPercent = Math.round(100 * (elapUserMS + elapSystMS) / elapTimeMS)
+
+  return {
+    elapTimeMS:elapTimeMS,
+    elapUserMS:elapUserMS,
+    elapSystMS:elapSystMS,
+    cpuPercent:cpuPercent
+  }
+
+  function secNSec2ms (secNSec) {
+    return secNSec[0] * 1000 + secNSec[1] / 1000000
+  }
 }
 
 const writeToFile = (data, filename) =>{
@@ -390,4 +322,5 @@ module.exports = {
   merge,
   createTargetFile,
   validatePublicKey,
-  getMethodNames, };
+  getMethodNames,
+  getCPUPercent };

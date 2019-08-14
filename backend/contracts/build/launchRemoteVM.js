@@ -2,7 +2,9 @@ const launchVM = () =>{
     // const ContractVM = require('./contractVM')
     // const Sandbox = require('./sandbox')
     const ContractVM = require('../VM.js')
-
+    
+    const { getCPUPercent } = require('../../tools/utils');
+    
     process.on('message', async(message)=>{
         try{
           let type = typeof message
@@ -11,6 +13,7 @@ const launchVM = () =>{
               if(message.code){
                 
                 try{
+                  
                   let vm = new ContractVM({
                     code:message.code,
                     type:'NodeVM'
@@ -35,7 +38,9 @@ const launchVM = () =>{
               break;
             case 'string':
               if(message === 'getMemUsage'){
-                process.send({memUsage: process.memoryUsage()});
+                process.send({memUsage: process.memoryUsage(), cpuUsage:getCPUPercent()});
+              }else if(message === 'getInitialMemUsage'){
+                process.send({initialMemUsage: process.memoryUsage(), cpuUsage:getCPUPercent()});
               }else{
                 process.send('pong')
               }

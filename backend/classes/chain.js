@@ -97,23 +97,24 @@ class Blockchain{
         ['0']:genesisBlock
       })
       .then((addedGenesisBlock)=>{
-        if(addedGenesisBlock){
-          this.chainDB.put({
-              _id:genesisBlock.hash,
-              [genesisBlock.hash]:genesisBlock.transactions
-          })
-          .then(()=>{
-            resolve(true)
-          })
-          .catch(e => {
-            logger('GENESIS DB STORE ERROR: ', e)
-            resolve(false)
-          })
+        resolve(true)
+        // if(addedGenesisBlock){
+        //   this.chainDB.put({
+        //       _id:genesisBlock.hash,
+        //       [genesisBlock.hash]:genesisBlock.transactions
+        //   })
+        //   .then(()=>{
+        //     
+        //   })
+        //   .catch(e => {
+        //     logger('GENESIS DB STORE ERROR: ', e)
+        //     resolve(false)
+        //   })
           
-        }else{
-          logger('Could not add Genesis block to database')
-          resolve(false)
-        }
+        // }else{
+        //   logger('Could not add Genesis block to database')
+        //   resolve(false)
+        // }
       })
       .catch(async (e)=>{
         console.log(e)
