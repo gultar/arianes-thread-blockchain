@@ -36,6 +36,16 @@ const loadNodeConfig = () =>{
   
 }
 
+const getIP = () =>{
+  return new Promise((resolve)=>{
+    const address = require('address')
+    address(function (err, addrs) {
+      if(err) resolve({error:err})
+      else resolve(addrs.ip)
+    });
+  })
+}
+
 program
   .version('0.0.1')
   .usage('<value> [-options]')
@@ -66,6 +76,16 @@ program
   .description('Starts blockchain node')
   .action(async ()=>{
     
+    if(!program.hostname){
+      let ip = await getIP()
+      if(ip.error){
+        console.log('IP ERROR: ', ip.error)
+        
+      }else{
+        program.hostname = ip
+      }
+    }
+
     let configs = await loadNodeConfig();
       if(program.verbose){
         configs.verbose = true;

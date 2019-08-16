@@ -252,7 +252,7 @@ program
 })
 
 program
-.command('deployContract')
+.command('deploy')
 .description('Requests some general information about the blockchain')
 .action(()=>{
             let address = program.url;
@@ -498,19 +498,84 @@ program
 })
 
 program
-.command('getaccounts <address> [ownerKey]')
-.description('Gets all existing accounts on node')
-.action(async (address, ownerKey)=>{
-    openSocket(address, async (socket)=>{
-        if(!ownerKey){
-            socket.emit('getAccounts');
-        }else{
-            socket.emit('getAccounts', ownerKey) 
-        }
+.command('destroy')
+.description('Requests some general information about the blockchain')
+.action(()=>{
+            let address = program.url;
+            let contractName = program.contractName
+            let accountName = program.accountName
+            let walletName = program.walletName
+            let password = program.password
             
-        socket.on('accounts', accounts => console.log(JSON.stringify(accounts, null, 2)))
-        
-    })
+            if(!address) throw new Error('ERROR: URL of receiving node is required')
+            if(!accountName) throw new Error('ERROR: Name of sending account is required')
+            if(!contractName) throw new Error('ERROR: Name of contract to call is required')
+            if(!walletName) throw new Error('ERROR: Name of owner wallet is required')
+            if(!password) throw new Error('ERROR: Password of owner wallet is required')
+
+            openSocket(address, async (socket)=>{
+                
+
+                let walletManager = new WalletManager();
+                let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
+                let action = new Action(
+                    accountName,
+                    "contract",
+                    "destroy",
+                {
+                    name:contractName,
+                });
+                
+                walletManager.unlockWallet(walletName, password)
+                .then(async (unlocked)=>{
+                    
+                    if(unlocked){
+                        let signature = await wallet.sign(action.hash)
+                        if(signature){
+                            action.signature = signature;
+                            
+                            axios.post(`${address}/action`, action)
+                            .then( response => {
+                                console.log(response.data)
+                                
+                            })
+                            .catch(e => console.log(e))
+                            socket.close()
+                        }else{
+                            console.log('ERROR: Could not sign action')
+                        }
+                        
+
+                    }else{
+                        console.log('ERROR: Could not unlock wallet')
+                    }
+                })
+               
+
+        })
+
+    
+})
+
+program
+.command('getaccounts <ownerKey>')
+.description('Gets all existing accounts on node')
+.action(async (ownerKey)=>{
+    if(program.url){
+        openSocket(program.url, async (socket)=>{
+            if(!ownerKey){
+                socket.emit('getAllAccounts');
+            }else{
+                socket.emit('getAllAccounts', ownerKey) 
+            }
+                
+            socket.on('accounts', accounts => console.log(JSON.stringify(accounts, null, 2)))
+            
+        })
+    }else{
+        throw new Error('URL of active node is required')
+    }
+    
 })
 
 program.parse(process.argv)

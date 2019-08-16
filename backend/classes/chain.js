@@ -1812,6 +1812,16 @@ class Blockchain{
             }
             
           }
+
+          if(action.task == 'destroy'){
+           let destroyed = await this.destroyContract(action);
+           if(destroyed.error){
+              resolve({error:destroyed.error})
+           }else{
+              resolve(destroyed)
+           }
+            
+          }
           resolve({error:'ERROR: Unknown contract task'})
           break;
         default:
@@ -1850,6 +1860,17 @@ class Blockchain{
             
           }
 
+          if(action.task == 'destroy'){
+            
+            let destroyed = await this.testDestroyContract(action)
+            if(destroyed.error){
+              resolve({error:destroyed.error})
+            }else{
+              resolve(destroyed)
+            }
+            
+          }
+
           if(action.task == 'call'){
             let executed = await this.testExecuteAction(action, blockNumber)
             if(executed){
@@ -1869,6 +1890,72 @@ class Blockchain{
           resolve({error:'ERROR: Invalid contract call'})
       }
       
+      
+    })
+  }
+
+  destroyContract(action){
+    return new Promise(async (resolve)=>{
+      let contractName = action.data.name;
+      
+      let account = await this.accountTable.getAccount(action.fromAccount);
+      let contract = await this.contractTable.getContract(contractName);
+      if(contract){
+        if(contract.error) resolve({error:contract.error})
+        let contractAccount = contract.account
+        if(contractAccount){
+          let isValidDestroyActionSignature = await this.validateActionSignature(action, contractAccount.ownerKey)
+          if(isValidDestroyActionSignature){
+            let deleted = await this.contractTable.removeContract(contractName);
+            if(deleted.error){
+              resolve({error:deleted.error})
+            }else if(deleted && !deleted.error){
+              resolve(deleted)
+            }
+          }else{
+            resolve({error:'Only the creator of the contract may destroy it'})
+          }
+          
+        }else{
+          resolve({error: 'Could not find contract account'})
+        }
+        
+      }else{
+        resolve({error:'Could not find contract to destroy'})
+      }
+      
+    })
+  }
+
+  testDestroyContract(action){
+    return new Promise(async (resolve)=>{
+      let contractName = action.data.name;
+      
+      let account = await this.accountTable.getAccount(action.fromAccount);
+      let contract = await this.contractTable.getContract(contractName);
+      if(contract){
+        if(contract.error) resolve({error:contract.error})
+        let contractAccount = contract.account
+        if(contractAccount){
+          console.log(action.signature)
+          console.log(contractAccount.ownerKey)
+          let isValidDestroyActionSignature = await this.validateActionSignature(action, contractAccount.ownerKey)
+          if(isValidDestroyActionSignature){
+            resolve({
+              contractDeleted:true,
+              stateDeleted:true
+            })
+          }else{
+            resolve({error:'Only the creator of the contract may destroy it'})
+          }
+          
+        }else{
+          resolve({error: 'Could not find contract account'})
+        }
+        
+      }else{
+        resolve({error:'Could not find contract to destroy'})
+      }
       
     })
   }
@@ -1946,6 +2033,29 @@ class Blockchain{
               let params = action.data.params
 
     
+              let loadCallingAction = `
+              let actionString = '${JSON.stringify(action)}'
+              let action = JSON.parse(actionString);
+              params.callingAction = action
+              `
+              let loadParams = `
+              let paramsString = '${JSON.stringify(params)}'
+              let params = JSON.parse(paramsString)
+              `
+              let loadInitParams = `
+              let initParamsString = '${JSON.stringify(initParams)}'
+              let initParams = JSON.parse(initParamsString)
+              `
+              let loadCallingAccount = `
+              let callerAccountString = '${JSON.stringify(account)}'
+              let callerAccount = JSON.parse(callerAccountString)
+              `
+              let loadCurrentState = `
+              let currentStateString = '${JSON.stringify(contractState)}'
+              let currentState = JSON.parse(currentStateString)
+              await instance.setState(currentState)
+              `
+              
               let instruction = `
                 let failure = ''
                 let fail = require('fail')
@@ -1957,27 +2067,13 @@ class Blockchain{
                     const commit = require('commit')
                     const save = require('save')
                     
-                    let callerAccountString = '${JSON.stringify(account)}'
-                    let callerAccount = JSON.parse(callerAccountString)
-
-                    let paramsString = '${JSON.stringify(params)}'
-                    let params = JSON.parse(paramsString)
-
-                    let initParamsString = '${JSON.stringify(initParams)}'
-                    let initParams = JSON.parse(initParamsString)
-
-                    let currentStateString = '${JSON.stringify(contractState)}'
-                    let currentState = JSON.parse(currentStateString)
-
-                    let actionString = '${JSON.stringify(action)}'
-                    let action = JSON.parse(actionString);
-                    params.callingAction = action
-
+                    ${loadParams}
+                    ${loadCallingAction}
+                    ${loadCallingAccount}
+                    ${loadInitParams}
                     instance = new ${action.data.contractName}(initParams)
-
-                    instance.setState(currentState)
-                    console.log('Account:', callerAccount.name)
-                    let result = await instance['${method}'](params, callerAccount.name)
+                    ${loadCurrentState}
+                    let result = await instance['${method}'](params, callerAccount)
                     save(instance.state)
                     commit(result)
                     
@@ -2039,11 +2135,11 @@ class Blockchain{
           let contract = await this.contractTable.getContract(action.data.contractName)
           if(contract){
             if(contract.error) resolve({error:contract.error})
-            
-            let contractHasReadOnly = contract.contractAPI.readOnly;
-            let isReadOnly = false;
-            if(contractHasReadOnly){
-              isReadOnly = contract.contractAPI.readOnly[action.data.method];
+
+            let isReadOnly = false
+            let contractMethod = contract.contractAPI[action.data.method]
+            if(contractMethod){
+              isReadOnly = contractMethod.type == 'get'
             }
             
             let isExternalFunction = contract.contractAPI[action.data.method]
@@ -2058,7 +2154,29 @@ class Blockchain{
               let method = action.data.method
               let params = action.data.params
 
-    
+              let loadCallingAction = `
+              let actionString = '${JSON.stringify(action)}'
+              let action = JSON.parse(actionString);
+              params.callingAction = action
+              `
+              let loadParams = `
+              let paramsString = '${JSON.stringify(params)}'
+              let params = JSON.parse(paramsString)
+              `
+              let loadInitParams = `
+              let initParamsString = '${JSON.stringify(initParams)}'
+              let initParams = JSON.parse(initParamsString)
+              `
+              let loadCallingAccount = `
+              let callerAccountString = '${JSON.stringify(account)}'
+              let callerAccount = JSON.parse(callerAccountString)
+              `
+              let loadCurrentState = `
+              let currentStateString = '${JSON.stringify(contractState)}'
+              let currentState = JSON.parse(currentStateString)
+              await instance.setState(currentState)
+              `
+              
               let instruction = `
                 let failure = ''
                 let fail = require('fail')
@@ -2070,22 +2188,13 @@ class Blockchain{
                     const commit = require('commit')
                     const save = require('save')
                     
-    
-                    let actionString = '${JSON.stringify(action)}'
-                    let paramsString = '${JSON.stringify(params)}'
-                    let initParamsString = '${JSON.stringify(initParams)}'
-                    let callerAccountString = '${JSON.stringify(account)}'
-                    let currentStateString = '${JSON.stringify(contractState)}'
-                    
-                    let callerAccount = JSON.parse(callerAccountString)
-                    let params = JSON.parse(paramsString)
-                    let initParams = JSON.parse(initParamsString)
-                    let currentState = JSON.parse(currentStateString)
-                    let action = JSON.parse(actionString);
-                    params.callingAction = action
+                    ${loadParams}
+                    ${loadCallingAction}
+                    ${loadCallingAccount}
+                    ${loadInitParams}
                     instance = new ${action.data.contractName}(initParams)
-                    await instance.setState(currentState)
-                    let result = await instance['${method}'](params, callerAccount.name)
+                    ${loadCurrentState}
+                    let result = await instance['${method}'](params, callerAccount)
                     save(instance.state)
                     commit(result)
                     

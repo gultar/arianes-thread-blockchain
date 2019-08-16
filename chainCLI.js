@@ -117,7 +117,7 @@ program
 })
 
 program
-.command('resetChain')
+.command('reset')
 .description('Requests some general information about the blockchain')
 .action(()=>{
     const inquirer = require('inquirer');

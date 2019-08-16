@@ -1221,6 +1221,24 @@ class Node {
           
       })
 
+      socket.on('getAllAccounts', async (ownerKey)=>{
+        try{
+          let result = await this.chain.accountTable.getAccountsOfKey(ownerKey)
+          console.log('Key:', ownerKey)
+          console.log('Accounts', result)
+          if(result){
+            socket.emit('accounts', result)
+          }else{
+            socket.emit('accounts', {})
+          }
+          
+        }catch(e){
+          console.log(e)
+        }
+          
+          
+      })
+
       socket.on('getState', async (contractName)=>{
           let state = await this.chain.contractTable.getState(contractName)
           console.log(JSON.stringify(state,null,2))

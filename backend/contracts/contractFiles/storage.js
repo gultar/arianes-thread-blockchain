@@ -105,27 +105,27 @@ class Storage{
     getInterface(){
         let external = makeExternal({
             set:{
-                set:this.set,
+                type:'set',
                 args:[
                     {'entry':
                         {"id":'string',
                         "data":"object"
                         }
-                    },"account"]
+                    },"account"],
+                description:'save or modify data field'
             },
             changePermissions:{
-                changePermissions:this.changePermissions,
-                args:['id','accountToAllow','category']
+                type:'set',
+                args:['id','account','category'],
+                description:'change permissioned accounts on data field'
             },
-            readOnly:{
-                get:{
-                    get:this.get,
-                    args:['id']
-                }
+            get:{
+                type:'get',
+                args:['id'],
+                description:'get data from field using id'
             }
         })
 
-        let contractAPI = createContractInterface(external)
-        return contractAPI;
+        return external;
     }
 }
