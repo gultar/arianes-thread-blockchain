@@ -25,6 +25,10 @@ class Miner{
           pendingTransactions:{},
           pendingActions:{}
         }
+        this.beingProcessed = {
+          transaction:{},
+          actions:{}
+        }
     }
 
     async initWallet(){
@@ -45,34 +49,35 @@ class Miner{
         this.socket = ioClient(url, config)
         this.socket.on('connect', ()=>{
           logger('Miner connected to ', url)
-          this.getTransactionsToMine()
+          this.run()
         })
 
-        this.socket.on('txHashList', (list)=>{
-          if(list){
-              list.forEach(hash=>{
-                  this.socket.emit('getTx', hash)
-              })
-          }
-        })
-        this.socket.on('tx', (tx)=>{
-            if(tx){
-              this.pool.pendingTransactions[tx.hash] = tx;
-            }
-        })
+        // this.socket.on('txHashList', (list)=>{
+        //   if(list){
+        //       list.forEach(hash=>{
+        //           this.socket.emit('getTx', hash)
+        //       })
+        //   }
+        // })
+        // this.socket.on('tx', (tx)=>{
+        //     if(tx){
+        //       this.pool.pendingTransactions[tx.hash] = tx;
+        //     }
+        // })
 
-        this.socket.on('actionHashList', (list)=>{
-            if(list){
-                list.forEach(hash=>{
-                    this.socket.emit('getAction', hash)
-                })
-            }
-        })
-        this.socket.on('action', (action)=>{
-            if(action){
-              this.pool.pendingActions[action.hash] = action;
-            }
-        })
+        // this.socket.on('actionHashList', (list)=>{
+        //     if(list){
+        //         list.forEach(hash=>{
+        //             this.socket.emit('getAction', hash)
+        //         })
+        //     }
+        // })
+        // this.socket.on('action', (action)=>{
+        //     if(action){
+        //       this.pool.pendingActions[action.hash] = action;
+        //     }
+        // })
+
         this.socket.on('newTransactions', (transactions)=>{
           if(transactions){
             this.pool.pendingTransactions = transactions
@@ -80,13 +85,17 @@ class Miner{
             
           }
         })
-        this.socket.on('newActions', (actions)=>{
-          if(actions){
-            this.pool.pendingActions = actions
-          }
-        })
+        // this.socket.on('newActions', (actions)=>{
+        //   if(actions){
+        //     this.pool.pendingActions = actions
+        //   }
+        // })
+
         this.socket.on('latestBlock', (block)=>{
           this.previousBlock = block;
+        })
+        this.socket.on('run', ()=>{
+          this.run()
         })
         this.socket.on('stopMining', ()=>{ this.pause() })
         this.socket.on('startMining', ()=>{ 
@@ -128,10 +137,13 @@ class Miner{
               this.successMessage(block)
               this.socket.emit('newBlock', block)
               this.pause()
+              this.socket.emit('getLatestBlock', block)
+              this.run()
+              
             }else{
               logger('Mining unsuccessful')
               this.minerStarted = false;
-              
+              this.pause()
             }
           }else{
             this.minerStarted = false
@@ -140,20 +152,39 @@ class Miner{
 
       }
 
-    getTransactionsToMine(){
+    // getTransactionsToMine(){
+    //   this.transactionUpdate = setInterval(()=>{
+        
+    //     if(!this.buildingBlock && !this.mining && !this.minerStarted){
+    //       if(this.sizeOfPool() > 0){
+    //         if(!this.readyToMine){
+    //           this.socket.emit('isReady')
+    //           this.readyToMine = true
+    //           clearInterval(this.transactionUpdate)
+    //         }
+            
+    //       }else{
+    //         this.socket.emit('fetchTransactions')
+    //       }
+    //     }
+        
+    //   }, 500)
+    // }
+
+    run(){
       this.transactionUpdate = setInterval(()=>{
         if(!this.buildingBlock && !this.mining && !this.minerStarted){
           if(this.sizeOfPool() > 0){
             if(!this.readyToMine){
               this.socket.emit('isReady')
               this.readyToMine = true
+              clearInterval(this.transactionUpdate)
             }
             
           }else{
             this.socket.emit('fetchTransactions')
           }
         }
-        
       }, 500)
     }
 
@@ -178,94 +209,94 @@ class Miner{
       })
     }
 
-    updateTransactions(){
-      return new Promise(async (resolve)=>{
-        let lastHash = '';
-        let list = await this.getTxList();
-        if(list){
+    // updateTransactions(){
+    //   return new Promise(async (resolve)=>{
+    //     let lastHash = '';
+    //     let list = await this.getTxList();
+    //     if(list){
           
-          for(var i=0; i < list.length; i++){
-            if(i == list.length -1){
-              lastHash = list[i]
-            }
+    //       for(var i=0; i < list.length; i++){
+    //         if(i == list.length -1){
+    //           lastHash = list[i]
+    //         }
 
-            this.socket.emit('getTx', list[i])
-          }
-          this.socket.on('tx', (tx)=>{
-            if(tx){
-                this.pool.pendingTransactions[tx.hash] = tx;
-                if(tx.hash == lastHash){
-                  this.socket.off('tx')
-                  resolve(true)
-                }
-            }
+    //         this.socket.emit('getTx', list[i])
+    //       }
+    //       this.socket.on('tx', (tx)=>{
+    //         if(tx){
+    //             this.pool.pendingTransactions[tx.hash] = tx;
+    //             if(tx.hash == lastHash){
+    //               this.socket.off('tx')
+    //               resolve(true)
+    //             }
+    //         }
             
-          })
-        }else{
-          resolve(false)
-        }
-      })
+    //       })
+    //     }else{
+    //       resolve(false)
+    //     }
+    //   })
       
-    }
+    // }
 
-    updateActions(){
-      return new Promise(async (resolve)=>{
-        let lastHash = '';
-        let list = await this.getActionList();
-        if(list && list.length > 0){
-          for(var i=0; i < list.length; i++){
-            if(i == list.length -1){
-              lastHash = list[i]
-            }
+    // updateActions(){
+    //   return new Promise(async (resolve)=>{
+    //     let lastHash = '';
+    //     let list = await this.getActionList();
+    //     if(list && list.length > 0){
+    //       for(var i=0; i < list.length; i++){
+    //         if(i == list.length -1){
+    //           lastHash = list[i]
+    //         }
 
-            this.socket.emit('getAction', list[i])
-          }
-          this.socket.on('action', (action)=>{
-            if(action){
-                this.pool.pendingActions[action.hash] = action;
-                if(action.hash == lastHash){
-                  this.socket.off('action')
-                  resolve(true)
-                }
-            }else{
-              resolve(false)
-            }
+    //         this.socket.emit('getAction', list[i])
+    //       }
+    //       this.socket.on('action', (action)=>{
+    //         if(action){
+    //             this.pool.pendingActions[action.hash] = action;
+    //             if(action.hash == lastHash){
+    //               this.socket.off('action')
+    //               resolve(true)
+    //             }
+    //         }else{
+    //           resolve(false)
+    //         }
             
-          })
-        }else{
-          resolve(false)
-        }
-      })
+    //       })
+    //     }else{
+    //       resolve(false)
+    //     }
+    //   })
       
-    }
+    // }
 
-    getTxList(){
-      return new Promise((resolve)=>{
-        this.socket.emit('getTxHashList')
-        this.socket.on('txHashList', (list)=>{
-            if(list){
-                this.socket.off('txHashList')
-                resolve(list)
-            }else{
-              resolve(false)
-            }
-        })
-      })
-    }
+    // getTxList(){
+    //   return new Promise((resolve)=>{
+    //     this.socket.emit('getTxHashList')
+    //     this.socket.on('txHashList', (list)=>{
+    //         if(list){
+    //             this.socket.off('txHashList')
+    //             resolve(list)
+    //         }else{
+    //           resolve(false)
+    //         }
+    //     })
+    //   })
+    // }
 
-    getActionList(){
-      return new Promise((resolve)=>{
-        this.socket.emit('getActionHashList')
-        this.socket.on('actionHashList', (list)=>{
-            if(list){
-                this.socket.off('actionHashList')
-                resolve(list)
-            }else{
-              resolve(false)
-            }
-        })
-      })
-    }
+    // getActionList(){
+    //   return new Promise((resolve)=>{
+    //     this.socket.emit('getActionHashList')
+    //     this.socket.on('actionHashList', (list)=>{
+    //         if(list){
+    //             this.socket.off('actionHashList')
+    //             resolve(list)
+    //         }else{
+    //           resolve(false)
+    //         }
+    //     })
+    //   })
+    // }
 
     pause(){
       
@@ -286,7 +317,6 @@ class Miner{
 
     async createCoinbase(){
       if(this.wallet){
-        
         let coinbase = new Transaction('coinbase', this.wallet.publicKey, this.miningReward)
         let unlocked = await this.wallet.unlock(this.keychain.password)
         
@@ -310,15 +340,20 @@ class Miner{
     }
 
     async buildNewBlock(){
-      let transactions = this.pool.pendingTransactions
-      let actions = this.pool.pendingActions
+
+      let transactions = JSON.parse(JSON.stringify(this.pool.pendingTransactions)) 
+      let actions = JSON.parse(JSON.stringify(this.pool.pendingActions))
+      
+     
       
       if(Object.keys(transactions).length > 0){
         if(!this.buildingBlock){
 
           this.buildingBlock = true
+          this.pool.pendingTransactions = {}
+          this.pool.pendingActions = {}
 
-          transactions = this.orderTransactionsByTimestamp(transactions)
+          transactions = await this.orderTransactionsByTimestamp(transactions)
 
           if(!this.nextCoinbase){
             this.nextCoinbase = await this.createCoinbase()
@@ -350,7 +385,8 @@ class Miner{
     }
 
     orderTransactionsByTimestamp(transactions){
-      if(typeof transactions == 'object'){
+      return new Promise((resolve)=>{
+        if(typeof transactions == 'object'){
           logger('Ordering transactions by timestamp')
           let txHashes = Object.keys(transactions);
           let orderedTransaction = {};
@@ -370,11 +406,13 @@ class Miner{
               orderedTransaction[hash] = transaction;
             })
   
-            return orderedTransaction;
+            resolve(orderedTransaction)
   
           }
   
       }
+      })
+
     }
 
     calculateTotalDifficulty(block){

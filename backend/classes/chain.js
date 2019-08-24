@@ -27,7 +27,6 @@ const Block = require('./block');
 const { setNewChallenge, setNewDifficulty, Difficulty } = require('./challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
-const Mempool = require('./mempool');
 const fs = require('fs');
 const jsonc = require('jsonc')
 let _ = require('private-parts').createKey();
@@ -40,13 +39,14 @@ const PouchDB = require('pouchdb');
 */
 class Blockchain{
 
-  constructor(chain=[]){
+  constructor(chain=[], mempool){
     this.chain = chain
     this.chainDB = new PouchDB('./data/chainDB');
-    this.balance = new BalanceTable()
     this.accountTable = new AccountTable();
+    this.balance = new BalanceTable(this.accountTable)
     this.contractTable = new ContractTable();
     this.difficulty = new Difficulty(genesis)
+    this.mempool = mempool
     this.blockForks = {}
     this.isSyncingBlocks = false
     this.miningReward = 50;
@@ -217,6 +217,7 @@ class Blockchain{
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
+        let errors = {}
         let isValidBlock = await this.validateBlock(newBlock);
         if(isValidBlock){
           var isLinked = this.isBlockLinked(newBlock);
@@ -231,30 +232,42 @@ class Blockchain{
 
             let added = await this.putBlockToDB(newBlock)
             if(added){
-              
-              let executed = await this.balance.runBlock(newBlock)
-              if(executed.error) resolve({error:executed.error})
 
-              let deleted = await Mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-              if(!deleted) resolve({error:'ERROR: Could not delete transactions from Mempool'})
+              let deleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
+              if(deleted.error) errors['Mempool tx deletion error'] = 'ERROR: Could not delete transactions from Mempool'
+
+              let executed = await this.balance.runBlock(newBlock)
+              if(executed.error) errors['Balance error'] = executed.error
+
+              let callsExecuted = await this.executeTransactionCalls(newBlock)
+              if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
 
               if(newBlock.actions){
+
                 let allActionsExecuted = await this.executeActionBlock(newBlock)
+                if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
 
-                let actionsDeleted = await Mempool.deleteActionsFromMinedBlock(newBlock.actions)
-                if(!actionsDeleted) resolve({error:'ERROR: Could not delete actions from Mempool'})
+                let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(newBlock.actions)
+                if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
 
-                this.isBusy = false
-
-                if(allActionsExecuted.errors) resolve({error:allActionsExecuted.errors})
-                else{
-                  resolve(true)
+                
+                if(Object.keys(errors).length > 0){
+                  this.isBusy = false
+                  resolve({error: errors})
+                }else{
+                  this.isBusy = false
+                  resolve(true);
                 }
                 
               }else if(!newBlock.actions){
 
-                this.isBusy = false
-                resolve(true);
+                if(Object.keys(errors).length > 0){
+                  this.isBusy = false
+                  resolve({error: errors})
+                }else{
+                  this.isBusy = false
+                  resolve(true);
+                }
               }
 
             }else{
@@ -694,6 +707,44 @@ class Blockchain{
     })
   }
 
+  getTransactionFromDB(hash){
+    return new Promise(async (resolve)=>{
+      let lastBlock = this.getLatestBlock()
+      let found = false;
+      for await(var block of this.chain){
+        if(block.txHashes){
+          if(block.txHashes.includes(hash)){
+            let body = await this.fetchBlockFromDB(block.blockNumber)
+            if(body){
+              if(body.transactions){
+                let transaction = body.transactions[hash];
+                found = true
+                resolve(transaction)
+              }else{
+                logger(`Body of block ${block.blockNumber} does not contain actions even though it should`)
+                resolve(false)
+              }
+            }else{
+              logger(`Body of block ${block.blockNumber} does not exist`)
+              resolve(false)
+            }
+          }else{
+            if(lastBlock.blockNumber == block.blockNumber && !found){
+              logger('Could not find anything for hash', hash)
+              resolve(false)
+            }
+          }
+        }else{
+          if(lastBlock.blockNumber == block.blockNumber && !found){
+            logger('Could not find anything for hash', hash)
+            resolve(false)
+          }
+        }
+        
+      }
+    })
+  }
+
   removeHeaderFromDB(blockNumber){
     return new Promise(async (resolve)=>{
       this.chainDB.get(blockNumber.toString())
@@ -773,24 +824,24 @@ class Blockchain{
     })
   }
 
-  hasEnoughTransactionsToMine(){
-    if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
-      return true
-    }else{
-      return false;
-    }
-  }
+  // hasEnoughTransactionsToMine(){
+  //   if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
+  //     return true
+  //   }else{
+  //     return false;
+  //   }
+  // }
 
   /**
     In case of block rollback, add back all the transactions contained in the block
     @param {object} $block - Block to deconstruct
   */
-  putbackPendingTransactions(block){
-    for(var txHash in Object.keys(block.transactions)){
-      Mempool.pendingTransactions[txHash] = block.transactions[txHash];
-      delete block.transactions[txHash];
-    }
-  }
+  // putbackPendingTransactions(block){
+  //   for(var txHash in Object.keys(block.transactions)){
+  //     this.mempool.pendingTransactions[txHash] = block.transactions[txHash];
+  //     delete block.transactions[txHash];
+  //   }
+  // }
 
   selectNextPreviousBlock(){
     if(this.getLatestBlock().blockFork){
@@ -842,28 +893,28 @@ class Blockchain{
     
   }
 
-  createCoinbaseTransaction(publicKey, blockHash){
+  // createCoinbaseTransaction(publicKey, blockHash){
     
-    return new Promise(async (resolve, reject)=>{
-      if(publicKey){
-        try{
-          var miningReward = new Transaction('coinbase', publicKey, this.miningReward, blockHash)
+  //   return new Promise(async (resolve, reject)=>{
+  //     if(publicKey){
+  //       try{
+  //         var miningReward = new Transaction('coinbase', publicKey, this.miningReward, blockHash)
           
-          Mempool.addCoinbaseTransaction(miningReward);
-          logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash.substr(0, 15))
-          resolve(miningReward)
+  //         this.mempool.addCoinbaseTransaction(miningReward);
+  //         logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash.substr(0, 15))
+  //         resolve(miningReward)
 
-        }catch(e){
-          console.log(e);
-          resolve(false);
-        }
-      }else{
-        logger('ERROR: Could not create coinbase transaction. Missing public key');
-        resolve(false);
-      }
+  //       }catch(e){
+  //         console.log(e);
+  //         resolve(false);
+  //       }
+  //     }else{
+  //       logger('ERROR: Could not create coinbase transaction. Missing public key');
+  //       resolve(false);
+  //     }
       
-    })
-  }
+  //   })
+  // }
 
 
   checkIfChainHasHash(hash){
@@ -983,53 +1034,53 @@ class Blockchain{
     return amountOfReward;
   }
 
-    /**
-    Follows the account balance of a given wallet through current unvalidated transactions
-    @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
-  */
-  checkFundsThroughPendingTransactions(publicKey){
-    var balance = 0;
-    var trans;
-    var action
-    if(publicKey){
-      var address = publicKey;
+//  /**
+//     Follows the account balance of a given wallet through current unvalidated transactions
+//     @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
+//   */
+//   checkFundsThroughPendingTransactions(publicKey){
+//     var balance = 0;
+//     var trans;
+//     var action
+//     if(publicKey){
+//       var address = publicKey;
 
-      for(var transHash of Object.keys(Mempool.pendingTransactions)){
-        trans = Mempool.pendingTransactions[transHash];
-        if(trans){
+//       for(var transHash of Object.keys(Mempool.pendingTransactions)){
+//         trans = this.mempool.pendingTransactions[transHash];
+//         if(trans){
 
-          if(trans.fromAddress == address){
-            balance = balance - trans.amount - trans.miningFee;
-          }
+//           if(trans.fromAddress == address){
+//             balance = balance - trans.amount - trans.miningFee;
+//           }
 
-          if(trans.toAddress == address){
-            balance = balance + trans.amount;
-          }
+//           if(trans.toAddress == address){
+//             balance = balance + trans.amount;
+//           }
 
-        }else{
-          return 0;
-        }
+//         }else{
+//           return 0;
+//         }
 
-      }
+//       }
 
-      if(Mempool.pendingActions){
-        for(var actionHash of Object.keys(Mempool.pendingActions)){
+//       if(Mempool.pendingActions){
+//         for(var actionHash of Object.keys(Mempool.pendingActions)){
           
-          action = Mempool.pendingActions[actionHash]
-          if(action){
-            if(action.fromAccount.ownerKey == address){
-              balance = balance - action.fee;
-            }
-          }
-        }
-      }
+//           action = this.mempool.pendingActions[actionHash]
+//           if(action){
+//             if(action.fromAccount.ownerKey == address){
+//               balance = balance - action.fee;
+//             }
+//           }
+//         }
+//       }
 
-      return balance;
-    }else{
-      return false;
-    }
+//       return balance;
+//     }else{
+//       return false;
+//     }
 
-  }
+//   }
 
   async getTransactionHistory(publicKey){
     if(publicKey){
@@ -1063,22 +1114,6 @@ class Blockchain{
 
             }
 
-          }
-
-          for(var transHash of Object.keys(Mempool.pendingTransactions)){
-            trans = Mempool.pendingTransactions[transHash];
-            if(trans){
-    
-              if(trans.fromAddress == address){
-                history.pending.sent[trans.hash] = trans
-              }
-    
-              if(trans.toAddress == address){
-                history.pending.received[trans.hash] = trans;
-              }
-    
-            }
-    
           }
         }
 
@@ -1244,6 +1279,10 @@ class Blockchain{
         logger('ERROR: Block must contain only one coinbase transaction')
       }
 
+      if(areTransactionsValid.error){
+        logger('Block contains invalid transactions: ', areTransactionsValid.error)
+      }
+
       // if(!isValidDifficulty){
       //   logger('ERROR: Recalculated difficulty did not match block difficulty')
       // }
@@ -1301,8 +1340,8 @@ class Blockchain{
           resolve(false)
         }
 
-        if(!transactionsAreValid){
-          logger('BLOCK SYNC ERROR: Transactions are not all valid')
+        if(transactionsAreValid.error){
+          logger('New Block contains invalid transactions:', transactionsAreValid.error)
           resolve(false)
         }
 
@@ -1438,17 +1477,6 @@ class Blockchain{
       return true;
   }
 
-  // rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon
-  //   if(typeof blockIndex == 'number'){
-  //     var orphanedBlocks = [];
-  //     let length = this.chain.length;
-  //     let numberOfBlocks = length - blockIndex;
-  //     orphanedBlocks = this.chain.splice(-1, numberOfBlocks);
-  //     orphanedBlocks.forEach((block)=>{})
-
-  //     return orphanedBlocks;
-  //   }
-  // }
 
   rollbackToBlock(number){
     return new Promise(async (resolve)=>{
@@ -1467,6 +1495,20 @@ class Blockchain{
         })
       }
 
+      const collectTransactionHashes = async (blocks) =>{
+        return new Promise(async (resolve)=>{
+          let txHashes = []
+          for(var block of blocks){
+            if(block.txHashes){
+              txHashes = [  ...txHashes, ...block.txHashes ]
+            }else{
+              console.log('No tx hashes')
+            }
+          }
+          resolve(txHashes)
+        })
+      }
+
       let errors = {}
       let totalBlockNumber = this.getLatestBlock().blockNumber
       let newLastBlock = this.chain[number];
@@ -1475,9 +1517,26 @@ class Blockchain{
       
       let rolledBack = await this.balance.rollback(number)
       if(rolledBack.error) throw new Error(rolledBack.error)
+
+      
       
       let newestToOldestBlocks = blocks.reverse()
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
+
+      let txHashes = await collectTransactionHashes(newestToOldestBlocks)
+      if(txHashes.length > 0){
+        for await(var hash of txHashes){
+          let transaction = await this.getTransactionFromDB(hash);
+          if(transaction){
+            let isTransactionCall = transaction.type == 'call'
+            if(isTransactionCall){
+              let contractName = transaction.toAddress;
+              let rolledBack = await this.contractTable.rollbackState(contractName, transaction)
+              if(rolledBack.error) errors[hash] = rolledBack.error
+            }
+          }
+        }
+      }
 
       if(actionHashes.length > 0){
         for await(var hash of actionHashes){
@@ -1505,6 +1564,7 @@ class Blockchain{
           }
         }
       }
+
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(number + 1, numberOfBlocksToRemove)
       logger('Rolled back to block ', number)
@@ -1513,15 +1573,15 @@ class Blockchain{
     })
   }
 
-  unwrapBlock(block){
-    if(isValidBlockJSON(block)){
-      let transactionsOfCancelledBlock = block.transactions;
-      let actionsOfCancelledBlock = block.actions
-      Mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
-      Mempool.putbackPendingActions(actionsOfCancelledBlock)
-    }
+  // unwrapBlock(block){
+  //   if(isValidBlockJSON(block)){
+  //     let transactionsOfCancelledBlock = block.transactions;
+  //     let actionsOfCancelledBlock = block.actions
+  //     this.mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
+  //     this.mempool.putbackPendingActions(actionsOfCancelledBlock)
+  //   }
     
-  }
+  // }
 
   
 
@@ -1529,19 +1589,18 @@ class Blockchain{
     return new Promise((resolve, reject)=>{
       if(isValidBlockJSON(block)){
         let txHashes = Object.keys(block.transactions);
+        let errors = {}
         txHashes.forEach( hash =>{
           let transaction = block.transactions[hash];
           let valid = this.validateTransaction(transaction);
           if(valid.error){
-            Mempool.rejectTransactions(hash)
-            logger('Rejected Transaction:', hash);
+            errors[hash] = valid.error
             //If contains invalid tx, need to reject block alltogether
             // delete block.transactions[hash];
-            resolve(false)
           }
         })
-
-        resolve(block);
+        if(Object.keys(errors).length > 0) resolve({error:errors})
+        else resolve(block);
       }else{
         logger('ERROR: Must pass block object')
         resolve(false)
@@ -1552,58 +1611,52 @@ class Blockchain{
 
   
 
-  validateTransactionsForMining(transactions){
-    return new Promise((resolve, reject)=>{
-      if(transactions){
-        let orderedTransaction = Mempool.orderTransactionsByTimestamp(transactions)
-        let txHashes = Object.keys(orderedTransaction);
+  // validateTransactionsForMining(transactions){
+  //   return new Promise((resolve, reject)=>{
+  //     if(transactions){
+  //       let orderedTransaction = this.mempool.orderTransactionsByTimestamp(transactions)
+  //       let txHashes = Object.keys(orderedTransaction);
         
-        let validTransactions = {}
-        txHashes.forEach( hash =>{
-          let transaction = transactions[hash];
-          let valid = this.validateTransaction(transaction);
-          if(!valid.error){
-            validTransactions[hash] = transaction
+  //       let validTransactions = {}
+  //       txHashes.forEach( hash =>{
+  //         let transaction = transactions[hash];
+  //         let valid = this.validateTransaction(transaction);
+  //         if(!valid.error){
+  //           validTransactions[hash] = transaction
             
-          }else{
-            Mempool.rejectTransactions(hash)
-            logger('Rejected Transaction:', hash);
-            logger('Reason: ', valid.error)
-          }
-        })
-        resolve(validTransactions);
-      }else{
-        logger('ERROR: Must pass block object')
-        resolve(false)
-      }
+  //         }else{
+  //           this.mempool.rejectTransactions(hash)
+  //           logger('Rejected Transaction:', hash);
+  //           logger('Reason: ', valid.error)
+  //         }
+  //       })
+  //       resolve(validTransactions);
+  //     }else{
+  //       logger('ERROR: Must pass block object')
+  //       resolve(false)
+  //     }
       
-    })
-  }
+  //   })
+  // }
   
   blockContainsOnlyValidTransactions(block){
     return new Promise((resolve, reject)=>{
       if(isValidBlockJSON(block)){
         let txHashes = Object.keys(block.transactions);
+        let errors = {}
         txHashes.forEach( hash =>{
           let transaction = block.transactions[hash];
           let valid = this.validateTransaction(transaction);
+          
           if(valid.error){
-            Mempool.rejectTransactions(hash)
-            logger('Rejected Transaction:', hash);
-            resolve(false)
+            errors[hash] = valid.error
           }
         })
 
-        let recalculatedMerkleRoot = merkleRoot(block.transactions)
-        
-        if(recalculatedMerkleRoot != block.merkleRoot){
-          resolve(false);
-        }
-
-        resolve(true);
+        if(Object.keys(errors).length > 0) resolve({error:errors})
+        else resolve(true);
       }else{
-        logger('ERROR: Must pass block object')
-        resolve(false)
+        resolve({error:'ERROR: Must pass block object'})
       }
       
     })
@@ -1650,54 +1703,147 @@ class Blockchain{
   * @param {function} $callback - Sends back the validity of the transaction
   */
 
-  async validateTransaction(transaction){
+    /**
+  *  To run a proper transaction validation, one must look back at all the previous transactions that have been made by
+  *  emitting peer every time this is checked, to avoid double spending. An initial coin distribution is made once the genesis
+  *  block has been made. This needs some work since it is easy to send a false transaction and accumulate credits
+  *
+  * @param {Object} $transaction - transaction to be validated
+  * @param {function} $callback - Sends back the validity of the transaction
+  */
+
+ async validateTransaction(transaction){
+  return new Promise(async (resolve, reject)=>{
+    if(transaction){
+      try{
+        
+        var isMiningReward = transaction.fromAddress == 'coinbase';
+        var isTransactionCall = transaction.type == 'call'
+
+        if(isTransactionCall){
+
+          let isValidTransactionCall = await this.validateTransactionCall(transaction);
+          if(isValidTransactionCall.error) resolve({error:isValidTransactionCall.error})
+          else resolve(isValidTransactionCall)
+
+
+        }else if(isMiningReward){
+          
+          let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
+
+          if(isValidCoinbaseTransaction.error) resolve({error:isValidCoinbaseTransaction.error})
+
+          if(isValidCoinbaseTransaction && !isValidCoinbaseTransaction.error){
+            resolve(true)
+          }
+
+        }else {
+
+          let fromAddress = transaction.fromAddress;
+          let toAddress = transaction.toAddress;
+
+          let fromAddressIsAccount = await this.accountTable.getAccount(fromAddress);
+          let toAddressIsAccount = await this.accountTable.getAccount(toAddress);
+
+          if(fromAddressIsAccount){
+            fromAddress = fromAddressIsAccount.ownerKey
+          }
+          if(toAddressIsAccount){
+            toAddress = toAddressIsAccount.ownerKey
+          }
+
+          var isChecksumValid = this.validateChecksum(transaction);
+          if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+
+          let isSendingAddressValid = await validatePublicKey(fromAddress)
+          let isReceivingAddressValid = await validatePublicKey(toAddress)
+
+          if(isSendingAddressValid && isReceivingAddressValid){
+            let isSignatureValid = await this.validateSignature(transaction, fromAddress);
+            if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
+  
+  
+            let isNotCircular = fromAddress !== toAddress;
+            if(!isNotCircular) resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
+  
+            var balanceOfSendingAddr = await this.checkBalance(fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+            let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
+            if(!hasEnoughFunds) resolve({error:'REJECTED: Sender does not have sufficient funds'});
+            
+            var amountIsNotZero = transaction.amount > 0;
+            if(!amountIsNotZero) resolve({error:'REJECTED: Amount needs to be higher than zero'});
+  
+            let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee
+            if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
+  
+            var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
+            if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
+  
+            resolve(true)
+
+          }else if(!isReceivingAddressValid){
+
+            resolve({error:'REJECTED: Receiving address is invalid'});
+          }else if(!isSendingAddressValid){
+            resolve({error:'REJECTED: Sending address is invalid'});
+          }
+
+        }
+        
+        
+       
+            
+      }catch(err){
+        resolve({error:'ERROR: an error occured'})
+      }
+
+    }else{
+      logger('ERROR: Transaction is undefined');
+      resolve({error:'ERROR: Transaction is undefined'})
+    }
+
+  })
+  
+
+}
+
+  async validateTransactionCall(transaction){
     return new Promise(async (resolve, reject)=>{
       if(transaction){
         try{
-          var isMiningReward = transaction.fromAddress == 'coinbase';
 
-          if(!isMiningReward){
+            let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+            if(!fromAccount) resolve({error:'REJECTED: Sending account is unknown'});
+            else{
 
-            var isChecksumValid = this.validateChecksum(transaction);
-            let isSignatureValid = await this.validateSignature(transaction)
-            let isSendingAddressValid = await validatePublicKey(transaction.fromAddress)
-            let isReceivingAddressValid = await validatePublicKey(transaction.toAddress)
-            let isNotCircular = transaction.fromAddress !== transaction.toAddress;
-            var balanceOfSendingAddr = await this.checkBalance(transaction.fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
-            let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
-            var amountIsNotZero = transaction.amount > 0;
-            let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
-            var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
-              
-            if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
-            if(!isSendingAddressValid) resolve({error:'REJECTED: Sending address is invalid'});
-            if(!isReceivingAddressValid) resolve({error:'REJECTED: Receiving address is invalid'});
-            if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
-            if(!amountIsNotZero) resolve({error:'REJECTED: Amount needs to be higher than zero'});
-            if(!isNotCircular) resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
-            if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
-            if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
-            if(!hasEnoughFunds) resolve({error:'REJECTED: Sender does not have sufficient funds'});
+              let isSignatureValid = await this.validateActionSignature(transaction, fromAccount.ownerKey)
+              let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+              let toAccountIsContract = await this.contractTable.getContract(transaction.toAddress)
+              var isChecksumValid = this.validateChecksum(transaction);
+              var amountIsNotZero = transaction.amount > 0;
+              let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
+              var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
+              let isNotCircular = fromAccount.name !== toAccount.name
+              var balanceOfSendingAddr = await this.checkBalance(fromAccount.ownerKey) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+              let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
+
+              if(!toAccount) resolve({error:'REJECTED: Receiving account is unknown'});
+              if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+              if(!amountIsNotZero) resolve({error:'REJECTED: Amount needs to be higher than zero'});
+              if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
+              if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
+              if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
+              if(!toAccountIsContract) resolve({error: 'REJECTED: Transaction calls must be made to contract accounts'})
+              if(!isNotCircular) resolve({error:"REJECTED: Sending account can't be the same as receiving account"}); 
+              if(!hasEnoughFunds) resolve({error: 'REJECTED: Sender does not have sufficient funds'})
+
+            }
+            
 
             resolve(true)
 
-          }else if(isMiningReward){
-            
-            let isValidCoinbaseTransaction = await this.validateCoinbaseTransaction(transaction)
-
-            if(isValidCoinbaseTransaction.error) resolve({error:isValidCoinbaseTransaction.error})
-
-            if(isValidCoinbaseTransaction && !isValidCoinbaseTransaction.error){
-              resolve(true)
-            }
-
-          }
-          
-          
-         
-              
         }catch(err){
-          resolve({error:'ERROR: an error occured'})
+          resolve({error:err.message})
         }
   
       }else{
@@ -1725,15 +1871,14 @@ class Blockchain{
                   
           if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
           if(!hasTheRightMiningRewardAmount) resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
-          // if(isAlreadyInChain) Mempool.deleteCoinbaseTransaction(transaction)
+          // if(isAlreadyInChain) this.mempool.deleteCoinbaseTransaction(transaction)
           if(!isAttachedToMinedBlock) resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           if(!transactionSizeIsNotTooBig) resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'});
           
           resolve(true)
               
         }catch(err){
-          console.log(err);
-          resolve({error:'ERROR: an error occured'})
+          resolve({error:err.message})
         }
   
       }else{
@@ -1744,6 +1889,45 @@ class Blockchain{
     })
     
 
+  }
+
+  executeTransactionCalls(block){
+    return new Promise(async (resolve)=>{
+      let transactions = block.transactions;
+      let txHashes = Object.keys(block.transactions);
+      let errors = {}
+
+      for await(var hash of txHashes){
+        let transaction = transactions[hash];
+        
+        if(transaction.type == 'call'){
+          let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+          let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+
+          let call = transaction.data
+
+          let action = {
+            fromAccount: fromAccount.name,
+            data:{
+              contractName: toAccount.name,
+              method: call.method,
+              params: call.params,
+            },
+            hash:transaction.hash
+          }
+
+          let executed = await this.executeAction(action, this.getLatestBlock().blockNumber)
+          if(executed.error) errors[hash] = executed.error
+        }
+      }
+
+      if(Object.keys(errors).length > 0){
+        resolve({error:errors})
+      }else{
+        resolve(true)
+      }
+
+    })
   }
 
   executeActionBlock(block){
@@ -1937,8 +2121,6 @@ class Blockchain{
         if(contract.error) resolve({error:contract.error})
         let contractAccount = contract.account
         if(contractAccount){
-          console.log(action.signature)
-          console.log(contractAccount.ownerKey)
           let isValidDestroyActionSignature = await this.validateActionSignature(action, contractAccount.ownerKey)
           if(isValidDestroyActionSignature){
             resolve({
@@ -2101,8 +2283,7 @@ class Blockchain{
                   resolve({error:result.error})
                 }else{
                   if(result.state){
-                    this.contractTable.updateContractState(action.data.contractName, result.state, action, blockNumber)
-                    
+                    let updated = await this.contractTable.updateContractState(action.data.contractName, result.state, action, blockNumber)
                     resolve(result.value)
                   }else{
                     resolve({error:'An error occurred'})
@@ -2141,7 +2322,7 @@ class Blockchain{
             if(contractMethod){
               isReadOnly = contractMethod.type == 'get'
             }
-            
+
             let isExternalFunction = contract.contractAPI[action.data.method]
             if(!isExternalFunction && !isReadOnly){
               resolve({error:'Method call is not part of contract API'})
@@ -2435,11 +2616,11 @@ class Blockchain{
     @param {object} $transaction - Transaction to be inspected
     @return {boolean} Signature is valid or not
   */
-  validateSignature(transaction){
+  validateSignature(transaction, fromAddress){
     return new Promise(async (resolve, reject)=>{
       if(transaction){
-        if(validatePublicKey(transaction.fromAddress)){
-          const publicKey = await ECDSA.fromCompressedPublicKey(transaction.fromAddress);
+        if(validatePublicKey(fromAddress)){
+          const publicKey = await ECDSA.fromCompressedPublicKey(fromAddress);
           if(publicKey){
             const verified = await publicKey.verify(transaction.hash, transaction.signature)
             resolve(verified)
@@ -2455,6 +2636,7 @@ class Blockchain{
       }
     })
   }
+
 
   /**
     Checks the validity of the action signature

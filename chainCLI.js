@@ -128,7 +128,7 @@ program
     inquirer.prompt(validation)
     .then((answer)=>{
         if(answer.validation == 'yes' || answer.validation == 'y' || answer.validation == '1'){
-            exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/* data/accountsDB/* data/contractDB/* data/contractStateDB/* data/accounts.json', (err, stdout, stderr) => {
+            exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/* data/accountsDB/* data/contractDB/* data/contractStateDB/* data/accounts.json data/transactionDB/* data/actionDB/* data/balanceDB/*', (err, stdout, stderr) => {
                 if (err) {
                   // node couldn't execute the command
                   return;

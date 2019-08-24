@@ -31,6 +31,10 @@ class Token{
         if(!maxSupply) throw new Error('Max token supply is required')
         if(!account) throw new Error('Creator account is required')
 
+        if(typeof maxSupply == 'string'){
+            throw new Error('Invalid max supply value')
+        }
+
         let creator = account.name;
 
         if(this.state.tokens){
@@ -62,10 +66,15 @@ class Token{
         return new Promise((resolve)=>{
             let { symbol, amount, receiver } = issueParams
         if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
-        if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
+        if(!amount) throw new Error('A numerical amount to issue is required')
         if(!issuerAccount) throw new Error('Creator account of token is required')
         if(!receiver) throw new Error('Receiving account is required')
+
+        if(typeof amount == 'string'){
+            throw new Error('Invalid amount value')
+        }
         
+
         let token = this.state.tokens[symbol]
         let issuer = issuerAccount.name
 
@@ -128,12 +137,16 @@ class Token{
         return new Promise((resolve)=>{
             let { symbol, amount, receiver } = transferParams
             if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
-            if(!amount || !typeof symbol == 'number') throw new Error('Amount to issue is required')
+            if(!amount) throw new Error('A numerical amount to issue is required')
             if(!senderAccount) throw new Error('Sender account is required')
             if(!receiver) throw new Error('Receiving account is required')
 
             let token = this.state.tokens[symbol]
             let sender = senderAccount.name
+
+            if(typeof amount == 'string'){
+                throw new Error('Invalid amount value')
+            }
 
             if(token){
 

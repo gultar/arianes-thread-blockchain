@@ -51,10 +51,18 @@ Then you can either instantiate the class by using
 
 ```
 let myNode = new Node({
-        address:'http://localhost:8000', //default ip address
-        port:8000,                       //default port
-        verbose:false,                   //default verbose state
-});
+        host: configs.host,
+        port: configs.port,
+        verbose: configs.verbose,
+        httpsEnabled: true, -> Is set by default
+        enableLocalPeerDiscovery: discovery.local,
+        enableDHTDiscovery: discovery.dht,
+        peerDiscoveryPort: parseInt(configs.port) - 2000,
+        networkChannel: 'blockchain-mainnet',
+        noLocalhost: true,
+        genesis: genesis
+      })
+
 
 let started = await myNode.startServer()
 if(started.error) throw new Error(started.error)
@@ -66,7 +74,7 @@ myNode.joinPeers();
 or by running blockchainCLI.js for a CLI-like interface.
 
 ```
-node blockchainCLI.js start
+node blockchainCLI.js start <options>
 ```
 
 To get a list of all options :
@@ -86,11 +94,17 @@ Usage: blockchainCLI <value> [-options]
 
 
 Options:
-  -V, --version         output the version number
-  -j, --join [network]  Joins network
-  -s, --seed <seed>     Seed nodes to initiate p2p connections
-  -v, --verbose         Enable transaction and network verbose
-  -h, --help            output usage information
+  -V, --version                     output the version number
+  -n, --hostname <hostname>         Specify node hostname
+  -p, --port <port>                 Specify node port
+  -j, --join [network]              Joins network
+  -s, --seed <seed>                 Seed nodes to initiate p2p connections
+  -v, --verbose                     Enable transaction and network verbose
+  -d, --peerDiscovery [type]        Enable peer discovery using various methods
+  -t, --peerDiscoveryPort <port>    Enable peer discovery using various methods
+  -l, --dhtDisconnectDelay <delay>  Length of time after which the node disconnects from dht network
+  -h, --help                        output usage information
+
 
 Commands:
   start                 Starts blockchain node
@@ -98,6 +112,25 @@ Commands:
   rollback <blockNum>   Rollback blocks from chain (from the end) 
 
 
+```
+
+## Sending a transaction
+```
+In order to send a transaction, you may either use the CLI tool or send a signed JSON data packet to your local blockchain node.
+
+The basic structure of a transaction is as follows:
+
+{ 
+  fromAddress: <ECDSA Public key OR Account name>,
+  toAddress: <ECDSA Public key OR Account name>,
+  type: <Type of transaction>,
+  data: <Extra data to send along>,
+  timestamp: <UNIX timestamp>,
+  amount: <Amount>,
+  hash: <SHA256 hash of the transaction>,
+  miningFee: <Enough mining fee to equate size of transaction>,
+  signature: <ECDSA Signature from your private key> 
+}
 ```
 
 ## Author

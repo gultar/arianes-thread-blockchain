@@ -23,7 +23,7 @@ const AccountCreator = require('./backend/classes/accountCreator');
 const PeerDiscovery = require('./backend/network/peerDiscovery');
 const SSLHandler = require('./backend/network/sslHandler')
 /**************Live instances******************/
-const Mempool = require('./backend/classes/mempool'); //Instance not class
+const Mempool = require('./backend/classes/pool'); //Instance not class
 
 
 /****************Tools*************************/
@@ -66,11 +66,12 @@ class Node {
     //Genesis Configs
     this.genesis = options.genesis
     //Parts of Node
-    this.chain = new Blockchain();
+    this.mempool = new Mempool()
     this.nodeList = new NodeList();
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
     this.ssl = new SSLHandler()
+    this.chain = new Blockchain([], this.mempool);
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -104,19 +105,19 @@ class Node {
             process.GENESIS = this.genesis
             
             let nodeListLoaded = await this.nodeList.loadNodeList();
-            let mempoolLoaded = await Mempool.loadMempool();
+            let mempoolLoaded = await this.mempool.loadMempool();
             // let accountsLoaded = await this.chain.accountTable.loadAllAccountsFromFile();
             
             
             if(!nodeListLoaded) reject('Could not load node list')
-            if(!mempoolLoaded) reject('Could not load Mempool');
+            if(!mempoolLoaded) reject('Could not load this.mempool');
             //if(!accountsLoaded) reject('Could not load account table')
 
             logger('Loaded Blockchain'); 
             logger('Loaded peer node list');
             logger('Loaded transaction mempool');
-            logger('Number of transactions in pool: '+Mempool.sizeOfPool());
-            logger('Number of actions in pool: '+Mempool.sizeOfActionPool());
+            logger('Number of transactions in pool: '+this.mempool.sizeOfPool());
+            logger('Number of actions in pool: '+this.mempool.sizeOfActionPool());
 
             if(this.httpsEnabled){
               let sslConfig = await this.ssl.getCertificateAndPrivateKey()
@@ -1004,7 +1005,7 @@ class Node {
       
       app.set('json spaces', 2)
       
-      app.get('/transaction', (req, res)=>{
+      app.get('/transaction', async (req, res)=>{
         let tx = {};
         let pendingTx = {};
         let hash = req.query.hash;
@@ -1015,7 +1016,7 @@ class Node {
             res.json(tx).end()
           }else{
 
-            pendingTx = Mempool.getTransactionFromPool(hash);
+            pendingTx = await this.mempool.getTransaction(hash);
             
             if(pendingTx){
               res.json(pendingTx).end()
@@ -1340,7 +1341,7 @@ class Node {
       })
 
       socket.on('getMempool', ()=>{
-        socket.emit('mempool', Mempool);
+        socket.emit('mempool', { transactions:this.mempool.txReceipts, actions:this.mempool.actionReceipts });
       })
 
       socket.on('requestPeers', ()=>{
@@ -1349,7 +1350,6 @@ class Node {
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
-        console.log(rolledback)
       })
 
       socket.on('getTransactionFromDB', async (hash)=>{
@@ -1405,51 +1405,59 @@ class Node {
     logger('Miner connected!');
     let isReady = false
     api.emit('latestBlock', this.chain.getLatestBlock())
-
     api.on('isReady', ()=>{ api.emit('startMining') })
-    api.on('getTxHashList', ()=>{ api.emit('txHashList', Object.keys(Mempool.pendingTransactions)) })
-    api.on('getActionHashList', ()=>{ api.emit('actionHashList', Object.keys(Mempool.pendingActions)) })
-    api.on('getTx', (hash)=>{ 
-      api.emit('tx', Mempool.pendingTransactions[hash]) 
-    })
+    api.on('readyToRun', ()=>{ api.emit('run') })
+    // api.on('getTxHashList', ()=>{ api.emit('txHashList', Object.keys(this.mempool.pendingTransactions)) })
+    // api.on('getActionHashList', ()=>{ api.emit('actionHashList', Object.keys(this.mempool.pendingActions)) })
+    // api.on('getTx', (hash)=>{ 
+    //   api.emit('tx', this.mempool.pendingTransactions[hash]) 
+    // })
+    
+    //In use
     api.on('fetchTransactions', async ()=>{
-      if(Mempool.sizeOfPool() > 0 && !this.gatheringTransactions){
+      if(this.mempool.sizeOfPool() > 0 && !this.gatheringTransactions){
         this.gatheringTransactions = true
-        let transactions = await Mempool.gatherTransactionsForBlock()
+        let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions){
           api.emit('newTransactions', transactions)
           this.gatheringTransactions = false
         }
       }
     })
-
+    //In use
     api.on('fetchActions', async ()=>{
-      if(Mempool.sizeOfActionPool() > 0){
-        let actions = await Mempool.gatherActionsForBlock()
+      if(this.mempool.sizeOfActionPool() > 0){
+        let actions = await this.mempool.gatherActionsForBlock()
         api.emit('newActions', actions)
       }
     })
 
-    api.on('getAction', (hash)=>{ 
-      api.emit('action', Mempool.pendingActions[hash])
-    })
+    // api.on('getAction', (hash)=>{ 
+    //   api.emit('action', this.mempool.pendingActions[hash])
+    // })
     api.on('newBlock', async (block)=>{
           
       if(block){
-        let synced = await this.chain.pushBlock(block);
-        if(synced.error){
-          console.log(synced.error)
-        }else{
-          this.sendPeerMessage('newBlockFound', block);
-          let retry = setInterval(()=>{
-            if(!this.chain.isBusy){
-              api.emit('latestBlock', this.chain.getLatestBlock())
-              clearInterval(retry)
-            }
-          },100)
+        this.chain.pushBlock(block)
+        .then((synced)=>{
+          if(synced.error){
+            console.log(synced.error)
+          }else{
+            
+            this.sendPeerMessage('newBlockFound', block);
+            let retry = setInterval(()=>{
+              if(!this.chain.isBusy){
+                api.emit('latestBlock', this.chain.getLatestBlock())
+                clearInterval(retry)
+              }
+            },100)
+            
+          api.emit('run')
+            
+          }
           
-          
-        }
+        })
+
       }else{
         logger('ERROR: New mined block is undefined')
       }
@@ -1554,15 +1562,14 @@ class Node {
       if(isValidTransactionJSON(transaction)){
 
         this.chain.validateTransaction(transaction)
-        .then(valid => {
+        .then(async (valid) => {
           if(!valid.error){
-            Mempool.addTransaction(transaction);
+            let added = await this.mempool.addTransaction(transaction);
             this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
             if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
           }else{
             this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
             if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-            Mempool.rejectedTransactions[transaction.hash] = transaction;
             logger(valid.error)
           }
         })
@@ -1581,20 +1588,9 @@ class Node {
         if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
         resolve({error:isValid.error})
       }else{
-        //Action will be added to Mempool only is valid and if corresponds with contract call
-        Mempool.addAction(action)
+        //Action will be added to this.mempool only is valid and if corresponds with contract call
+        let added = await this.mempool.addAction(action)
         resolve({action:action})
-        // let mapsToContractCall = await this.handleAction(action);
-        // if(mapsToContractCall.error){
-        //   if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
-        //   resolve({error:mapsToContractCall.error})
-        // }else{
-        //   //Execution success message
-        //   //Need to avoid executing call on everynode simultaneously 
-        //   //Also need to avoid any security breach when signing actions
-        //   if(this.verbose) logger(chalk.cyan('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-        //   resolve(action)
-        // }
       }
     })
   }
@@ -1631,14 +1627,16 @@ class Node {
   
                 let addedToChain = await this.chain.pushBlock(block);
                 if(addedToChain.error){
-                  console.log(addedToChain.error)
+                  logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
+                }else{
+                  if(this.localServer && this.localServer.socket){
+                    this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                  }
+                  
+                  resolve(true);
                 }
   
-                if(this.localServer && this.localServer.socket){
-                  this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                }
                 
-                resolve(true);
 
               }else{
                 resolve({error:'ERROR:New block header is invalid'})
@@ -1726,16 +1724,52 @@ class Node {
             }else{
               
               this.chain.createTransaction(transaction)
-                .then( valid =>{
+                .then( async (valid) =>{
                   if(!valid.error){
   
-        
-                    Mempool.addTransaction(transaction);
-                    this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-                    if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-                    
-                    this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
-                    resolve(transaction)
+                    if(transaction.type == 'call'){
+
+                      let call = transaction.data
+
+                      let action = {
+                        fromAccount: transaction.fromAddress,
+                        data:{
+                          contractName: transaction.toAddress,
+                          method: call.method,
+                          params: call.params,
+                        }
+                      }
+
+                      let executed = await this.chain.testExecuteAction(action, this.chain.getLatestBlock().blockNumber)
+                      if(executed){
+                        if(executed.error){
+                          this.UILog('!!!'+' Rejected transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                          if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction call: ')+ transaction.hash.substr(0, 15)+"...")
+                          resolve({error:executed.error})
+                        }else{
+                          
+                          let added = await this.mempool.addTransaction(transaction);
+                          this.UILog('=> Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                          if(this.verbose) logger(chalk.blue('=>')+' Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                          
+                          this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                          
+                          resolve(executed)
+                        }
+                      }else{
+                        resolve({error:'Function has returned nothing'})
+                      }
+
+                    }else{
+
+                      let added = await this.mempool.addTransaction(transaction);
+                      this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                      if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                      
+                      this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                      resolve(transaction)
+
+                    }
   
                   }else{
   
@@ -1756,180 +1790,6 @@ class Node {
     })
   }
 
-  // handleAction(action){
-  //   return new Promise(async (resolve)=>{
-  //     switch(action.type){
-  //       case 'account':
-  //         if(action.task == 'create'){
-  //           let added = await this.chain.accountTable.addAccount(action.data);
-  //           if(added){
-  //             Mempool.addAction(action)
-  //             resolve(true)
-  //           }else{
-  //             resolve({error:'ERROR: Account already exists'})
-  //           }
-  //         }
-
-  //         break;
-  //       case 'contract':
-  //         if(action.task == 'deploy'){
-            
-  //           let deployed = await this.chain.deployContract(action)
-  //           if(deployed.error){
-  //             resolve({error:deployed.error})
-  //           }else{
-  //             Mempool.addAction(action)
-  //             resolve(true)
-  //           }
-            
-  //         }
-
-  //         if(action.task == 'call'){
-  //           let executed = await this.chain.executeAction(action)
-  //           if(executed.error){
-  //             resolve({error:executed.error})
-  //           }else{
-  //             resolve(executed)
-  //           }
-  //         }
-  //         resolve({error:'ERROR: Unknown contract task'})
-  //         break;
-  //       default:
-  //         resolve({error:'ERROR: Invalid contract call'})
-  //     }
-      
-      
-  //   })
-  // }
-
-  // deployContract(action){
-  //   return new Promise(async (resolve)=>{
-  //     let data = action.data
-  //     let account = await this.chain.accountTable.getAccount(action.fromAccount)
-      
-  //     if(account){
-  //       //Validate Contract and Contract API
-  //       let contractEntry = {
-  //         name:data.name,
-  //         contractAPI:data.contractAPI,
-  //         initParams:data.initParams,
-  //         account:account, 
-  //         code:data.code,
-  //         state:data.state
-  //       }
-
-  //       let added = await this.chain.contractTable.addContract(contractEntry)
-  //       if(added){
-  //         if(added.error) resolve({error:added.error})
-  //         logger(`Deployed contract ${contractEntry.name}`)
-  //         resolve(true)
-  //       }else{
-  //         resolve({error:'ERROR: Could not add contract to table'})
-  //       }
-       
-        
-  //     }else{
-  //       resolve({error:'ACTION ERROR: Could not get contract account'})
-  //     }
-  //   })
-  // }
-
-  //Need to move this to a seperate file
-  // executeAction(action){
-  //   return new Promise(async (resolve)=>{
-  //     try{
-  //       let account = await this.chain.accountTable.getAccount(action.fromAccount)
-  //       if(account){
-  //         let contract = await this.chain.contractTable.getContract(action.data.contractName)
-  //         if(contract){
-  //           if(contract.error) resolve({error:contract.error})
-            
-  //           let contractState = await this.chain.contractTable.getState(action.data.contractName)
-  //           if(!contractState) resolve({error:'Could not find contract state'})
-  
-  //           let initParams = JSON.parse(contract.initParams)
-  
-  //           let method = action.data.method
-  //           let params = action.data.params
-  
-  //           let instruction = `
-  //             let failure = ''
-
-  //             async function execute(){
-  //               let instance = {};
-                
-  //               try{
-  //                 const commit = require('commit')
-  //                 const save = require('save')
-                  
-  
-  //                 let actionString = '${JSON.stringify(action)}'
-  //                 let paramsString = '${JSON.stringify(params)}'
-  //                 let initParamsString = '${JSON.stringify(initParams)}'
-  //                 let callerAccountString = '${JSON.stringify(account)}'
-  //                 let currentStateString = '${JSON.stringify(contractState)}'
-  
-  //                 let callerAccount = JSON.parse(callerAccountString)
-  //                 let params = JSON.parse(paramsString)
-  //                 let initParams = JSON.parse(initParamsString)
-  //                 let currentState = JSON.parse(currentStateString)
-  //                 let action = JSON.parse(actionString);
-  //                 params.callingAction = action
-
-  //                 instance = new ${action.data.contractName}(initParams)
-  //                 instance.setState(currentState)
-  //                 let result = await instance['${method}'](params, callerAccount)
-  //                 save(instance.state)
-  //                 commit(result)
-                  
-                  
-  //               }catch(err){
-  //                 failure = err
-  //               }
-                  
-                
-  //             }
-  
-  //             execute()
-  //             .then(()=>{
-  //               if(failure) throw new Error(failure.message)
-  //               fail(e)
-  //             })
-  //             .catch((e)=>{
-  //               fail(e)
-  //             })
-              
-  //           `
-  //             let result = await callRemoteVM(contract.code + instruction)
-              
-  //             if(result.error){
-  //               resolve({error:result.error})
-  //             }else{
-  //               if(result.state){
-  //                 this.chain.contractTable.updateContractState('Token', result.state)
-  //                 resolve(result.value)
-  //               }else{
-  //                 resolve({error:'An error occurred'})
-  //               }
-  //             }
-              
-  //         }else{
-  //           resolve({error:'Unkown contract name'})
-  //         }
-          
-  //       }else{
-  //         resolve({error:'Unkown account name'})
-  //       }
-  //     }catch(e){
-  //       console.log('Bugs there',e) 
-  //       resolve({error:e.message})
-  //     }
-
-
-
-  //   })
-  // }
-
   broadcastNewAction(action){
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
@@ -1944,8 +1804,8 @@ class Node {
         if(success.error) resolve({error:success.error})
         else if(!success.error){
           this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
-          //Action will be added to Mempool only is valid and if corresponds with contract call
-          Mempool.addAction(action)
+          //Action will be added to this.mempool only is valid and if corresponds with contract call
+          let added = await  this.mempool.addAction(action)
           resolve({action:action, success:success})
         }
         
@@ -1972,46 +1832,46 @@ class Node {
 
 
 
-  cashInCoinbaseTransactions(){
-    return new Promise((resolve, reject)=>{
-      if(Mempool.pendingCoinbaseTransactions){
-        let hashes = Object.keys(Mempool.pendingCoinbaseTransactions);
+  // cashInCoinbaseTransactions(){
+  //   return new Promise((resolve, reject)=>{
+  //     if(this.mempool.pendingCoinbaseTransactions){
+  //       let hashes = Object.keys(this.mempool.pendingCoinbaseTransactions);
         
-        hashes.forEach( async(hash) =>{
-          let transaction = Mempool.pendingCoinbaseTransactions[hash];
+  //       hashes.forEach( async(hash) =>{
+  //         let transaction = this.mempool.pendingCoinbaseTransactions[hash];
           
-            if(transaction){
-              let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
+  //           if(transaction){
+  //             let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
               
-              if(readyToMove && !readyToMove.error && !readyToMove.pending){
+  //             if(readyToMove && !readyToMove.error && !readyToMove.pending){
                 
-                Mempool.moveCoinbaseTransactionToPool(transaction.hash);
-                this.sendPeerMessage('transaction',transaction);
-                resolve(true);
+  //               this.mempool.moveCoinbaseTransactionToPool(transaction.hash);
+  //               this.sendPeerMessage('transaction',transaction);
+  //               resolve(true);
                 
-              }else{
-                if(readyToMove.error){
-                  logger('Rejected Transaction:', transaction.hash)
-                  logger(readyToMove.error);
-                  Mempool.rejectCoinbaseTransaction(transaction.hash);
+  //             }else{
+  //               if(readyToMove.error){
+  //                 logger('Rejected Transaction:', transaction.hash)
+  //                 logger(readyToMove.error);
+  //                 this.mempool.rejectCoinbaseTransaction(transaction.hash);
 
-                }else if(readyToMove.pending){
-                  //Do nothing
-                }
-              }
+  //               }else if(readyToMove.pending){
+  //                 //Do nothing
+  //               }
+  //             }
                 
               
-            }else{
-              logger('ERROR: coinbase transaction not found');
-              resolve({error:'ERROR: coinbase transaction not found'})
-            }
+  //           }else{
+  //             logger('ERROR: coinbase transaction not found');
+  //             resolve({error:'ERROR: coinbase transaction not found'})
+  //           }
            
-        })
+  //       })
         
-      }
-    })
+  //     }
+  //   })
   
-  }
+  // }
 
   save(){
     return new Promise(async (resolve, reject)=>{
@@ -2019,7 +1879,7 @@ class Node {
         let blockchainSaved = await this.chain.save()
         let savedStates = await this.chain.balance.saveStates();
         let savedNodeList = await this.nodeList.saveNodeList();
-        let savedMempool = await Mempool.saveMempool();
+        let savedMempool = await this.mempool.saveMempool();
         //let savedAccountTable = await this.chain.accountTable.saveTable();
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();

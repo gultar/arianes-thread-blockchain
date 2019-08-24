@@ -6,10 +6,11 @@ const fs = require('fs')
 const PouchDB = require('pouchdb')
 
 class BalanceTable{
-    constructor(state, history){
-        this.states = (state?state:{})
-        this.history = (history?history:{})
+    constructor(accountTable){
+        this.states = {}
+        this.history = {}
         this.stateDB = new Database('./data/balanceDB')
+        this.accountTable = accountTable
     }
 
     // saveHistory(blockNumber){
@@ -81,9 +82,14 @@ class BalanceTable{
         return new Promise((resolve)=>{
             let hashes = Object.keys(transactions);
             let errors = {}
-            hashes.forEach( hash=>{
+            hashes.forEach( async (hash)=>{
                 let tx = transactions[hash];
-                let executed = this.executeTransaction(tx, blockNumber)
+                let executed = ''
+                if(tx.type == 'call'){
+                    executed = await this.executeTransactionCall(tx, blockNumber)
+                }else{
+                    executed  = await this.executeTransaction(tx, blockNumber)
+                }
                 if(executed.error) errors[hash] = executed.error;
             })
             let numOfErrors = Object.keys(errors).length;
@@ -126,6 +132,52 @@ class BalanceTable{
                 }
             }
             
+            
+        }
+    }
+
+    async executeTransactionCall(transaction, blockNumber){
+        if(isValidTransactionJSON(transaction)){
+            
+            let fromAccountName = transaction.fromAddress;
+            let toAccountName = transaction.toAddress;
+            let fromAddress = await this.accountTable.getAccount(fromAccountName)
+            let toAddress = await this.accountTable.getAccount(toAccountName);
+
+            if(fromAddress && toAddress){
+                let amount = transaction.amount;
+                let hash = transaction.hash;
+                let miningFee = transaction.miningFee;
+    
+                if(fromAddress !== 'coinbase'){
+                    let coinsSpent = this.spend(fromAddress, amount+miningFee, blockNumber);
+                    if(!coinsSpent.error){
+                        let coinsGained = this.gain(toAddress, amount, blockNumber);
+                        
+                        if(coinsGained.error){
+                            return { error:coinsGained.error }
+                        }else{
+                            return true;
+                        }
+                        
+                    }else{
+                        return { error:coinsSpent.error };
+                    }
+                }else{
+                    let coinsGained = this.gain(toAddress, amount, blockNumber);
+                    if(coinsGained.error){
+                        return { error:coinsGained.error }
+                    }else{
+                        return true;
+                    }
+                }
+            }else if(fromAddress && !toAccountName){
+                return { error: 'Receiver address of account is undefined'}
+            }else if(!fromAddress && toAccountName){
+                return { error: 'Sender address of account is undefined'}
+            }else{
+                return { error: 'Both addresses of accounts are undefined'}
+            }
             
         }
     }

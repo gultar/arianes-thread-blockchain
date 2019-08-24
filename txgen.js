@@ -5,6 +5,67 @@ const axios = require('axios')
 const Transaction = require('./backend/classes/transaction')
 const WalletManager = require('./backend/classes/walletManager')
 const manager = new WalletManager()
+
+const parseDataArgument = (dataString) =>{
+    return new Promise((resolve)=>{
+        if(typeof dataString == 'string'){
+            try{
+                let data = JSON.parse(dataString);
+                resolve(data)
+            }catch(e){
+                resolve(false)
+            }
+        }
+    })
+}
+
+const txgen = (program) =>{
+    return new Promise(async (resolve)=>{
+        let amount = JSON.parse(program.amount);
+        let data = ''
+        if(program.data){
+            data = await parseDataArgument(program.data)
+        }
+        
+        
+        let transaction = new Transaction
+            (
+                program.fromAddress, 
+                program.toAddress, 
+                amount, 
+                data,
+                program.type
+            );
+            let wallet = await manager.loadByWalletName(program.walletName)
+            if(wallet){
+                let unlocked = await wallet.unlock(program.password)
+                if(unlocked){
+                    let signature = await wallet.sign(transaction.hash);
+                    if(signature){
+                        transaction.signature = signature;
+                        axios.post(`${program.url}/transaction`, transaction)
+                        .then( success => {
+                            console.log(JSON.stringify(success.data, null, 2))
+                            setTimeout(()=>{
+                                txgen(program)
+                               }, 1000) 
+                        })
+                        .catch( e => {
+                            console.log(e)
+                            resolve(false)
+                        })
+                    }else{
+                        console.log('ERROR: Could not sign transaction')
+                    }
+                }else{
+                    console.log('ERROR: Could not unlock wallet')
+                }
+            }else{
+                console.log('ERROR: Could not find wallet')
+            }
+    })
+}
+
 program
 .option('-w, --walletName <walletName>', "Sender's wallet name")
 .option('-p, --password <password>', "Sender's wallet password")
@@ -20,38 +81,9 @@ program
         if(program.fromAddress){
             if(program.toAddress){
                 if(program.amount){
-                    setInterval(async ()=>{
-                        let amount = JSON.parse(program.amount);
-                        let transaction = new Transaction
-                            (
-                                program.fromAddress, 
-                                program.toAddress, 
-                                amount, 
-                                program.data
-                            );
-                            let wallet = await manager.loadByWalletName(program.walletName)
-                            if(wallet){
-                                let unlocked = await wallet.unlock(program.password)
-                                if(unlocked){
-                                    let signature = await wallet.sign(transaction.hash);
-                                    
-                                    if(signature){
-                                        transaction.signature = signature;
-                                        axios.post(`${program.url}/transaction`, transaction)
-                                        .then( success => console.log(JSON.stringify(success.data, null, 2)))
-                                        .catch( e => console.log(e))
-                                    }else{
-                                        console.log('ERROR: Could not sign transaction')
-                                    }
-                                }else{
-                                    console.log('ERROR: Could not unlock wallet')
-                                }
-                            }else{
-                                console.log('ERROR: Could not find wallet')
-                            }
-                    }, 1000)
-                    
-                        
+
+                   txgen(program)
+                   
                 }else{
                     console.log('ERROR: Need to provide amount to transfer')
                 }

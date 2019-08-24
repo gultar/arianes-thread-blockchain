@@ -16,8 +16,8 @@ const callRemoteVM = (code) =>{
             let keepAlive = setInterval(()=>{
                     child.send('getMemUsage')
                     pingCounter++;
-                    if(pingCounter > 100){
-                        console.log('Aborting process');
+                    if(pingCounter > 50){
+                        // console.log('Aborting process');
                         child.kill()
                         clearInterval(keepAlive)
                         resolve({error:'VM ERROR: VM Timed out'})

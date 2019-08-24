@@ -36,11 +36,3 @@ class FuckUp{
         }
     }
 }
-
-let acorn = require('acorn');
-
-let test = FuckUp.toString()
-
-acorn.parse(test, (token)=>{
-    console.log(token)
-})

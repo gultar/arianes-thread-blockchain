@@ -5,6 +5,20 @@ const axios = require('axios')
 const Transaction = require('./backend/classes/transaction')
 const WalletManager = require('./backend/classes/walletManager')
 const manager = new WalletManager()
+
+const parseDataArgument = (dataString) =>{
+    return new Promise((resolve)=>{
+        if(typeof dataString == 'string'){
+            try{
+                let data = JSON.parse(dataString);
+                resolve(data)
+            }catch(e){
+                resolve(false)
+            }
+        }
+    })
+}
+
 program
 .option('-w, --walletName <walletName>', "Sender's wallet name")
 .option('-p, --password <password>', "Sender's wallet password")
@@ -21,19 +35,26 @@ program
             if(program.toAddress){
                 if(program.amount){
                     let amount = JSON.parse(program.amount);
+                    
+                    let data = ''
+                    if(program.data){
+                        data = await parseDataArgument(program.data)
+                    }
+                    
+                    
                     let transaction = new Transaction
                         (
                             program.fromAddress, 
                             program.toAddress, 
                             amount, 
-                            program.data
+                            data,
+                            program.type
                         );
                         let wallet = await manager.loadByWalletName(program.walletName)
                         if(wallet){
                             let unlocked = await wallet.unlock(program.password)
                             if(unlocked){
                                 let signature = await wallet.sign(transaction.hash);
-                                
                                 if(signature){
                                     transaction.signature = signature;
                                     axios.post(`${program.url}/transaction`, transaction)
@@ -62,5 +83,7 @@ program
         console.log('ERROR: Need to provide wallet name & password and url of node')
     }
 })
+
+
 
 program.parse(process.argv)

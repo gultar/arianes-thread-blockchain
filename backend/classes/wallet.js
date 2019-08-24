@@ -259,6 +259,9 @@ class Wallet{
                         console.log(e);
                         resolve(false)
                     }
+                }else{
+                    console.log('Wallet does not exist')
+                    resolve(false)
                 }
             })
         })

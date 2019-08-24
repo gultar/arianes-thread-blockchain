@@ -288,21 +288,22 @@ function copyFile(source, target) {
 
 const validatePublicKey = (compressedPublicKey) =>{
   return new Promise((resolve, reject)=>{
-    if(compressedPublicKey){
-      try{
-        const publicKey = ECDSA.fromCompressedPublicKey(compressedPublicKey);
-        if(publicKey){
-          resolve(true)
-        }else{
+      if(compressedPublicKey){
+        try{
+          const publicKey = ECDSA.fromCompressedPublicKey(compressedPublicKey);
+          if(publicKey){
+            resolve(true)
+          }else{
+            resolve(false)
+          }
+          
+        }catch(e){
           resolve(false)
         }
-        
-      }catch(e){
-        resolve(false)
+      }else{
+        resolve(false);
       }
-    }else{
-      resolve(false);
-    }
+
   })
 }
 

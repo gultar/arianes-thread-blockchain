@@ -14,6 +14,10 @@ class Mempool{
         this.rejectedTransactions = {};
         this.pendingCoinbaseTransactions = {};
         this.pendingActions = {};
+
+        this.transactionsInProcess = {};
+        this.actionsInProcess = {};
+
         this.maxBatchSize = 50000
         this.busyGathering = false
     }
@@ -140,13 +144,17 @@ class Mempool{
         }else{
             return new Promise(async(resolve)=>{
                 if(this.pendingTransactions && Object.keys(this.pendingTransactions).length > 0){
+
                     let transactions = JSON.parse(JSON.stringify(this.pendingTransactions));
+                    this.transactionsInProcess = transactions
                     let batch = {}
+                    
                     if(this.calculateSizeOfBatch(transactions) <= this.maxBatchSize){
                         batch = transactions
                         this.busyGathering = false
                     }else{
                         batch = await this.gatherPartialBatch(transactions);
+                        let hashes = Object.keys(batch);
                         this.busyGathering = false
                     }
                     resolve(batch);
@@ -181,6 +189,7 @@ class Mempool{
             if(this.pendingActions && Object.keys(this.pendingActions).length > 0){
                 let actions = JSON.parse(JSON.stringify(this.pendingActions));
                 let batch = {}
+                this.pendingActions = {}
                 if(this.calculateSizeOfBatch(actions) <= this.maxBatchSize){
                     batch = actions
                 }else{
@@ -203,11 +212,11 @@ class Mempool{
     
 
     deleteTransactionsFromMinedBlock(transactions){
-        return new Promise((resolve)=>{
+        return new Promise(async (resolve)=>{
             if(typeof transactions == 'object'){
                 let txHashes = Object.keys(transactions);
             
-                for(var hash of txHashes){
+                for await(var hash of txHashes){
                     if(this.pendingTransactions.hasOwnProperty(hash)){
                         delete this.pendingTransactions[hash];
                     }

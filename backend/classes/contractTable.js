@@ -102,7 +102,6 @@ class ContractTable{
                     let previousChanges = state.changes
                     
                     previousChanges[action.hash] = newState
-
                     let added = await this.contractStateDB.add({
                         _id:state._id,
                         _rev:state._rev,
@@ -190,23 +189,28 @@ class ContractTable{
                         if(stateAtAction.error) resolve({error:stateAtAction.error})
 
                         let previousChanges = state.changes
-
                         if(previousChanges){
 
                             let actionHashes = Object.keys(previousChanges)
-                            let indexOfLastAction = actionHashes.length;
+                            let indexOfLastAction = actionHashes.length
                             let positionOfAction = actionHashes.indexOf(action.hash)
                             let numberOfActionsToRemove = indexOfLastAction - positionOfAction
                             let actionsToRemove = actionHashes.splice(positionOfAction, numberOfActionsToRemove)
+                            
                             if(numberOfActionsToRemove > 0){
                                 for await(var hashOfAction of actionsToRemove){
+                                    
                                     delete previousChanges[hashOfAction];
                                 }
+
+                                let previousStateIndex = positionOfAction - 1
+                                let previousStateHash = actionHashes[previousStateIndex];
+                                let previousState = previousChanges[previousStateHash];
         
                                 let added = await this.contractStateDB.add({
                                     _id:state._id,
                                     _rev:state._rev,
-                                    state:stateAtAction,
+                                    state:previousState || stateAtAction,
                                     changes:previousChanges
                                 })
                                 resolve(added)

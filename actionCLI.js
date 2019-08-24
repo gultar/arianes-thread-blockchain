@@ -227,7 +227,7 @@ program
                                         console.log('An error occurred:', response.data.error)
                                     }else{
                                         console.log(`Contract call "${task}" has been succesfully been sent`)
-                                        console.log(`Call's action: `, response.data)
+                                        console.log(`Call's action: `, JSON.stringify(response.data, null, 1))
                                     }
                                     
                                 }
