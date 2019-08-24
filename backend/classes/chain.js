@@ -1759,9 +1759,9 @@ class Blockchain{
           let isReceivingAddressValid = await validatePublicKey(toAddress)
 
           if(isSendingAddressValid && isReceivingAddressValid){
+
             let isSignatureValid = await this.validateSignature(transaction, fromAddress);
             if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
-  
   
             let isNotCircular = fromAddress !== toAddress;
             if(!isNotCircular) resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
@@ -1790,9 +1790,6 @@ class Blockchain{
 
         }
         
-        
-       
-            
       }catch(err){
         resolve({error:'ERROR: an error occured'})
       }
