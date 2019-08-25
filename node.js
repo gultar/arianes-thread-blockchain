@@ -915,17 +915,17 @@ class Node {
 
   initChainInfoAPI(app){
     app.get('/getWalletBalance', async(req, res)=>{
-      if(isValidWalletBalanceJSON(req.query)){
         let publicKey = req.query.publicKey;
         if(publicKey){
+          let isAccount = await this.chain.accountTable.getAccount(publicKey);
+          if(isAccount) publicKey = isAccount.ownerKey
+
           let state = await this.chain.balance.getBalance(publicKey);
           res.json(state).end()
         }else{
           res.json({error:'ERROR: must provide publicKey'}).end()
         }
-      }else{
-        res.json({error:'ERROR: Invalid JSON request parameters'}).end()
-      }
+      
     })
 
     app.get('/getWalletHistory', async(req, res)=>{
@@ -1620,24 +1620,34 @@ class Node {
             if(!alreadyReceived && !alreadyIsInActiveFork){
               //Need to validate more before stopping miner
               if(this.chain.validateBlockHeader(block)){
-  
-                if(this.localServer && this.localServer.socket){
-                  this.localServer.socket.emit('stopMining')
-                }
-  
+
                 let addedToChain = await this.chain.pushBlock(block);
                 if(addedToChain.error){
                   logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
-                }else{
+                }else if(addedToChain){
+
                   if(this.localServer && this.localServer.socket){
-                    this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                    this.localServer.socket.emit('stopMining')
+                    let putback = await this.mempool.putbackTransactions(block)
+                    
+                    if(block.actions){
+                      let actionsPutback = await this.mempool.putbackActions(block)
+                      if(actionsPutback.error) resolve({error:actionsPutback.error})
+                    }else{
+                      if(putback.error) resolve({error:putback.error})
+                      this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                    }
+                    
+                    resolve(true);
+                  }else{
+                    resolve(true);
                   }
                   
-                  resolve(true);
+                }else{
+                  resolve({error:'Could not add block to chain'})
                 }
   
-                
-
+  
               }else{
                 resolve({error:'ERROR:New block header is invalid'})
               }

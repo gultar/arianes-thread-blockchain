@@ -8,6 +8,8 @@ class Mempool{
         this.actions = new Database('./data/actionDB')
         this.txReceipts = {}
         this.actionReceipts = {}
+        this.usedTxReceipts = {}
+        this.usedActionReceipts = {}
         this.maxBatchSize = 50000
         this.busyGathering = false
     }
@@ -102,103 +104,202 @@ class Mempool{
         })
     }
 
+    useTransaction(hash){
+        return new Promise((resolve)=>{
+            let receipt = this.txReceipts[hash]
+            if(receipt){
+                this.usedTxReceipts[hash] = JSON.parse(JSON.stringify(receipt))
+                delete this.txReceipts[hash]
+                resolve(true)
+            }else{
+                resolve({error:`Could not use transaction of hash ${hash}`})
+            }
+        })
+    }
+
+    unuseTransaction(hash){
+        return new Promise((resolve)=>{
+            let receipt = this.usedTxReceipts[hash]
+            if(receipt){
+                this.txReceipts[hash] = JSON.parse(JSON.stringify(receipt))
+                delete this.usedTxReceipts[hash]
+                resolve(true)
+            }else{
+                resolve({error:`Could not unuse transaction of hash ${hash}`})
+            }
+        })
+    }
+
+    useAction(hash){
+        return new Promise((resolve)=>{
+            let receipt = this.actionReceipts[hash]
+            if(receipt){
+                this.usedActionReceipts[hash] = JSON.parse(JSON.stringify(receipt))
+                delete this.actionReceipts[hash]
+                resolve(true)
+            }else{
+                resolve({error:`Could not use action of hash ${hash}`})
+            }
+        })
+    }
+
+    unuseAction(hash){
+        return new Promise((resolve)=>{
+            let receipt = this.usedActionReceipts[hash]
+            if(receipt){
+                this.actionReceipts[hash] = JSON.parse(JSON.stringify(receipt))
+                delete this.usedActionReceipts[hash]
+                resolve(true)
+            }else{
+                resolve({error:`Could not unuse action of hash ${hash}`})
+            }
+        })
+    }
+
     gatherTransactionsForBlock(){
         return new Promise( async (resolve)=>{
             let transactions = {}
             let hashes = Object.keys(this.txReceipts)
+            let errors = {}
             for await(var hash of hashes){
                 let batchSize = await this.calculateSizeOfBatch(transactions);
 
                 if(batchSize < this.maxBatchSize){
                     let transaction = await this.getTransaction(hash)
-                
+                    
                     if(transaction){
-                        if(transaction.error) resolve({error:transaction.error})
-                        transactions[transaction.hash] = transaction
+                        if(transaction.error) errors[hash] = transaction.error
+
+                        let used = await this.useTransaction(hash)
+                        if(used){
+                            if(used.error) errors[hash] = used.error
+                            transactions[transaction.hash] = transaction
+                        }
                     }
                     
                 }
                 
             }
 
-            resolve(transactions)
+            if(Object.keys(errors).length > 0) resolve({error:errors})
+            else resolve(transactions)
+        })
+    }
+
+    putbackTransactions(block){
+        return new Promise(async (resolve)=>{
+            let txHashes = Object.keys(block.transactions);
+            let errors = {}
+            for await(let hash of txHashes){
+                if(this.usedTxReceipts[hash]){
+                    let unused = await this.unuseTransaction(hash);
+                    if(unused.error) errors[hash] = unused.error
+                }
+            }
+
+            if(Object.keys(errors).length > 0) resolve({error:errors})
+            else resolve(true)
         })
     }
     gatherActionsForBlock(){
         return new Promise( async (resolve)=>{
             let actions = {}
             let hashes = Object.keys(this.actionReceipts)
-            let lastHash = hashes[hashes.length - 1]
-            let finished = false
-
+            let errors = {}
             for await(var hash of hashes){
                 let batchSize = await this.calculateSizeOfBatch(actions);
 
                 if(batchSize < this.maxBatchSize){
                     let action = await this.getAction(hash)
-                
+                    
                     if(action){
-                        if(action.error) resolve({error:action.error})
-                        actions[action.hash] = action
+                        if(action.error) errors[hash] = action.error
+                        
+                        let used = await this.useAction(hash)
+                        if(used){
+                            if(used.error) errors[hash] = used.error
+                            actions[action.hash] = action
+                        }
+                        
                     }
                     
-                    if(hash == lastHash) finished = true
-                }else{
-                    if(hash == lastHash) finished = true
                 }
                 
             }
 
-            if(finished){
-                resolve(actions)
+            if(Object.keys(errors).length > 0) resolve({error:errors})
+            else resolve(actions)
+        })
+    }
+    putbackActions(block){
+        return new Promise(async (resolve)=>{
+            let actionHashes = Object.keys(block.actions);
+            let errors = {}
+            for await(let hash of actionHashes){
+                if(this.usedActionReceipts[hash]){
+                    let unused = await this.unuseAction(hash);
+                    if(unused.error) errors[hash] = unused.error
+                }
             }
+
+            if(Object.keys(errors).length > 0) resolve({error:errors})
+            else resolve(true)
         })
     }
     deleteTransactionsFromMinedBlock(transactions){
         return new Promise(async (resolve)=>{
             let hashes = Object.keys(transactions)
-           
+            let errors = {}
 
-            for await(var hash of hashes){
+            for(var hash of hashes){
                 let entry = await this.transactions.get(hash)
                 if(entry){
-                    if(entry.error) resolve({error:entry.error})
+                    if(entry.error) errors[hash] = entry.error
 
+                    delete this.usedTxReceipts[hash]
                     let deleted = await this.transactions.delete(entry)
-                    if(deleted.error) resolve({error:deleted.error})
-
-                    delete this.txReceipts[hash]
-
+                    if(deleted){
+                        if(deleted.error) errors[hash] = deleted.error 
+                    }
+                    
                 }
                 
             }
 
-            resolve(true)
+            if(Object.keys(errors) > 0){
+                resolve({error:errors})
+            }else{
+                resolve(true)
+            }
+
         })
     }
 
     deleteActionsFromMinedBlock(actions){
         return new Promise(async (resolve)=>{
             let hashes = Object.keys(actions)
-            let lastHash = hashes[hashes.length - 1]
-            let finished = false
+            let errors = {}
+
 
             for await(var hash of hashes){
                 let entry = await this.actions.get(hash)
                 if(entry){
                     if(entry.error) resolve({error:entry.error})
 
-                    let deleted = await this.actions.delete(entry)
-                    if(deleted.error) resolve({error:deleted.error})
-
                     delete this.actionReceipts[hash]
+                    let deleted = await this.actions.delete(entry)
+                    if(deleted){
+                        if(deleted.error) errors[hash] = deleted.error 
+                    }
+                    
 
-                    if(hash == lastHash) finished = true
                 }
                 
             }
 
-            if(finished){
+            if(Object.keys(errors) > 0){
+                resolve({error:errors})
+            }else{
                 resolve(true)
             }
         })
@@ -368,27 +469,3 @@ class Mempool{
 }
 
 module.exports = Mempool
-
-// const create = async () =>{
-//     let Transaction = require('./transaction');
-//     let myTx = new Transaction('hello', 'damn', 5);
-//     let myTx2 = new Transaction('hello', 'danus', 5);
-//     let myTx3 = new Transaction('hello', 'damus', 5);
-//     let myPool = new Mempool();
-//     let added = await myPool.addTransaction(myTx)
-//     let added2 = await myPool.addTransaction(myTx2)
-//     let added3 = await myPool.addTransaction(myTx3)
-//     if(added && added2 && added3) {
-//         let tx = await myPool.gatherTransactionsForBlock()
-
-//         let deleted = await myPool.deleteTransactionsFromMinedBlock({ 
-//             transactions:tx,
-//             hash:'oaijwdoaiwjdoawdjaowidj'
-//          })
-
-//          console.log(deleted)
-//     }
-    
-// }
-
-// create()

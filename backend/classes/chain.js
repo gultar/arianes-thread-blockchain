@@ -233,43 +233,51 @@ class Blockchain{
             let added = await this.putBlockToDB(newBlock)
             if(added){
 
+              
+
               let deleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
-              if(deleted.error) errors['Mempool tx deletion error'] = 'ERROR: Could not delete transactions from Mempool'
-
-              let executed = await this.balance.runBlock(newBlock)
-              if(executed.error) errors['Balance error'] = executed.error
-
-              let callsExecuted = await this.executeTransactionCalls(newBlock)
-              if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
-
-              if(newBlock.actions){
-
-                let allActionsExecuted = await this.executeActionBlock(newBlock)
-                if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
-
-                let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(newBlock.actions)
-                if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
+              if(deleted){
+                if(deleted.error) errors['Mempool tx deletion error'] = deleted.error;
 
                 
-                if(Object.keys(errors).length > 0){
-                  this.isBusy = false
-                  resolve({error: errors})
-                }else{
-                  this.isBusy = false
-                  resolve(true);
-                }
-                
-              }else if(!newBlock.actions){
+                let executed = await this.balance.runBlock(newBlock)
+                if(executed.error) errors['Balance error'] = executed.error
 
-                if(Object.keys(errors).length > 0){
-                  this.isBusy = false
-                  resolve({error: errors})
-                }else{
-                  this.isBusy = false
-                  resolve(true);
+                let callsExecuted = await this.executeTransactionCalls(newBlock)
+                if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+
+                if(newBlock.actions){
+
+                  let allActionsExecuted = await this.executeActionBlock(newBlock)
+                  if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
+
+                  let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(newBlock.actions)
+                  if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
+
+                  
+                  if(Object.keys(errors).length > 0){
+                    this.isBusy = false
+                    resolve({error: errors})
+                  }else{
+                    this.isBusy = false
+                    resolve(true);
+                  }
+                  
+                }else if(!newBlock.actions){
+
+                  if(Object.keys(errors).length > 0){
+                    this.isBusy = false
+                    resolve({error: errors})
+                  }else{
+                    this.isBusy = false
+                    resolve(true);
+                  }
                 }
+
+              }else{
+                resolve({error:'Could not delete block transactions'})
               }
-
+              
             }else{
 
               this.isBusy = false
@@ -1766,7 +1774,7 @@ class Blockchain{
             let isNotCircular = fromAddress !== toAddress;
             if(!isNotCircular) resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
   
-            var balanceOfSendingAddr = await this.checkBalance(fromAddress) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+            var balanceOfSendingAddr = await this.checkBalance(fromAddress)
             let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
             if(!hasEnoughFunds) resolve({error:'REJECTED: Sender does not have sufficient funds'});
             

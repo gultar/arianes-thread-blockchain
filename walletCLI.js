@@ -66,17 +66,11 @@ const runWalletCLI = async () =>{
           
       
         program
-          .command('balance <walletName>')
+          .command('balance <publicKey>')
           .description('Displays balance of a wallet')
-          .action(async ( walletName )=>{
+          .action(async ( publicKey )=>{
             if(program.url){
-              let isPublicKey = await validatePublicKey(walletName)
-              if(isPublicKey){
-                let publicKey = walletName;
-                api.getWalletBalanceOfPublicKey(publicKey, program.url);
-              }else{
-                api.getWalletBalance(walletName, program.url);
-              }
+              api.getWalletBalanceOfPublicKey(publicKey, program.url);
               
             }else{
               console.log('Need to provide URL of running node')
