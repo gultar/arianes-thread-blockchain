@@ -315,40 +315,48 @@ class Node {
     })
 
     socket.on('getNextBlock', async (hash)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { 
-        // console.log("Peer sent too many 'getNextBlock' events") 
-      }); // consume 1 point per event from IP
-      let index = this.chain.getIndexOfBlockHash(hash)
-      if(index || index === 0){
-        if(hash == this.chain.getLatestBlock().hash){
-          socket.emit('nextBlock', {end:'End of blockchain'})
-        }else{
-         
-          let nextBlock = this.chain.extractHeader(this.chain.chain[index + 1]);
-          let transactions = await this.chain.chainDB.get(nextBlock.hash)
-          .catch(e => console.log(e))
-          let actions = {}
-            
-            if(transactions){
-              transactions = transactions[transactions._id]
-
-              if(transactions.actions){
-                actions = JSON.parse(JSON.stringify(transactions.actions))
-                delete transactions.actions
-                nextBlock.actions = actions
-              }
-              
-              nextBlock.transactions = transactions;
-              socket.emit('nextBlock', nextBlock)
+      if(hash){
+        await rateLimiter.consume(socket.handshake.address).catch(e => { 
+          // console.log("Peer sent too many 'getNextBlock' events") 
+        }); // consume 1 point per event from IP
+        let index = this.chain.getIndexOfBlockHash(hash)
+        if(index || index === 0){
+          if(hash == this.chain.getLatestBlock().hash){
+            socket.emit('nextBlock', {end:'End of blockchain'})
+          }else{
+           
+            let nextBlock = this.chain.chain[index + 1]
+            if(nextBlock){
+              let transactions = await this.chain.chainDB.get(nextBlock.hash)
+              .catch(e => console.log(e))
+              let actions = {}
+                
+                if(transactions){
+                  transactions = transactions[transactions._id]
+    
+                  if(transactions.actions){
+                    actions = JSON.parse(JSON.stringify(transactions.actions))
+                    delete transactions.actions
+                    nextBlock.actions = actions
+                  }
+                  
+                  nextBlock.transactions = transactions;
+                  socket.emit('nextBlock', nextBlock)
+                }else{
+                  socket.emit('nextBlock', {error:'Could not find transactions'})
+                }
             }else{
-              socket.emit('nextBlock', {error:'Could not find transactions'})
+              console.log('Chain does not contain block at ', index+1)
             }
+
+            
+          }
           
+        }else{
+          socket.emit('nextBlock', {error:'Block not found'})
         }
-        
-      }else{
-        socket.emit('nextBlock', {error:'Block not found'})
       }
+      
     })
 
     socket.on('getBlockFromHash', async(hash)=>{
