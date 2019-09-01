@@ -79,8 +79,6 @@ class Node {
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-    
-
     this.blocksToValidate = []
     this.updated = false;
     this.isDownloading = false;
@@ -110,7 +108,7 @@ class Node {
             
             
             if(!nodeListLoaded) reject('Could not load node list')
-            if(!mempoolLoaded) reject('Could not load this.mempool');
+            if(!mempoolLoaded) reject('Could not load mempool');
             //if(!accountsLoaded) reject('Could not load account table')
 
             logger('Loaded Blockchain'); 
@@ -1627,34 +1625,38 @@ class Node {
   
             if(!alreadyReceived && !alreadyIsInActiveFork){
               //Need to validate more before stopping miner
+
               if(this.chain.validateBlockHeader(block)){
 
-                let addedToChain = await this.chain.pushBlock(block);
-                if(addedToChain.error){
-                  logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
-                }else if(addedToChain){
-
-                  if(this.localServer && this.localServer.socket){
-                    this.localServer.socket.emit('stopMining')
-                    let putback = await this.mempool.putbackTransactions(block)
-                    
-                    if(block.actions){
-                      let actionsPutback = await this.mempool.putbackActions(block)
-                      if(actionsPutback.error) resolve({error:actionsPutback.error})
-                    }else{
-                      if(putback.error) resolve({error:putback.error})
-                      this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                    }
-                    
-                    resolve(true);
+                if(this.localServer && this.localServer.socket){
+                  this.localServer.socket.emit('stopMining')
+                  let putback = await this.mempool.putbackTransactions(block)
+                  
+                  if(block.actions){
+                    let actionsPutback = await this.mempool.putbackActions(block)
+                    if(actionsPutback.error) resolve({error:actionsPutback.error})
                   }else{
-                    resolve(true);
+                    if(putback.error) resolve({error:putback.error})
+                    this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                   }
                   
-                }else{
-                  resolve({error:'Could not add block to chain'})
                 }
+
+                let addedToChain = await this.chain.pushBlock(block);
+                if(addedToChain){
+                  this.localServer.socket.emit('startMining')
+                  if(addedToChain.error){
+                    logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
+                    resolve({error:addedToChain.error})
+                  }else{
+                    resolve(true)
+                  }
+                  
+                  
+                }
+                
   
+                
   
               }else{
                 resolve({error:'ERROR:New block header is invalid'})
