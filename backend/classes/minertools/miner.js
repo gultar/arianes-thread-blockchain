@@ -311,6 +311,8 @@ class Miner{
         this.nextCoinbase = false;
         this.readyToMine = false;
         
+      }else{
+        logger('No active miner to stop')
       }
       // if(this.minerLoop) clearInterval(this.minerLoop)
     }

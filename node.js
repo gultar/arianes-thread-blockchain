@@ -1629,22 +1629,21 @@ class Node {
               if(this.chain.validateBlockHeader(block)){
 
                 if(this.localServer && this.localServer.socket){
+
                   this.localServer.socket.emit('stopMining')
                   let putback = await this.mempool.putbackTransactions(block)
-                  
+                  if(putback.error) resolve({error:putback.error})
                   if(block.actions){
                     let actionsPutback = await this.mempool.putbackActions(block)
                     if(actionsPutback.error) resolve({error:actionsPutback.error})
-                  }else{
-                    if(putback.error) resolve({error:putback.error})
-                    this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                   }
                   
                 }
 
                 let addedToChain = await this.chain.pushBlock(block);
                 if(addedToChain){
-                  this.localServer.socket.emit('startMining')
+                  this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                  this.localServer.socket.emit('run')
                   if(addedToChain.error){
                     logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                     resolve({error:addedToChain.error})
