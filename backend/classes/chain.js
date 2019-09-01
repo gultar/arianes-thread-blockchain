@@ -1931,22 +1931,27 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       if(block){
         let actions = block.actions
-        let hashes = Object.keys(actions);
-        let errors = {}
-        for(var hash of hashes){
-          let action = actions[hash]
+        if(actions){
+          let hashes = Object.keys(actions);
+          let errors = {}
+          for(var hash of hashes){
+            let action = actions[hash]
 
-          let result = await this.handleAction(action, block.blockNumber)
-          if(result.error){
-            errors[action.hash] = result.error
+            let result = await this.handleAction(action, block.blockNumber)
+            if(result.error){
+              errors[action.hash] = result.error
+            }
           }
-        }
 
-        if(Object.keys(errors) > 0){
-          resolve({errors:errors})
+          if(Object.keys(errors) > 0){
+            resolve({errors:errors})
+          }else{
+            resolve(true)
+          }
         }else{
           resolve(true)
         }
+        
         
       }else{
         resolve({error:'Missing action block'})
