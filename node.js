@@ -1637,25 +1637,32 @@ class Node {
                     let actionsPutback = await this.mempool.putbackActions(block)
                     if(actionsPutback.error) resolve({error:actionsPutback.error})
                   }
-                  
-                }
 
-                let addedToChain = await this.chain.pushBlock(block);
-                if(addedToChain){
-                  this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                  this.localServer.socket.emit('run')
-                  if(addedToChain.error){
-                    logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
-                    resolve({error:addedToChain.error})
-                  }else{
-                    resolve(true)
+                  let addedToChain = await this.chain.pushBlock(block);
+                  if(addedToChain){
+                    this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                    this.localServer.socket.emit('run')
+                    if(addedToChain.error){
+                      logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
+                      resolve({error:addedToChain.error})
+                    }else{
+                      resolve(true)
+                    }
+                    
                   }
                   
-                  
+                }else{
+                  let addedToChain = await this.chain.pushBlock(block);
+                  if(addedToChain){
+                    if(addedToChain.error){
+                      logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
+                      resolve({error:addedToChain.error})
+                    }else{
+                      resolve(true)
+                    }
+                    
+                  }
                 }
-                
-  
-                
   
               }else{
                 resolve({error:'ERROR:New block header is invalid'})

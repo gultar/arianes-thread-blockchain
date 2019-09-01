@@ -299,22 +299,20 @@ class Miner{
     // }
 
     pause(){
-      
+      logger('Stopping miner')
+        
       if(process.ACTIVE_MINER){
-        logger('Stopping miner')
         process.ACTIVE_MINER.kill()
         process.ACTIVE_MINER = false;
-        this.minerStarted = false;
-        this.pool.pendingTransactions = {}
-        this.pool.pendingActions = {}
-        this.nextBlock = false;
-        this.nextCoinbase = false;
-        this.readyToMine = false;
-        
       }else{
         logger('No active miner to stop')
       }
-      // if(this.minerLoop) clearInterval(this.minerLoop)
+      this.minerStarted = false;
+      this.pool.pendingTransactions = {}
+      this.pool.pendingActions = {}
+      this.nextBlock = false;
+      this.nextCoinbase = false;
+      this.readyToMine = false;
     }
 
     async createCoinbase(){
