@@ -469,10 +469,10 @@ class Node {
       .then(()=>{
         this.peerDiscovery.collectPeers((emitter)=>{
           //DHT Lookup timeout, so we don't keep looking forever
-          setTimeout(()=>{
-            this.peerDiscovery.close()
-            this.peerDiscovery = undefined;
-          }, this.dhtLookupTime )
+          // setTimeout(()=>{
+          //   this.peerDiscovery.close()
+          //   this.peerDiscovery = undefined;
+          // }, this.dhtLookupTime )
   
           emitter.on('peerDiscovered', (peer)=> {
             if(!this.connectionsToPeers[peer.address]){
@@ -1413,11 +1413,6 @@ class Node {
     api.emit('latestBlock', this.chain.getLatestBlock())
     api.on('isReady', ()=>{ api.emit('startMining') })
     api.on('readyToRun', ()=>{ api.emit('run') })
-    // api.on('getTxHashList', ()=>{ api.emit('txHashList', Object.keys(this.mempool.pendingTransactions)) })
-    // api.on('getActionHashList', ()=>{ api.emit('actionHashList', Object.keys(this.mempool.pendingActions)) })
-    // api.on('getTx', (hash)=>{ 
-    //   api.emit('tx', this.mempool.pendingTransactions[hash]) 
-    // })
     
     //In use
     api.on('fetchTransactions', async ()=>{
@@ -1430,6 +1425,7 @@ class Node {
         }
       }
     })
+
     //In use
     api.on('fetchActions', async ()=>{
       if(this.mempool.sizeOfActionPool() > 0){
@@ -1438,9 +1434,6 @@ class Node {
       }
     })
 
-    // api.on('getAction', (hash)=>{ 
-    //   api.emit('action', this.mempool.pendingActions[hash])
-    // })
     api.on('newBlock', async (block)=>{
           
       if(block){
@@ -1468,6 +1461,7 @@ class Node {
         logger('ERROR: New mined block is undefined')
       }
     })
+
     api.on('getLatestBlock', (minersPreviousBlock)=>{
       if(this.chain instanceof Blockchain){
         if(minersPreviousBlock.blockNumber <= this.chain.getLatestBlock().blockNumber){

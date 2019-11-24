@@ -52,32 +52,6 @@ class Miner{
           this.run()
         })
 
-        // this.socket.on('txHashList', (list)=>{
-        //   if(list){
-        //       list.forEach(hash=>{
-        //           this.socket.emit('getTx', hash)
-        //       })
-        //   }
-        // })
-        // this.socket.on('tx', (tx)=>{
-        //     if(tx){
-        //       this.pool.pendingTransactions[tx.hash] = tx;
-        //     }
-        // })
-
-        // this.socket.on('actionHashList', (list)=>{
-        //     if(list){
-        //         list.forEach(hash=>{
-        //             this.socket.emit('getAction', hash)
-        //         })
-        //     }
-        // })
-        // this.socket.on('action', (action)=>{
-        //     if(action){
-        //       this.pool.pendingActions[action.hash] = action;
-        //     }
-        // })
-
         this.socket.on('newTransactions', (transactions)=>{
           if(transactions){
             this.pool.pendingTransactions = transactions
@@ -85,11 +59,6 @@ class Miner{
             
           }
         })
-        // this.socket.on('newActions', (actions)=>{
-        //   if(actions){
-        //     this.pool.pendingActions = actions
-        //   }
-        // })
 
         this.socket.on('latestBlock', (block)=>{
           this.previousBlock = block;
@@ -152,24 +121,6 @@ class Miner{
 
       }
 
-    // getTransactionsToMine(){
-    //   this.transactionUpdate = setInterval(()=>{
-        
-    //     if(!this.buildingBlock && !this.mining && !this.minerStarted){
-    //       if(this.sizeOfPool() > 0){
-    //         if(!this.readyToMine){
-    //           this.socket.emit('isReady')
-    //           this.readyToMine = true
-    //           clearInterval(this.transactionUpdate)
-    //         }
-            
-    //       }else{
-    //         this.socket.emit('fetchTransactions')
-    //       }
-    //     }
-        
-    //   }, 500)
-    // }
 
     run(){
       this.transactionUpdate = setInterval(()=>{

@@ -2841,9 +2841,6 @@ class Blockchain{
 
       })
 
-        
-
-      
     })
     
   }
