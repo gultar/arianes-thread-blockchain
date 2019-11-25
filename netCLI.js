@@ -40,5 +40,22 @@ program
 
     })
 
+program
+    .command('connect <address>')
+    .description('Connect to remote peer')
+    .action(( address )=>{
+        if(program.url){
+            openSocket(program.url, (socket)=>{
+                if(address){
+                    socket.emit('connectionRequest', address)
+                }
+            })
+
+        }else{
+            throw new Error('URL of active is required')
+        }
+
+    })
+
 program.parse(process.argv)
 

@@ -37,12 +37,30 @@ program
 
 
 program
-.command('createaccount <accountName> <walletName> <password>')
+.command('createaccount')
+.option('-a, --accountName <accountName>', "Name of the account's owner wallet")
+.option('-w, --walletName <walletName>', "Name of the account's owner wallet")
+.option('-p, --password <password>', 'Password of owner wallet')
 .option('-y, --accountType <accountType>', 'Define type of account. Either user or contract')
-.description('Requests some general information about the blockchain')
-.action(async (accountName, walletName, password)=>{
+.description(`
+Creates an account to send contract call actions
+
+Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
+`)
+.action(async ()=>{
+
+    let address = program.url;
+    let accountName = program.accountName
+    let walletName = program.walletName
+    let password = program.password
 
     let accountType = program.accountType || 'user'
+
+    if(!address) throw new Error('ERROR: URL of receiving node is required')
+    if(!accountName) throw new Error('ERROR: Name of sending account is required')
+    if(!walletName) throw new Error('ERROR: Name of owner wallet is required')
+    if(!password) throw new Error('ERROR: Password of owner wallet is required')
+
 
     if(!program.url){
         throw new Error('URL of blockchain node is required');
@@ -89,9 +107,13 @@ program
 .option('-a, --accountName <accountName>', "Name of the account's owner wallet")
 .option('-w, --walletName <walletName>', "Name of the account's owner wallet")
 .option('-p, --password <password>', 'Password of owner wallet')
-.description('Requests some general information about the blockchain')
-.action(()=>{
+.description(`
+Tests a call to a contract before sending it
 
+Synthax : node actionCLI.js test -c [ContractName] -t [Task] -a [account] -w [wallet] -p [passwd] -d [Data => '{"key":"value"}']
+`)
+.action(()=>{
+            console.log('Port: ', process.env.PORT)
             let address = program.url;
             let contractName = program.contractName
             let accountName = program.accountName
@@ -174,7 +196,11 @@ program
 .option('-a, --accountName <accountName>', "Name of the account's owner wallet")
 .option('-w, --walletName <walletName>', "Name of the account's owner wallet")
 .option('-p, --password <password>', 'Password of owner wallet')
-.description('Requests some general information about the blockchain')
+.description(`
+Sends an action to interact with smart contracts
+
+Synthax : node actionCLI.js call -c [ContractName] -t [Task] -a [account] -w [wallet] -p [passwd] -d [Data => '{"key":"value"}']
+`)
 .action(()=>{
 
             let address = program.url;
@@ -198,7 +224,6 @@ program
                 let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
                 
                 data = JSON.parse(data)
-
                 let action = new Action(
                     accountName,
                     "contract",
@@ -253,7 +278,17 @@ program
 
 program
 .command('deploy')
-.description('Requests some general information about the blockchain')
+.option('-c, --contractName <contractName>', 'Specify the name of the contract to be called')
+.option('-f, --filename <filename>', 'Filename of contract. Relative path : "./contract.js" ')
+.option('-a, --accountName <accountName>', "Name of the account's owner wallet")
+.option('-w, --walletName <walletName>', "Name of the account's owner wallet")
+.option('-p, --password <password>', 'Password of owner wallet')
+.option('-i, --initParams <initParams>', 'Initial parameters for the deployment of contract')
+.description(`
+Deploys a contract to the blockchain
+
+Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p [passwd] -d [Filename => ./directory/file.js']
+`)
 .action(()=>{
             let address = program.url;
             let contractName = program.contractName
@@ -378,7 +413,17 @@ program
 
 program
 .command('testContract')
-.description('Requests some general information about the blockchain')
+.option('-c, --contractName <contractName>', 'Specify the name of the contract to be called')
+.option('-f, --filename <filename>', 'Filename of contract. Relative path : "./contract.js" ')
+.option('-a, --accountName <accountName>', "Name of the account's owner wallet")
+.option('-w, --walletName <walletName>', "Name of the account's owner wallet")
+.option('-p, --password <password>', 'Password of owner wallet')
+.option('-i, --initParams <initParams>', 'Initial parameters for the deployment of contract')
+.description(`
+Tests the deployment of a contract before sending it
+
+Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet] -p [passwd] -i [InitParams => '{"key":"value"}']
+`)
 .action(()=>{
             let address = program.url;
             let contractName = program.contractName
@@ -499,7 +544,12 @@ program
 
 program
 .command('destroy')
-.description('Requests some general information about the blockchain')
+.description(`
+Destroys a contract from the blockchain. Actually, it only blocks its use but does not remove its code.
+Can only be sent by the owner account/wallet.
+
+Synthax : node actionCLI.js destroy -c [ContractName] -a [account] -w [wallet] -p [passwd]
+`)
 .action(()=>{
             let address = program.url;
             let contractName = program.contractName

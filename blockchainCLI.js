@@ -64,7 +64,7 @@ program
   .option('-n, --hostname <hostname>', 'Specify node hostname')
   .option('-p, --port <port>', 'Specify node port')
   .option('-j, --join [network]', 'Joins network')
-  .option('-s, --seed <seed>', 'Seed nodes to initiate p2p connections')
+  .option('-s, --seeds <seeds>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-d, --peerDiscovery [type]', 'Enable peer discovery using various methods')
   .option('-t, --peerDiscoveryPort <port>', 'Enable peer discovery using various methods')
@@ -134,8 +134,11 @@ program
         node.joinPeers();
       }
   
-      if(program.seed){
-        node.connectToPeer(program.seed);
+      if(program.seeds){
+        let seeds = program.seeds.split(';')
+        for(let seed of seeds){
+          node.connectToPeer(seed);
+        }
       }
      })
      

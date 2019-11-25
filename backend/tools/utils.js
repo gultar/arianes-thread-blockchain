@@ -230,6 +230,22 @@ const createTargetFile = (path)=>{
   })
 }
 
+const createDirectoryIfNotExisting = (pathToFolder)=>{
+ return new Promise((resolve)=>{
+  if(pathToFolder){
+    fs.mkdirSync(pathToFolder, { recursive: true }, (error)=>{
+      if(error){
+        resolve({ exists:true })
+      }else{
+        resolve({ created:true })
+      }
+    })
+ }else{
+  resolve(false)
+ }
+ })
+}
+
 const parseToString = (data)=>{
   let typeOfData = typeof data;
   let file = data;
@@ -324,4 +340,5 @@ module.exports = {
   createTargetFile,
   validatePublicKey,
   getMethodNames,
-  getCPUPercent };
+  getCPUPercent,
+  createDirectoryIfNotExisting };

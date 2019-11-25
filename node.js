@@ -27,7 +27,15 @@ const Mempool = require('./backend/classes/pool'); //Instance not class
 
 
 /****************Tools*************************/
-const { displayTime, displayDate, logger, writeToFile, readFile, isHashPartOfMerkleTree } = require('./backend/tools/utils');
+const { 
+  displayTime, 
+  displayDate, 
+  logger, 
+  writeToFile, 
+  readFile, 
+  isHashPartOfMerkleTree, 
+  createDirectoryIfNotExisting } = require('./backend/tools/utils');
+
 const {
   isValidTransactionJSON,
   isValidWalletBalanceJSON,
@@ -124,7 +132,8 @@ class Node {
               this.server = http.createServer();
             }
             
-            this.server.listen(this.port)
+            this.server.listen(this.port);
+            process.env.PORT = this.port;
             this.heartbeat();
             this.localAPI();
             
@@ -1958,7 +1967,17 @@ class Node {
     setInterval(async ()=>{
       that.messageBuffer = {};
       this.chain.save()
-      let backUp = await writeToFile(this.chain.getLatestBlock(), './data/backup/lastBlock.json')
+      let backupDirectory = await createDirectoryIfNotExisting('./data/backup/');
+      if(backupDirectory){
+        if(backupDirectory.created || backupDirectory.exists){
+          let backUp = await writeToFile(this.chain.getLatestBlock(), './data/backup/lastBlock.json');
+        }else{
+          logger('Could not resolve path to lastBlock backup file while saving')
+        }
+        
+      }else{
+        logger('An error occured while saving the lastBlock backup file')
+      }
       this.broadcast('ping')
     }, this.messageBufferCleanUpDelay)
   }

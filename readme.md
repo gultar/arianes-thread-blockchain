@@ -98,7 +98,7 @@ Options:
   -n, --hostname <hostname>         Specify node hostname
   -p, --port <port>                 Specify node port
   -j, --join [network]              Joins network
-  -s, --seed <seed>                 Seed nodes to initiate p2p connections
+  -s, --seed <seed>                 Seed nodes to initiate p2p. Ex: '127.0.0.1:1000;127.0.0.1:1001;127.0.0.1:1002'
   -v, --verbose                     Enable transaction and network verbose
   -d, --peerDiscovery [type]        Enable peer discovery using various methods
   -t, --peerDiscoveryPort <port>    Enable peer discovery using various methods
@@ -131,6 +131,49 @@ The basic structure of a transaction is as follows:
   miningFee: <Enough mining fee to equate size of transaction>,
   signature: <ECDSA Signature from your private key> 
 }
+
+```
+
+## Interacting with smart contracts
+There are two ways to use contracts. The first way, which is less expensive, is sending an Action on the network. 
+
+### Actions
+
+
+
+### Transaction Calls
+
+By sending a transaction of type <call> you may interact with smart contracts stored on the blockchain
+The basic structure of the data payload must be consistent in order for the transaction to be
+validated by other nodes. Here is an example of the data payload located in the data field in the transaction:
+
+{
+  'method':'contractMethod',
+  'params':{
+    'key':'value'
+  }
+}
+
+Here is an example of a transaction call:
+
+```
+{ 
+  fromAddress: <Sending account name>,
+  toAddress: <Account name of the Contract>,
+  type: 'call',
+  data: {
+    'method':<Contract method>,
+    'params':{
+      <Additional Parameters as Key:Value pair>
+    }
+  },
+  timestamp: <UNIX timestamp>,
+  amount: <Amount>,
+  hash: <SHA256 hash of the transaction>,
+  miningFee: <Enough mining fee to equate size of transaction>,
+  signature: <ECDSA Signature from your private key> 
+}
+
 ```
 
 ## Author
