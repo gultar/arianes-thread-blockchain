@@ -115,10 +115,12 @@ Commands:
 ```
 
 ## Sending a transaction
-```
+
 In order to send a transaction, you may either use the CLI tool or send a signed JSON data packet to your local blockchain node.
 
 The basic structure of a transaction is as follows:
+
+```
 
 { 
   fromAddress: <ECDSA Public key OR Account name>,
@@ -129,15 +131,40 @@ The basic structure of a transaction is as follows:
   amount: <Amount>,
   hash: <SHA256 hash of the transaction>,
   miningFee: <Enough mining fee to equate size of transaction>,
-  signature: <ECDSA Signature from your private key> 
+  signature: <ECDSA Signature from a private key> 
 }
 
 ```
 
 ## Interacting with smart contracts
-There are two ways to use contracts. The first way, which is less expensive, is sending an Action on the network. 
+There are two ways to use contracts: Actions and Transaction calls. To build those, you can either use the CLI tools provided for that purpose or manually send the data to your local node. 
 
 ### Actions
+
+Actions are usually less expensive than transaction calls because they do not get mined straight away but are instead added to a block after transactions. Simply put, transaction calls trigger mining but actions don't. Action would then be more suited for non urgent or less operation-critical interactions with contracts. 
+
+```
+{
+    fromAccount: <Sending account name>,
+    type: <Type of action>,
+    task: <Selected task to perform according to type>,
+    data: { //Data payload contains sending account details
+      name: <Sending account name>,
+      ownerKey: <ECDSA Public Key of Owner Wallet>,
+      hash: <SHA256 Hash>,
+      ownerSignature: <Signature>,
+      type: <>
+    },
+    timestamp: <Unix Timestamp>,
+    contractRef: {},
+    fee: <Enough mining fee to equate size of transaction>,
+    hash: <SHA256 hash of the action>,
+    signature: <ECDSA signature of the hash from a private key>
+
+}
+
+
+```
 
 
 
@@ -147,12 +174,14 @@ By sending a transaction of type <call> you may interact with smart contracts st
 The basic structure of the data payload must be consistent in order for the transaction to be
 validated by other nodes. Here is an example of the data payload located in the data field in the transaction:
 
+```
 {
   'method':'contractMethod',
   'params':{
     'key':'value'
   }
 }
+```
 
 Here is an example of a transaction call:
 
