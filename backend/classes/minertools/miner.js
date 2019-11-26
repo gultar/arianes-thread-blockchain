@@ -147,9 +147,9 @@ class Miner{
         }, 2000)
         this.socket.emit('fetchActions')
         this.socket.on('newActions', (actions)=>{
-          if(actions){
+          if(actions && this.sizeOfActionPool() > 0){
             this.pool.pendingActions = actions;
-            logger(`Found actions ${this.sizeOfActionPool()} to mine`)
+            logger(`Found ${this.sizeOfActionPool()} actions to mine`)
             clearTimeout(timedOut)
             this.socket.off('newActions')
             resolve(true)
