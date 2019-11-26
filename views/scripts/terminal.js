@@ -417,6 +417,13 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           loadWallet(cmd, args);
           break;
+        case 'test':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('extractIp', args[0])
+          break;
         default:
           if (cmd) {
             output(cmd + ': command not found');

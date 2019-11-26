@@ -98,6 +98,34 @@ Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
     }
 })
 
+program
+.command('getapi')
+.option('-c, --contractName <contractName>', 'Specify the name of the contract to be called')
+.description(`
+Shows the Contract's API
+
+Synthax node actionCLI.js getapi -c [ContractName]
+
+`)
+.action(()=>{
+    console.log('Port: ', process.env.PORT)
+    if(!program.url) throw new Error('ERROR: URL of receiving node is required')
+    if(!program.contractName) throw new Error('ERROR: Name of contract to call is required')
+
+    openSocket(program.url, (socket)=>{
+        socket.emit('getContractAPI', program.contractName)
+        socket.on('api', (api)=>{
+            if(api){
+                console.log(api)
+            }
+
+            socket.off('api')
+        })
+    })
+
+})
+
+
 
 program
 .command('test')
@@ -113,7 +141,7 @@ Tests a call to a contract before sending it
 Synthax : node actionCLI.js test -c [ContractName] -t [Task] -a [account] -w [wallet] -p [passwd] -d [Data => '{"key":"value"}']
 `)
 .action(()=>{
-            console.log('Port: ', process.env.PORT)
+            
             let address = program.url;
             let contractName = program.contractName
             let accountName = program.accountName

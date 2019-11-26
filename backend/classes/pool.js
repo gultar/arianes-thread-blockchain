@@ -205,13 +205,13 @@ class Mempool{
         return new Promise( async (resolve)=>{
             let actions = {}
             let hashes = Object.keys(this.actionReceipts)
+            // console.log('Action Receipts:', this.actionReceipts)
             let errors = {}
             for await(var hash of hashes){
                 let batchSize = await this.calculateSizeOfBatch(actions);
 
                 if(batchSize < this.maxBatchSize){
                     let action = await this.getAction(hash)
-                    
                     if(action){
                         if(action.error) errors[hash] = action.error
                         

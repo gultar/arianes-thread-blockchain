@@ -9,16 +9,18 @@ class AccountTable{
         this.accountsDB = new Database('./data/accountsDB')
     }
 
+
     
 
     addAccount(account){
         return new Promise(async (resolve)=>{
             let existing = await this.accountsDB.get(account.name)
             if(!existing){
-                let added = this.accountsDB.add({
+                
+                let added = await this.accountsDB.add({
                     _id:account.name,
-                    account:account
-                })
+                    account:account,
+                }) 
                 resolve(added)
             }else{
                 if(existing.error) resolve({error:existing.error})
@@ -43,15 +45,33 @@ class AccountTable{
       }
 
       getAccountsOfKey(key){
-        let accountNames = Object.keys(this.accounts);
-        let accounts = {};
-        accountNames.forEach( name =>{
-            if(this.accounts[name].ownerKey == key){
-                accounts[name] = this.accounts[name];
-            }
-        })
+        return new Promise(async(resolve)=>{
+            let foundAccounts = []
+            this.accountsDB.database.allDocs({
+                include_docs:true
+            })
+            .then(async (result) =>{
+                let rows = result.rows;
 
-        return accounts
+                for(let row of rows){
+                    let account = await this.getAccount(row.id);
+                    if(account){
+                        if(account.ownerKey == key){
+                            foundAccounts.push(account)
+                        }
+                    }else{
+                        logger('ERROR', `No entry for account ${row.id}`)
+                    }
+                }
+
+                resolve(foundAccounts)
+                
+            })
+            .catch(e =>{
+                console.log('Error:',e)
+                resolve('Error:',e)
+            })
+        })
       }
 
       //Deprecated

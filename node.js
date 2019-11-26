@@ -466,6 +466,21 @@ class Node {
   }
 
   findPeersThroughBittorrentDHT(){
+    const extractBaseIpAddress = (address) =>{
+      let ip = ''
+      if(address){
+        let containsHttp = address.indexOf('http://') != -1;
+        let containsHttps = address.indexOf('https://') != -1;
+        let prefix = (containsHttp ? 'http://':'https://')
+        let result = address.split(prefix);
+        let addressAndPort = result[1];
+        let splitIpAndPort = addressAndPort.split(':')
+        ip = splitIpAndPort[0];
+        return ip
+      }else{
+        return false;
+      }
+    }
     if(!this.peerDiscovery){
       this.peerDiscovery = new PeerDiscovery({
         address:this.address,
@@ -484,7 +499,8 @@ class Node {
           // }, this.dhtLookupTime )
   
           emitter.on('peerDiscovered', (peer)=> {
-            if(!this.connectionsToPeers[peer.address]){
+            let isSameIp = extractBaseIpAddress(peer.address) == extractBaseIpAddress(this.address)
+            if(!this.connectionsToPeers[peer.address] && !isSameIp){
               let { host, port, address } = peer
               logger('Found new peer', chalk.green(address))
               this.connectToPeer(address)
@@ -1058,8 +1074,17 @@ class Node {
               if(transactionEmitted.error){
                 res.send(transactionEmitted.error)
               }else{
-                let receipt = JSON.stringify(transaction, null, 2)
-                res.send(receipt);
+                if(transactionEmitted.callExecuted){
+                  let result = { result:transactionEmitted.callExecuted, receipt:transaction }
+                  res.send(JSON.stringify(result, null, 2));
+                }else if(transactionEmitted.isReadOnly){
+                  let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
+                  res.send(JSON.stringify(result, null, 2));
+                }else{
+                  let receipt = JSON.stringify(transaction, null, 2)
+                  res.send(receipt);
+                }
+                
               }
             })
             .catch((e)=>{
@@ -1226,9 +1251,20 @@ class Node {
           console.log(contract)
       })
 
+      socket.on('getContractAPI', async (name)=>{
+          let contract = await this.chain.contractTable.getContract(name)
+          if(contract){
+            let api = contract.contractAPI;
+            socket.emit('api', api)
+          }else{
+            socket.emit('api', 'Not Found')
+          }
+          
+      })
+
       socket.on('getAccount', async (name)=>{
         try{
-          let result = await this.chain.accountTable.accountsDB.database.get(name)
+          let result = await this.chain.accountTable.accountsDB.get(name)
           console.log(result)
         }catch(e){
           console.log(e)
@@ -1239,11 +1275,10 @@ class Node {
 
       socket.on('getAllAccounts', async (ownerKey)=>{
         try{
-          let result = await this.chain.accountTable.getAccountsOfKey(ownerKey)
-          console.log('Key:', ownerKey)
-          console.log('Accounts', result)
-          if(result){
-            socket.emit('accounts', result)
+          // let result = await this.chain.accountTable.getAccountsOfKey(ownerKey)
+          let allAccounts = await this.chain.accountTable.getAccountsOfKey(ownerKey)
+          if(allAccounts){
+            socket.emit('accounts', allAccounts)
           }else{
             socket.emit('accounts', {})
           }
@@ -1551,7 +1586,9 @@ class Node {
             case 'newBlockFound':
               let added = await this.handleNewBlockFound(data);
               if(added.error){
-                logger(added.error);
+                logger('New Block Found ERROR follows:')
+                console.log(added.error);
+                logger('--------------------------------')
               }
               break;
             
@@ -1776,14 +1813,18 @@ class Node {
                           if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction call: ')+ transaction.hash.substr(0, 15)+"...")
                           resolve({error:executed.error})
                         }else{
+                          if(executed.isReadOnly){
+                            resolve({ isReadOnly:executed.isReadOnly })
+                          }else{
+                            let added = await this.mempool.addTransaction(transaction);
+                            this.UILog('=> Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                            if(this.verbose) logger(chalk.blue('=>')+' Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                            
+                            this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                            
+                            resolve({ callExecuted:executed })
+                          }
                           
-                          let added = await this.mempool.addTransaction(transaction);
-                          this.UILog('=> Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
-                          if(this.verbose) logger(chalk.blue('=>')+' Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
-                          
-                          this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
-                          
-                          resolve(executed)
                         }
                       }else{
                         resolve({error:'Function has returned nothing'})
@@ -1832,10 +1873,15 @@ class Node {
         let success = await this.chain.testHandleAction(action)
         if(success.error) resolve({error:success.error})
         else if(!success.error){
-          this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
-          //Action will be added to this.mempool only is valid and if corresponds with contract call
-          let added = await  this.mempool.addAction(action)
-          resolve({action:action, success:success})
+          if(success.isReadOnly){
+            resolve({isReadOnly:true, action:action, success:success.isReadOnly})
+          }else{
+            this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
+            //Action will be added to this.mempool only is valid and if corresponds with contract call
+            let added = await  this.mempool.addAction(action)
+            resolve({action:action, success:success})
+          }
+          
         }
         
       }
@@ -1860,47 +1906,6 @@ class Node {
   }
 
 
-
-  // cashInCoinbaseTransactions(){
-  //   return new Promise((resolve, reject)=>{
-  //     if(this.mempool.pendingCoinbaseTransactions){
-  //       let hashes = Object.keys(this.mempool.pendingCoinbaseTransactions);
-        
-  //       hashes.forEach( async(hash) =>{
-  //         let transaction = this.mempool.pendingCoinbaseTransactions[hash];
-          
-  //           if(transaction){
-  //             let readyToMove = await this.chain.validateCoinbaseTransaction(transaction);
-              
-  //             if(readyToMove && !readyToMove.error && !readyToMove.pending){
-                
-  //               this.mempool.moveCoinbaseTransactionToPool(transaction.hash);
-  //               this.sendPeerMessage('transaction',transaction);
-  //               resolve(true);
-                
-  //             }else{
-  //               if(readyToMove.error){
-  //                 logger('Rejected Transaction:', transaction.hash)
-  //                 logger(readyToMove.error);
-  //                 this.mempool.rejectCoinbaseTransaction(transaction.hash);
-
-  //               }else if(readyToMove.pending){
-  //                 //Do nothing
-  //               }
-  //             }
-                
-              
-  //           }else{
-  //             logger('ERROR: coinbase transaction not found');
-  //             resolve({error:'ERROR: coinbase transaction not found'})
-  //           }
-           
-  //       })
-        
-  //     }
-  //   })
-  
-  // }
 
   save(){
     return new Promise(async (resolve, reject)=>{

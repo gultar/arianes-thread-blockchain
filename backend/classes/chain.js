@@ -317,10 +317,7 @@ class Blockchain{
   newBlockFork(newBlock){
     return new Promise(async (resolve)=>{
       if(this.getLatestBlock().hash != newBlock.hash){
-          // if(this.isSyncingBlocks){
-          //   this.cachedBlocks.push(newBlock)
-          //   resolve({ error:'Node is busy syncing new block' })
-          // }
+          
           /**
            * b: Canonical Block
            * f: Forked block
@@ -341,7 +338,7 @@ class Blockchain{
             resolve({ error:'ERROR: Could not create block fork. New block is not linked' })
 
           }else{
-            
+            //Creates a new fork entry. One of the two branches of the fork will, in the end, be built upon
             const addNewFork = (newBlock) =>{
                 //Store information on the fork to easily track when a block belongs to the fork
                 this.blockForks[newBlock.hash] = {
@@ -358,22 +355,32 @@ class Blockchain{
                 return true
             }
 
+            //Very unstable, needs to be refactored entirely
             const extendFork = async (newBlock) =>{
+              //Build on top of an existing blockchain fork
               let existingFork = this.blockForks[newBlock.previousHash]
 
               if(existingFork){
+                //Checks if new block's previous block hash is the root of the fork
                 let rootHash = this.blockForks[newBlock.previousHash].root
+                //Retrieves the previous block hash
                 let previousBlockHash = this.blockForks[newBlock.previousHash].previousHash
+                //Hash of the newest block
                 let newHash = this.blockForks[newBlock.previousHash].hash
                 let rootIndex = this.getIndexOfBlockHash(rootHash)
+                
                 if(rootIndex){
                   let rootBlock = this.chain[rootIndex];
-                  
+                  //Extracts the forked blocks from the block where the split happened
+                  //By using the previousBlock Hash
                   let fork = rootBlock[previousBlockHash]
+                  //If not found, use the new block's hash
                   if(!fork) fork = rootBlock[newHash]
 
                   if(fork && Array.isArray(fork)){
+                    //Build upon the fork if all criterias are met
                     fork.push(newBlock)
+                    //define new entry pointing for the fork, pointing to the previous forked block
                     this.blockForks[newBlock.hash] = {
                       root:rootBlock.hash,
                       previousHash:newBlock.previousHash,
@@ -381,12 +388,14 @@ class Blockchain{
                     }
                     return fork;
                   }else{
+                    //
                     console.log('RootHash', rootHash)
                     console.log('RootIndex', rootIndex)
                     console.log('RootBlock', rootBlock)
                     console.log('Newblock hash', newBlock.hash)
                     console.log('Newblock previous', newBlock.previousHash)
                     console.log('Block forks', this.blockForks)
+                    console.log('Fork type', typeof fork)
                     logger('ERROR: Fork is not an array')
                     return false
                   }
@@ -395,6 +404,9 @@ class Blockchain{
                   //Again, root is not part of the chain
                   console.log('RootHash', rootHash)
                   console.log('RootIndex', rootIndex)
+                  console.log('Block forks', this.blockForks)
+                  console.log('Newblock hash', newBlock.hash)
+                  console.log('Newblock previous', newBlock.previousHash)
                   logger('ERROR: Root is not part of the chain')
                   return false
                 }
@@ -1817,7 +1829,7 @@ class Blockchain{
               let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
               let toAccountIsContract = await this.contractTable.getContract(transaction.toAddress)
               var isChecksumValid = this.validateChecksum(transaction);
-              var amountIsNotZero = transaction.amount > 0;
+              // var amountIsNotZero = transaction.amount > 0;
               let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
               var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
               let isNotCircular = fromAccount.name !== toAccount.name
@@ -1826,7 +1838,7 @@ class Blockchain{
 
               if(!toAccount) resolve({error:'REJECTED: Receiving account is unknown'});
               if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
-              if(!amountIsNotZero) resolve({error:'REJECTED: Amount needs to be higher than zero'});
+              // if(!amountIsNotZero) resolve({error:'REJECTED: Amount needs to be higher than zero'});
               if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
               if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
               if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
@@ -2204,9 +2216,15 @@ class Blockchain{
           let contract = await this.contractTable.getContract(action.data.contractName)
           if(contract){
             if(contract.error) resolve({error:contract.error})
+
+            let isReadOnly = false
+            let contractMethod = contract.contractAPI[action.data.method]
+            if(contractMethod){
+              isReadOnly = contractMethod.type == 'get'
+            }
             
             let isExternalFunction = contract.contractAPI[action.data.method]
-            if(!isExternalFunction) resolve({error:'Method call is not part of contract API'})
+            if(!isExternalFunction && !isReadOnly) resolve({error:'Method call is not part of contract API'})
             else{
               let contractState = await this.contractTable.getState(action.data.contractName)
               if(!contractState) resolve({error:'Could not find contract state'})
@@ -2404,7 +2422,12 @@ class Blockchain{
                 if(result.error){
                   resolve({error:result.error})
                 }else{
-                  resolve(result.value)
+                  if(isReadOnly){
+                    resolve({ isReadOnly:result.value })
+                  }else{
+                    resolve(result.value)
+                  }
+                  
                 }
             }
 

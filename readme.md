@@ -183,7 +183,8 @@ validated by other nodes. Here is an example of the data payload located in the 
 }
 ```
 
-Here is an example of a transaction call:
+Here is the structure of a transaction call:
+
 
 ```
 { 
@@ -202,6 +203,32 @@ Here is an example of a transaction call:
   miningFee: <Enough mining fee to equate size of transaction>,
   signature: <ECDSA Signature from your private key> 
 }
+
+```
+
+Here is an example:
+
+```
+ receipt: {
+    fromAddress: 'tuor',   //Name of the sending account
+    toAddress: 'Token',   //Name of the Contract
+    type: 'call',         //Type of transaction
+    data: { 
+      method: 'issue',    //Method to be called from the contract
+      params: {
+        "symbol":"GOLD",    
+        "amount":100,
+        "receiver":"turgon"
+      } 
+    },
+    timestamp: 1574788012061,
+    amount: 1,            //The higher the a
+    hash: '1c853838aca7279141e38613726ed1d26cf97da1a91c1c57cadb59b4e46304bc',
+    miningFee: 0.0167,
+    signature: 'hkNKNUdT4DnbDVRKaodVg8wYEjkRHSzcMjLyRL/5k1KgDWhcxLolm7vjBEXlnu7A
+ckL7qrOkdhXgxSxHVTLHow=='
+  }
+
 
 ```
 
