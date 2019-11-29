@@ -38,6 +38,7 @@ const {
 
 const {
   isValidTransactionJSON,
+  isValidTransactionCallJSON,
   isValidWalletBalanceJSON,
   isValidActionJSON,
   isValidBlockJSON
@@ -107,7 +108,8 @@ class Node {
 
         this.chain.init()
         .then(async (chainLoaded)=>{
-          
+            
+            
             process.GENESIS = this.genesis
             
             let nodeListLoaded = await this.nodeList.loadNodeList();
@@ -134,6 +136,9 @@ class Node {
             
             this.server.listen(this.port);
             process.env.PORT = this.port;
+            let savedPort = await this.savePortConfig();
+            if(savedPort) logger('Saved port to .env config file')
+            else logger('WARNING: Could not save port to .env file')
             this.heartbeat();
             this.localAPI();
             
@@ -1065,7 +1070,7 @@ class Node {
       app.post('/transaction', (req, res) => {
         
         try{
-          if(isValidTransactionJSON(req.body)){
+          if(isValidTransactionJSON(req.body) || isValidTransactionCallJSON(req.body)){
             let transaction = req.body
             
             this.broadcastNewTransaction(transaction)
@@ -1212,6 +1217,41 @@ class Node {
           console.log("Total block size",headerSize + bodySize)
         }catch(e){
           console.log(e)
+        }
+      })
+
+      socket.on('transaction',async (transaction)=>{
+        try{
+          if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
+            let transactionEmitted = await this.broadcastTransaction(transaction)
+              
+              if(transactionEmitted.error){
+                socket.emit('transactionEmitted',{ error:transactionEmitted.error })
+              }else{
+                if(transactionEmitted.callExecuted){
+                  let result = { result:transactionEmitted.callExecuted, receipt:transaction }
+                  socket.emit('transactionEmitted', result)
+                }else if(transactionEmitted.isReadOnly){
+                  let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
+                  socket.emit('result', result)
+                }else{
+                  socket.emit('transactionEmitted', { 
+                    receipt: {
+                      fromAddress:transaction.fromAddress,
+                      toAddress:transaction.toAddress,
+                      amount:transaction.amount,
+                      sent:transaction.timestamp
+                    } 
+                  })
+                  
+                }
+                
+              }
+          }else{
+            socket.emit('transactionEmitted', { error:'ERROR: Invalid transaction format' })
+          }
+        }catch(e){
+          console.log('ERROR:',e)
         }
       })
 
@@ -1412,6 +1452,15 @@ class Node {
         console.log(action)
       })
 
+      socket.on('testStack', async (bunch)=>{
+          let mockBlock = {
+            transactions:bunch,
+          }
+         let result = await this.chain.runTransactionCalls(mockBlock)
+         socket.emit('result', result)
+        
+      })
+
       socket.on('disconnect', ()=>{
         var index = this.userInterfaces.length
         this.userInterfaces.splice(index-1, 1)
@@ -1605,7 +1654,7 @@ class Node {
 
   receiveTransaction(transaction){
     if(transaction && this.chain instanceof Blockchain){
-      if(isValidTransactionJSON(transaction)){
+      if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
 
         this.chain.validateTransaction(transaction)
         .then(async (valid) => {
@@ -1830,6 +1879,7 @@ class Node {
                         resolve({error:'Function has returned nothing'})
                       }
 
+
                     }else{
 
                       let added = await this.mempool.addTransaction(transaction);
@@ -1857,6 +1907,84 @@ class Node {
       }catch(e){
         console.log(chalk.red(e));
       }
+    })
+  }
+
+  broadcastTransaction(transaction){
+    return new Promise(async (resolve)=>{
+      try{
+          if(this.chain instanceof Blockchain){
+            if(!transaction.signature){
+              logger('Transaction signature failed. Missing signature')
+              resolve({error:'Transaction signature failed. Missing signature'})
+              
+            }else{
+              
+              this.chain.createTransaction(transaction)
+                .then( async (valid) =>{
+                  if(!valid.error){
+  
+                    if(transaction.type == 'call'){
+
+                      let call = transaction.data
+
+                      let action = {
+                        fromAccount: transaction.fromAddress,
+                        data:{
+                          contractName: transaction.toAddress,
+                          method: call.method,
+                          params: call.params,
+                        }
+                      }
+
+                      let result = await this.chain.testExecuteAction(action, this.getLatestBlock())
+                      if(result.error){
+                        resolve({error:result.error})
+                      }else if(result.isReadOnly){
+                        resolve({isReadOnly:result.isReadOnly})
+                      }else{
+                        
+                        let added = await this.mempool.addTransaction(transaction);
+                        this.UILog('=> Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                        if(this.verbose) logger(chalk.blue('=>')+' Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                        
+                        this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                        console.log('result:', result)
+                        resolve({ callExecuted:result })
+                        
+                      }
+
+        
+
+
+                    }else{
+
+                      let added = await this.mempool.addTransaction(transaction);
+                      this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                      if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                      
+                      this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                      resolve(transaction)
+
+                    }
+  
+                  }else{
+  
+                    this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                    if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                    resolve({error:valid.error});
+  
+                  }
+                })
+            }
+          }
+         
+        
+        
+      }catch(e){
+        console.log(chalk.red(e));
+      }
+      
     })
   }
 
@@ -1941,6 +2069,17 @@ class Node {
     
     
   }
+
+  async savePortConfig(){
+    let written = await writeToFile(`
+PORT=${this.port}
+API_PORT=${this.minerPort}
+DHT_PORT=${this.peerDiscoveryPort}
+    `,'./config/.env')
+    return written;
+  }
+
+  
 
   async saveNodeConfig(){
     return new Promise(async (resolve, reject)=>{

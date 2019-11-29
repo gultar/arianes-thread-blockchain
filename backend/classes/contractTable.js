@@ -26,6 +26,7 @@ class ContractTable{
                 if(added.error)resolve({error:added.error})
                 resolve({contractAdded:added, stateAdded:stateAdded})
             }else{
+                
                 resolve({error:'A contract with that name already exists'})
             }
             
@@ -128,7 +129,6 @@ class ContractTable{
                 if(contract){
                     let deleted = await this.contractDB.delete(contract)
                     if(deleted.error) resolve({error:deleted.error})
-
                     let stateDeleted = await this.removeState(name);
                     if(stateDeleted.error) resolve({error:stateDeleted.error})
     

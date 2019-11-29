@@ -222,7 +222,6 @@ Here is an example:
       } 
     },
     timestamp: 1574788012061,
-    amount: 1,            //The higher the a
     hash: '1c853838aca7279141e38613726ed1d26cf97da1a91c1c57cadb59b4e46304bc',
     miningFee: 0.0167,
     signature: 'hkNKNUdT4DnbDVRKaodVg8wYEjkRHSzcMjLyRL/5k1KgDWhcxLolm7vjBEXlnu7A

@@ -9,7 +9,15 @@ const AccountTable = require('./backend/classes/accountTable');
 const Action = require('./backend/classes/action');
 const ContractVM = require('./backend/contracts/VM.js')
 const sha1 = require('sha1');
-const fs = require('fs')
+const fs = require('fs');
+const activePort = require('dotenv').config({ path: './config/.env' })
+
+if (activePort.error) {
+    throw activePort.error
+}
+
+const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
+
 
 const openSocket = async (address, runFunction) =>{
     let socket = ioClient(address, {'timeout':1000, 'connect_timeout': 1000});
@@ -49,7 +57,7 @@ Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
 `)
 .action(async ()=>{
 
-    let address = program.url;
+    let address = nodeAddress || nodeAddress;
     let accountName = program.accountName
     let walletName = program.walletName
     let password = program.password
@@ -62,11 +70,11 @@ Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
     if(!password) throw new Error('ERROR: Password of owner wallet is required')
 
 
-    if(!program.url){
+    if(!nodeAddress){
         throw new Error('URL of blockchain node is required');
             
     }else{
-        let address = program.url;
+        let address = nodeAddress;
         let accountCreator = new AccountCreator();
         let walletManager = new WalletManager();
         let newAccount = await accountCreator.createAccount(accountName, accountType, walletName, password);
@@ -109,10 +117,10 @@ Synthax node actionCLI.js getapi -c [ContractName]
 `)
 .action(()=>{
     console.log('Port: ', process.env.PORT)
-    if(!program.url) throw new Error('ERROR: URL of receiving node is required')
+    if(!nodeAddress) throw new Error('ERROR: URL of receiving node is required')
     if(!program.contractName) throw new Error('ERROR: Name of contract to call is required')
 
-    openSocket(program.url, (socket)=>{
+    openSocket(nodeAddress, (socket)=>{
         socket.emit('getContractAPI', program.contractName)
         socket.on('api', (api)=>{
             if(api){
@@ -142,7 +150,7 @@ Synthax : node actionCLI.js test -c [ContractName] -t [Task] -a [account] -w [wa
 `)
 .action(()=>{
             
-            let address = program.url;
+            let address = nodeAddress;
             let contractName = program.contractName
             let accountName = program.accountName
             let walletName = program.walletName
@@ -231,7 +239,7 @@ Synthax : node actionCLI.js call -c [ContractName] -t [Task] -a [account] -w [wa
 `)
 .action(()=>{
 
-            let address = program.url;
+            let address = nodeAddress;
             let contractName = program.contractName
             let accountName = program.accountName
             let walletName = program.walletName
@@ -318,7 +326,7 @@ Deploys a contract to the blockchain
 Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p [passwd] -d [Filename => ./directory/file.js']
 `)
 .action(()=>{
-            let address = program.url;
+            let address = nodeAddress;
             let contractName = program.contractName
             let accountName = program.accountName
             let walletName = program.walletName
@@ -453,7 +461,7 @@ Tests the deployment of a contract before sending it
 Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet] -p [passwd] -i [InitParams => '{"key":"value"}']
 `)
 .action(()=>{
-            let address = program.url;
+            let address = nodeAddress;
             let contractName = program.contractName
             let accountName = program.accountName
             let walletName = program.walletName
@@ -579,7 +587,7 @@ Can only be sent by the owner account/wallet.
 Synthax : node actionCLI.js destroy -c [ContractName] -a [account] -w [wallet] -p [passwd]
 `)
 .action(()=>{
-            let address = program.url;
+            let address = nodeAddress;
             let contractName = program.contractName
             let accountName = program.accountName
             let walletName = program.walletName
@@ -639,8 +647,8 @@ program
 .command('getaccounts <ownerKey>')
 .description('Gets all existing accounts on node')
 .action(async (ownerKey)=>{
-    if(program.url){
-        openSocket(program.url, async (socket)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, async (socket)=>{
             if(!ownerKey){
                 socket.emit('getAllAccounts');
             }else{

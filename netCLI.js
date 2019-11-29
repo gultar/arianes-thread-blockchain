@@ -2,6 +2,9 @@
 
 const program = require('commander');
 const ioClient = require('socket.io-client');
+const activePort = require('dotenv').config({ path: './config/.env' })
+if (activePort.error) throw activePort.error
+const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
 const openSocket = async (address, runFunction) =>{
     let socket = ioClient(address, {'timeout':1000, 'connect_timeout': 1000});
@@ -22,8 +25,8 @@ program
     .command('lookupPeers <method>')
     .description('Start mining')
     .action(( method )=>{
-        if(program.url){
-            openSocket(program.url, (socket)=>{
+        if(nodeAddress){
+            openSocket(nodeAddress, (socket)=>{
                 if(method == 'DHT' || method == 'dht'){
                     console.log("Node is now looking for peers on Bittorrent's DHT")
                     socket.emit('startLookingForPeers', 'dht')
@@ -44,8 +47,8 @@ program
     .command('connect <address>')
     .description('Connect to remote peer')
     .action(( address )=>{
-        if(program.url){
-            openSocket(program.url, (socket)=>{
+        if(nodeAddress){
+            openSocket(nodeAddress, (socket)=>{
                 if(address){
                     socket.emit('connectionRequest', address)
                 }

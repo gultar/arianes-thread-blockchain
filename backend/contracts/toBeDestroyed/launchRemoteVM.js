@@ -20,9 +20,10 @@ const launchVM = () =>{
                   })
 
                   vm.buildVM()
-                  vm.compileScript()
+                  // vm.compileScript()
+                  vm.compiled = message.code
                   vm.run()
-                  .then((result)=>{
+                  .then((result)=>{  
                       if(result.error) process.send({error:result.error.message})
                       else process.send({executed:result})
                   })

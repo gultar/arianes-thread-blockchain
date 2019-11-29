@@ -179,7 +179,7 @@ class Token{
                         resolve({ success:`Account ${sender} transfered ${amount} ${symbol} tokens to account ${receiver}` })
                 
                 }else{
-                    throw new Error("Account" +sender+ "is not authorized to issue coins");
+                    throw new Error("Account " +sender+ " is does not have enough funds");
                 }
 
             }else{

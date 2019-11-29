@@ -33,6 +33,39 @@ const isValidTransactionJSON = (transaction)=>{
     }
 }
 
+const isValidTransactionCallJSON = (transaction)=>{
+    var v = new Validator();
+    
+    var schema = {
+        "id":"/transaction",
+        "type": "object",
+        "properties": {
+            "fromAddress": {"type": "string"},
+            "toAddress": {"type": "string"},
+            "amount": {"type": "number"},
+            "data": {"type": [
+                "string","object"
+            ]},
+            "timestamp":{"type":"number"},
+            "hash":{"type":"string"},
+            "type":{"type":"string"},
+            "signature":{"type":"string"}
+        },
+        "required": ["fromAddress", "toAddress", "timestamp", "amount", "hash", "type"]
+    };
+
+    if(transaction){
+        v.addSchema(schema, "/transaction")
+        let valid = v.validate(transaction, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
 const isValidActionJSON = (action)=>{
     var v = new Validator();
     var schema = {
@@ -393,7 +426,8 @@ const isValidGenesisBlockJSON = (header)=>{
 }
 
 module.exports = { 
-    isValidTransactionJSON, 
+    isValidTransactionJSON,
+    isValidTransactionCallJSON, 
     isValidChainLengthJSON, 
     isValidWalletRequestJSON, 
     isValidGetNextBlockJSON,

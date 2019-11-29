@@ -1,29 +1,19 @@
 
 
-const callRemoteVM = (code) =>{
+const vmInterface = (code, options) =>{
     return new Promise((resolve)=> {
-
-        
 
         if(code){
             let fs = require('fs')
-            let child = require('child_process').fork(`./backend/contracts/build/launchRemoteVM.js`)
-            child.send('getInitialMemUsage')
+            let child = require('child_process').fork(`./backend/contracts/build/workerVM.js`,{
+                execArgv: ['--max-old-space-size=128']  
+            })
             
-            let pingCounter = 0
+            
+            let lifeCycles = 0
+            let limitLifeCycles = 30 // 
             child.send({code:code})
 
-            let keepAlive = setInterval(()=>{
-                    child.send('getMemUsage')
-                    pingCounter++;
-                    if(pingCounter > 50){
-                        // console.log('Aborting process');
-                        child.kill()
-                        clearInterval(keepAlive)
-                        resolve({error:'VM ERROR: VM Timed out'})
-                    } 
-            }, 20)
-    
             child.on('message', (message)=>{
                 if(message.executed){
                     child.kill()
@@ -34,13 +24,6 @@ const callRemoteVM = (code) =>{
                     child.kill()
                     clearInterval(keepAlive)
                     resolve({error:message.error})
-                }else if(message.memUsage){
-                    // console.log(message)
-                    pingCounter = 0;
-                }else if(message.initialMemUsage){
-                    let initialVMMemoryUsage = message.initialMemUsage
-                    // console.log(message)
-                    pingCounter = 0;
                 }else{
                     child.kill()
                     clearInterval(keepAlive)
@@ -53,9 +36,15 @@ const callRemoteVM = (code) =>{
                 clearInterval(keepAlive)
                 resolve({error:'A VM error occurred'})
             });
-            child.on('close', function() { 
-            
-            })
+            child.on('close', function() { clearInterval(keepAlive) })
+            let keepAlive = setInterval(()=>{
+                lifeCycles++
+                if(lifeCycles >= limitLifeCycles){
+                    child.kill()
+                    clearInterval(keepAlive)
+                    resolve({error:'VM ERROR: VM finished its lifecycle'})
+                }
+            }, 50)
         }else{
             console.log('ERROR: Missing required code parameter')
         }
@@ -64,4 +53,4 @@ const callRemoteVM = (code) =>{
     
 }
 
-module.exports = callRemoteVM;
+module.exports = vmInterface;

@@ -39,10 +39,8 @@ class BalanceTable{
     runBlock(block){
         return new Promise(async (resolve)=>{
             if(!block) resolve({error:"Block to execute is of undefined"})
-
             let executed = await this.executeTransactionBlock(block.transactions, block.blockNumber)
             if(executed.errors) resolve({ error: executed.errors })
-    
             let actionsExecuted = await this.payActionBlock(block.actions, block.blockNumber)
             if(actionsExecuted.error) resolve({ error: actionsExecuted.errors })
 
@@ -79,10 +77,10 @@ class BalanceTable{
     }
 
     executeTransactionBlock(transactions, blockNumber){
-        return new Promise((resolve)=>{
+        return new Promise(async(resolve)=>{
             let hashes = Object.keys(transactions);
             let errors = {}
-            hashes.forEach( async (hash)=>{
+            for await(var hash of hashes){
                 let tx = transactions[hash];
                 let executed = ''
                 if(tx.type == 'call'){
@@ -90,10 +88,19 @@ class BalanceTable{
                 }else{
                     executed  = await this.executeTransaction(tx, blockNumber)
                 }
-                if(executed.error) errors[hash] = executed.error;
-            })
+                if(executed){
+                    if(executed.error){
+                        errors[hash] = executed.error;
+                    }else{
+                        //Let pass to be resolved down below
+                    }
+                     
+                }else{
+                    errors[hash] = 'Could not execute transaction'
+                }
+            }
+            
             let numOfErrors = Object.keys(errors).length;
-
             if(numOfErrors > 0) resolve({errors:errors, blockNumber:blockNumber})
             else resolve(true)
         })
@@ -101,39 +108,48 @@ class BalanceTable{
     }
 
     executeTransaction(transaction, blockNumber){
-        if(isValidTransactionJSON(transaction)){
+        return new Promise(async (resolve)=>{
+            if(isValidTransactionJSON(transaction)){
             
-            let fromAddress = transaction.fromAddress;
-            let toAddress = transaction.toAddress;
-            let amount = transaction.amount;
-            let hash = transaction.hash;
-            let miningFee = transaction.miningFee;
-
-            if(fromAddress !== 'coinbase'){
-                let coinsSpent = this.spend(fromAddress, amount+miningFee, blockNumber);
-                if(!coinsSpent.error){
-                    let coinsGained = this.gain(toAddress, amount, blockNumber);
-                    
-                    if(coinsGained.error){
-                        return { error:coinsGained.error }
+                let fromAddress = transaction.fromAddress;
+                let toAddress = transaction.toAddress;
+                let amount = transaction.amount;
+                let hash = transaction.hash;
+                let miningFee = transaction.miningFee;
+    
+                let fromAccount = await this.accountTable.getAccount(fromAddress);
+                
+                let toAccount = await this.accountTable.getAccount(toAddress);
+            
+    
+                fromAddress = (typeof fromAccount == 'object' ? fromAccount.ownerKey : fromAddress)
+                toAddress = (typeof toAccount == 'object' ? toAccount.ownerKey : toAddress)
+    
+                if(fromAddress !== 'coinbase'){
+                    let coinsSpent = this.spend(fromAddress, amount+miningFee, blockNumber);
+                    if(!coinsSpent.error){
+                        let coinsGained = this.gain(toAddress, amount, blockNumber);
+                        if(coinsGained.error){
+                            resolve({ error:coinsGained.error })
+                        }else{
+                            resolve(true);
+                        }
+                        
                     }else{
-                        return true;
+                        resolve({ error:coinsSpent.error });
                     }
-                    
                 }else{
-                    return { error:coinsSpent.error };
+                    let coinsGained = this.gain(toAddress, amount, blockNumber);
+                    if(coinsGained.error){
+                        resolve({ error:coinsGained.error })
+                    }else{
+                        resolve(true)
+                    }
                 }
-            }else{
-                let coinsGained = this.gain(toAddress, amount, blockNumber);
-                if(coinsGained.error){
-                    return { error:coinsGained.error }
-                }else{
-                    return true;
-                }
+                
+                
             }
-            
-            
-        }
+        })
     }
 
     async executeTransactionCall(transaction, blockNumber){
@@ -141,10 +157,16 @@ class BalanceTable{
             
             let fromAccountName = transaction.fromAddress;
             let toAccountName = transaction.toAddress;
-            let fromAddress = await this.accountTable.getAccount(fromAccountName)
+            let fromAddress = await this.accountTable.getAccount(fromAccountName);
             let toAddress = await this.accountTable.getAccount(toAccountName);
 
+            fromAddress = (fromAddress && typeof fromAddress == 'object' ? fromAddress.ownerKey : fromAccountName)
+            toAddress = (toAddress && typeof toAddress == 'object' ? toAddress.ownerKey : toAccountName)
+
             if(fromAddress && toAddress){
+                
+                
+
                 let amount = transaction.amount;
                 let hash = transaction.hash;
                 let miningFee = transaction.miningFee;
@@ -184,7 +206,6 @@ class BalanceTable{
 
     payActionBlock(actions, blockNumber){
         return new Promise((resolve)=>{
-            
             if(actions){
                 let hashes = Object.keys(actions);
                 if(hashes > 0){
@@ -295,7 +316,7 @@ class BalanceTable{
     }
 
     spend(publicKey, value, blockNumber){
-        if(publicKey && value && blockNumber){
+        if(publicKey && value >=0 && blockNumber){
             if(!this.states[publicKey]) return {error:'Wallet does not exist'};
             let state = this.states[publicKey];
             if(state.balance > value){
@@ -312,7 +333,7 @@ class BalanceTable{
     }
 
     gain(publicKey, value, blockNumber){
-        if(publicKey && value && blockNumber){
+        if(publicKey && value >=0 && blockNumber){
 
               if(!this.states[publicKey]){
                 let newWallet =  this.addNewWalletKey(publicKey);

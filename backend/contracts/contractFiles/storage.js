@@ -63,7 +63,7 @@ class Storage{
         }
     }
 
-    set(entry, account){
+    set(entry, account){  //Account passed in a full account object.
         if(!entry) throw new Error('Entry to set is undefined')
 
         let { id, data } = entry;
@@ -71,12 +71,12 @@ class Storage{
         if(!data) throw new Error('Data of entry to set is undefined')
 
         if(this.state[id]){
-            let isAllowed = this.hasPermissions(id, account)
-            if(isAllowed.error) return { error: 'Calling account does not have permission to modify data storage' }
-
-            this.state[id].data = data;
-            return true
-            
+            let isAllowed = this.hasPermissions(id, account.name)   //Need to only pass account name since function param is a full object
+            if(!isAllowed) return { error: 'Calling account does not have permission to modify data storage' }
+            else{
+                this.state[id].data = data;
+                return true
+            }
         }else{
             this.state[id] = {
                 permissions:new Permissions(account),

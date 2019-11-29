@@ -17,10 +17,11 @@ const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON } = require('../
 const Transaction = require('./transaction');
 const BalanceTable = require('./balanceTable');
 const AccountTable = require('./accountTable');
-const ContractTable = require('./contractTable')
+const ContractTable = require('./contractTable');
+const Stack = require('../contracts/build/callStack')
 
 /*************Smart Contract VM************** */
-const callRemoteVM = require('../contracts/build/callRemoteVM')
+const vmInterface = require('../contracts/build/vmInterface')
 /******************************************** */
 
 const Block = require('./block');
@@ -45,6 +46,13 @@ class Blockchain{
     this.accountTable = new AccountTable();
     this.balance = new BalanceTable(this.accountTable)
     this.contractTable = new ContractTable();
+    this.stack = new Stack({
+      accountTable:this.accountTable,
+      contractTable:this.contractTable,
+      getBlockNumber:()=>{
+        return this.getLatestBlock()
+      }
+    })
     this.difficulty = new Difficulty(genesis)
     this.mempool = mempool
     this.blockForks = {}
@@ -229,23 +237,20 @@ class Blockchain{
             
             if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
             //Verify is already exists
-
             let added = await this.putBlockToDB(newBlock)
             if(added){
-
               
-
               let deleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions);
               if(deleted){
                 if(deleted.error) errors['Mempool tx deletion error'] = deleted.error;
-
+                
                 
                 let executed = await this.balance.runBlock(newBlock)
                 if(executed.error) errors['Balance error'] = executed.error
 
                 let callsExecuted = await this.executeTransactionCalls(newBlock)
+                
                 if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
-
                 if(newBlock.actions){
 
                   let allActionsExecuted = await this.executeActionBlock(newBlock)
@@ -1450,7 +1455,7 @@ class Blockchain{
           this.chain.forEach( block => headers.push(this.getBlockHeader(block.blockNumber)) )
           return headers
       }catch(e){
-        console.log(chalk.red(e))
+        console.log('GET HEADER ERROR:', e)
       }
     
   }
@@ -1467,8 +1472,6 @@ class Blockchain{
       
       return false;
     }
-    console.log(header.hash)
-      console.log(RecalculateHash(header))
   }
 
   validateBlockchain(allowRollback){
@@ -1829,7 +1832,7 @@ class Blockchain{
               let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
               let toAccountIsContract = await this.contractTable.getContract(transaction.toAddress)
               var isChecksumValid = this.validateChecksum(transaction);
-              // var amountIsNotZero = transaction.amount > 0;
+              var amountIsNotZero = transaction.amount > 0;
               let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
               var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
               let isNotCircular = fromAccount.name !== toAccount.name
@@ -1935,6 +1938,44 @@ class Blockchain{
       }else{
         resolve(true)
       }
+
+    })
+  }
+
+  runTransactionCalls(block){
+    return new Promise(async (resolve)=>{
+      let transactions = block.transactions;
+      let txHashes = Object.keys(block.transactions);
+      let errors = {}
+      let warnings = {}
+      let callResults = {}
+      // console.log(block)
+      for await(var hash of txHashes){
+        let transaction = transactions[hash];
+        
+        if(transaction.type == 'call'){
+          let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+          let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+
+          let call = transaction.data
+
+          let action = {
+            fromAccount: fromAccount.name,
+            data:{
+              contractName: toAccount.name,
+              method: call.method,
+              params: call.params,
+            },
+            hash:transaction.hash
+          }
+
+          this.stack.addNewCall(action)
+        }
+      }
+
+      let result = await this.stack.goThroughStack()
+      resolve(result)
+      
 
     })
   }
@@ -2059,7 +2100,6 @@ class Blockchain{
           }
 
           if(action.task == 'destroy'){
-            
             let destroyed = await this.testDestroyContract(action)
             if(destroyed.error){
               resolve({error:destroyed.error})
@@ -2297,7 +2337,7 @@ class Blockchain{
                 })
                 
               `
-                let result = await callRemoteVM(contract.code + instruction)
+                let result = await vmInterface(contract.code + instruction)
                 
                 if(result.error){
                   resolve({error:result.error})
@@ -2417,7 +2457,7 @@ class Blockchain{
                 })
                 
               `
-                let result = await callRemoteVM(contract.code + instruction)
+                let result = await vmInterface(contract.code + instruction)
                 
                 if(result.error){
                   resolve({error:result.error})
@@ -2758,13 +2798,6 @@ class Blockchain{
       this.loadBlocks()
       .then(async (loaded)=>{
         if(loaded){
-
-          // let accountsLoaded = await this.accountTable.loadAllAccountsFromFile();
-          // if(accountsLoaded){
-          //   resolve(true)
-          // }else{
-          //   reject('ERROR: Could not load account table')
-          // }
           
           let savedBalances = await this.balance.loadAllStates()
           if(savedBalances){

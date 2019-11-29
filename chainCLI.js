@@ -3,6 +3,13 @@
 const program = require('commander');
 const ioClient = require('socket.io-client');
 const ECDSA = require('ecdsa-secp256r1');
+const activePort = require('dotenv').config({ path: './config/.env' })
+
+if (activePort.error) {
+    throw activePort.error
+}
+
+const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 // const axios = require('axios');
 // const AccountCreator = require('./backend/classes/accountCreator');
 // const WalletManager = require('./backend/classes/walletManager');
@@ -64,8 +71,8 @@ program
 .command('getinfo')
 .description('Requests some general information about the blockchain')
 .action(()=>{
-    if(program.url){
-        openSocket(program.url, (socket)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
             socket.on('message', message => console.log(message))
             socket.emit('getInfo');
             socket.on('chainInfo', (info)=>{
@@ -84,8 +91,8 @@ program
 .command('getblock <blockNumber>')
 .description('Requests some general information about the blockchain')
 .action((blockNumber)=>{
-    if(program.url){
-        openSocket(program.url, (socket)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
                 socket.emit('getBlock', blockNumber);
                 socket.on('block', (block)=>{
                     console.log(JSON.stringify(block, null, 2))
@@ -102,8 +109,8 @@ program
 .command('getheader <blockNumber>')
 .description('Requests some general information about the blockchain')
 .action((blockNumber)=>{
-    if(program.url){
-        openSocket(program.url, (socket)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
                 socket.emit('getBlockHeader', blockNumber);
                 socket.on('header', (block)=>{
                     console.log(JSON.stringify(block, null, 2))
