@@ -181,7 +181,7 @@ class Stack{
                         }else{
                           let updated = await this.contractTable.updateContractState(call.data.contractName, result.state, call, this.getBlockNumber())
                           if(updated.error) return await this.goThroughStack({error:updated.error, call:call})
-                          return await this.goThroughStack({success:result.value, call:call})
+                          return await this.goThroughStack({success:result.value.success, call:call}) //Possible crash because of undefined result.value
                           
                         }
                         

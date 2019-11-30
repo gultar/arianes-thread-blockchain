@@ -233,7 +233,6 @@ class Blockchain{
 
                 // let callsExecuted = await this.executeTransactionCalls(newBlock)
                 let callsExecuted = await this.runTransactionCalls(newBlock);
-                console.log('EXECUTED:', callsExecuted)
                 if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
                 if(newBlock.actions){
 
