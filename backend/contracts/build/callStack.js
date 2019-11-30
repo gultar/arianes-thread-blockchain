@@ -1,5 +1,4 @@
 
-let callRemoteVM = require('../toBeDestroyed/callRemoteVM')
 let vmInterface = require('./vmInterface')
 let EventEmitter = require('events')
 let cluster = require('cluster')
@@ -175,7 +174,7 @@ class Stack{
                       let result = await vmInterface(contract.code + instruction)
 
                       if(result.error){
-                        return await this.goThroughStack({error:updated.error, call:call})
+                        return await this.goThroughStack({error:result.error, call:call})
                       }else{
                         if(isReadOnly){
                           return await this.goThroughStack({isReadOnly:result.value, call:call})

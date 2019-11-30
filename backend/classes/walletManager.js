@@ -47,8 +47,6 @@ class WalletManager{
 
   }
 
-  
-
 
   loadWallet(filename){
     return new Promise((resolve, reject)=>{

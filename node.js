@@ -1651,7 +1651,9 @@ class Node {
     }
     
   }
-
+  /**
+    @param {Object} $transaction - New transaction emitted on the network
+  */
   receiveTransaction(transaction){
     if(transaction && this.chain instanceof Blockchain){
       if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){

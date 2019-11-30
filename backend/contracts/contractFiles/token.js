@@ -28,7 +28,7 @@ class Token{
         let { symbol, name, maxSupply } = params
         if(!symbol) throw new Error('Symbol is required')
         if(!name) throw new Error('Token name is required')
-        if(!maxSupply) throw new Error('Max token supply is required')
+        if(!maxSupply || maxSupply <= 0) throw new Error('Max token supply greater than 0 is required')
         if(!account) throw new Error('Creator account is required')
 
         if(typeof maxSupply == 'string'){
@@ -66,7 +66,7 @@ class Token{
         return new Promise((resolve)=>{
             let { symbol, amount, receiver } = issueParams
         if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
-        if(!amount) throw new Error('A numerical amount to issue is required')
+        if(!amount || amount <= 0) throw new Error('An amount to transfer greater than 0 is required')
         if(!issuerAccount) throw new Error('Creator account of token is required')
         if(!receiver) throw new Error('Receiving account is required')
 
@@ -137,7 +137,7 @@ class Token{
         return new Promise((resolve)=>{
             let { symbol, amount, receiver } = transferParams
             if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')
-            if(!amount) throw new Error('A numerical amount to issue is required')
+            if(!amount || amount <= 0) throw new Error('An amount to transfer greater than 0 is required')
             if(!senderAccount) throw new Error('Sender account is required')
             if(!receiver) throw new Error('Receiving account is required')
 

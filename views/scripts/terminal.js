@@ -422,7 +422,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
-          socket.emit('testStack', args[0])
+          socket.emit('getState', args[0])
           break;
         default:
           if (cmd) {

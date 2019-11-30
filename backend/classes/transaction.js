@@ -46,10 +46,6 @@ class Transaction{
     }
   }
 
-  // static byteCount(transaction) {
-  //   return encodeURI(transaction).split(/%..|./).length - 1;
-  // }
-
 }
 
 module.exports = Transaction

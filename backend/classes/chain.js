@@ -106,23 +106,6 @@ class Blockchain{
       })
       .then((addedGenesisBlock)=>{
         resolve(true)
-        // if(addedGenesisBlock){
-        //   this.chainDB.put({
-        //       _id:genesisBlock.hash,
-        //       [genesisBlock.hash]:genesisBlock.transactions
-        //   })
-        //   .then(()=>{
-        //     
-        //   })
-        //   .catch(e => {
-        //     logger('GENESIS DB STORE ERROR: ', e)
-        //     resolve(false)
-        //   })
-          
-        // }else{
-        //   logger('Could not add Genesis block to database')
-        //   resolve(false)
-        // }
       })
       .catch(async (e)=>{
         console.log(e)
@@ -248,7 +231,8 @@ class Blockchain{
                 let executed = await this.balance.runBlock(newBlock)
                 if(executed.error) errors['Balance error'] = executed.error
 
-                let callsExecuted = await this.executeTransactionCalls(newBlock)
+                // let callsExecuted = await this.executeTransactionCalls(newBlock)
+                let callsExecuted = await this.runTransactionCalls(newBlock);
                 
                 if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
                 if(newBlock.actions){
@@ -1059,53 +1043,7 @@ class Blockchain{
     return amountOfReward;
   }
 
-//  /**
-//     Follows the account balance of a given wallet through current unvalidated transactions
-//     @param {string} $publicKey - Public key involved in transaction, either as sender or receiver
-//   */
-//   checkFundsThroughPendingTransactions(publicKey){
-//     var balance = 0;
-//     var trans;
-//     var action
-//     if(publicKey){
-//       var address = publicKey;
 
-//       for(var transHash of Object.keys(Mempool.pendingTransactions)){
-//         trans = this.mempool.pendingTransactions[transHash];
-//         if(trans){
-
-//           if(trans.fromAddress == address){
-//             balance = balance - trans.amount - trans.miningFee;
-//           }
-
-//           if(trans.toAddress == address){
-//             balance = balance + trans.amount;
-//           }
-
-//         }else{
-//           return 0;
-//         }
-
-//       }
-
-//       if(Mempool.pendingActions){
-//         for(var actionHash of Object.keys(Mempool.pendingActions)){
-          
-//           action = this.mempool.pendingActions[actionHash]
-//           if(action){
-//             if(action.fromAccount.ownerKey == address){
-//               balance = balance - action.fee;
-//             }
-//           }
-//         }
-//       }
-
-//       return balance;
-//     }else{
-//       return false;
-//     }
-
-//   }
 
   async getTransactionHistory(publicKey){
     if(publicKey){
@@ -1587,17 +1525,6 @@ class Blockchain{
       else resolve(true)
     })
   }
-
-  // unwrapBlock(block){
-  //   if(isValidBlockJSON(block)){
-  //     let transactionsOfCancelledBlock = block.transactions;
-  //     let actionsOfCancelledBlock = block.actions
-  //     this.mempool.putbackPendingTransactions(transactionsOfCancelledBlock);
-  //     this.mempool.putbackPendingActions(actionsOfCancelledBlock)
-  //   }
-    
-  // }
-
   
 
   validateBlockTransactions(block){
@@ -1623,36 +1550,6 @@ class Blockchain{
       
     })
   }
-
-  
-
-  // validateTransactionsForMining(transactions){
-  //   return new Promise((resolve, reject)=>{
-  //     if(transactions){
-  //       let orderedTransaction = this.mempool.orderTransactionsByTimestamp(transactions)
-  //       let txHashes = Object.keys(orderedTransaction);
-        
-  //       let validTransactions = {}
-  //       txHashes.forEach( hash =>{
-  //         let transaction = transactions[hash];
-  //         let valid = this.validateTransaction(transaction);
-  //         if(!valid.error){
-  //           validTransactions[hash] = transaction
-            
-  //         }else{
-  //           this.mempool.rejectTransactions(hash)
-  //           logger('Rejected Transaction:', hash);
-  //           logger('Reason: ', valid.error)
-  //         }
-  //       })
-  //       resolve(validTransactions);
-  //     }else{
-  //       logger('ERROR: Must pass block object')
-  //       resolve(false)
-  //     }
-      
-  //   })
-  // }
   
   blockContainsOnlyValidTransactions(block){
     return new Promise((resolve, reject)=>{
@@ -1709,14 +1606,6 @@ class Blockchain{
     
   }
 
-  /**
-  *  To run a proper transaction validation, one must look back at all the previous transactions that have been made by
-  *  emitting peer every time this is checked, to avoid double spending. An initial coin distribution is made once the genesis
-  *  block has been made. This needs some work since it is easy to send a false transaction and accumulate credits
-  *
-  * @param {Object} $transaction - transaction to be validated
-  * @param {function} $callback - Sends back the validity of the transaction
-  */
 
     /**
   *  To run a proper transaction validation, one must look back at all the previous transactions that have been made by
@@ -1841,6 +1730,8 @@ class Blockchain{
 
               if(!toAccount) resolve({error:'REJECTED: Receiving account is unknown'});
               if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+              //By enabling this, coins are burnt. 
+              //By disabling, something bugs down the line
               // if(!amountIsNotZero) resolve({error:'REJECTED: Amount needs to be higher than zero'});
               if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
               if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
@@ -1903,44 +1794,50 @@ class Blockchain{
 
   }
 
-  executeTransactionCalls(block){
-    return new Promise(async (resolve)=>{
-      let transactions = block.transactions;
-      let txHashes = Object.keys(block.transactions);
-      let errors = {}
+  // executeTransactionCalls(block){
+  //   return new Promise(async (resolve)=>{
+  //     let transactions = block.transactions;
+  //     let txHashes = Object.keys(block.transactions);
+  //     let errors = {}
 
-      for await(var hash of txHashes){
-        let transaction = transactions[hash];
+  //     for await(var hash of txHashes){
+  //       let transaction = transactions[hash];
         
-        if(transaction.type == 'call'){
-          let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
-          let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+  //       if(transaction.type == 'call'){
+  //         let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+  //         let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
 
-          let call = transaction.data
+  //         let call = transaction.data
 
-          let action = {
-            fromAccount: fromAccount.name,
-            data:{
-              contractName: toAccount.name,
-              method: call.method,
-              params: call.params,
-            },
-            hash:transaction.hash
-          }
+  //         let action = {
+  //           fromAccount: fromAccount.name,
+  //           data:{
+  //             contractName: toAccount.name,
+  //             method: call.method,
+  //             params: call.params,
+  //           },
+  //           hash:transaction.hash
+  //         }
 
-          let executed = await this.executeAction(action, this.getLatestBlock().blockNumber)
-          if(executed.error) errors[hash] = executed.error
-        }
-      }
+  //         let executed = await this.executeAction(action, this.getLatestBlock().blockNumber)
+  //         if(executed.error) errors[hash] = executed.error
+  //       }else if(transaction.type == 'deploy'){
 
-      if(Object.keys(errors).length > 0){
-        resolve({error:errors})
-      }else{
-        resolve(true)
-      }
+  //       }else if(transaction.type == 'destroy'){
 
-    })
-  }
+  //       }else if(transaction.type == 'account'){
+
+  //       }
+  //     }
+
+  //     if(Object.keys(errors).length > 0){
+  //       resolve({error:errors})
+  //     }else{
+  //       resolve(true)
+  //     }
+
+  //   })
+  // }
 
   runTransactionCalls(block){
     return new Promise(async (resolve)=>{
@@ -1970,6 +1867,8 @@ class Blockchain{
           }
 
           this.stack.addNewCall(action)
+        }else if(transaction.type == 'account'){
+          
         }
       }
 
