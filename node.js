@@ -1939,7 +1939,7 @@ class Node {
                         }
                       }
 
-                      let result = await this.chain.testExecuteAction(action, this.getLatestBlock())
+                      let result = await this.chain.testExecuteAction(action, this.chain.getLatestBlock())
                       if(result.error){
                         resolve({error:result.error})
                       }else if(result.isReadOnly){
