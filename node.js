@@ -242,6 +242,7 @@ class Node {
     socket.on('peerMessage', async(peerMessage)=>{
       if(!this.messageBuffer[peerMessage.messageId]){
         await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
+        console.log(peerMessage)
         this.handlePeerMessage(peerMessage);
       }
     })
