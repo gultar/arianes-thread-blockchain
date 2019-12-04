@@ -67,10 +67,10 @@ class Block{
               resolve(false)
           });
           process.ACTIVE_MINER.on('close', function() {
-              logger('Mining process ended')
+              // logger('Mining process ended')
           })
         }else{
-          logger('ERROR: Already started miner')
+          //logger('ERROR: Already started miner')
         }
       })
       

@@ -106,12 +106,7 @@ class Storage{
         let external = makeExternal({
             set:{
                 type:'set',
-                args:[
-                    {'entry':
-                        {"id":'string',
-                        "data":"object"
-                        }
-                    },"account"],
+                args:[`'entry':{"id":'string',"data":"object"}`,"account"],
                 description:'save or modify data field'
             },
             changePermissions:{

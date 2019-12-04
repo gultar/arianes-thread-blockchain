@@ -1,8 +1,6 @@
 
 let vmInterface = require('./vmInterface')
 let EventEmitter = require('events')
-let cluster = require('cluster')
-
 class ExecutionSignal extends EventEmitter{
   constructor(){
     super()
@@ -12,6 +10,7 @@ class ExecutionSignal extends EventEmitter{
 class Stack{
     constructor({ contractTable, accountTable, getBlockNumber }){
         this.stack = []
+        this.queue = {}
         this.contractTable = contractTable
         this.accountTable = accountTable
         this.getBlockNumber = getBlockNumber
@@ -20,7 +19,15 @@ class Stack{
     }
 
     addNewCall(call){
+        
         this.stack.unshift(call)
+        return true;
+    }
+
+    addCall(call, contractName){
+        if(!this.queue[contractName]) this.queue[contractName] = []
+
+        this.queue[contractName].unshift(call)
         return true;
     }
 
@@ -61,12 +68,29 @@ class Stack{
       `
     }
 
+    loadSingleMethodCall(hash, method){
+      return `
+      result['${hash}'] = await instance['${method}'](params, callerAccount)
+      `
+    }
+
+    async loadAllMethodCalls(actions){
+      let methodCalls = ``
+      for await(let hash of Object.keys(actions)){
+        let action = actions[hash]
+
+        methodCalls = methodCalls + this.loadSingleMethodCall(hash, action.data.method)
+
+      }
+      return methodCalls;
+    }
+
     loadInstruction({ 
       loadParams, 
       loadCall, 
       loadCallingAccount, 
-      loadInitParams, 
-      loadCurrentState, 
+      loadInitParams,
+      loadCurrentState,  
       call, 
       method }){
 
@@ -111,7 +135,23 @@ class Stack{
         
       `
       return instruction
+    
+    
     }
+
+    buildInstance({ loadParams, loadCall, loadCallingAccount, loadInitParams, call, method }){
+      let instruction = `
+      ${loadParams}
+      ${loadCall}
+      ${loadCallingAccount}
+      ${loadInitParams}
+      instance = new ${call.data.contractName}(initParams)
+      `
+
+      return instruction
+    }
+
+    
 
     
 
@@ -155,13 +195,13 @@ class Stack{
                   }else{
                     let contractState = await this.contractTable.getState(call.data.contractName)
                     if(!contractState) return await this.goThroughStack({error:`Could not find contract state of ${contractName}`, call:call})
-
+                    
                     let initParams = JSON.parse(contract.initParams)
           
                     let method = call.data.method
                     let params = call.data.params
 
-                    let instruction = this.loadInstruction({
+                    let instruction = this.buildInstruction({
                       loadParams:this.loadParams(params),
                       loadCall:this.loadCall(call),
                       loadCallingAccount:this.loadCallingAccount(account),
@@ -171,8 +211,8 @@ class Stack{
                       method:method
                     })
 
-                      let result = await vmInterface(contract.code + instruction)
 
+                      let result = await vmInterface(contract.code + instruction)
                       if(result.error){
                         return await this.goThroughStack({error:result.error, call:call})
                       }else{
@@ -201,6 +241,82 @@ class Stack{
           }
         }
       }
+
+     async  buildCode(){
+       let errors = {}
+       let contractNames = Object.keys(this.queue)
+       let codes = {
+         totalCalls:0
+       }
+       
+
+       //Load contract states
+       for await(let contractName of contractNames){
+         let contract = await this.contractTable.getContract(contractName)
+         if(contract){
+          codes[contractName] = {
+            contract:contract,
+            calls:{}
+          }
+          let contractState = await this.contractTable.getState(contractName)
+          if(contractState){
+            codes[contractName].state = contractState
+            let calls = this.queue[contractName]
+            if(calls){
+              for await(let call of calls){
+                let account = await this.accountTable.getAccount(call.fromAccount)
+                if(account){
+                  let hash = call.hash
+                  let method = contract.contractAPI[call.data.method]
+                  if(method){
+                    let initParams = JSON.parse(contract.initParams)
+                      
+                      codes[contractName].calls[hash] = {
+                        code:this.buildInstance({
+                          loadParams:this.loadParams(call.data.params),
+                          loadCall:this.loadCall(call),
+                          loadCallingAccount:this.loadCallingAccount(account),
+                          loadInitParams:this.loadInitParams(initParams),
+                          call:call,
+                          method:call.data.method
+                        }),
+                        methodToRun:`let result = await instance['${call.data.method}'](params, callerAccount)`,
+                        contractName:contractName
+                      }
+                      
+                      codes.totalCalls++
+                    
+                  }else{
+                    //Method does not exist
+                    console.log('Method does not exist')
+                  }
+                }else{
+                  console.log('Sending account could not be found')
+                }
+                
+              }
+            }else{
+              return { error:`No calls to process in stack` }
+            }
+          }else{
+            errors[contractName] = `Could not find state of contract ${contractName}`
+          }
+         }else if(contract.error){
+          errors[contractName] = contract.error
+         }else if(!contract){
+          errors[contractName] = `Contract name ${contractName} unknown`
+         }
+       }
+
+       this.queue = {}
+       if(contractNames.length > 0){
+         if(Object.keys(errors).length > 0) return {error:errors}
+          else return codes
+       }else{
+         return false
+       }
+       
+    }
 
       
     

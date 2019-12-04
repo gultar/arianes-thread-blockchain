@@ -36,6 +36,14 @@ class Miner{
       if(!this.wallet) throw new Error('ERROR: Could not load wallet')
     }
 
+    log(message){
+      if(this.verbose){
+        logger(message)
+      }else{
+        //nothing
+      }
+    }
+
     connect(url){
       
       this.initWallet()
@@ -48,7 +56,7 @@ class Miner{
         }
         this.socket = ioClient(url, config)
         this.socket.on('connect', ()=>{
-          logger('Miner connected to ', url)
+          this.log('Miner connected to ', url)
           this.run()
         })
 
@@ -74,7 +82,7 @@ class Miner{
         })
         this.socket.on('error', error => console.log('ERROR',error))
         this.socket.on('disconnect', ()=>{
-          logger('Connection to node dropped')
+          this.log('Connection to node dropped')
           this.pause()
         })
       }
@@ -95,10 +103,10 @@ class Miner{
           
           let block = await this.buildNewBlock();
           if(block){
-            logger('Starting to mine next block')
-            logger('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
-            logger('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
-            logger('At difficulty: ', parseInt(block.difficulty, 16))
+            this.log('Starting to mine next block')
+            this.log('Number of transactions being mined: ', Object.keys(this.pool.pendingTransactions).length)
+            this.log('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
+            this.log('At difficulty: ', parseInt(block.difficulty, 16))
             let success = await block.mine(block.difficulty);
             if(success){
               block.endMineTime = Date.now()
@@ -110,7 +118,7 @@ class Miner{
               this.run()
               
             }else{
-              logger('Mining unsuccessful')
+              this.log('Mining unsuccessful')
               this.minerStarted = false;
               this.pause()
             }
@@ -150,7 +158,7 @@ class Miner{
           if(actions){
             console.log('Enters the fetch actions')
             this.pool.pendingActions = actions;
-            if(this.sizeOfActionPool() > 0) logger(`Found ${this.sizeOfActionPool()} actions to mine`)
+            if(this.sizeOfActionPool() > 0) this.log(`Found ${this.sizeOfActionPool()} actions to mine`)
             clearTimeout(timedOut)
             this.socket.off('newActions')
             resolve(true)
@@ -161,104 +169,15 @@ class Miner{
       })
     }
 
-    // updateTransactions(){
-    //   return new Promise(async (resolve)=>{
-    //     let lastHash = '';
-    //     let list = await this.getTxList();
-    //     if(list){
-          
-    //       for(var i=0; i < list.length; i++){
-    //         if(i == list.length -1){
-    //           lastHash = list[i]
-    //         }
-
-    //         this.socket.emit('getTx', list[i])
-    //       }
-    //       this.socket.on('tx', (tx)=>{
-    //         if(tx){
-    //             this.pool.pendingTransactions[tx.hash] = tx;
-    //             if(tx.hash == lastHash){
-    //               this.socket.off('tx')
-    //               resolve(true)
-    //             }
-    //         }
-            
-    //       })
-    //     }else{
-    //       resolve(false)
-    //     }
-    //   })
-      
-    // }
-
-    // updateActions(){
-    //   return new Promise(async (resolve)=>{
-    //     let lastHash = '';
-    //     let list = await this.getActionList();
-    //     if(list && list.length > 0){
-    //       for(var i=0; i < list.length; i++){
-    //         if(i == list.length -1){
-    //           lastHash = list[i]
-    //         }
-
-    //         this.socket.emit('getAction', list[i])
-    //       }
-    //       this.socket.on('action', (action)=>{
-    //         if(action){
-    //             this.pool.pendingActions[action.hash] = action;
-    //             if(action.hash == lastHash){
-    //               this.socket.off('action')
-    //               resolve(true)
-    //             }
-    //         }else{
-    //           resolve(false)
-    //         }
-            
-    //       })
-    //     }else{
-    //       resolve(false)
-    //     }
-    //   })
-      
-    // }
-
-    // getTxList(){
-    //   return new Promise((resolve)=>{
-    //     this.socket.emit('getTxHashList')
-    //     this.socket.on('txHashList', (list)=>{
-    //         if(list){
-    //             this.socket.off('txHashList')
-    //             resolve(list)
-    //         }else{
-    //           resolve(false)
-    //         }
-    //     })
-    //   })
-    // }
-
-    // getActionList(){
-    //   return new Promise((resolve)=>{
-    //     this.socket.emit('getActionHashList')
-    //     this.socket.on('actionHashList', (list)=>{
-    //         if(list){
-    //             this.socket.off('actionHashList')
-    //             resolve(list)
-    //         }else{
-    //           resolve(false)
-    //         }
-    //     })
-    //   })
-    // }
 
     pause(){
-      logger('Stopping miner')
+      this.log('Stopping miner')
         
       if(process.ACTIVE_MINER){
         process.ACTIVE_MINER.kill()
         process.ACTIVE_MINER = false;
-      }else{
-        logger('No active miner to stop')
       }
+      
       this.minerStarted = false;
       this.pool.pendingTransactions = {}
       this.pool.pendingActions = {}
@@ -295,8 +214,6 @@ class Miner{
 
       let transactions = JSON.parse(JSON.stringify(this.pool.pendingTransactions)) 
       let actions = JSON.parse(JSON.stringify(this.pool.pendingActions))
-      
-     
       
       if(Object.keys(transactions).length > 0){
         if(!this.buildingBlock){
@@ -339,7 +256,7 @@ class Miner{
     orderTransactionsByTimestamp(transactions){
       return new Promise((resolve)=>{
         if(typeof transactions == 'object'){
-          logger('Ordering transactions by timestamp')
+          this.log('Ordering transactions by timestamp')
           let txHashes = Object.keys(transactions);
           let orderedTransaction = {};
           let txAndTimestamp = {};
@@ -379,20 +296,23 @@ class Miner{
         let array = (new Array(width - n.length + 1)).join(z)
         return n.length >= width ? n :  '0x'+array + n;
       }
-      console.log(chalk.cyan('\n********************************************************************'))
-      console.log(chalk.cyan('* Block number : ')+block.blockNumber);
-      console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
-      console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
-      console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy)
-      console.log(chalk.cyan('* Mined at: '), displayTime())
-      console.log(chalk.cyan("* Challenge : "), pad(block.challenge, 64).substr(0, 25)+'...');
-      console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
-      console.log(chalk.cyan("* Nonce : "), block.nonce)
-      console.log(chalk.cyan("* Difficulty : "), parseInt(block.difficulty, 16))
-      console.log(chalk.cyan("* Total Difficulty : "), BigInt(parseInt(block.totalDifficulty, 16)))
-      console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
-      console.log(chalk.cyan('* Number of actions in block : '), Object.keys(block.actions).length)
-      console.log(chalk.cyan('********************************************************************\n'))
+      if(this.verbose){
+        console.log(chalk.cyan('\n********************************************************************'))
+        console.log(chalk.cyan('* Block number : ')+block.blockNumber);
+        console.log(chalk.cyan('* Block Hash : ')+ block.hash.substr(0, 25)+"...")
+        console.log(chalk.cyan('* Previous Hash : ')+ block.previousHash.substr(0, 25)+"...")
+        console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy)
+        console.log(chalk.cyan('* Mined at: '), displayTime())
+        console.log(chalk.cyan("* Challenge : "), pad(block.challenge, 64).substr(0, 25)+'...');
+        console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+        console.log(chalk.cyan("* Nonce : "), block.nonce)
+        console.log(chalk.cyan("* Difficulty : "), parseInt(block.difficulty, 16))
+        console.log(chalk.cyan("* Total Difficulty : "), BigInt(parseInt(block.totalDifficulty, 16)))
+        console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
+        console.log(chalk.cyan('* Number of actions in block : '), Object.keys(block.actions).length)
+        console.log(chalk.cyan('********************************************************************\n'))
+      }
+      
     }
 
     

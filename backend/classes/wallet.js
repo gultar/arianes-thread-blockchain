@@ -96,8 +96,10 @@ class Wallet{
         else if(seconds > 60 * 10) logger('WARNING: Unlocking wallet for more than 10 minutes is risky');
         else if(seconds < 1) {
             logger('ERROR: Cannot unlock for less than a second ');
-            lockWalletIn = 1000;
-        }else lockWalletIn = seconds * 1000;
+            lockWalletIn = 1;
+        }
+        
+        lockWalletIn = seconds * 1000;
 
         _(this).lockTimer = setTimeout(()=>{
           _(this).locked = true;

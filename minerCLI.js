@@ -19,7 +19,7 @@ program
         if(!nodeAddress) throw new Error('Need to provide node port to connect to')
         let miner = new Miner({
             publicKey:program.publickey,
-            verbose:program.verbose,
+            verbose:true,
             keychain:{ name:program.walletName, password:program.password }
         })
         miner.connect(nodeAddress)

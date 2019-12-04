@@ -280,9 +280,6 @@ class Node {
             logger('ERROR: Could not find peer socket to download blockchain')
           }
           
-          
-          // console.log('Sending status :', status)
-          
         }catch(e){
           console.log(e)
         }
@@ -1073,14 +1070,15 @@ class Node {
           if(isValidTransactionJSON(req.body) || isValidTransactionCallJSON(req.body)){
             let transaction = req.body
             
-            this.broadcastNewTransaction(transaction)
+            this.broadcastTransaction(transaction)
             .then((transactionEmitted)=>{
               
               if(transactionEmitted.error){
                 res.send(transactionEmitted.error)
               }else{
-                if(transactionEmitted.callExecuted){
-                  let result = { result:transactionEmitted.callExecuted, receipt:transaction }
+                
+                if(transactionEmitted.success){
+                  let result = { result:transactionEmitted.success, receipt:transaction }
                   res.send(JSON.stringify(result, null, 2));
                 }else if(transactionEmitted.isReadOnly){
                   let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
@@ -1228,23 +1226,7 @@ class Node {
               if(transactionEmitted.error){
                 socket.emit('transactionEmitted',{ error:transactionEmitted.error })
               }else{
-                if(transactionEmitted.callExecuted){
-                  let result = { result:transactionEmitted.callExecuted, receipt:transaction }
-                  socket.emit('transactionEmitted', result)
-                }else if(transactionEmitted.isReadOnly){
-                  let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
-                  socket.emit('result', result)
-                }else{
-                  socket.emit('transactionEmitted', { 
-                    receipt: {
-                      fromAddress:transaction.fromAddress,
-                      toAddress:transaction.toAddress,
-                      amount:transaction.amount,
-                      sent:transaction.timestamp
-                    } 
-                  })
-                  
-                }
+                socket.emit('transactionEmitted', transactionEmitted)
                 
               }
           }else{
@@ -1440,6 +1422,7 @@ class Node {
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
+        console.log(rolledback)
       })
 
       socket.on('getTransactionFromDB', async (hash)=>{
@@ -1456,9 +1439,52 @@ class Node {
           let mockBlock = {
             transactions:bunch,
           }
-         let result = await this.chain.runTransactionCalls(mockBlock)
-         socket.emit('result', result)
-        
+         let startTime = Date.now()
+          for await(let hash of Object.keys(bunch)){
+            let action = bunch[hash];
+
+            let call = {
+              fromAccount: action.fromAddress,
+              data:{
+                contractName: action.toAddress,
+                method: action.data.method,
+                params: action.data.params,
+              },
+              hash:action.hash
+            }
+
+            this.chain.stack.addCall(call, action.toAddress);
+
+          }
+          let vmMaster = require('./backend/contracts/build/vmMaster')
+          let codes = await this.chain.stack.buildCode(bunch)
+          let results = await vmMaster(codes)
+          let callHashes = Object.keys(results)
+          let lastHash = callHashes[callHashes.length -1]
+          let lastResult = results[lastHash]
+          let lastState = lastResult.executed.state
+          let lastCallsContractName = results[lastHash].contractName
+          let endTime = Date.now()
+          console.log(`Executed a total of ${callHashes.length} calls`)
+          console.log(`In ${endTime - startTime} milliseconds`)
+          console.log(`Which is about ${(endTime - startTime) / callHashes.length} milliseconds per call`)
+          let updated = await this.chain.contractTable.updateContractState(lastCallsContractName, lastState, {hash:lastHash}, this.chain.getLatestBlock())
+          console.log('Updated',updated)
+      })
+
+      socket.on('testDeployContract', async ()=>{
+        let contract = await this.chain.contractTable.getContract('Token')
+        let ContractVM = require('./backend/contracts/VM')
+        let VM = new ContractVM({
+          code:'',
+          type:'NodeVM'
+        })
+        VM.buildVM()
+        let added = VM.setContractClass('Token', contract.code)
+        // console.log(added)
+        let result = await VM.deployContract('Token', contract.account)
+        console.log(result)
+
       })
 
       socket.on('disconnect', ()=>{
@@ -1925,50 +1951,87 @@ class Node {
               this.chain.createTransaction(transaction)
                 .then( async (valid) =>{
                   if(!valid.error){
-  
-                    if(transaction.type == 'call'){
 
-                      let call = transaction.data
+                      if(transaction.type == 'call'){
+                        let call = {
+                          fromAccount: transaction.fromAddress,
+                          data:{
+                            contractName: transaction.toAddress,
+                            method: transaction.data.method,
+                            params: transaction.data.params,
+                          },
+                          hash:transaction.hash
 
-                      let action = {
-                        fromAccount: transaction.fromAddress,
-                        data:{
-                          contractName: transaction.toAddress,
-                          method: call.method,
-                          params: call.params,
-                        }
+                          
                       }
-
-                      let result = await this.chain.testExecuteAction(action, this.chain.getLatestBlock())
-                      if(result.error){
-                        resolve({error:result.error})
-                      }else if(result.isReadOnly){
-                        resolve({isReadOnly:result.isReadOnly})
-                      }else{
-                        
-                        let added = await this.mempool.addTransaction(transaction);
-                        this.UILog('=> Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
-                        if(this.verbose) logger(chalk.blue('=>')+' Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
-                        
-                        this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
-                        console.log('result:', result)
-                        resolve({ callExecuted:result })
-                        
-                      }
-
-        
-
-
-                    }else{
-
-                      let added = await this.mempool.addTransaction(transaction);
-                      this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                      let contract = await this.chain.contractTable.getContract(call.data.contractName)
+                      let contractAPI = contract.contractAPI
+                      let contractMethod = contractAPI[call.data.method];
                       
-                      this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
-                      resolve(transaction)
-
+                      if(contractMethod.type == 'get'){
+                        let executed = await this.chain.executeSingleCall(call)
+                        if(executed.error) resolve({error:executed.error})
+                        else{
+                          resolve({success: executed, call:call})
+                        }
+                      }else if(contractMethod.type == 'set'){
+                        let added = await this.mempool.addTransaction(transaction);
+                        if(added.error){
+                          resolve({error:added.error})
+                        }else{
+                          this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                          if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                          
+                          this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                          resolve(transaction)
+                        }
+                      }else{
+                        resolve({error:`Invalid contract method type on api of contract ${contract.name}`})
+                      }
+                    }else{
+                      //Simple transaction
+                      let added = await this.mempool.addTransaction(transaction);
+                        if(added.error){
+                          resolve({error:added.error})
+                        }else{
+                          this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                          if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
+                          
+                          this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                          resolve(transaction)
+                        }
                     }
+                    
+  
+
+
+                      
+                    //   let success = await this.chain.testExecuteSingleCall(call);
+                    //   if(success && !success.error){
+                    //     let added = await this.mempool.addTransaction(transaction);
+                    //     if(added.error) resolve({error:added.error})
+                    //     else{
+                    //       this.UILog('=> Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                    //       if(this.verbose) logger(chalk.blue('=>')+' Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
+                          
+                    //       this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+                          
+                    //       resolve({ success:success, addedToMempool:transaction })
+                    //     }
+                        
+                    //   }else if(success.error){
+                    //     resolve(success.error)
+                    //   }else{
+                    //     resolve({error:`Transaction call could not be executed properly`})
+                    //   }
+
+                      
+                    // }else{
+
+
+                      
+
+                    // }
   
                   }else{
   

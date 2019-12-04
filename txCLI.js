@@ -60,7 +60,14 @@ program
                                 if(signature){
                                     transaction.signature = signature;
                                     axios.post(`${nodeAddress}/transaction`, transaction)
-                                    .then( success => console.log(success.data))
+                                    .then( success => {
+                                        console.log(success.data)
+                                        if(success.data.result){
+                                            let result = success.data.result[transaction.hash];
+                                            delete result.executed.state
+                                            console.log(JSON.stringify(result.executed, null, 1))
+                                        }
+                                    })
                                     .catch( e => console.log(e))
                                 }else{
                                     console.log('ERROR: Could not sign transaction')

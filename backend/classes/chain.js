@@ -21,7 +21,7 @@ const ContractTable = require('./contractTable');
 const Stack = require('../contracts/build/callStack')
 
 /*************Smart Contract VM************** */
-const vmInterface = require('../contracts/build/vmInterface')
+const vmMaster = require('../contracts/build/vmMaster')
 /******************************************** */
 
 const Block = require('./block');
@@ -29,7 +29,6 @@ const { setNewChallenge, setNewDifficulty, Difficulty } = require('./challenge')
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
 const fs = require('fs');
-const jsonc = require('jsonc')
 let _ = require('private-parts').createKey();
 const genesis = require('../tools/getGenesis')
 const PouchDB = require('pouchdb');
@@ -231,36 +230,30 @@ class Blockchain{
                 let executed = await this.balance.runBlock(newBlock)
                 if(executed.error) errors['Balance error'] = executed.error
 
-                // let callsExecuted = await this.executeTransactionCalls(newBlock)
-                let callsExecuted = await this.runTransactionCalls(newBlock);
-                if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
-                if(newBlock.actions){
-
+                //Need to extract calls from transactions before running this, to avoid unnecessary running
+                
+                // console.log(newBlock)
+                if(newBlock.actions && Object.keys(newBlock.actions).length > 0){
+                  
                   let allActionsExecuted = await this.executeActionBlock(newBlock)
+                  
                   if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
-
                   let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(newBlock.actions)
                   if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
-
                   
-                  if(Object.keys(errors).length > 0){
-                    this.isBusy = false
-                    resolve({error: errors})
-                  }else{
-                    this.isBusy = false
-                    resolve(true);
-                  }
-                  
-                }else if(!newBlock.actions){
-
-                  if(Object.keys(errors).length > 0){
-                    this.isBusy = false
-                    resolve({error: errors})
-                  }else{
-                    this.isBusy = false
-                    resolve(true);
-                  }
                 }
+
+                let callsExecuted = await this.runTransactionCalls(newBlock);
+                if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+
+                if(Object.keys(errors).length > 0){
+                  this.isBusy = false
+                  resolve({error: errors})
+                }else{
+                  this.isBusy = false
+                  resolve(true);
+                }
+                
 
               }else{
                 resolve({error:'Could not delete block transactions'})
@@ -436,11 +429,13 @@ class Blockchain{
                             let executed = await this.balance.runBlock(forkBlock)
                             if(executed.error) resolve({error:executed.error})
 
-                            let actionsExecuted = await this.executeActionBlock(forkBlock)
-                            if(actionsExecuted.error) resolve({error:actionsExecuted.error})
-    
-                            if(forkBlock.actions){
-                              forkBlock.transactions['actions'] = forkBlock.actions
+                            if(forkBlock.actions && Object.keys(forkBlock.actions).length > 0){
+                              let actionsExecuted = await this.executeActionBlock(forkBlock)
+                              if(actionsExecuted.error) resolve({error:actionsExecuted.error})
+      
+                              if(forkBlock.actions){
+                                forkBlock.transactions['actions'] = forkBlock.actions
+                              }
                             }
     
                             let replaced = await this.replaceBlockFromDB(forkBlock)
@@ -832,25 +827,6 @@ class Blockchain{
     })
   }
 
-  // hasEnoughTransactionsToMine(){
-  //   if(Object.keys(Mempool.pendingTransactions).length >= this.blockSize){
-  //     return true
-  //   }else{
-  //     return false;
-  //   }
-  // }
-
-  /**
-    In case of block rollback, add back all the transactions contained in the block
-    @param {object} $block - Block to deconstruct
-  */
-  // putbackPendingTransactions(block){
-  //   for(var txHash in Object.keys(block.transactions)){
-  //     this.mempool.pendingTransactions[txHash] = block.transactions[txHash];
-  //     delete block.transactions[txHash];
-  //   }
-  // }
-
   selectNextPreviousBlock(){
     if(this.getLatestBlock().blockFork){
       let latestBlock = this.getLatestBlock();
@@ -900,29 +876,6 @@ class Blockchain{
     })
     
   }
-
-  // createCoinbaseTransaction(publicKey, blockHash){
-    
-  //   return new Promise(async (resolve, reject)=>{
-  //     if(publicKey){
-  //       try{
-  //         var miningReward = new Transaction('coinbase', publicKey, this.miningReward, blockHash)
-          
-  //         this.mempool.addCoinbaseTransaction(miningReward);
-  //         logger(chalk.blue('$$')+' Created coinbase transaction: '+ miningReward.hash.substr(0, 15))
-  //         resolve(miningReward)
-
-  //       }catch(e){
-  //         console.log(e);
-  //         resolve(false);
-  //       }
-  //     }else{
-  //       logger('ERROR: Could not create coinbase transaction. Missing public key');
-  //       resolve(false);
-  //     }
-      
-  //   })
-  // }
 
 
   checkIfChainHasHash(hash){
@@ -1465,7 +1418,7 @@ class Blockchain{
       let totalBlockNumber = this.getLatestBlock().blockNumber
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
-      let blocks = this.chain.slice(number + 1, number + 1 + numberOfBlocksToRemove)// this.chain.chain.splice(number + 1, numberOfBlocksToRemove)
+      let blocks = this.chain.slice(number + 1, number + 1 + numberOfBlocksToRemove)
       
       let rolledBack = await this.balance.rollback(number)
       if(rolledBack.error) throw new Error(rolledBack.error)
@@ -1479,6 +1432,7 @@ class Blockchain{
       if(txHashes.length > 0){
         for await(var hash of txHashes){
           let transaction = await this.getTransactionFromDB(hash);
+          //Rolling back transaction calls and contracts states derived from them
           if(transaction){
             let isTransactionCall = transaction.type == 'call'
             if(isTransactionCall){
@@ -1492,6 +1446,7 @@ class Blockchain{
 
       if(actionHashes.length > 0){
         for await(var hash of actionHashes){
+          //Rolling back actions and contracts
           let action = await this.getActionFromDB(hash);
           if(action){
             if(action.type == 'contract'){
@@ -1793,59 +1748,12 @@ class Blockchain{
 
   }
 
-  // executeTransactionCalls(block){
-  //   return new Promise(async (resolve)=>{
-  //     let transactions = block.transactions;
-  //     let txHashes = Object.keys(block.transactions);
-  //     let errors = {}
-
-  //     for await(var hash of txHashes){
-  //       let transaction = transactions[hash];
-        
-  //       if(transaction.type == 'call'){
-  //         let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
-  //         let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
-
-  //         let call = transaction.data
-
-  //         let action = {
-  //           fromAccount: fromAccount.name,
-  //           data:{
-  //             contractName: toAccount.name,
-  //             method: call.method,
-  //             params: call.params,
-  //           },
-  //           hash:transaction.hash
-  //         }
-
-  //         let executed = await this.executeAction(action, this.getLatestBlock().blockNumber)
-  //         if(executed.error) errors[hash] = executed.error
-  //       }else if(transaction.type == 'deploy'){
-
-  //       }else if(transaction.type == 'destroy'){
-
-  //       }else if(transaction.type == 'account'){
-
-  //       }
-  //     }
-
-  //     if(Object.keys(errors).length > 0){
-  //       resolve({error:errors})
-  //     }else{
-  //       resolve(true)
-  //     }
-
-  //   })
-  // }
-
   runTransactionCalls(block){
     return new Promise(async (resolve)=>{
       let transactions = block.transactions;
       let txHashes = Object.keys(block.transactions);
       let errors = {}
-      let warnings = {}
-      let callResults = {}
-      // console.log(block)
+
       for await(var hash of txHashes){
         let transaction = transactions[hash];
         
@@ -1865,40 +1773,64 @@ class Blockchain{
             hash:transaction.hash
           }
 
-          this.stack.addNewCall(action)
-        }else if(transaction.type == 'account'){
+          await this.stack.addCall(action, action.data.contractName)
           
         }
       }
-
-      let result = await this.stack.goThroughStack()
-      resolve(result)
+      let codes = await this.stack.buildCode()
+      if(codes){
+        // console.log(codes)
+        let results = await vmMaster({
+          codes:codes
+        })
+        
+        if(results.error) resolve({error:results.error})
+        else{
+  
+          for await(let hash of Object.keys(results)){
+            let result = results[hash]
+            if(result.error) errors[hash] = result
+          }
+          if(Object.keys(errors).length == 0){
+            let callHashes = Object.keys(results)
+            
+            let lastHash = callHashes[callHashes.length -1]
+            let lastResult = results[lastHash]
+            let lastState = lastResult.executed.state
+            let lastCallsContractName = results[lastHash].contractName
+            let updated = await this.contractTable.updateContractState(lastCallsContractName, lastState, {hash:lastHash}, this.getLatestBlock())
+            if(updated.error) resolve({error:updated.error})
+            resolve(results)
+          }else{
+            resolve({error:errors})
+          }
+        }
+      }else{
+        // console.log('No code to run')
+        return true
+      }
+       
       
-
     })
   }
+
+  
 
   executeActionBlock(block){
     return new Promise(async (resolve)=>{
       if(block){
         let actions = block.actions
         if(actions){
-          let hashes = Object.keys(actions);
-          let errors = {}
-          for(var hash of hashes){
+          for await(let hash of Object.keys(actions)){
             let action = actions[hash]
-
-            let result = await this.handleAction(action, block.blockNumber)
-            if(result.error){
-              errors[action.hash] = result.error
+            let errors = {}
+            let result = await this.handleAction(action)
+            if(result.error) resolve({error:result.error})
+            else{
+              resolve(true)
             }
           }
-
-          if(Object.keys(errors) > 0){
-            resolve({errors:errors})
-          }else{
-            resolve(true)
-          }
+          
         }else{
           resolve(true)
         }
@@ -1937,11 +1869,14 @@ class Blockchain{
           }
 
           if(action.task == 'call'){
-            let executed = await this.executeAction(action, blockNumber)
+            let executed = await this.executeSingleCall(action, action.data.contractName)
             if(executed){
               if(executed.error){
                 resolve({error:executed.error})
               }else{
+                let state = executed[hash].state;
+                let updated = await this.contractTable.updateContractState(action.data.contractName, executed.state, {hash:action.hash}, this.getLatestBlock())
+                if(updated.error) resolve({error:updated.error})
                 resolve(executed)
               }
             }else{
@@ -2008,7 +1943,7 @@ class Blockchain{
           }
 
           if(action.task == 'call'){
-            let executed = await this.testExecuteAction(action, blockNumber)
+            let executed = await this.testExecuteCall(action, action.data.contractName)
             if(executed){
               if(executed.error){
                 resolve({error:executed.error})
@@ -2146,239 +2081,32 @@ class Blockchain{
     })
   }
 
-  executeAction(action, blockNumber){
+ 
+
+  executeManyCalls(calls){
     return new Promise(async (resolve)=>{
-      try{
-        let account = await this.accountTable.getAccount(action.fromAccount)
-        if(account){
-          let contract = await this.contractTable.getContract(action.data.contractName)
-          if(contract){
-            if(contract.error) resolve({error:contract.error})
-
-            let isReadOnly = false
-            let contractMethod = contract.contractAPI[action.data.method]
-            if(contractMethod){
-              isReadOnly = contractMethod.type == 'get'
-            }
-            
-            let isExternalFunction = contract.contractAPI[action.data.method]
-            if(!isExternalFunction && !isReadOnly) resolve({error:'Method call is not part of contract API'})
-            else{
-              let contractState = await this.contractTable.getState(action.data.contractName)
-              if(!contractState) resolve({error:'Could not find contract state'})
-    
-              let initParams = JSON.parse(contract.initParams)
-    
-              let method = action.data.method
-              let params = action.data.params
-
-    
-              let loadCallingAction = `
-              let actionString = '${JSON.stringify(action)}'
-              let action = JSON.parse(actionString);
-              params.callingAction = action
-              `
-              let loadParams = `
-              let paramsString = '${JSON.stringify(params)}'
-              let params = JSON.parse(paramsString)
-              `
-              let loadInitParams = `
-              let initParamsString = '${JSON.stringify(initParams)}'
-              let initParams = JSON.parse(initParamsString)
-              `
-              let loadCallingAccount = `
-              let callerAccountString = '${JSON.stringify(account)}'
-              let callerAccount = JSON.parse(callerAccountString)
-              `
-              let loadCurrentState = `
-              let currentStateString = '${JSON.stringify(contractState)}'
-              let currentState = JSON.parse(currentStateString)
-              await instance.setState(currentState)
-              `
-              
-              let instruction = `
-                let failure = ''
-                let fail = require('fail')
-
-                async function execute(){
-                  let instance = {};
-                  
-                  try{
-                    const commit = require('commit')
-                    const save = require('save')
-                    
-                    ${loadParams}
-                    ${loadCallingAction}
-                    ${loadCallingAccount}
-                    ${loadInitParams}
-                    instance = new ${action.data.contractName}(initParams)
-                    ${loadCurrentState}
-                    let result = await instance['${method}'](params, callerAccount)
-                    save(instance.state)
-                    commit(result)
-                    
-                    
-                  }catch(err){
-                    failure = err
-                  }
-                    
-                  
-                }
-    
-                execute()
-                .then(()=>{
-                  if(failure) throw new Error(failure.message)
-                  fail(e)
-                })
-                .catch((e)=>{
-                  fail(e)
-                })
-                
-              `
-                let result = await vmInterface(contract.code + instruction)
-                
-                if(result.error){
-                  resolve({error:result.error})
-                }else{
-                  if(result.state){
-                    let updated = await this.contractTable.updateContractState(action.data.contractName, result.state, action, blockNumber)
-                    resolve(result.value)
-                  }else{
-                    resolve({error:'An error occurred'})
-                  }
-                }
-              }
-            
-              
-          }else{
-            resolve({error:'Unkown contract name'})
-          }
-          
-        }else{
-          resolve({error:'Unkown account name'})
-        }
-      }catch(e){
-        resolve({error:e.message})
+      for await(let hash of Object.keys(calls)){
+        let call = calls[hash]
+        this.stack.addCall(call, call.data.contractName)
       }
-
-
-
+      let codes = await this.stack.buildCode()
+      if(codes.error) resolve({error:codes.error})
+      let results = await vmMaster({
+        codes:codes
+      })
+      resolve(results)
     })
   }
 
-  testExecuteAction(action, blockNumber){
+  executeSingleCall(call){
     return new Promise(async (resolve)=>{
-      try{
-        let account = await this.accountTable.getAccount(action.fromAccount)
-        if(account){
-          let contract = await this.contractTable.getContract(action.data.contractName)
-          if(contract){
-            if(contract.error) resolve({error:contract.error})
-
-            let isReadOnly = false
-            let contractMethod = contract.contractAPI[action.data.method]
-            if(contractMethod){
-              isReadOnly = contractMethod.type == 'get'
-            }
-
-            let isExternalFunction = contract.contractAPI[action.data.method]
-            if(!isExternalFunction && !isReadOnly){
-              resolve({error:'Method call is not part of contract API'})
-            }else{
-              let contractState = await this.contractTable.getState(action.data.contractName)
-              if(!contractState) resolve({error:'Could not find contract state'})
-
-              let initParams = JSON.parse(contract.initParams)
-    
-              let method = action.data.method
-              let params = action.data.params
-
-              let loadCallingAction = `
-              let actionString = '${JSON.stringify(action)}'
-              let action = JSON.parse(actionString);
-              params.callingAction = action
-              `
-              let loadParams = `
-              let paramsString = '${JSON.stringify(params)}'
-              let params = JSON.parse(paramsString)
-              `
-              let loadInitParams = `
-              let initParamsString = '${JSON.stringify(initParams)}'
-              let initParams = JSON.parse(initParamsString)
-              `
-              let loadCallingAccount = `
-              let callerAccountString = '${JSON.stringify(account)}'
-              let callerAccount = JSON.parse(callerAccountString)
-              `
-              let loadCurrentState = `
-              let currentStateString = '${JSON.stringify(contractState)}'
-              let currentState = JSON.parse(currentStateString)
-              await instance.setState(currentState)
-              `
-              
-              let instruction = `
-                let failure = ''
-                let fail = require('fail')
-
-                async function execute(){
-                  let instance = {};
-                  
-                  try{
-                    const commit = require('commit')
-                    const save = require('save')
-                    
-                    ${loadParams}
-                    ${loadCallingAction}
-                    ${loadCallingAccount}
-                    ${loadInitParams}
-                    instance = new ${action.data.contractName}(initParams)
-                    ${loadCurrentState}
-                    let result = await instance['${method}'](params, callerAccount)
-                    save(instance.state)
-                    commit(result)
-                    
-                    
-                  }catch(err){
-                    failure = err
-                  }
-                    
-                  
-                }
-    
-                execute()
-                .then(()=>{
-                  if(failure) throw new Error(failure.message)
-                  fail(e)
-                })
-                .catch((e)=>{
-                  fail(e)
-                })
-                
-              `
-                let result = await vmInterface(contract.code + instruction)
-                
-                if(result.error){
-                  resolve({error:result.error})
-                }else{
-                  if(isReadOnly){
-                    resolve({ isReadOnly:result.value })
-                  }else{
-                    resolve(result.value)
-                  }
-                  
-                }
-            }
-
-          }else{
-            resolve({error:'Unkown contract name'})
-          }
-          
-        }else{
-          resolve({error:'Unkown account name'})
-        }
-      }catch(e){
-        resolve({error:e.message})
-      }
+          this.stack.addCall(call, call.data.contractName)
+          let code = await this.stack.buildCode()
+          if(code.error) resolve({error:code.error})
+          let results = await vmMaster({
+            codes:code
+          })
+          resolve(results)
     })
   }
 

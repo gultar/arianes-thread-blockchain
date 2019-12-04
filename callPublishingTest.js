@@ -25,15 +25,16 @@ let newWallet = new Wallet()
 
 newWallet.importWalletFromFile(`./wallets/8003-${sha1('8003')}.json`)
 .then(wallet =>{
-    wallet.unlock('8003', 10)
+    wallet.unlock('8003', 1000)
     .then(async (unlocked)=>{
         if(unlocked){
             let txArray = []
             let transactions = {}
             openSocket('http://localhost:'+activePort, (socket)=>{
                 socket.on('connect', async(connected)=>{
-
-                    setInterval(async ()=>{
+                    
+                    socket.on('transactionEmitted', message => console.log(message))
+                    for(var i=0; i <= 10; i++){
                         let transaction = new Transaction(
                             'tuor',
                             'Token',
@@ -41,7 +42,7 @@ newWallet.importWalletFromFile(`./wallets/8003-${sha1('8003')}.json`)
                             {
                                 method:'issue',
                                 params:{
-                                    symbol:'YOLL',
+                                    symbol:'GOLD',
                                     amount:10,
                                     receiver:'huor'
                                 }
@@ -50,59 +51,34 @@ newWallet.importWalletFromFile(`./wallets/8003-${sha1('8003')}.json`)
                         )
                         let signature = await wallet.sign(transaction.hash)
                         transaction.signature = signature;
-                        // console.log(transaction)
-                        // txArray.push(transaction)
-                        transactions[transaction.hash] = transaction
                         socket.emit('transaction', transaction)
-                    }, 20)
-
-                    // socket.on('message', message => console.log(message))
-                    // for(var i=0; i <= 10; i++){
-                    //     let transaction = new Transaction(
-                    //         'tuor',
-                    //         'Token',
-                    //         1,
-                    //         {
-                    //             method:'issue',
-                    //             params:{
-                    //                 symbol:'YOLL',
-                    //                 amount:10,
-                    //                 receiver:'huor'
-                    //             }
-                    //         },
-                    //         'call'
-                    //     )
-                    //     let signature = await wallet.sign(transaction.hash)
-                    //     transaction.signature = signature;
-                    //     // console.log(transaction)
-                    //     // txArray.push(transaction)
-                    //     transactions[transaction.hash] = transaction
                         
-                    // }
+                        let transaction2 = new Transaction(
+                            'tuor',
+                            'Storage',
+                            1,
+                            {
+                                method:'set',
+                                params:{
+                                    id:'id'+i,
+                                    data:{
+                                        [transaction.data.method]:transaction.data.params
+                                    }
+                                }
+                            },
+                            'call'
+                        )
+                        let signature2 = await wallet.sign(transaction2.hash)
+                        transaction2.signature = signature2;
 
-                    // socket.emit('testStack', transactions)
-
-                    // // let counter = 0;
-                    // socket.on('result', m => {
-                    //     console.log(m)
-                    //     endTime = Date.now()
-                    //     let difference = endTime - startTime 
-                    //     console.log(`Difference: ${difference} milliseconds`)
-                    //     socket.close()
-                    //     clearTimeout(socketLife)
-                    // })
-                    // // socket.on('transactionEmitted', )
-                    // let send = setInterval(()=>{
-                    //     let tx = txArray[counter]
-                    //     socket.emit('transaction', tx)
+                        // console.log(transaction2)
+                        socket.emit('transaction', transaction2)
                         
-                    //     // console.log(tx)
-                    //     counter++
-                    //     if(counter == txArray.length) clearInterval(send)
-                    // }, 40)
+                    }
+
+            
                 })
 
-                // socket.on('transactionEmitted', (receipt) => console.log(receipt))
             })
             
             

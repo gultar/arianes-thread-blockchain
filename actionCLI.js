@@ -367,7 +367,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                             let initParams = JSON.parse(paramsString)
                             let instance = new ${contractName}(initParams)
                             let API = await instance.getInterface()
-                            save({ state: instance.state })
+                            save({state:instance.state})
                             deploy(API)
 
                         }catch(e){
@@ -380,14 +380,8 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
 
                     let deployContract = contract + deploymentInstruction
                     
-                    let vm = new ContractVM({
-                        code:deployContract,
-                        type:'NodeVM'
-                      })
-    
-                      vm.buildVM()
-                      vm.compileScript()
-                      let result = await vm.run()
+                      let vm = new ContractVM()
+                      let result = await vm.singleRun(deployContract)
                       if(result){
                         
                         let action = new Action(
@@ -402,7 +396,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                             account:accountName,
                             state:result.state
                         });
-                        
+
                         walletManager.unlockWallet(walletName, password)
                         .then(async (unlocked)=>{
                             
@@ -415,7 +409,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                     .then( response => {
                                         if(response.data.action){
                                             let sentAction = response.data.action;
-                                            let result = response.data.value
+                                            let result = response.data.contractAPI
                                             let API = sentAction.data.contractAPI
                                             let state = sentAction.data.state
                                             console.log(`Successfully Deployed contract ${contractName}\n`)
@@ -509,16 +503,10 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                     deployment()
                     `
 
-                    let deployContract = contract + deploymentInstruction
+                      let deployContract = contract + deploymentInstruction
                     
-                    let vm = new ContractVM({
-                        code:deployContract,
-                        type:'NodeVM'
-                      })
-    
-                      vm.buildVM()
-                      vm.compileScript()
-                      let result = await vm.run()
+                      let vm = new ContractVM()
+                      let result = await vm.singleRun(deployContract)
                       if(result){
                         
                         let action = new Action(
@@ -541,7 +529,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                 let signature = await wallet.sign(action.hash)
                                 if(signature){
                                     action.signature = signature;
-                                    
+                                    console.log('Action:', action)
                                     axios.post(`${address}/testAction`, action)
                                     .then( response => {
                                         if(response.data.action){
