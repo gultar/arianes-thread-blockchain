@@ -1814,7 +1814,7 @@ class Blockchain{
         }
       }else{
         // console.log('No code to run')
-        return true
+        resolve(true)
       }
        
       
