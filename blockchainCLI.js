@@ -125,7 +125,7 @@ program
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
         networkChannel:'blockchain-mainnet',
-        noLocalhost:false,
+        noLocalhost:true,
         genesis:genesis
       })
 

@@ -8,7 +8,7 @@ const fs = require('fs')
 
 
 class Hosting{
-    constructor(){
+    constructor(opts){
         this.web = new Webtorrent({
             announce:[ 'udp://explodie.org:6969',
             'udp://tracker.coppersurfer.tk:6969',
@@ -19,6 +19,7 @@ class Hosting{
             'wss://tracker.fastcast.nz',
             'wss://tracker.openwebtorrent.com' ],
         })
+        //Add way to broadcast new torrent available
     }
 
     serveWebsite(pathToFolder){

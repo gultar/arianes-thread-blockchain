@@ -557,7 +557,7 @@ class Node {
             }
           }
 
-          if(this.noLocalhost && address.includes('localhost') ){
+          if(this.noLocalhost && (address.includes('localhost') || address.includes('127.0.0.1') || address.includes('0.0.0.0'))){
             logger('Connections to localhost not allowed')
             return null;
           }

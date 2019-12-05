@@ -6,7 +6,7 @@ class Download{
     }
 
     async bundleAndServe(){
-        this.client.seed('./data/', function (torrent, err) {
+        this.client.seed('./data/*', function (torrent, err) {
             if(err){
                 console.log(err)
             }
@@ -32,5 +32,5 @@ class Download{
 }
 
 let d = new Download
-d.bundleAndServe()
-// d.download()
+//d.bundleAndServe()
+ d.download('bf09fe8a93cc14dd9a8f821c0b9224612184f3a0')

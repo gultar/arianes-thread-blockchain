@@ -22,6 +22,7 @@ class Signals extends EventEmitter{
 }
 
 let signals = new Signals()
+signals.setMaxListeners(50)
 
 class Sandbox{
     constructor(){

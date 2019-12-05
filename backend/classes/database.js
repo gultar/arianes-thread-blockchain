@@ -23,19 +23,6 @@ class Database{
         })
       }
 
-      //Experimental
-    //   getAll(){
-    //       return new Promise(async(resolve)=>{
-    //           this.database.allDocs()
-    //           .then(result =>{
-    //               resolve(result)
-    //           })
-    //           .catch(e =>{
-    //               resolve('Error:',e)
-    //           })
-    //       })
-    //   }
-
       put(entry){
         return new Promise(async (resolve)=>{
             if(!entry) resolve({error:'Cannot put to Database: object to put is undefined'})
