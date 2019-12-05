@@ -229,38 +229,41 @@ class Blockchain{
                 
                 let executed = await this.balance.runBlock(newBlock)
                 if(executed.error) errors['Balance error'] = executed.error
+                else{
+                  //Need to extract calls from transactions before running this, to avoid unnecessary running
+                  let callsExecuted = await this.runTransactionCalls(newBlock);
+                  if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+                  else{
+                    if(newBlock.actions && Object.keys(newBlock.actions).length > 0){
 
-                //Need to extract calls from transactions before running this, to avoid unnecessary running
-                let callsExecuted = await this.runTransactionCalls(newBlock);
-                if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
-                if(newBlock.actions){
-
-                  let allActionsExecuted = await this.executeActionBlock(newBlock)
-                  if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
-
-                  let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(newBlock.actions)
-                  if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
-
-                  
-                  if(Object.keys(errors).length > 0){
-                    this.isBusy = false
-                    resolve({error: errors})
-                  }else{
-                    this.isBusy = false
-                    resolve(true);
+                      let allActionsExecuted = await this.executeActionBlock(newBlock)
+                      if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
+  
+                      let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(newBlock.actions)
+                      if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
+  
+                      
+                      if(Object.keys(errors).length > 0){
+                        this.isBusy = false
+                        resolve({error: errors})
+                      }else{
+                        this.isBusy = false
+                        resolve(true);
+                      }
+                      
+                    }else{
+  
+                      if(Object.keys(errors).length > 0){
+                        this.isBusy = false
+                        resolve({error: errors})
+                      }else{
+                        this.isBusy = false
+                        resolve(true);
+                      }
+                    }
                   }
                   
-                }else if(!newBlock.actions){
-
-                  if(Object.keys(errors).length > 0){
-                    this.isBusy = false
-                    resolve({error: errors})
-                  }else{
-                    this.isBusy = false
-                    resolve(true);
-                  }
                 }
-                
 
               }else{
                 resolve({error:'Could not delete block transactions'})
@@ -1807,11 +1810,12 @@ class Blockchain{
             let lastCallsContractName = results[lastHash].contractName
             let updated = await this.contractTable.updateContractState(lastCallsContractName, lastState, {hash:lastHash}, this.getLatestBlock())
             if(updated.error) resolve({error:updated.error})
-            resolve(results)
+            else resolve(results)
           }else{
             resolve({error:errors})
           }
         }
+
       }else{
         // console.log('No code to run')
         resolve(true)

@@ -278,6 +278,7 @@ class Node {
             let updated = await this.receiveBlockchainStatus(peer, peerStatus)
             logger('Updated blockchain', updated)
           }else{
+            this.connectToPeer(peerAddress)
             logger('ERROR: Could not find peer socket to download blockchain')
           }
           
@@ -1564,6 +1565,7 @@ class Node {
           }else{
             
             this.sendPeerMessage('newBlockFound', block);
+            console.log('Sending new block')
             let retry = setInterval(()=>{
               if(!this.chain.isBusy){
                 api.emit('latestBlock', this.chain.getLatestBlock())
@@ -1660,6 +1662,7 @@ class Node {
               if(executed.error) console.log(executed.error)
               break
             case 'newBlockFound':
+              console.log('Found a new block', peerMessage.type)
               let added = await this.handleNewBlockFound(data);
               if(added.error){
                 logger('New Block Found ERROR follows:')

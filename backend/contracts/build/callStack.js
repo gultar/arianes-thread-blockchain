@@ -249,11 +249,13 @@ class Stack{
          totalCalls:0
        }
        
-
-       //Load contract states
-       for await(let contractName of contractNames){
-         let contract = await this.contractTable.getContract(contractName)
-         if(contract){
+       if(contractNames.length == 0){
+        return false
+       }else{
+         //Load contract states
+        for await(let contractName of contractNames){
+          let contract = await this.contractTable.getContract(contractName)
+          if(contract){
           codes[contractName] = {
             contract:contract,
             calls:{}
@@ -301,20 +303,19 @@ class Stack{
           }else{
             errors[contractName] = `Could not find state of contract ${contractName}`
           }
-         }else if(contract.error){
+          }else if(contract.error){
           errors[contractName] = contract.error
-         }else if(!contract){
+          }else if(!contract){
           errors[contractName] = `Contract name ${contractName} unknown`
-         }
+          }
+        }
+
+        this.queue = {}
+        if(Object.keys(errors).length > 0) return {error:errors}
+        else return codes
        }
 
-       this.queue = {}
-       if(contractNames.length > 0){
-         if(Object.keys(errors).length > 0) return {error:errors}
-          else return codes
-       }else{
-         return false
-       }
+      
        
     }
 
