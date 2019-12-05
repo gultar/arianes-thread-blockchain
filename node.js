@@ -264,7 +264,6 @@ class Node {
     
     socket.on('getBlockchainStatus', async(peerStatus)=>{
       await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
-      // logger(`Peer ${peerAddress} has requesting blockchain status`)
       if(this.chain instanceof Blockchain){
         try{
           let status = {
@@ -2177,6 +2176,7 @@ DHT_PORT=${this.peerDiscoveryPort}
     setInterval(async ()=>{
       that.messageBuffer = {};
       this.chain.save()
+      this.sendPeerMessage('getBlockchainStatus')
       let backupDirectory = await createDirectoryIfNotExisting('./data/backup/');
       if(backupDirectory){
         if(backupDirectory.created || backupDirectory.exists){

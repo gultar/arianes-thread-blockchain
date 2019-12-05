@@ -16,7 +16,7 @@ class Download{
     }
 
     async download(infoHash){
-        this.client.add(infoHash, { path: './data/' }, function (torrent) {
+        this.client.add(infoHash, { path: './' }, function (torrent) {
             
             // console.log(torrent)
             torrent.on('done', function () {
