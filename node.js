@@ -242,7 +242,7 @@ class Node {
     socket.on('peerMessage', async(peerMessage)=>{
       if(!this.messageBuffer[peerMessage.messageId]){
         await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
-        console.log(peerMessage)
+        
         this.handlePeerMessage(peerMessage);
       }
     })
@@ -276,6 +276,7 @@ class Node {
           let peer = this.connectionsToPeers[peerAddress];
           if(peer){
             let updated = await this.receiveBlockchainStatus(peer, peerStatus)
+            logger('Updated blockchain', updated)
           }else{
             logger('ERROR: Could not find peer socket to download blockchain')
           }
