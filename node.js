@@ -637,7 +637,8 @@ class Node {
           peer.on('disconnect', () =>{
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
-            this.broadcast('getPeers')
+            this.connectToPeer(address)
+            // this.broadcast('getPeers')
             peer.destroy()
           })
 
