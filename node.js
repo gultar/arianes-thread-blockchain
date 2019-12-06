@@ -150,7 +150,7 @@ class Node {
               this.findPeersThroughBittorrentDHT()
             }
             
-            this.ioServer = socketIo(this.server, { 'pingInterval': 2000, 'pingTimeout': 10000, 'forceNew':true });
+            this.ioServer = socketIo(this.server, { 'pingInterval': 200, 'pingTimeout': 10000, 'forceNew':true });
       
             this.ioServer.on('connection', (socket) => {
               
