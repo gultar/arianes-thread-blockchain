@@ -38,7 +38,7 @@ const vmMaster = ({ codes, isDeployment }) =>{
                 clearInterval(keepAlive)
                 resolve({deployed:message.deployed, contractName:message.contractName})
             }else if(message.error){
-                console.log(message)
+                console.log('VM ERROR:',message)
                 child.kill()
                 clearInterval(keepAlive)
                 resolve({error:message.error})

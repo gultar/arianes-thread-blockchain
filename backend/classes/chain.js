@@ -1800,7 +1800,7 @@ class Blockchain{
           let results = await vmMaster({
             codes:codes
           })
-          if(results.error) console.log(results)
+          
 
           if(results.error) resolve({error:results.error})
           else{

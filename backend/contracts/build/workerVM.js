@@ -20,9 +20,11 @@ const workerVM = () =>{
               else process.send({executed:result, hash:message.hash, contractName:message.contractName})
           })
           .catch((e)=>{
+            console.log('VM Child ERROR',e)
             process.send({error:e, hash:message.hash, contractName:message.contractName})
           })
         }catch(e){
+          console.log('VM Child ERROR',e)
           process.send({error:e, hash:message.hash, contractName:message.contractName})
         }
 
