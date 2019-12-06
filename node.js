@@ -904,7 +904,7 @@ class Node {
           Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
             this.connectionsToPeers[peerAddress].emit(eventType, data, (acknowledged)=>{
               if(acknowledged){
-                logger(`Peer ${peerAddress} received peer message`)
+                // logger(`Peer ${peerAddress} received peer message`)
               }else if(eventType == 'peerMessage' && !acknowledge){
                 logger(`Peer ${peerAddress} did not acknowledge peerMessage`)
                 setTimeout(()=> {
