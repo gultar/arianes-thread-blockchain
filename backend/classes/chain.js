@@ -442,7 +442,7 @@ class Blockchain{
                             let callsExecuted = await this.runTransactionCalls(forkBlock)
                             if(callsExecuted.error) resolve({error:callsExecuted.error})
                             else{
-                              
+
                               if(forkBlock.actions && Object.keys(forkBlock.actions).length > 0){
                                 let actionsExecuted = await this.executeActionBlock(forkBlock)
                                 if(actionsExecuted.error) resolve({error:actionsExecuted.error})
@@ -1794,32 +1794,39 @@ class Blockchain{
       }
       let codes = await this.stack.buildCode()
       if(codes){
-        // console.log(codes)
-        let results = await vmMaster({
-          codes:codes
-        })
-        
-        if(results.error) resolve({error:results.error})
+        if(codes.error) resolve({error:codes.error})
         else{
-  
-          for await(let hash of Object.keys(results)){
-            let result = results[hash]
-            if(result.error) errors[hash] = result
-          }
-          if(Object.keys(errors).length == 0){
-            let callHashes = Object.keys(results)
+          
+          let results = await vmMaster({
+            codes:codes
+          })
+          if(results.error) console.log(results)
+
+          if(results.error) resolve({error:results.error})
+          else{
             
-            let lastHash = callHashes[callHashes.length -1]
-            let lastResult = results[lastHash]
-            let lastState = lastResult.executed.state
-            let lastCallsContractName = results[lastHash].contractName
-            let updated = await this.contractTable.updateContractState(lastCallsContractName, lastState, {hash:lastHash}, this.getLatestBlock())
-            if(updated.error) resolve({error:updated.error})
-            else resolve(results)
-          }else{
-            resolve({error:errors})
+            for await(let hash of Object.keys(results)){
+              let result = results[hash]
+              if(result.error) errors[hash] = result
+            }
+            if(Object.keys(errors).length == 0){
+              let callHashes = Object.keys(results)
+              
+              let lastHash = callHashes[callHashes.length -1]
+              let lastResult = results[lastHash]
+              let lastState = lastResult.executed.state
+              let lastCallsContractName = results[lastHash].contractName
+              let updated = await this.contractTable.updateContractState(lastCallsContractName, lastState, {hash:lastHash}, this.getLatestBlock())
+              if(updated.error) resolve({error:{
+                updateState:updated.error
+              }})
+              else resolve(results)
+            }else{
+              resolve({error:errors})
+            }
           }
         }
+
 
       }else{
         // console.log('No code to run')
