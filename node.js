@@ -239,11 +239,11 @@ class Node {
       socket.emit('pong')
     })
 
-    socket.on('peerMessage', async(peerMessage)=>{
+    socket.on('peerMessage', async(peerMessage, acknowledge)=>{
       if(!this.messageBuffer[peerMessage.messageId]){
         await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
         
-        this.handlePeerMessage(peerMessage);
+        this.handlePeerMessage(peerMessage, acknowledge);
       }
     })
 
@@ -902,7 +902,11 @@ class Node {
     try{
       if(this.connectionsToPeers){
           Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
-            this.connectionsToPeers[peerAddress].emit(eventType, data);
+            this.connectionsToPeers[peerAddress].emit(eventType, data, (acknowledged)=>{
+              if(acknowledged){
+                logger('Peer node received peerMessage: ', acknowledged)
+              }
+            });
           })
         }
     }catch(e){
@@ -1651,7 +1655,7 @@ class Node {
           'relayPeer':relayPeer 
         }
           this.messageBuffer[messageId] = peerMessage;
-
+        acknowledge({received:messageId})
           switch(type){
             case 'transaction':
               var transaction = JSON.parse(data);
