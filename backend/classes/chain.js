@@ -439,18 +439,23 @@ class Blockchain{
                             let executed = await this.balance.runBlock(forkBlock)
                             if(executed.error) resolve({error:executed.error})
 
-                            if(forkBlock.actions && Object.keys(forkBlock.actions).length > 0){
-                              let actionsExecuted = await this.executeActionBlock(forkBlock)
-                              if(actionsExecuted.error) resolve({error:actionsExecuted.error})
-      
-                              if(forkBlock.actions){
-                                forkBlock.transactions['actions'] = forkBlock.actions
+                            let callsExecuted = await this.runTransactionCalls(forkBlock)
+                            if(callsExecuted.error) resolve({error:callsExecuted.error})
+                            else{
+                              
+                              if(forkBlock.actions && Object.keys(forkBlock.actions).length > 0){
+                                let actionsExecuted = await this.executeActionBlock(forkBlock)
+                                if(actionsExecuted.error) resolve({error:actionsExecuted.error})
+        
+                                if(forkBlock.actions){
+                                  forkBlock.transactions['actions'] = forkBlock.actions
+                                }
                               }
-                            }
-    
-                            let replaced = await this.replaceBlockFromDB(forkBlock)
-                            if(!replaced){
-                              replaced = await this.putBlockToDB(forkBlock)
+      
+                              let replaced = await this.replaceBlockFromDB(forkBlock)
+                              if(!replaced){
+                                replaced = await this.putBlockToDB(forkBlock)
+                              }
                             }
                             
                           }

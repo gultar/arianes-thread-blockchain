@@ -14,6 +14,7 @@ const workerVM = () =>{
           
           vm.runCode(message.state, message.hash)
           .then((result)=>{
+              vm.turnOffListeners()
               vm.sandbox.stateStorage = result.state
               if(result.error) process.send({error:result.error.message, hash:message.hash, contractName:message.contractName})
               else process.send({executed:result, hash:message.hash, contractName:message.contractName})
