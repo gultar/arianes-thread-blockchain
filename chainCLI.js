@@ -124,6 +124,24 @@ program
 })
 
 program
+.command('rollback <blockNumber>')
+.description('Roll back to previous on the chain, reverting the state of transactions, actions, contracts and accounts ')
+.action((blockNumber)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('rollback', blockNumber);
+                socket.on('rollbackResult', (result)=>{
+                    console.log('Rolled back', result)
+                    socket.close()
+                })
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('reset')
 .description('Requests some general information about the blockchain')
 .action(()=>{

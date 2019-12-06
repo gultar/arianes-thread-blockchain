@@ -5,6 +5,9 @@ const axios = require('axios')
 const Transaction = require('./backend/classes/transaction')
 const WalletManager = require('./backend/classes/walletManager')
 const manager = new WalletManager()
+const activePort = require('dotenv').config({ path: './config/.env' })
+if (activePort.error) throw activePort.error
+const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
 const parseDataArgument = (dataString) =>{
     return new Promise((resolve)=>{
@@ -43,7 +46,7 @@ const txgen = (program) =>{
                     let signature = await wallet.sign(transaction.hash);
                     if(signature){
                         transaction.signature = signature;
-                        axios.post(`${program.url}/transaction`, transaction)
+                        axios.post(`${nodeAddress}/transaction`, transaction)
                         .then( success => {
                             console.log(JSON.stringify(success.data, null, 2))
                             setTimeout(()=>{
@@ -77,7 +80,7 @@ program
 .option('-u, --url <nodeURL>', "URL of running node to send transaction to")
 .description('Sends a transaction to another wallet')
 .action(async ()=>{
-    if(program.walletName && program.password && program.url){
+    if(program.walletName && program.password && nodeAddress){
         if(program.fromAddress){
             if(program.toAddress){
                 if(program.amount){

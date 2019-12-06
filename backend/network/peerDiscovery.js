@@ -80,6 +80,7 @@ class PeerDiscovery{
                 tcp: true, // use tcp for discovery
                 maxConnections: 10,
             })
+            console.log(this.swarm)
             this.swarm.listen(this.port)
             this.swarm.on('connection', (connection, peer) => {
                 if(connection){
@@ -94,6 +95,7 @@ class PeerDiscovery{
                 // console.log('connection', connection)
             })
             this.swarm.on('peer', function(peer) {
+                
                 let address = `${peer.host}:${peer.port}`
                 potentialPeers[address] = {
                     peer:peer,

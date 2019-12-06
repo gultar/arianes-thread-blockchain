@@ -1425,6 +1425,7 @@ class Node {
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
         console.log(rolledback)
+        socket.emit('rollbackResult', rolledback)
       })
 
       socket.on('getTransactionFromDB', async (hash)=>{
