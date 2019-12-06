@@ -1643,7 +1643,7 @@ class Node {
     @param {String} $originAddress - IP Address of sender
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
-  async handlePeerMessage({ type, originAddress, messageId, data, relayPeer }){
+  async handlePeerMessage({ type, originAddress, messageId, data, relayPeer }, acknowledge){
       
     if(data){
       try{
