@@ -59,14 +59,11 @@ program
                                 let signature = await wallet.sign(transaction.hash);
                                 if(signature){
                                     transaction.signature = signature;
+                                    // console.log(JSON.stringify(transaction, null, 2))
                                     axios.post(`${nodeAddress}/transaction`, transaction)
                                     .then( success => {
-                                        console.log(success.data)
-                                        if(success.data.result){
-                                            let result = success.data.result[transaction.hash];
-                                            delete result.executed.state
-                                            console.log(JSON.stringify(result.executed, null, 1))
-                                        }
+                                        console.log(JSON.stringify(success.data, null, 2))
+                                        
                                     })
                                     .catch( e => console.log(e))
                                 }else{

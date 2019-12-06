@@ -1977,7 +1977,7 @@ class Node {
                           hash:transaction.hash
 
                           
-                      }
+                        }
                       let contract = await this.chain.contractTable.getContract(call.data.contractName)
                       let contractAPI = contract.contractAPI
                       let contractMethod = contractAPI[call.data.method];
@@ -1986,7 +1986,9 @@ class Node {
                         let executed = await this.chain.executeSingleCall(call)
                         if(executed.error) resolve({error:executed.error})
                         else{
-                          resolve({success: executed, call:call})
+                          //Possible breaking point
+                          let result = executed[transaction.hash].executed
+                          resolve({success: { value:result.value }, call:call})
                         }
                       }else if(contractMethod.type == 'set'){
                         let added = await this.mempool.addTransaction(transaction);

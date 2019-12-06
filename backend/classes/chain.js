@@ -1804,22 +1804,26 @@ class Blockchain{
 
           if(results.error) resolve({error:results.error})
           else{
-            
-            for await(let hash of Object.keys(results)){
-              let result = results[hash]
-              if(result.error) errors[hash] = result
-            }
-            if(Object.keys(errors).length == 0){
               let callHashes = Object.keys(results)
-              
               let lastHash = callHashes[callHashes.length -1]
               let lastResult = results[lastHash]
               let lastState = lastResult.executed.state
               let lastCallsContractName = results[lastHash].contractName
+
+            for await(let hash of Object.keys(results)){
+              let result = results[hash]
+              
+              if(result.error) errors[hash] = result
+              else{
+                if(hash !== lastHash) delete result.executed.state //Removing all other states since they are too large to handle
+              }
+            }
+            if(Object.keys(errors).length == 0){
+              
+              
+              
               let updated = await this.contractTable.updateContractState(lastCallsContractName, lastState, {hash:lastHash}, this.getLatestBlock())
-              if(updated.error) resolve({error:{
-                updateState:updated.error
-              }})
+              if(updated.error) resolve({error:updated.error})
               else resolve(results)
             }else{
               resolve({error:errors})
@@ -1966,7 +1970,7 @@ class Blockchain{
           }
 
           if(action.task == 'call'){
-            let executed = await this.testExecuteCall(action, action.data.contractName)
+            let executed = await this.executeSingleCall(action, action.data.contractName)
             if(executed){
               if(executed.error){
                 resolve({error:executed.error})
