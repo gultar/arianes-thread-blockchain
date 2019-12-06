@@ -547,7 +547,7 @@ class Node {
           let config = {
             'reconnection limit' : 1000,
             'max reconnection attempts' : 3,
-            'pingInterval': 2000, 
+            'pingInterval': 200, 
             'pingTimeout': 10000,
             'secure':true,
             'rejectUnauthorized':false,
