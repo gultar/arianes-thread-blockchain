@@ -36,9 +36,10 @@ class Miner{
       if(!this.wallet) throw new Error('ERROR: Could not load wallet')
     }
 
-    log(message){
+    log(message, arg){
       if(this.verbose){
-        logger(message)
+        if(arg) logger(message, arg)
+        else logger(message)
       }else{
         //nothing
       }
