@@ -6,7 +6,7 @@ const vmMaster = ({ codes, isDeployment }) =>{
         let calls = {}
         let results = {}
         let lifeCycles = 0
-        let limitLifeCycles = 20 // 
+        let limitLifeCycles = 30 // 
         let pingCounter = 0;
         let child = require('child_process').fork(`./backend/contracts/build/workerVM.js`,{
             execArgv: ['--max-old-space-size=128']  
@@ -14,7 +14,7 @@ const vmMaster = ({ codes, isDeployment }) =>{
         let keepAlive = setInterval(()=>{
             lifeCycles++
             pingCounter++;
-            if(lifeCycles >= limitLifeCycles && pingCounter > 20){
+            if(lifeCycles >= limitLifeCycles && pingCounter >30){
                 child.kill()
                 clearInterval(keepAlive)
                 if(Object.keys(results).length > 0){
