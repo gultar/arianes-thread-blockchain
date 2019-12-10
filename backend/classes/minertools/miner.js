@@ -17,7 +17,7 @@ class Miner{
         this.wallet = {}
         this.genesis = genesis
         this.manager = new WalletManager()
-        this.previousBlock = {}
+        this.previousBlock = false
         this.minerReady = false;
         this.minerStarted = false;
         this.miningReward = 50;
@@ -70,7 +70,12 @@ class Miner{
         })
 
         this.socket.on('latestBlock', (block)=>{
-          this.previousBlock = block;
+          if(block){
+            if(!this.previousBlock || this.previousBlock.blockNumber <= block){
+              this.previousBlock = block;
+            }
+            
+          }
         })
         this.socket.on('run', ()=>{
           this.run()
@@ -115,6 +120,7 @@ class Miner{
               this.successMessage(block)
               this.socket.emit('newBlock', block)
               this.pause()
+              this.previousBlock = block;
               this.socket.emit('getLatestBlock', block)
               this.run()
               
@@ -157,7 +163,6 @@ class Miner{
         this.socket.emit('fetchActions')
         this.socket.on('newActions', (actions)=>{
           if(actions){
-            console.log('Enters the fetch actions')
             this.pool.pendingActions = actions;
             if(this.sizeOfActionPool() > 0) this.log(`Found ${this.sizeOfActionPool()} actions to mine`)
             clearTimeout(timedOut)

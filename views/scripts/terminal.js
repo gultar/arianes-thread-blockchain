@@ -424,6 +424,13 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           socket.emit('getState', args[0])
           break;
+        case 'median':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('median', args[0])
+          break;
         default:
           if (cmd) {
             output(cmd + ': command not found');

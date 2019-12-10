@@ -34,7 +34,7 @@ newWallet.importWalletFromFile(`./wallets/8003-${sha1('8003')}.json`)
                 socket.on('connect', async(connected)=>{
                     
                     socket.on('transactionEmitted', message => console.log(message))
-                    for(var i=0; i <= 10; i++){
+                    for(var i=0; i <= 0; i++){
                         let transaction = new Transaction(
                             'tuor',
                             'Token',
@@ -52,6 +52,9 @@ newWallet.importWalletFromFile(`./wallets/8003-${sha1('8003')}.json`)
                         let signature = await wallet.sign(transaction.hash)
                         transaction.signature = signature;
                         socket.emit('transaction', transaction)
+                        setTimeout(()=>{
+                            socket.emit('transaction', transaction)
+                        }, 5000)
                         
                         let transaction2 = new Transaction(
                             'tuor',

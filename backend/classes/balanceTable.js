@@ -13,34 +13,39 @@ class BalanceTable{
         this.accountTable = accountTable
     }
 
-    // saveHistory(blockNumber){
-    //     return new Promise((resolve)=>{
-    //         if(blockNumber !== undefined){
-    //             let publicKeys = Object.keys(this.states)
-    //             publicKeys.forEach((key)=>{
-    //                 if(this.states[key]){
-    //                     if(!this.history[key]) this.history[key] = {}
-    //                     if(this.states[key].lastModified == blockNumber){
-    //                         this.history[key][blockNumber] = { balance:this.states[key].balance }
-    //                     }
-                        
-    //                 }else{
-    //                     logger(`ERROR: State with key ${key} does not exist`)
-    //                 }
-    //             })
-    //             resolve(true)
-    //         }else{
-    //             resolve({error:'ERROR: Need to specify block number'})
-    //         }
-    //     })
-        
-    // }
+    extractTransactionCalls(transactions){
+        return new Promise(async (resolve)=>{
+            let calls = {}
+            for await(let hash of Object.keys(transactions)){
+                let transaction = transactions[hash]
+                if(transaction.type == 'call'){
+                    calls[hash] = transaction
+                }
+            }
+
+            if(Object.keys(calls).length > 0){
+                resolve(calls)
+            }else{
+                resolve(false)
+            }
+        })
+    }
 
     runBlock(block){
         return new Promise(async (resolve)=>{
             if(!block) resolve({error:"Block to execute is of undefined"})
+            
+            let calls = await this.extractTransactionCalls(block.transactions)
+            
+            if(calls){
+                let callsExecuted = await this.payActionBlock(calls, block.blockNumber)
+                if(callsExecuted) resolve({error:callsExecuted.errors})
+            }
+
             let executed = await this.executeTransactionBlock(block.transactions, block.blockNumber)
             if(executed.errors) resolve({ error: executed.errors })
+            
+
             let actionsExecuted = await this.payActionBlock(block.actions, block.blockNumber)
             if(actionsExecuted.error) resolve({ error: actionsExecuted.errors })
 
@@ -82,22 +87,22 @@ class BalanceTable{
             let errors = {}
             for await(var hash of hashes){
                 let tx = transactions[hash];
-                let executed = ''
-                if(tx.type == 'call'){
-                    executed = await this.executeTransactionCall(tx, blockNumber)
-                }else{
+                
+                if(tx.type !== 'call'){
+                    let executed = ''
                     executed  = await this.executeTransaction(tx, blockNumber)
-                }
-                if(executed){
-                    if(executed.error){
-                        errors[hash] = executed.error;
+                    if(executed){
+                        if(executed.error){
+                            errors[hash] = executed.error;
+                        }else{
+                            //Let pass to be resolved down below
+                        }
+                         
                     }else{
-                        //Let pass to be resolved down below
+                        errors[hash] = 'Could not execute transaction'
                     }
-                     
-                }else{
-                    errors[hash] = 'Could not execute transaction'
                 }
+
             }
             
             let numOfErrors = Object.keys(errors).length;
@@ -236,7 +241,7 @@ class BalanceTable{
             
             let fromAddress = action.fromAddress;
             let hash = action.hash;
-            let fee = action.fee;
+            let fee = action.fee || action.miningFee;
 
             let coinsSpent = this.spend(fromAddress, fee, blockNumber);
             if(!coinsSpent.error){
@@ -247,39 +252,6 @@ class BalanceTable{
             
         }
     }
-
-    // rollback(blockNumber){
-    //     return new Promise(async (resolve)=>{
-    //         if(blockNumber !== undefined){
-    //             let publicKeys = Object.keys(this.states)
-                
-    //             for(var key of publicKeys){
-    //                 if(this.history[key]){
-    //                     if(this.history[key][blockNumber]){
-    //                         this.states[key].balance = this.history[key][blockNumber].balance
-    //                         this.states[key].lastModified = blockNumber
-    //                     }else{
-    //                        if(this.states[key] && this.states[key].lastModified){
-    //                            let lastStateBlock = this.states[key].lastModified
-    //                            if(this.history[key][lastStateBlock]){
-    //                                 this.states[key].balance = this.history[key][lastStateBlock].balance
-    //                                 this.states[key].lastModified = blockNumber
-    //                            }
-                           
-    //                        }
-    //                     }
-                        
-    //                 }
-                    
-    //             }
-                
-    //             resolve(true)
-               
-    //         }else{
-    //             resolve({error:'ERROR: Need to specify block number'})
-    //         }
-    //     })
-    // }
 
     rollback(blockNumber){
         return new Promise(async (resolve)=>{
@@ -388,6 +360,37 @@ class BalanceTable{
              resolve(false)
          }
         })
+       }
+
+       saveBalances(block){
+           return new Promise(async (resolve)=>{
+            
+            let added = await this.stateDB.put({
+                id:block.blockNumber.toString(),
+                key: 'blockState',
+                value: { 
+                    states:this.states,
+                    merkleRoot:block.merkleRoot,
+                    actionMerkleRoot:block.actionMerkleRoot,
+                    transactionsHashes:block.txHashes,
+                    actionHashes:block.actionHashes
+                }
+            })
+
+            if(added.error) resolve({error:added})
+            else resolve(added)
+           })
+       }
+
+       loadBalances(blockNumber){
+           return new Promise(async (resolve)=>{
+               if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
+               let blockSaved = await this.stateDB.get(blockNumber)
+               if(blockSaved.error) resolve({error:blockSaved.error})
+               let blockState = blockSaved.blockState;
+               this.states = blockState.states
+               resolve(this.states)
+           })
        }
 
       saveStates(){

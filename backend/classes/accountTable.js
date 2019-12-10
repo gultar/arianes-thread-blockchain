@@ -9,9 +9,6 @@ class AccountTable{
         this.accountsDB = new Database('./data/accountsDB')
     }
 
-
-    
-
     addAccount(account){
         return new Promise(async (resolve)=>{
             let existing = await this.accountsDB.get(account.name)

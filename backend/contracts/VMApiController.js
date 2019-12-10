@@ -1,31 +1,18 @@
 const EventEmitter = require('events')
 
-
-
-const vmMaster = ({ codes, timeLimit, memoryLimit }) =>{
+const vmMaster = ({ codes, isDeployment }) =>{
     return new Promise(async (resolve)=> {
         let pushResult = new EventEmitter()
-        let timer
-        let results = {}
-        const createTimer = (time) =>{
-            timer = setTimeout(()=>{
-                pushResult.emit('callResult',{end:'VM Timed out'})
-                child.kill()
-            }, time) //(time >= 500 ? time : 500)
-        }
-        
         let calls = {}
-        
-        let child = require('child_process').fork(`./backend/contracts/build/workerVM.js`,{
-            execArgv: [`--max-old-space-size=${typeof memoryLimit == 'number' ? memoryLimit.toString() : '256' }`],
-            silent:true
-            // stdio:[0, 1, 2, 'ipc'] //
+        let results = {}
+        let lifeCycles = 0
+        let limitLifeCycles = 10 // 
+        let pingCounter = 0;
+        let child = require('child_process').fork(`./backend/contracts/VMApi.js`,{
+            execArgv: ['--max-old-space-size=512']  
         })
         
         if(codes){
-
-            createTimer(timeLimit)
-
             for await(let contractName of Object.keys(codes)){
                 if(contractName !== 'totalCalls'){
                     let state = codes[contractName].state
@@ -46,66 +33,60 @@ const vmMaster = ({ codes, timeLimit, memoryLimit }) =>{
                 let code = calls[hash].code
                 let contractName = calls[hash].contractName
                 let methodToRun = calls[hash].methodToRun
-                
                 child.send({code:code, contractName:contractName, methodToRun:methodToRun, hash:hash})
             }
+        }else if(isDeployment){
+            let contract = isDeployment.contract;
+            if(!contract) resolve({error:'Cannot deploy unknown contract'})
             
-            
-
+            child.send({ contractToDeploy: contract })
         }
 
+        let keepAlive = setInterval(()=>{
+            lifeCycles++
+            pingCounter++;
+            if(lifeCycles >= limitLifeCycles && pingCounter >= limitLifeCycles){
+                child.kill()
+                clearInterval(keepAlive)
+                if(Object.keys(results).length > 0){
+                    child.kill()
+                    resolve(results)
+                }else{
+                    resolve({error:'VM ERROR: VM finished its lifecycle'})
+                }
+            }
+        }, 50)
         child.on('message', (message)=>{
             if(message.executed){
-
+                pingCounter = 0;
+                lifeCycles = 0;
                 results[message.hash] = {
                     executed:message.executed,
                     contractName:message.contractName
                 }
-
                 pushResult.emit('callResult', {
                     executed:message.executed,
-                    contractName:message.contractName,
-                    hash:message.hash
+                    contractName:message.contractName
                 })
-
-                if(Object.keys(results).length >= Object.keys(calls).length){
-                    pushResult.emit('callResult', {end:'Execution complete'})
-                    clearTimeout(timer)
-                    child.kill()
-                }
-
             }else if(message.error){
                 console.log('VM ERROR:',message)
                 child.kill()
-                clearTimeout(timer)
-                pushResult.emit('callResult',message)
+                clearInterval(keepAlive)
+                resolve({error:message.error})
             }else{
                 console.log('Message:', message)
                 child.kill()
-                clearTimeout(timer)
-                pushResult.emit('callResult',{error:'VM ERROR: Invalid VM response message'})
+                clearInterval(keepAlive)
+                resolve({error:'VM ERROR: Invalid VM response message'})
             }
         })
 
         child.on('error', function(data) {
-            
             console.log('stderr: ' + data);
-            clearTimeout(timer)
-            pushResult.emit('callResult',{error:'A VM error occurred'})
+            clearInterval(keepAlive)
+            resolve({error:'A VM error occurred'})
         });
-        child.on('close', function(code, signal) { })
-        
-        child.stdout.on('data', (data)=>{
-            console.log(data.toString())
-        })
-
-        child.stderr.on('data', (data)=>{
-            pushResult.emit('callResult',{error:'VM ran out of memory'})
-        })
-        
-        child.on('uncaughtException', ()=>{
-            console.log('VM ran out of memory')
-        })
+        child.on('close', function() { clearInterval(keepAlive) })
         
         resolve(pushResult)
 
@@ -114,7 +95,5 @@ const vmMaster = ({ codes, timeLimit, memoryLimit }) =>{
     
     
 }
-
-
 
 module.exports = vmMaster;

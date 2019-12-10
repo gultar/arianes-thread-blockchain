@@ -51,7 +51,7 @@ const isValidTransactionCallJSON = (transaction)=>{
             "type":{"type":"string"},
             "signature":{"type":"string"}
         },
-        "required": ["fromAddress", "toAddress", "timestamp", "amount", "hash", "type"]
+        "required": ["fromAddress", "toAddress", "timestamp", "hash", "type"]
     };
 
     if(transaction){

@@ -232,14 +232,18 @@ class Mempool{
     deleteActionsFromMinedBlock(actions){
         return new Promise((resolve)=>{
             if(typeof actions == 'object'){
-                let actionHashes = Object.keys(actions);
+                if(Object.keys(actions).length > 0){
+                    let actionHashes = Object.keys(actions);
             
-                for(var hash of actionHashes){
-                    if(this.pendingActions.hasOwnProperty(hash)){
-                        delete this.pendingActions[hash];
+                    for(var hash of actionHashes){
+                        if(this.pendingActions.hasOwnProperty(hash)){
+                            delete this.pendingActions[hash];
+                        }
                     }
+                    resolve(true)
+                }else{
+                    resolve(true)
                 }
-                resolve(true)
             }else{
                 logger('ERROR: Actions to delete are undefined')
                 resolve(false)

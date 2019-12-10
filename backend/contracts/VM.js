@@ -82,7 +82,9 @@ class ContractVM{
     transferState(nextState){
         if(nextState){
             this.sandbox.stateStorage = nextState
+            return { added:true }
         }
+        return false
     }
 
     setInitialState(state){
@@ -174,6 +176,7 @@ class ContractVM{
     setContractClass(contractName, classCode){
         if(contractName && classCode){
             this.contractClasses[contractName] = classCode
+            return { added:true }
         }else{
             return { setContractClassError:'Must pass valid contractName and classCode' }
         }
@@ -226,7 +229,7 @@ class ContractVM{
                 let methodToRun = this.codes[hash].methodToRun
                 let contractCode = this.contractClasses[contractName]
                 let code = this.buildFunctionWrapper(instruction + stateHeaderInstruction + methodToRun)
-                
+                // console.log(contractCode + code)
                 this.vm.run(contractCode + code)
                 
                 signals.once('saved', (savedState)=>{

@@ -31,6 +31,8 @@ program
 .option('-k, --type <type>', "Type of transaction")
 .option('-d, --data <data>', "Optional data to be added")
 .option('-u, --url <nodeURL>', "URL of running node to send transaction to")
+.option('-m, --memory', 'Amount of memory used to execute transaction call')
+.option('-c, --cpuTime', 'Amount of cpu time to reserve for the execution of transaction call')
 .description('Sends a transaction to another wallet')
 .action(async ()=>{
     if(program.walletName && program.password && nodeAddress){
@@ -62,7 +64,8 @@ program
                                     // console.log(JSON.stringify(transaction, null, 2))
                                     axios.post(`${nodeAddress}/transaction`, transaction)
                                     .then( success => {
-                                        console.log(JSON.stringify(success.data, null, 2))
+                                        if(success.data.result) console.log(JSON.stringify(success.data.result, null, 2))
+                                        else console.log(JSON.stringify(success.data, null, 2))
                                         
                                     })
                                     .catch( e => console.log(e))
