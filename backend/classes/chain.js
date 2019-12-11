@@ -350,6 +350,8 @@ class Blockchain{
               if(existingFork){
                 //Checks if new block's previous block hash is the root of the fork
                 let rootHash = this.blockForks[newBlock.previousHash].root
+                let forkedBlocksHashes = Object.keys(this.blockForks)
+                let firstBlockHashNextToRoot = forkedBlocksHashes[0]
                 //Retrieves the previous block hash
                 let previousBlockHash = this.blockForks[newBlock.previousHash].previousHash
                 //Hash of the newest block
@@ -360,7 +362,7 @@ class Blockchain{
                   let rootBlock = this.chain[rootIndex];
                   //Extracts the forked blocks from the block where the split happened
                   //By using the previousBlock Hash
-                  let fork = rootBlock[previousBlockHash]
+                  let fork = rootBlock[firstBlockHashNextToRoot]
                   //If not found, use the new block's hash
                   if(!fork) fork = rootBlock[newHash]
 
