@@ -2022,8 +2022,10 @@ class Blockchain{
               let callHashes = Object.keys(results)
               let lastHash = callHashes[callHashes.length -1]
               if(!lastHash && Array.isArray(callHashes)) lastHash = callHashes.pop()
-              else if(!lastHash && !Array.isArray(callHashes)) console.log(result) //to be removed
+               //to be removed
+
               let lastResult = results[lastHash]
+              if(!lastResult) console.log(results)
               let lastState = lastResult.executed.state
               let lastCallsContractName = results[lastHash].contractName
   
