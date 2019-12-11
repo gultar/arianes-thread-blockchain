@@ -249,6 +249,7 @@ class Blockchain{
                   if(deleted){
                     if(deleted.error) errors['Mempool tx deletion error'] = deleted.error;
                   }else{
+                    this.isBusy = false
                     resolve({error:'Could not delete block transactions'})
                   }
 

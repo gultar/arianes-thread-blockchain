@@ -1595,9 +1595,11 @@ class Node {
             }else{
               
               this.sendPeerMessage('newBlockFound', block);
-              if(!this.chain.isBusy && block.blockNumber == this.chain.getLatestBlock() - 1){ // Don't send the previous block again
-                api.emit('latestBlock', this.chain.getLatestBlock())
-              }
+              // if(!this.chain.isBusy && block.blockNumber == this.chain.getLatestBlock() - 1){ // Don't send the previous block again
+              //   api.emit('latestBlock', this.chain.getLatestBlock())
+              // }
+              api.emit('latestBlock', this.chain.getLatestBlock())
+              
               
             api.emit('run')
               
