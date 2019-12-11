@@ -120,7 +120,7 @@ class Miner{
               this.successMessage(block)
               this.socket.emit('newBlock', block)
               this.pause()
-              this.previousBlock = block;
+              this.previousBlock = null;
               this.socket.emit('getLatestBlock', block)
               this.run()
               
@@ -143,6 +143,7 @@ class Miner{
           if(this.sizeOfPool() > 0){
             if(!this.readyToMine){
               this.socket.emit('isReady')
+              this.socket.emit('getLatestBlock')
               this.readyToMine = true
               clearInterval(this.transactionUpdate)
             }
@@ -225,39 +226,41 @@ class Miner{
       let transactions = JSON.parse(JSON.stringify(this.pool.pendingTransactions)) 
       let actions = JSON.parse(JSON.stringify(this.pool.pendingActions))
       
-      if(Object.keys(transactions).length > 0){
-        if(!this.buildingBlock){
-
-          this.buildingBlock = true
-          this.pool.pendingTransactions = {}
-          this.pool.pendingActions = {}
-
-          transactions = await this.orderTransactionsByTimestamp(transactions)
-
-          if(!this.nextCoinbase){
-            this.nextCoinbase = await this.createCoinbase()
-            transactions[this.nextCoinbase.hash] = this.nextCoinbase
+      if(this.previousBlock){
+        if(Object.keys(transactions).length > 0){
+          if(!this.buildingBlock){
+  
+            this.buildingBlock = true
+            this.pool.pendingTransactions = {}
+            this.pool.pendingActions = {}
+  
+            transactions = await this.orderTransactionsByTimestamp(transactions)
+  
+            if(!this.nextCoinbase){
+              this.nextCoinbase = await this.createCoinbase()
+              transactions[this.nextCoinbase.hash] = this.nextCoinbase
+            }
+            let transactionsToAdd = JSON.parse(JSON.stringify(transactions))
+            let block = new Block(Date.now(), transactionsToAdd, actions);
+            block.coinbaseTransactionHash = this.nextCoinbase.hash
+            this.nextBlock = block
+  
+            block.startMineTime = Date.now()
+            block.blockNumber = this.previousBlock.blockNumber + 1;
+            block.previousHash = this.previousBlock.hash;
+  
+            let difficulty = new Difficulty(this.genesis)
+            block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
+            block.challenge = difficulty.setNewChallenge(block)
+            block.totalDifficulty = this.calculateTotalDifficulty(block)
+  
+            block.minedBy = this.wallet.publicKey;
+            
+            this.buildingBlock = false
+            return block;
+          }else{
+            return this.nextBlock
           }
-          let transactionsToAdd = JSON.parse(JSON.stringify(transactions))
-          let block = new Block(Date.now(), transactionsToAdd, actions);
-          block.coinbaseTransactionHash = this.nextCoinbase.hash
-          this.nextBlock = block
-
-          block.startMineTime = Date.now()
-          block.blockNumber = this.previousBlock.blockNumber + 1;
-          block.previousHash = this.previousBlock.hash;
-
-          let difficulty = new Difficulty(this.genesis)
-          block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
-          block.challenge = difficulty.setNewChallenge(block)
-          block.totalDifficulty = this.calculateTotalDifficulty(block)
-
-          block.minedBy = this.wallet.publicKey;
-          
-          this.buildingBlock = false
-          return block;
-        }else{
-          return this.nextBlock
         }
       }
       
