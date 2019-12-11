@@ -756,7 +756,7 @@ class Node {
         if(unansweredRequests <= maxRetryNumber){
           this.retrySending = setTimeout(()=>{
             
-            peer.emit('getNextBlock', this.getLatestBlock().hash)
+            peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
             unansweredRequests++
             awaitRequest()
           }, 5000)
