@@ -750,22 +750,21 @@ class Node {
       this.isDownloading = true;
       let unansweredRequests = 0;
       let maxRetryNumber = 10
-      let retry = setInterval(()=>{
-        unansweredRequests++
-        if(unansweredRequests > 5){
-          logger('Resending a getNextBlock request')
-          peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
-        }else if(unansweredRequests > 30){
-          
-          //Find a way to exclude unresponsive peer
-          // this.broadcast('getBlockchainStatus')
-          clearInterval(retry)
-          logger('ERROR: Could not fully update blockchain. Requesting blockchain status from peers')
+      this.retrySending = null;
+      
+      const awaitRequest = () =>{
+        if(unansweredRequests <= maxRetryNumber){
+          this.retrySending = setTimeout(()=>{
+            
+            peer.emit('getNextBlock', this.getLatestBlock().hash)
+            unansweredRequests++
+            awaitRequest()
+          }, 5000)
+        }else{
+          logger('getNextBlock Request failed. No answer')
           closeConnection()
-          resolve({error:'ERROR: Could not fully update blockchain'})
         }
-        
-      }, 2000)
+      }
 
       const closeConnection = () =>{
         peer.off('nextBlock')
@@ -773,10 +772,12 @@ class Node {
       }
 
       peer.on('nextBlock', async (block)=>{
-        
+        unansweredRequests = 0
+        clearTimeout(this.retrySending)
+
         if(block.end){
           logger('Blockchain updated successfully!')
-          clearInterval(retry)
+          // clearInterval(retry)
           closeConnection()
           resolve(true)
         }else if(block.error){
@@ -784,31 +785,32 @@ class Node {
           closeConnection()
           resolve({ error: block.error })
         }else{
-          let isAlreadyAdded = await this.chain.chainHasBlockOfHash(block.hash)
-
-          if(block.previousHash != lastHash && !isAlreadyAdded){
-            let isBlockPushed = await this.chain.pushBlock(block);
-            if(isBlockPushed.error){
-              closeConnection()
-              resolve({ error: isBlockPushed.error })
-            }else{
-              unansweredRequests = 0
-              peer.emit('getNextBlock', block.hash)
-            }
-          }else if(!isAlreadyAdded){
-            
-            let isBlockFork = await this.chain.newBlockFork(block)
-            if(isBlockFork.error){
-              closeConnection()
-              resolve({ error: isBlockFork.error })
-            }else{
-              peer.emit('getNextBlock', block.hash)
-              resolve(true)
-            }
-
-          }else if(isAlreadyAdded){
+          let isBlockPushed = await this.chain.pushBlock(block);
+          if(isBlockPushed.error){
+            closeConnection()
+            resolve({ error: isBlockPushed.error })
+          }else{
             peer.emit('getNextBlock', block.hash)
+            awaitRequest()
           }
+        // let isAlreadyAdded = await this.chain.chainHasBlockOfHash(block.hash)
+
+          // if(block.previousHash != lastHash && !isAlreadyAdded){
+            
+          // }else if(!isAlreadyAdded){
+            
+          //   let isBlockFork = await this.chain.newBlockFork(block)
+          //   if(isBlockFork.error){
+          //     closeConnection()
+          //     resolve({ error: isBlockFork.error })
+          //   }else{
+          //     peer.emit('getNextBlock', block.hash)
+          //     resolve(true)
+          //   }
+
+          // }else if(isAlreadyAdded){
+          //   peer.emit('getNextBlock', block.hash)
+          // }
           
         }
       })
