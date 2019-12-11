@@ -2348,11 +2348,17 @@ class Blockchain{
       let resultReceiver = await vmMaster({
         codes:codes,
         memoryLimit:calculateMemoryLimit(),
-        timeLimit:codes.totalCalls * 15
+        timeLimit:codes.totalCalls * 25
       })
       resultReceiver.on('callResult', (result)=>{
         if(result.error) resolve({error:result.error})
-        else if(result.end){ resolve(results) }
+        else if(result.end){ 
+          if(Object.keys(results) > 0){
+            resolve(results)
+          }else{
+            resolve({error:'ERROR: VM did not return any results'})
+          }
+        }
         else results[result.hash] = result
       })
       
