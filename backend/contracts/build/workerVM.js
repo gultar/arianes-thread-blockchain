@@ -10,7 +10,7 @@ const workerVM = () =>{
       vm.signals.on('commited', (result)=>{
           vm.sandbox.stateStorage = result.state
           if(result.error) process.send({error:result.error.message, hash:result.hash, contractName:result.contractName})
-          else process.send({executed:result, hash:vm.sandbox.stateStorage, contractName:result.contractName})
+          else process.send({executed:result, hash:result.hash, contractName:result.contractName})
       })
 
       vm.signals.on('failed', (failure)=>{
