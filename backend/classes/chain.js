@@ -2015,6 +2015,7 @@ class Blockchain{
           let results = await this.executeManyCalls(calls)
           if(results.error) resolve({error:results.error})
           else{
+              console.log(results)
               let callHashes = Object.keys(results)
               let lastHash = callHashes[callHashes.length -1]
               let lastResult = results[lastHash]
