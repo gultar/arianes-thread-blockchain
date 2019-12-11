@@ -1614,12 +1614,19 @@ class Node {
 
     api.on('getLatestBlock', (minersPreviousBlock)=>{
       if(this.chain instanceof Blockchain){
-        if(minersPreviousBlock.blockNumber <= this.chain.getLatestBlock().blockNumber){
+        if(minersPreviousBlock){
+          if(minersPreviousBlock.blockNumber <= this.chain.getLatestBlock().blockNumber){
+            if(!this.chain.isBusy){
+              api.emit('latestBlock', this.chain.getLatestBlock())
+             
+            }
+            
+          }
+        }else{
           if(!this.chain.isBusy){
             api.emit('latestBlock', this.chain.getLatestBlock())
            
           }
-          
         }
       }else{
         api.emit('error', {error: 'Chain is not ready'})
