@@ -143,13 +143,13 @@ class Miner{
           if(this.sizeOfPool() > 0){
             if(!this.readyToMine){
               this.socket.emit('isReady')
-              this.socket.emit('getLatestBlock')
               this.readyToMine = true
               clearInterval(this.transactionUpdate)
             }
             
           }else{
             this.socket.emit('fetchTransactions')
+            this.socket.emit('getLatestBlock')
           }
         }
       }, 500)
