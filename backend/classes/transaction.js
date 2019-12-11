@@ -10,7 +10,7 @@ const fs = require('fs');
 const jsonSize = require('json-size');
 
 class Transaction{
-  constructor(fromAddress, toAddress, amount, data='', type='', hash='', miningFee=false, nonce=0){
+  constructor({fromAddress, toAddress, amount, data='', type='', hash='', miningFee=false, nonce=0}){
     this.fromAddress = fromAddress;
     this.toAddress = toAddress;
     this.type = type;
@@ -21,7 +21,7 @@ class Transaction{
     this.nonce = nonce
     this.hash = (hash? hash : sha256(this.fromAddress+ this.toAddress+ this.amount+ this.data+ this.timestamp+ this.nonce));
     this.miningFee = (miningFee ? miningFee : this.setMiningFee())
-    
+    this.delayToBlock = 0
     
   }
 

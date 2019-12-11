@@ -67,15 +67,15 @@ class Blockchain{
     let genesisBlock = new Block(1554987342039,
       { 
         'maxCurrency':new Transaction
-        (
-          'coinbase',
-          "coinbase", 
-          1000 * 1000 * 1000 * 1000, 
-          'Maximum allowed currency in circulation',
-          'coinbaseReserve',
-          false,
-          0
-        ),
+        ({
+          fromAddress:'coinbase',
+          toAddress:'coinbase',
+          amount:1000 * 1000 * 1000 * 1000,
+          data:'Maximum allowed currency in circulation',
+          type:'coinbaseReserve',
+          hash:false,
+          miningFee:0
+        }),
       }, {});
       genesisBlock.difficulty = '0x100000';//'0x2A353F';
       genesisBlock.totalDifficulty = genesisBlock.difficulty
@@ -2406,6 +2406,34 @@ class Blockchain{
       })
   }
 
+  validateContractAction(action){
+    return new Promise(async (resolve, reject)=>{
+      if(action){
+          let account = await this.accountTable.getAccount(action.fromAccount)
+          
+
+          let isExistingAccount = ( account? true : false )
+          let isChecksumValid = await this.validateActionChecksum(action);
+          let actionIsNotTooBig = (Transaction.getTransactionSize(action) / 1024) < this.transactionSizeLimit;
+          let isLinkedToWallet = validatePublicKey(account.ownerKey);
+          // let hasValidActionRef = this.validateActionReference(action.actionRef)
+          
+          if(!hasValidActionRef) resolve({error:'ERROR: Invalid action reference passed'})
+          if(!isExistingAccount) resolve({error:'ERROR: Account does not exist'})
+          if(!isChecksumValid) resolve({error:"ERROR: Action checksum is invalid"})
+          if(!isLinkedToWallet) resolve({error:"ERROR: Action ownerKey is invalid"})
+          if(!actionIsNotTooBig) resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+          
+          resolve(true);
+
+      }else{
+        resolve({error:'Account or Action is undefined'})
+      }
+      
+      
+    })
+    
+  }
 
   validateAction(action){
     return new Promise(async (resolve, reject)=>{

@@ -149,10 +149,6 @@ class AccountTable{
           })
         
       }
-
-      executeAction(action){
-        //implement
-      }
 }
 
 module.exports = AccountTable;

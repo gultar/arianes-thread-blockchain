@@ -1239,10 +1239,6 @@ class Node {
         }
 
         console.log('Total blockchain size is :', total)
-        // const Transaction = require('./backend/classes/transaction')
-        // console.log(Transaction.getTransactionSize(this.chain.chain))
-        // socket.emit('blockchain', Transaction.getTransactionSize(this.chain.chain));
-
       })
 
       socket.on('getBlockSize',async (blockNumber)=>{
@@ -1424,13 +1420,13 @@ class Node {
         
       })
 
-      socket.on('rollbackState', (name, hash)=>{
-        let action = {
-          hash:hash
-        }
-        let rolledBack = this.chain.contractTable.rollbackState(name, action)
-        console.log(rolledBack)
-      })
+      // socket.on('rollbackState', (name, hash)=>{
+      //   let action = {
+      //     hash:hash
+      //   }
+      //   let rolledBack = this.chain.contractTable.rollbackState(name, action)
+      //   console.log(rolledBack)
+      // })
 
       socket.on('verbose', ()=>{
         
@@ -1494,24 +1490,7 @@ class Node {
           }
 
           calls[call.hash] = call
-          // let added = await this.chain.stack.addCall(call, call.data.contractName)
         }
-        // let call = {
-        //   fromAccount: 'tuor',
-        //   data:{
-        //     contractName: 'Token',
-        //     method: 'issue',
-        //     params: {
-        //       symbol:'GOLD',
-        //       amount:10,
-        //       receiver:'huor'
-        //     },
-        //   },
-        //   hash:sha256(Math.random().toString())
-        // }
-        
-        // let contract = this.chain.contractTable.getContract(call.data.contractName)
-        // let contractAdded = await this.chain.stack.setContractClass(contract.name, contract.code)
         
         let startTime = Date.now()
         let result = await this.chain.executeManyCalls(calls)
@@ -1519,16 +1498,6 @@ class Node {
          console.log(`Received ${Object.keys(result).length} results`)
         // console.log(result)
         console.log(`Finished in ${(endTime - startTime) /1000 } seconds`)
-        // let codes = await this.chain.stack.buildCode().catch(e => console.log('Err in socket', e))
-
-        // console.log('Number of calls', codes.totalCalls)
-        // let resultsReceiver = await vmMaster({codes:codes, timeLimit:1000})
-       
-        // resultsReceiver.on('callResult', (callResult)=>{
-        //   console.log('Received call result', callResult)
-        //   console.log(`Received in ${(endTime - startTime) /1000 } seconds`)
-        // })
-        // // console.log(result)
         
       })
 
@@ -1545,11 +1514,6 @@ class Node {
         let result = await VM.deployContract('Token', contract.account)
         console.log(result)
 
-      })
-
-      socket.on('median', async ()=>{
-        let medianTimestamp = await this.chain.getMedianBlockTimestamp(10)
-        console.log(medianTimestamp)
       })
 
       socket.on('disconnect', ()=>{
@@ -1629,7 +1593,7 @@ class Node {
             }else{
               
               this.sendPeerMessage('newBlockFound', block);
-              if(!this.chain.isBusy && block.blockNumber == this.chain.getLatestBlock() - 1){
+              if(!this.chain.isBusy && block.blockNumber == this.chain.getLatestBlock() - 1){ // Don't send the previous block again
                 api.emit('latestBlock', this.chain.getLatestBlock())
               }
               
@@ -1911,96 +1875,13 @@ class Node {
     }
   }
 
-
-  // /**
-  //   @desc Emits all transactions as peerMessages.
-  //   @param {string} $sender - Sender of coins's Public key
-  //   @param {string} $receiver - Receiver of coins's Public key
-  //   @param {number} $amount - Amount of coins to send. Optional IF blockbase query
-  //   @param {object} $data - data to send along with transaction
-  // */
-  // async broadcastNewTransaction(transaction){
-  //   return new Promise( async (resolve, reject)=>{
-  //     try{
-  //         if(this.chain instanceof Blockchain){
-  //           if(!transaction.signature){
-  //             logger('Transaction signature failed. Missing signature')
-  //             resolve({error:'Transaction signature failed. Missing signature'})
-              
-  //           }else{
-              
-  //             this.chain.createTransaction(transaction)
-  //               .then( async (valid) =>{
-  //                 if(!valid.error){
-  
-  //                   if(transaction.type == 'call'){
-
-  //                     let call = transaction.data
-
-  //                     let action = {
-  //                       fromAccount: transaction.fromAddress,
-  //                       data:{
-  //                         contractName: transaction.toAddress,
-  //                         method: call.method,
-  //                         params: call.params,
-  //                       }
-  //                     }
-
-  //                     let executed = await this.chain.testExecuteAction(action, this.chain.getLatestBlock().blockNumber)
-  //                     if(executed){
-  //                       if(executed.error){
-  //                         this.UILog('!!!'+' Rejected transaction call: '+ transaction.hash.substr(0, 15)+"...")
-  //                         if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction call: ')+ transaction.hash.substr(0, 15)+"...")
-  //                         resolve({error:executed.error})
-  //                       }else{
-  //                         if(executed.isReadOnly){
-  //                           resolve({ isReadOnly:executed.isReadOnly })
-  //                         }else{
-  //                           let added = await this.mempool.addTransaction(transaction);
-  //                           this.UILog('=> Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
-  //                           if(this.verbose) logger(chalk.blue('=>')+' Emitted transaction call: '+ transaction.hash.substr(0, 15)+"...")
-                            
-  //                           this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
-                            
-  //                           resolve({ callExecuted:executed })
-  //                         }
-                          
-  //                       }
-  //                     }else{
-  //                       resolve({error:'Function has returned nothing'})
-  //                     }
-
-
-  //                   }else{
-
-  //                     let added = await this.mempool.addTransaction(transaction);
-  //                     this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-  //                     if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-                      
-  //                     this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
-  //                     resolve(transaction)
-
-  //                   }
-  
-  //                 }else{
-  
-  //                   this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
-  //                   if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-  //                   resolve({error:valid.error});
-  
-  //                 }
-  //               })
-  //           }
-  //         }
-         
-        
-        
-  //     }catch(e){
-  //       console.log(chalk.red(e));
-  //     }
-  //   })
-  // }
-
+/**
+ * @desc Emits all transactions as peerMessages.
+   @param {string} $sender - Sender of coins's Public key
+   @param {string} $receiver - Receiver of coins's Public key
+   @param {number} $amount - Amount of coins to send. Optional IF blockbase query
+   @param {object} $data - data to send along with transaction
+ */
   broadcastTransaction(transaction){
     return new Promise(async (resolve)=>{
       try{
@@ -2221,7 +2102,7 @@ DHT_PORT=${this.peerDiscoveryPort}
   }
 
   /**
-    @desc Periodically clears out peer messages to avoid overflow
+    @desc Routine tasks go here. The heartbeat's delay is adjusted in nodeconfig
   */
   heartbeat(){
     var that = this;

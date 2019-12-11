@@ -4,7 +4,7 @@ const { logger } = require('../tools/utils');
 const jsonSize = require('json-size');
 
 class Action{
-    constructor(fromAccount, type, task, data='', contractRef={}){
+    constructor({fromAccount, type, task, data='', contractRef={}}){
         this.fromAccount = fromAccount; 
         this.type = type; 
         this.task = task; //Function on the contract

@@ -3,15 +3,81 @@ const jsonSize = require('json-size');
 
 
 class Mempool{
-    constructor(){
+    constructor(opts){
         this.transactions = new Database('./data/transactionDB')
         this.actions = new Database('./data/actionDB')
         this.txReceipts = {}
+        this.delayedTransactions = {}
+        this.delayedActions = {}
         this.actionReceipts = {}
         this.usedTxReceipts = {}
         this.usedActionReceipts = {}
         this.maxBatchSize = 50000
         this.busyGathering = false
+    }
+
+    async manageDelayedTransactions(latestBlock){
+        if(latestBlock && latestBlock.blockNumber){
+            let numTransactionAdded = 0
+            for await(let hash of Object.keys(this.delayedTransactions)){
+                let transaction = this.delayedTransactions[hash]
+                if(transaction.delayToBlock <= latestBlock.blockNumber){
+                    delete transaction.delayToBlock
+                    let added = await this.addTransaction(transaction)
+                    if(added.error) return { error: { delayedTransactionError:added.error } }
+
+                    numTransactionAdded++
+                }
+            }
+
+            return { delayedTransactionsAdded:numTransactionAdded };
+        }else{
+            return { error:'DELAYED TX ERROR: Need to provide valid latest block' }
+        }
+        
+    }
+
+    async manageDelayedActions(latestBlock){
+        if(latestBlock && latestBlock.blockNumber){
+            let numActionAdded = 0
+            for await(let hash of Object.keys(this.delayedActions)){
+                let action = this.delayedActions[hash]
+                if(action.delayToBlock <= latestBlock.blockNumber){
+                    delete action.delayToBlock
+                    let added = await this.addAction(action)
+                    if(added.error) return { error: { delayedActionError:added.error } }
+
+                    numActionAdded++
+                }
+            }
+
+            return { delayedTransactionsAdded:numActionAdded };
+        }else{
+            return { error:'DELAYED ACTION ERROR: Need to provide valid latest block' }
+        }
+        
+    }
+
+    delayTransaction(transaction){
+        if(transaction && transaction.delayToBlock){
+
+            this.delayedActions[hash] = transaction
+
+            return true
+        }else{
+            return false
+        }
+    }
+
+    delayAction(action){
+        if(action && action.delayToBlock){
+
+            this.delayedActions[hash] = action
+
+            return true
+        }else{
+            return false
+        }
     }
 
     addTransaction(transaction){

@@ -32,13 +32,13 @@ const txgen = (program) =>{
         
         
         let transaction = new Transaction
-            (
-                program.fromAddress, 
-                program.toAddress, 
-                amount, 
-                data,
-                program.type
-            );
+            ({
+                fromAddress:program.fromAddress,
+                toAddress:program.toAddress,
+                amount:amount,
+                data:data,
+                type:program.type
+            });
             let wallet = await manager.loadByWalletName(program.walletName)
             if(wallet){
                 let unlocked = await wallet.unlock(program.password)

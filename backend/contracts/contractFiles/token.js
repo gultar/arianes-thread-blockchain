@@ -208,17 +208,17 @@ class Token{
         let external = makeExternal({
             createToken:{
                 type:'set',
-                args:["symbol", "name", "maxSupply", "creator"],
+                args:["symbol", "name", "maxSupply"],
                 description:'Creates a token that is exchangeable through actions'
             },
             issue:{
                 type:'set',
-                args:["symbol", "amount", "issuerAccount", "receiverAccount"],
+                args:["symbol", "amount", "receiver"],
                 description:'Creator of token may issue tokens to another account'
             },
             transfer:{
                 type:'set',
-                args:["symbol", "amount", "senderAccount", "receiverAccount"],
+                args:["symbol", "amount", "receiver"],
                 description:'An account holding tokens may transfer to another account'
             },
             getBalanceOfAccount:{
@@ -227,7 +227,7 @@ class Token{
                 description:`Get an account's balance of a given token`
             }
         })
-        //let contractAPI = await createContractInterface(external)
+        
         return external
     }
 

@@ -194,7 +194,11 @@ class Miner{
 
     async createCoinbase(){
       if(this.wallet){
-        let coinbase = new Transaction('coinbase', this.wallet.publicKey, this.miningReward)
+        let coinbase = new Transaction({
+          fromAddress:'coinbase',
+          toAddress:this.wallet.publicKey,
+          amount:this.miningReward
+        })
         let unlocked = await this.wallet.unlock(this.keychain.password)
         
         if(unlocked){

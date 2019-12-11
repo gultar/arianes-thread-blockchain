@@ -79,8 +79,13 @@ Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
         let walletManager = new WalletManager();
         let newAccount = await accountCreator.createAccount(accountName, accountType, walletName, password);
         let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
-
-        let action = new Action(accountName, 'account', 'create', newAccount);
+ 
+        let action = new Action({
+            fromAccount:accountName,
+            type:'account',
+            task:'create',
+            data:newAccount
+        });
         
         walletManager.unlockWallet(walletName, password)
         .then(async (unlocked)=>{
@@ -171,16 +176,17 @@ Synthax : node actionCLI.js test -c [ContractName] -t [Task] -a [account] -w [wa
                 let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
                 
                 data = JSON.parse(data)
-
-                let action = new Action(
-                    accountName,
-                    "contract",
-                    "call",
-                {  
-                    contractName:contractName,
-                    method:task,
-                    params:data,
-                    account:accountName,
+                
+                let action = new Action({
+                    fromAccount:accountName,
+                    type:'contract',
+                    task:'call',
+                    data:{  
+                        contractName:contractName,
+                        method:task,
+                        params:data,
+                        account:accountName,
+                    }
                 });
                 
                 walletManager.unlockWallet(walletName, password)
@@ -260,15 +266,16 @@ Synthax : node actionCLI.js call -c [ContractName] -t [Task] -a [account] -w [wa
                 let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
                 
                 data = JSON.parse(data)
-                let action = new Action(
-                    accountName,
-                    "contract",
-                    "call",
-                {  
-                    contractName:contractName,
-                    method:task,
-                    params:data,
-                    account:accountName,
+                let action = new Action({
+                    fromAccount:accountName,
+                    type:'contract',
+                    task:'call',
+                    data:{  
+                        contractName:contractName,
+                        method:task,
+                        params:data,
+                        account:accountName,
+                    }
                 });
                 
                 walletManager.unlockWallet(walletName, password)
@@ -384,17 +391,18 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                       let result = await vm.singleRun(deployContract)
                       if(result){
                         
-                        let action = new Action(
-                            accountName,
-                            "contract",
-                            "deploy",
-                        {
-                            name:contractName,
-                            code:contract,
-                            contractAPI:result.contractAPI,
-                            initParams:initParams,
-                            account:accountName,
-                            state:result.state
+                        let action = new Action({
+                            fromAccount:accountName,
+                            type:'contract',
+                            task:'deploy',
+                            data: {
+                                name:contractName,
+                                code:contract,
+                                contractAPI:result.contractAPI,
+                                initParams:initParams,
+                                account:accountName,
+                                state:result.state
+                            }
                         });
 
                         walletManager.unlockWallet(walletName, password)
@@ -509,17 +517,18 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                       let result = await vm.singleRun(deployContract)
                       if(result){
                         
-                        let action = new Action(
-                            accountName,
-                            "contract",
-                            "deploy",
-                        {
-                            name:contractName,
-                            code:contract,
-                            contractAPI:result.contractAPI,
-                            initParams:initParams,
-                            account:accountName,
-                            state:result.state
+                        let action = new Action({
+                            fromAccount:accountName,
+                            type:'contract',
+                            task:'deploy',
+                            data: {
+                                name:contractName,
+                                code:contract,
+                                contractAPI:result.contractAPI,
+                                initParams:initParams,
+                                account:accountName,
+                                state:result.state
+                            }
                         });
                         
                         walletManager.unlockWallet(walletName, password)
@@ -592,12 +601,14 @@ Synthax : node actionCLI.js destroy -c [ContractName] -a [account] -w [wallet] -
 
                 let walletManager = new WalletManager();
                 let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
-                let action = new Action(
-                    accountName,
-                    "contract",
-                    "destroy",
-                {
-                    name:contractName,
+               
+                let action = new Action({
+                    fromAccount:accountName,
+                    type:'contract',
+                    task:'destroy',
+                    data:{
+                        name:contractName
+                    }
                 });
                 
                 walletManager.unlockWallet(walletName, password)

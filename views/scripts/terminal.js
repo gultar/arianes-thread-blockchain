@@ -424,12 +424,12 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           socket.emit('getState', args[0])
           break;
-        case 'median':
+        case 'size':
           if(!isConnected){
             connectError(cmd);
             break;
           }
-          socket.emit('median', args[0])
+          socket.emit('getBlockchainSize', args[0])
           break;
         default:
           if (cmd) {
