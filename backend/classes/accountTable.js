@@ -1,12 +1,13 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger, readFile, writeToFile } = require('../tools/utils.js') 
 const fs = require('fs')
-const Database = require('./database')
-
+// const Database = require('./database')
+const Database = require('./db')
 class AccountTable{
     constructor(){
         this.accounts = {}
-        this.accountsDB = new Database('./data/accountsDB')
+        // this.accountsDB = new Database('./data/accountsDB')
+        this.accountsDB = new Database('accounts')
     }
 
     addAccount(account){

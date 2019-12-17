@@ -1,5 +1,5 @@
 const sha256 = require('../tools/sha256');
-const Database = require('./database')
+const Database = require('./db')
 const { isValidTransactionJSON, isValidActionJSON } = require('../tools/jsonvalidator');
 const { readFile, writeToFile, logger } = require('../tools/utils');
 const fs = require('fs')
@@ -9,7 +9,7 @@ class BalanceTable{
     constructor(accountTable){
         this.states = {}
         this.history = {}
-        this.stateDB = new Database('./data/balanceDB')
+        this.stateDB = new Database('balances') //./data/balanceDB
         this.accountTable = accountTable
     }
 
@@ -367,7 +367,7 @@ class BalanceTable{
             
             let added = await this.stateDB.put({
                 id:block.blockNumber.toString(),
-                key: 'blockState',
+                key:block.blockNumber.toString(),
                 value: { 
                     states:this.states,
                     merkleRoot:block.merkleRoot,
@@ -376,7 +376,7 @@ class BalanceTable{
                     actionHashes:block.actionHashes
                 }
             })
-
+            
             if(added.error) resolve({error:added})
             else resolve(added)
            })
@@ -385,11 +385,15 @@ class BalanceTable{
        loadBalances(blockNumber){
            return new Promise(async (resolve)=>{
                if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
-               let blockSaved = await this.stateDB.get(blockNumber)
-               if(blockSaved.error) resolve({error:blockSaved.error})
-               let blockState = blockSaved.blockState;
-               this.states = blockState.states
-               resolve(this.states)
+               let blockState = await this.stateDB.get(blockNumber)
+               if(blockState){
+                    if(blockState .error) resolve({error:blockState .error})
+                    this.states = blockState.states
+                    resolve(this.states)
+               }else{
+                   resolve({error:'ERROR: Could not load balance states at block number '+blockNumber})
+               }
+               
            })
        }
 

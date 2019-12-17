@@ -22,7 +22,7 @@ const Stack = require('../contracts/build/callStack')
 const VMController = require('./vmController')
 
 /*************Smart Contract VM************** */
-const vmMaster = require('../contracts/vmEngine/vmMaster')
+const vmMaster = require('../contracts/build/vmMaster')
 /******************************************** */
 
 const Block = require('./block');
@@ -33,7 +33,6 @@ const fs = require('fs');
 let _ = require('private-parts').createKey();
 const genesis = require('../tools/getGenesis')
 const PouchDB = require('pouchdb');
-const Database = require('./db')
 /**
   * @desc Basic blockchain class.
   * @param {Array} $chain Possibility of instantiating blockchain with existing chain. 
@@ -43,14 +42,10 @@ class Blockchain{
 
   constructor(chain=[], mempool){
     this.chain = chain
-    this.chainDB = new Database('blockchain');
+    this.chainDB = new PouchDB('./data/chainDB');
     this.accountTable = new AccountTable();
     this.balance = new BalanceTable(this.accountTable)
-    this.contractTable = new ContractTable({
-      getCurrentBlock:()=>{
-        return this.getLatestBlock()
-      }
-    })
+    this.contractTable = new ContractTable();
     this.stack = new Stack({
       accountTable:this.accountTable,
       contractTable:this.contractTable,
@@ -109,16 +104,20 @@ class Blockchain{
    */
   genesisBlockToDB(genesisBlock){
     return new Promise(async (resolve)=>{
-      
-      let added = await this.chainDB.put({
-          id:'0',
-          key:'0',
-          value:genesisBlock
+      this.chainDB.put({
+        _id:'0',
+        ['0']:genesisBlock
       })
+      .then((addedGenesisBlock)=>{
+        resolve(true)
+      })
+      .catch(async (e)=>{
+        console.log(e)
+        resolve(false)
 
-      if(added.error) resolve({error:added.error})
-      resolve(added)
-        
+      })
+      
+      
     })
     
   }
@@ -133,11 +132,21 @@ class Blockchain{
       if(peerGenesisBlock){
         if(peerGenesisBlock.hash !== this.chain[0].hash){
           this.chain[0] = peerGenesisBlock
-          let addedNewGenesisBlock = await this.chainDB.add({
+          this.chainDB.get('0')
+          .then((currentGenesisBlockContainer)=>{
+            this.chainDB.put({
               _id:'0',
+              _rev:currentGenesisBlockContainer._rev,
               ['0']:peerGenesisBlock
+            })
+            .then(success => resolve(true))
+            .catch(e => {
+              resolve({error:e})
+            })
           })
-          resolve(addedNewGenesisBlock)
+          .catch((e)=>{
+            resolve({error:e})
+          })
         }else{
           resolve(true)
         }
@@ -152,7 +161,7 @@ class Blockchain{
    */
   saveGenesisFile(){
     return new Promise(async (resolve)=>{
-      let genesisBlock = this.createGenesisBlock();
+      let genesisBlock = await this.createGenesisBlock();
       let saved = await writeToFile(genesisBlock, './config/genesis.json')
       if(saved){
         resolve(genesisBlock)
@@ -217,9 +226,6 @@ class Blockchain{
             if(executed.error) errors['Balance error'] = executed.error
             else{
 
-              let saved = this.balance.saveBalances(newBlock)
-              if(saved.error) resolve({error:saved.error})
-
               let actions = newBlock.actions || {}
               let allActionsExecuted = await this.executeActionBlock(actions)
               if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
@@ -242,13 +248,9 @@ class Blockchain{
               }else{
                 this.spentTransactionHashes.push(...newHeader.txHashes)
                 this.chain.push(newHeader);
-                let added = await this.addBlockToDB(newBlock)
+                let added = await this.putBlockToDB(newBlock)
                 if(added){
-                  if(added.error) resolve({error:added.error})
-
-                  let statesSaved = await this.contractTable.saveStates()
-                  if(statesSaved.error) console.log('State saving error', statesSaved.error)
-
+                  
                   let saved = await this.saveLastKnownBlockToDB()
                   if(saved.error) console.log('Saved last block', saved)
 
@@ -515,127 +517,89 @@ class Blockchain{
 
   putHeaderToDB(block){
     return new Promise(async (resolve)=>{
-
-        let put = await this.chainDB.add({
-            _id:block.blockNumber.toString(),
-            [block.blockNumber]:this.extractHeader(block)
-        })
-
-        if(put.error) resolve({error:put.error})
-
-        resolve(put)
-        
+      this.chainDB.put({
+          _id:block.blockNumber.toString(),
+          [block.blockNumber]:this.extractHeader(block)
+      })
+      .then((addedHeader)=>{
+        resolve(addedHeader)
+      })
+      .catch(e => {
+        console.log(e)
+        resolve(false)
+      })
     })
   }
 
   putBodyToDB(block){
     return new Promise(async (resolve)=>{
       
-        if(block.actions && Object.keys(block.actions).length > 0){
-            block.transactions['actions'] = block.actions
-        }
-        
-        let put = await this.chainDB.add({
-            _id:block.hash,
-            [block.hash]:block.transactions
-        })
-        if(put.error) resolve({error:put.error})
-        resolve(put)
+      if(block.actions && Object.keys(block.actions).length > 0){
+        block.transactions['actions'] = block.actions
+      }
+      
+      this.chainDB.put({
+        _id:block.hash,
+        [block.hash]:block.transactions
+      })
+      .then((addedBody)=>{
+        delete block.transactions.actions
+        resolve(addedBody)
+      })
+      .catch(e => {
+        console.log(e)
+        resolve(false)
+      })
     })
   }
 
   getLastKnownBlockFromDB(){
-    return new Promise(async (resolve)=>{
-        let lastBlockEntry = await this.chainDB.get('lastBlock')
-        if(lastBlockEntry && Object.keys(lastBlockEntry).length > 0){
-            if(lastBlockEntry.error) resolve({error:lastBlockEntry.error})
-            let lastBlock = lastBlockEntry[lastBlockEntry._id]
-            if(lastBlock){
-              resolve(lastBlock)
-            }else{
-              if(this.chain.length > 0){
-                resolve(this.chain[0])
-              }else{
-                resolve({blockNumber:0})
-              }
-            }
-
-            
-        }else{
-          
-          if(this.chain.length > 0){
-            resolve(this.chain[0])
-          }else{
-            resolve({blockNumber:0})
-          }
-        }
+    return new Promise((resolve)=>{
+      this.chainDB.get('lastBlock')
+      .then( lastBlock =>{
+        resolve(lastBlock.block)
+      })
+      .catch(e => {
+        resolve(false)
+      })
     })
   }
 
   saveLastKnownBlockToDB(){
     return new Promise(async (resolve)=>{
-        let saved = await this.chainDB.add({
-          _id:'lastBlock',
-          'lastBlock':this.getLatestBlock()
-        })
-        if(saved.error) resolve({error:saved})
-        else resolve(saved)
-      // let lastBlock =  await this.getLastKnownBlockFromDB()
-      // if(lastBlock){
-      //     if(lastBlock.error) resolve({error:lastBlock.error})
-      //     let latestBlockInMemory = this.getLatestBlock()
-      //     if(latestBlockInMemory.blockNumber <= lastBlock.blockNumber){
-      //       console.log('Is equal')
-      //       let saved = await this.chainDB.put({
-      //         id:'lastBlock',
-      //         key:'lastBlock',
-      //         value:lastBlock
-      //       })
-      //       if(saved.error) resolve({error:saved})
-      //       else resolve(saved)
-      //     }else{
-      //       let saved = await this.chainDB.put({
-      //         id:'lastBlock',
-      //         key:'lastBlock',
-      //         value:latestBlockInMemory
-      //       })
-      //       if(saved.error) resolve({error:saved})
-      //       else resolve(saved)
-      //     }
-          
-      // }else{
-        
-
-      // }
-
-    })
-  }
-
-  addBlockToDB(block){
-    return new Promise(async (resolve)=>{
       
-      let put = await this.chainDB.add({
-          _id:block.blockNumber.toString(),
-          [block.blockNumber]:block
+      this.chainDB.get('lastBlock')
+      .then(lastBlock =>{
+        if(lastBlock){
+          
+          this.chainDB.remove(lastBlock._id, lastBlock._rev)
+          .then( removed =>{
+            
+            if(removed){
+              this.chainDB.put({
+                _id:'lastBlock',
+                'block':this.getLatestBlock()
+              })
+              .then(saved => resolve(saved))
+              .catch(error => resolve({error:{saveError:error}}))
+            }else{
+              resolve({error: 'Could not properly remove lastBlock'})
+            }
+          })
+          .catch(removeError => resolve({error:{removeLastBlockError: removeError}}))
+        }else{
+          resolve({error:'Could not find lastBlock'})
+        }
+      })
+      .catch( doesNotExist =>{
+        this.chainDB.put({
+          _id:'lastBlock',
+          'block':this.getLatestBlock()
+        })
+        .then(saved => resolve(saved))
+        .catch(error => resolve({error:{saveError:error}}))
       })
 
-      if(put.error) resolve({error:put.error})
-      resolve(put)
-
-    })
-  }
-
-  getBlockFromDB(blockNumber){
-    return new Promise(async (resolve)=>{
-      
-      let blockEntry = await this.chainDB.get(blockNumber.toString())
-      if(blockEntry){
-        if(blockEntry .error) resolve({error:blockEntry .error})
-        let block = blockEntry[blockEntry._id]
-        resolve(block)
-      }else{
-        resolve(false)
-      }
     })
   }
 
@@ -647,7 +611,6 @@ class Blockchain{
         resolve(false)
       
       }
-      
       let existingBlock = await this.fetchBlockFromDB(block.blockNumber)
       if(existingBlock){
         let deleted = await this.removeBlockFromDB(existingBlock)
@@ -676,36 +639,37 @@ class Blockchain{
   }
 
   getHeaderFromDB(blockNumber){
-    return new Promise(async (resolve)=>{
+    return new Promise((resolve)=>{
       if(blockNumber){
-          let headerEntry = await this.chainDB.get(blockNumber.toString())
-          if(headerEntry){
-              if(headerEntry.error) resolve({error:headerEntry.error})
-              let header = headerEntry[headerEntry._id]
-              resolve(header)
-          }else{
-              resolve(false)
-          }
+        this.chainDB.get(blockNumber.toString())
+        .then( entry =>{
+          let header = entry[entry._id] 
+          resolve(header)
+        
+        })
+        .catch( e => {
+          // console.log('GET BLOCK HEADER ERROR', e)
+          resolve(false)
+        })
       }else{
+        // console.log('VALID BLOCKNUMBER IS REQUIRED')
         resolve(false)
       }
     })
   }
 
   getBodyFromDB(hash){
-    return new Promise(async (resolve)=>{
+    return new Promise((resolve)=>{
       if(hash){
-        let bodyEntry = await this.chainDB.get(hash)
-        console.log(bodyEntry)
-        if(bodyEntry){
-            if(bodyEntry.error) resolve({error:bodyEntry.error})
-            let body = bodyEntry[bodyEntry._id]
-            resolve(body) 
-        }else{
-            resolve(false)
-        }
-      }else{
-          resolve({error:'ERROR: To fetch block body a valid block hash is required'})
+        this.chainDB.get(hash)
+        .then( entry => {
+          let body = entry[entry._id]
+          resolve(body) 
+        })
+        .catch( e => {
+          // console.log('GET BLOCK BODY ERROR',e)
+          resolve(false)
+        })
       }
     })
   }
@@ -715,11 +679,8 @@ class Blockchain{
       if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
       let block = await this.getHeaderFromDB(blockNumber)
       if(block){
-        if(block.error) resolve({error:block.error})
         let blockBody = await this.getBodyFromDB(block.hash)
         if(blockBody){
-          if(blockBody.error) resolve({error:blockBody.error})
-          
           block.transactions = blockBody
 
           if(blockBody.actions){
@@ -739,42 +700,6 @@ class Blockchain{
       }
     })
   }
-
-  getBlockTransactions(hash){
-      return new Promise((resolve)=>{
-          let block = this.getBodyFromDB(hash);
-          if(block){
-              if(block.error) resolve({error:block.error})
-
-              let transactions = block[block.hash]
-              if(transactions.actions){
-                  delete transactions.actions
-              }
-
-              resolve(transactions)
-          }else{
-              resolve(false)
-          }
-      })
-  }
-
-  getBlockActions(hash){
-    return new Promise((resolve)=>{
-        let block = this.getBodyFromDB(hash);
-        if(block){
-            if(block.error) resolve({error:block.error})
-
-            let transactions = block[block.hash]
-            if(transactions.actions){
-                resolve(transactions.actions)
-            }else{
-                resolve(false)
-            }
-        }else{
-            resolve(false)
-        }
-    })
-}
 
   getTransactionFromDB(hash){
     return new Promise(async (resolve)=>{
@@ -840,82 +765,121 @@ class Blockchain{
       }
     })
   }
-  
+
+  // getTransactionFromDB(hash){
+  //   return new Promise(async (resolve)=>{
+  //     let lastBlock = this.getLatestBlock()
+  //     let found = false;
+  //     for await(var block of this.chain){
+  //       if(block.txHashes){
+  //         if(block.txHashes.includes(hash)){
+  //           let body = await this.fetchBlockFromDB(block.blockNumber)
+  //           if(body){
+  //             if(body.transactions){
+  //               let transaction = body.transactions[hash];
+  //               found = true
+  //               resolve(transaction)
+  //             }else{
+  //               logger(`Body of block ${block.blockNumber} does not contain actions even though it should`)
+  //               resolve(false)
+  //             }
+  //           }else{
+  //             logger(`Body of block ${block.blockNumber} does not exist`)
+  //             resolve(false)
+  //           }
+  //         }else{
+  //           if(lastBlock.blockNumber == block.blockNumber && !found){
+  //             logger('Could not find anything for hash', hash)
+  //             resolve(false)
+  //           }
+  //         }
+  //       }else{
+  //         if(lastBlock.blockNumber == block.blockNumber && !found){
+  //           logger('Could not find anything for hash', hash)
+  //           resolve(false)
+  //         }
+  //       }
+        
+  //     }
+  //   })
+  // }
 
   removeHeaderFromDB(blockNumber){
     return new Promise(async (resolve)=>{
-      let headerExists = await this.chainDB.get(blockNumber.toString())
-      if(headerExists){
-          if(headerExists.error) resolve({error:headerExists.error})
-
-          let deleted = await this.chainDB.delete(blockNumber.toString())
-          if(deleted.error) resolve({error:deleted.error})
-
+      this.chainDB.get(blockNumber.toString())
+      .then(async (headerEntryFound)=>{
+        this.chainDB.remove(headerEntryFound._id, headerEntryFound._rev)
+        .then((deleted)=>{
           resolve(deleted)
-      }else{
+        })
+        .catch( e => {
+          console.log('HEADER DELETE ERROR', e)
           resolve(false)
-      }
-      
+        })
+      })
+      .catch( e => {
+        console.log('HEADER GET ERROR', e)
+        resolve(false)
+      })
     })
   }
 
   removeBodyFromDB(hash){
     return new Promise(async (resolve)=>{
-        let bodyExists = await this.chainDB.get(hash)
-        if(bodyExists){
-            if(bodyExists.error) resolve({error:bodyExists.error})
-
-            let deleted = await this.chainDB.delete(hash)
-            if(deleted.error) resolve({error:deleted.error})
-
-            resolve(deleted)
-        }else{
-            resolve(false)
-        }
+      this.chainDB.get(hash)
+      .then(async (bodyEntryFound)=>{
+        this.chainDB.remove(bodyEntryFound._id, bodyEntryFound._rev)
+        .then((deleted)=>{
+          resolve(deleted)
+        })
+        .catch( e => {
+          console.log('BODY DELETE ERROR', e)
+          resolve(false)
+        })
+      })
+      .catch( e => {
+        console.log('BODY GET ERROR', e)
+        resolve(false)
+      })
     })
   }
 
   removeBlockFromDB(block){
     return new Promise(async (resolve)=>{
       
-        let headerDeleted = await this.removeHeaderFromDB(block.blockNumber)
-        if(headerDeleted){
-            if(headerDeleted.error) resolve({error:headerDeleted.error})
-            let bodyDeleted = await this.removeHeaderFromDB(block.hash)
-            if(bodyDeleted){
-                if(bodyDeleted.error) resolve({error:bodyDeleted.error})
-                resolve(bodyDeleted)
-            }
-        }else{
-            resolve(false)
+      let headerDeleted = await this.removeHeaderFromDB(block.blockNumber)
+      if(headerDeleted){
+        let bodyDeleted = await this.removeHeaderFromDB(block.hash)
+        if(bodyDeleted){
+          resolve(bodyDeleted)
         }
+      }else{
+        resolve(false)
+      }
         
     })
   }
 
   replaceBlockFromDB(newBlock){
     return new Promise(async (resolve)=>{
-        let existingBlock = await this.fetchBlockFromDB(newBlock.blockNumber.toString())
-        if(existingBlock){
-            if(existingBlock.error) resolve({error:existingBlock.error})
-            let deleted = await this.removeBlockFromDB(existingBlock)
-            if(deleted){
-                if(deleted.error) resolve({error:deleted.error})
-                let added = await this.putBlockToDB(newBlock)
-            if(added){
-                if(added.error) resolve({error:added.error})
-                resolve(added)
-            }else{
-                logger('An error occurred while putting block to DB')
-                resolve(false)
-            }
-            }else{
-            logger('ERROR: Could not delete block to be replaced from DB')
+      let existingBlock = await this.fetchBlockFromDB(newBlock.blockNumber.toString())
+      if(existingBlock){
+        let deleted = await this.removeBlockFromDB(existingBlock)
+        if(deleted){
+          let added = await this.putBlockToDB(newBlock)
+          if(added){
+            resolve(added)
+          }else{
+            logger('An error occurred while putting block to DB')
             resolve(false)
-            }
+          }
         }else{
-            resolve(false)
+          logger('ERROR: Could not delete block to be replaced from DB')
+          resolve(false)
         }
+      }else{
+        resolve(false)
+      }
     })
   }
 
@@ -1071,49 +1035,37 @@ class Blockchain{
       return new Promise(async(resolve)=>{
         if(block){
             let reward = 0;
-            let transactions = await this.getBlockTransactions(block.hash)
-            if(transactions){
-                if(transaction.error) resolve({error:transaction.error})
-                transactions = transactions[transactions._id]
-                var txHashes = Object.keys(transactions);
-                var actionHashes = Object.keys(transactions.actions);
-                
-                for await(var hash of txHashes){
-                    reward += transactions[hash].miningFee;
-                }
-        
-                for await(var hash of actionHashes){
-                    reward += transactions.actions[hash].fee;
-                }
-        
-                resolve(reward)
-            }else{
-                resolve({error:`ERROR: Could not get mining fee, block ${block.hash} does not exist`})
+            let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+            transactions = transactions[transactions._id]
+            var txHashes = Object.keys(transactions);
+            var actionHashes = Object.keys(transactions.actions);
+            for(var hash of txHashes){
+              reward += transactions[hash].miningFee;
             }
-            
+      
+            for(var hash of actionHashes){
+              reward += transactions.actions[hash].fee;
+            }
+      
+           resolve(reward)
           }
       })
 
   }
 
-  async calculateTotalMiningRewards(){
+  calculateTotalMiningRewards(){
     let amountOfReward = 0;
-    for await(let block of this.chain){
-      let transactions = await this.getBlockTransactions(block.hash)
-        if(transactions){
-          if(transactions.error) return { error:transactions.error }
-        }else{
-          
-          transactions = transactions[transactions._id]
-          let txHashes = Object.keys(transactions);
-          txHashes.forEach( hash =>{
-            let tx = transactions[hash];
-            if(tx.fromAddress == 'coinbase'){
-              amountOfReward += tx.amount;
-            }
-          })
+    this.chain.forEach( async(block) =>{
+    let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+    transactions = transactions[transactions._id]
+      let txHashes = Object.keys(transactions);
+      txHashes.forEach( hash =>{
+        let tx = transactions[hash];
+        if(tx.fromAddress == 'coinbase'){
+          amountOfReward += tx.amount;
         }
-    }
+      })
+    })
 
     return amountOfReward;
   }
@@ -1138,27 +1090,21 @@ class Blockchain{
       }
         for(var block of this.chain){
           // logger(block);
-          let transactions = await this.getBlockTransactions(block.hash)
-          if(transactions){
-            if(transactions.error) return {error:transactions.error}
-            transactions = transactions[transactions._id]
-            for(var transHash of Object.keys(transactions)){
-                trans = transactions[transHash]
-                if(trans){
-                if(trans.fromAddress == address){
-                    history.sent[trans.hash] = trans
-                }
-                if(trans.toAddress == address){
-                    history.received[trans.hash] = trans;
-                }
-
-                }
+          let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+          transactions = transactions[transactions._id]
+          for(var transHash of Object.keys(transactions)){
+            trans = transactions[transHash]
+            if(trans){
+              if(trans.fromAddress == address){
+                history.sent[trans.hash] = trans
+              }
+              if(trans.toAddress == address){
+                history.received[trans.hash] = trans;
+              }
 
             }
-          }else{
-              return {error:`ERROR: Could not get transaction history. Block ${block.hash} not found`}
+
           }
-          
         }
 
       return history;
@@ -1166,27 +1112,19 @@ class Blockchain{
 
   }
 
-  async getTransactionFromChain(hash){
+  getTransactionFromChain(hash){
     let tx = {}
     if(hash){
-      for await(let block of this.chain){
-        let transactions = await this.getBlockTransactions(block.hash)
-        if(transactions){
-            if(transactions.error) return {error:transactions.error}
-            transactions = transactions[transactions._id]
-            if(block.transactions[hash]){
-                //need to avoid collision
-                tx = block.transactions[hash];
-                return tx;
-            }
-        }else{
-            return {error:`ERROR: Could not find transaction ${hash}. \nBlock ${block.hash} not found`}
+      this.chain.forEach(async (block) =>{
+        let transactions = await this.chainDB.get(block.hash).catch( e=> console.log(e))
+        transactions = transactions[transactions._id]
+        if(block.transactions[hash]){
+          //need to avoid collision
+          tx = block.transactions[hash];
+          return tx;
         }
-        
-      }
-
-      return false
-      
+      })
+      return false;
     }
   }
 
@@ -1383,16 +1321,9 @@ class Blockchain{
       if(block.transactions){
         merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       }else{
-        let transactions = await this.getBlockTransactions(block.hash)
+        let transactions = await this.chainDB.get(block.hash).catch( e=> console.log('Cannot get transactions to validate merkleRoot'));
         if(transactions){
-            if(transactions.error) {
-                logger(transactions.error)
-                resolve(false)
-            }
-
-            merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, transactions);
-        }else{
-            resolve(false)
+          merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, transactions);
         }
       }
 
@@ -1472,7 +1403,7 @@ class Blockchain{
     if(block.transactions){
       merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
     }else{
-      let transactions = await this.getTransactionFromDB(block.hash)
+      let transactions = await this.chainDB.get(block.hash).catch( e=> console.log('Cannot get transactions to validate merkleRoot'));
       if(transactions){
         merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, transactions);
       }
@@ -2090,7 +2021,7 @@ class Blockchain{
               resolve(results)
                 
             }else{
-              console.log('Returned empty results')
+              console.log('Returned empty results', calls)
             }
           }else{
             console.log('Ça chie icite')
@@ -2379,52 +2310,82 @@ class Blockchain{
  
 
   async executeManyCalls(calls){
-    for await(let hash of Object.keys(calls)){
-      let call = calls[hash]
-      this.stack.addCall(call, call.data.contractName)
-    }
+    return new Promise(async (resolve)=>{
 
-    let codes = await this.stack.buildCode()
-    if(codes.error) return {error:codes.error}
-    
-    let { results, errors } = await this.vmController.executeCalls(codes)
-    if(Object.keys(errors).length > 0 && Object.keys(results).length > 0){
-      return results
-    }else if(Object.keys(errors).length > 0 && Object.keys(results).length ==0){
-      return { error:errors }
-    }else{
-      return results
-    }
+      let memoryRequired = 0
+      let timeRequired = 0
+
+      for await(let hash of Object.keys(calls)){
+        let call = calls[hash]
+        memoryRequired += call.data.memory
+        timeRequired += call.data.cpuTime
+        this.stack.addCall(call, call.data.contractName)
+      }
+  
+      let codes = await this.stack.buildCode()
+      if(codes.error) resolve({error:codes.error})
+
+      let results = {}
+      let resultReceiver = await this.vmController.execute({
+        codes:codes,
+        memoryLimit:memoryRequired,
+        timeLimit:timeRequired
+      })
+
+      resultReceiver.on('callResult', (result)=>{
+        
+        if(result && !result.error && !result.timeout){
+          results[result.hash] = result
+        }
+        else if(result.error) resolve({error:result.error})
+        else if(result.timeout){ 
+          if(Object.keys(results).length > 0){
+            resolve(results)
+          }else{
+            resolve({error:'ERROR: Calls failed because VM timed out'})
+          }
+        }
+      })
+
+    })
   }
 
   executeSingleCall(call){
     return new Promise(async (resolve)=>{
-        this.stack.addCall(call, call.data.contractName)
-        let code = await this.stack.buildCode()
-        if(code.error) resolve({error:code.error})
-
-        let result = await this.vmController.executeCalls(code)
-        if(result.error) resolve({error:result.error})
-        else resolve(result)
-         
+          this.stack.addCall(call, call.data.contractName)
+          let code = await this.stack.buildCode()
+          if(code.error) resolve({error:code.error})
+          
+          let resultReceiver = await this.vmController.execute({
+            codes:code,
+            timeLimit:call.data.cpuTime || 500,
+            memoryLimit:call.data.memory || 64
+          })
+          resultReceiver.on('callResult', (result)=>{
+            if(result.error) resolve({error:result.error})
+            else if(result && !result.end) resolve(result)
+            else if(result.timeout) resolve({error:result.timeout})
+          })
+          
     })
   }
 
   testCall(call){
     return new Promise(async (resolve)=>{
-      
-      let start = Date.now()
-      let code = await this.stack.createSingleCode(call)
-      if(code.error) resolve({error:code.error})
-
-      let result = await this.vmController.test(code)
-      if(result){
-        if(result.error) resolve({error:result.error})
-        else resolve(result)
-      }else{
-        console.log(result)
-        resolve({ error:'ERROR: VM did not result any results' })
-      }
+          this.stack.addCall(call, call.data.contractName)
+          let code = await this.stack.buildCode()
+          if(code.error) resolve({error:code.error})
+          
+          let resultReceiver = await this.vmController.test({
+            codes:code,
+            timeLimit:call.data.cpuTime || 500,
+            memoryLimit:call.data.memory || 64
+          })
+          resultReceiver.on('callResult', (result)=>{
+            if(result.error) resolve({error:result.error})
+            else if(result && !result.timeout) resolve(result)
+            else if(result.timeout) resolve({error:result.timeout})
+          })
           
     })
   }
@@ -2753,19 +2714,38 @@ class Blockchain{
   */
   getGenesisBlockFromDB(){
     return new Promise(async(resolve)=>{
-      let genesisBlockEntry = await this.chainDB.get('0')
-      if(genesisBlockEntry){
-          if(genesisBlockEntry.error) resolve({error:genesisBlockEntry.error})
-          
-          resolve(genesisBlockEntry)
-      }else{
-          resolve(false)
-      }
       
+      let blockContainer = await this.chainDB.get('0')
+      .catch(e => { })
+      if(blockContainer){
+        let block = blockContainer['0']
+        resolve(block)
+      }else{
+        resolve(false)
+      }
     })
     
   }
 
+  /**
+    Fetches a block from chainDB
+    @param {string} $blockNumberString - Block number is converted to string before making query
+    @return {Promive<Block>} Block queried or error if is not found
+  */
+  getBlockFromDB(blockNumberString){
+    return new Promise(async(resolve)=>{
+      if(!blockNumberString) resolve({error:'Block number is required to fetch block from db'})
+      let blockContainer = await this.chainDB.get(blockNumberString)
+      .catch(e => { resolve({error:e}) })
+      if(blockContainer){
+        let block = blockContainer[blockNumberString]
+        resolve(block)
+      }else{
+        resolve({error:`Could not find block ${blockNumberString}`})
+      }
+    })
+    
+  }
 
   /**
     Inits the blockchain by, first, fetching the last block/last state store in a JSON file
@@ -2779,7 +2759,6 @@ class Blockchain{
       try{
         let loaded = await this.loadBlocks()
         if(loaded){
-          let contractTableStarted = await this.contractTable.init()
           
           let savedBalances = await this.balance.loadBalances(this.getLatestBlock().blockNumber)
           if(savedBalances.error){
@@ -2811,44 +2790,34 @@ class Blockchain{
       //See if genesis block has been added to database
       try{
         let genesisBlock = await this.getGenesisBlockFromDB()
+        if(genesisBlock.error) reject(genesisBlock.error)
 
         if(genesisBlock){
-          if(genesisBlock.error) reject(genesisBlock.error)
           let lastBlock = await this.getLastKnownBlockFromDB()
-          if(lastBlock && lastBlock.blockNumber){
-            let iterator = Array(lastBlock.blockNumber + 1)
+          let iterator = Array(lastBlock.blockNumber + 1)
           
-            logger('Loaded last known block')
-            for await(let blockNumber of [...iterator.keys()]){
-              
-              if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
-              if(blockNumber > 0){
-                let block = await this.getBlockFromDB(blockNumber)
-                if(block){
-                  if(block.error) {
-                    reject(block.error)
-                  }
-      
-                  //Could plug in balance loading from DB here
-                  let txHashes = Object.keys(block.transactions)
-                  this.spentTransactionHashes.push(...txHashes)
-                  this.chain.push(block)
-                  if(blockNumber == lastBlock.blockNumber){
-                    logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
-                    resolve(true)
-                  }
-                }
-              }else{
-                if(blockNumber > 0) logger(`ERROR: Could not find block ${blockNumber}`)
+          logger('Loaded last known block')
+          for await(let blockNumber of [...iterator.keys()]){
+            
+            if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
+            if(blockNumber > 0){
+              let block = await this.getBlockFromDB(blockNumber)
+              if(block.error) {
+                reject(block.error)
               }
-             
+  
+              //Could plug in balance loading from DB here
+              let txHashes = block.txHashes
+              
+              this.spentTransactionHashes.push(...txHashes)
+              this.chain.push(block)
+              if(blockNumber == lastBlock.blockNumber){
+                logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
+                resolve(true)
+              }
             }
-          }else{
-            this.chain.push(genesisBlock)
-            logger(`Finished loading genesis block`) 
-            resolve(true)
+           
           }
-
 
         }else{
           logger('Genesis Block has not been created yet')
@@ -2858,14 +2827,17 @@ class Blockchain{
 
           this.balance.states = genesisBlock.states;
           let saved = await this.balance.saveBalances(genesisBlock)
-          
+
           let added = await this.genesisBlockToDB(genesisBlock)
           if(added){
-            if(added.error) reject(added.error)
-            logger('Added genesis block to blockchain')
+
+            logger('Added genesis block to blockchain database')
             this.chain.push(genesisBlock)
-            // let saved = await this.putBlockToDB(genesisBlock)
-            
+            // let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')
+            let lastBlock = await this.saveLastKnownBlockToDB()
+            if(!lastBlock){
+              reject('ERROR: Could not save blockchain state')
+            }
             resolve(true);
 
           }else{
@@ -2878,6 +2850,17 @@ class Blockchain{
         reject(e)
       }
 
+      // this.chainDB.get('0')
+      // .then(async (genesisBlock)=>{
+        
+      // }) 
+      // .catch(async (e)=>{  //Has not been added to database, must be new blockchain
+        
+        
+        
+
+      // })
+
     })
     
   }
@@ -2889,15 +2872,11 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       // let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')
       let lastBlock = await this.saveLastKnownBlockToDB()
-      if(lastBlock){
-        if(lastBlock.error) resolve({error:lastBlock.error})
-        resolve(true);
-       
-      }else{
+      if(!lastBlock){
         logger('ERROR: Could not save blockchain state')
         resolve(false)
       }
-      
+      resolve(true);
     })
   }
 

@@ -1,11 +1,15 @@
-const Database = require('./database')
+// const Database = require('./database')
+const Database = require('./db')
 const jsonSize = require('json-size');
+const EventEmitter = require('events')
 
 
 class Mempool{
     constructor(opts){
-        this.transactions = new Database('./data/transactionDB')
-        this.actions = new Database('./data/actionDB')
+        // this.transactions = new Database('./data/transactionDB')
+        // this.actions = new Database('./data/actionDB')
+        this.transactions = new Database('transactionsPool')
+        this.actions = new Database('actionsPool')
         this.txReceipts = {}
         this.delayedTransactions = {}
         this.delayedActions = {}
@@ -14,6 +18,7 @@ class Mempool{
         this.usedActionReceipts = {}
         this.maxBatchSize = 50000
         this.busyGathering = false
+        this.events = new EventEmitter()
     }
 
     async manageDelayedTransactions(latestBlock){
@@ -91,6 +96,7 @@ class Mempool{
                 let receipt = await this.createTransactionReceipt(transaction)
                 if(receipt.error) resolve({error:receipt.error})
                 this.txReceipts[transaction.hash] = receipt
+                this.events.emit('newTransaction', transaction)
                 resolve({added:true, receipt:receipt})
             }
 
@@ -109,6 +115,7 @@ class Mempool{
                 if(receipt.error) resolve({error:receipt.error})
 
                 this.actionReceipts[action.hash] = receipt
+                this.events.emit('newAction', action)
                 resolve({added:true, receipt:receipt})
             }
         })
@@ -323,6 +330,7 @@ class Mempool{
                     if(entry.error) errors[hash] = entry.error
 
                     delete this.usedTxReceipts[hash]
+                    delete this.txReceipts[hash]
                     let deleted = await this.transactions.delete(entry)
                     if(deleted){
                         if(deleted.error) errors[hash] = deleted.error 
@@ -501,33 +509,45 @@ class Mempool{
 
     loadMempool(){
         return new Promise(async (resolve)=>{
-            let txEntry = await this.transactions.get('receipts')
-            let actionEntry = await this.actions.get('receipts')
+            let txEntry = await this.transactions.getAll()
+            let actionEntry = await this.actions.getAll()
+            // console.log(txEntry)
+            if(txEntry && txEntry.length){
+                for await(let index of txEntry){
+                    let hash = index._id
+                    this.txReceipts[hash] = index[hash]
+                    // console.log(txEntry)
+                    // let tx = txEntry[index]
+                    // this.txReceipts[tx.hash] = tx
+                }
+            }
+            if(actionEntry && actionEntry.length){
+                for await(let index of actionEntry){
+                    let hash = index._id
+                    this.actionReceipts[hash] = index[hash]
+                    // let action = actionEntry[index]
+                    // this.actionReceipts[action.hash] = action
+                }
+            }
 
-            if(txEntry.error) resolve({error:this.txReceipts.error})
-            if(actionEntry.error) resolve({error:this.actionReceipts.error})
-
-            this.txReceipts = txEntry.receipts || {};
-            this.actionReceipts = actionEntry.receipts || {};
-
-            resolve(true)
+            resolve({ loadedTxReceipts:this.txReceipts, loadedActionsReceipts:this.actionReceipts })
         })
     }
 
     saveMempool(){
         return new Promise( async (resolve)=>{
-            let savedTxReceipts = await this.transactions.add({
-                _id:'receipts',
-                'receipts':this.txReceipts
-            })
+            // // let savedTxReceipts = await this.transactions.add({
+            // //     _id:'receipts',
+            // //     'receipts':this.txReceipts
+            // // })
 
-            let savedActionReceipts = await this.actions.add({
-                _id:'receipts',
-                'receipts':this.actionsReceipts
-            })
+            // // let savedActionReceipts = await this.actions.add({
+            // //     _id:'receipts',
+            // //     'receipts':this.actionsReceipts
+            // // })
 
-            if(savedTxReceipts.error) resolve({error:savedTxReceipts.error})
-            if(savedActionReceipts.error) resolve({error:savedActionReceipts.error})
+            // if(savedTxReceipts.error) resolve({error:savedTxReceipts.error})
+            // if(savedActionReceipts.error) resolve({error:savedActionReceipts.error})
 
             resolve(true)
         })

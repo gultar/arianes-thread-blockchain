@@ -19,7 +19,12 @@ class Transaction{
     this.amount = amount
     this.signature;
     this.nonce = nonce
-    this.hash = (hash? hash : sha256(this.fromAddress+ this.toAddress+ this.amount+ this.data+ this.timestamp+ this.nonce));
+    this.hash = (hash? hash : sha256(this.fromAddress+ 
+                                    this.toAddress+ 
+                                    this.amount.toString()+ 
+                                    (typeof this.data == 'string' ? this.data : JSON.stringify(this.data))
+                                    + this.timestamp.toString()
+                                    + this.nonce.toString()));
     this.miningFee = (miningFee ? miningFee : this.setMiningFee())
     this.delayToBlock = 0
     

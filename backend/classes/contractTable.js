@@ -1,11 +1,33 @@
-const Database = require('./database')
+// const Database = require('./database')
+const Database = require('./db')
 const sha256 = require('../tools/sha256')
+const ContractStateStore = require('./contractStateStore')
 
 class ContractTable{
-    constructor(){
-        this.contractDB = new Database('./data/contractDB')
-        this.contractStateDB = new Database('./data/contractStateDB')
+    constructor({ getCurrentBlock }){
+        // this.contractDB = new Database('./data/contractDB')
+        // this.contractStateDB = new Database('./data/contractStateDB')
+        this.getCurrentBlock = getCurrentBlock;
+        this.contractDB = new Database('contracts')
+        this.contractStateDB = new Database('states')
+        this.stateStorage = {}
     }
+
+    async init(){
+        let contractNames = await this.getAllContractNames()
+
+        for await(let name of contractNames){
+            this.stateStorage[name] = new ContractStateStore({
+                name:name,
+                getCurrentBlock:()=>{
+                    return this.getCurrentBlock()
+                }
+            })
+        }
+
+        return true
+    }
+
 
     addContract(contract){
         return new Promise(async (resolve)=>{
@@ -20,16 +42,63 @@ class ContractTable{
                     account:account,
                     contractAPI:contractAPI
                 })
-                let stateAdded = await this.addState(name, state);
-                if(stateAdded.error) resolve({error:stateAdded})
 
-                if(added.error)resolve({error:added.error})
-                resolve({contractAdded:added, stateAdded:stateAdded})
+                if(added){
+                    if(added.error) resolve({error:added.error})
+                    else{
+                        this.stateStorage[name] = new ContractStateStore({
+                            name:name,
+                            getCurrentBlock:()=>{
+                                return this.getCurrentBlock()
+                            },
+                        })
+                        
+                        let updated = await this.stateStorage[name].update(state)
+                        if(updated.error) resolve({error:updated.error})
+                        
+                        let started = await this.stateStorage[name].save()
+                        if(started.error) resolve({error:started})
+                        else resolve(started)
+                        
+                    }
+                }else{
+                    resolve({ error:`ERROR: Creation of contract ${name} failed. Could not create contract entry` })
+                }
+                
             }else{
                 
                 resolve({error:'A contract with that name already exists'})
             }
             
+        })
+    }
+
+    getAllContractNames(){
+        return new Promise(async (resolve)=>{
+            let names = []
+            let contracts =  await this.contractDB.getAll()
+            for await(let contract of contracts){
+                names.push(contract._id)
+            }
+            resolve(names)
+        })
+    }
+
+    loadStateStore(contractName){
+        return new Promise(async (resolve)=>{
+            if(contractName){
+                let contractExists = await this.contractDB.get(contractName)
+                if(contractExists.error) resolve({error:contractExists.error})
+
+                this.stateStorage[contractName] = new ContractStateStore({
+                    name:contractName,
+                    getCurrentBlock:()=>{
+                        return this.getCurrentBlock()
+                    }
+                })
+            }else{
+                resolve({ error:`ERROR: Could not load store of contract ${contractName}` })
+            }
         })
     }
 
@@ -61,59 +130,47 @@ class ContractTable{
 
     getState(name){
         return new Promise(async (resolve)=>{
-            let stateEntry = await this.contractStateDB.get(name)
-            if(stateEntry){
-                if(stateEntry.error) resolve({error:stateEntry.error})
-                resolve(stateEntry.state)
+            if(this.stateStorage[name]){
+                let state = await this.stateStorage[name].getCurrentState()
+                
+                if(state.error) resolve({error:state.error})
+                else resolve(state)
             }else{
-                resolve(false)
+                resolve({error:`ERROR: State does not exist for contract ${name}`})
             }
+            
         })
     }
 
-    getStateOfAction(contractName, hash){
+
+    saveStates(){
         return new Promise(async (resolve)=>{
-            let stateEntry = await this.contractStateDB.get(contractName)
-            if(stateEntry){
-                if(stateEntry.error) resolve({error:stateEntry.error})
-                let state = stateEntry.changes[hash]
-                resolve(state)
-            }else{
-                resolve(false)
+            for await(let contractName of Object.keys(this.stateStorage)){
+                let saved = await this.stateStorage[contractName].save()
+                
+                if(saved.error) resolve({error:saved.error})
             }
+
+            resolve(true)
         })
     }
 
-    getStateEntry(name){
-        return new Promise(async (resolve)=>{
-            let state = await this.contractStateDB.get(name)
-            resolve(state)
-        })
-    }
-
-
-    updateContractState(name, newState, action){
+    updateContractState(name, newState){
         return new Promise(async (resolve)=>{
             if(name && newState){
                 
-                let state = await this.contractStateDB.get(name)
-                if(state){
-                    if(state.error) resolve({error:state.error})
-
-                    let previousChanges = state.changes
+                if(this.stateStorage[name]){
                     
-                    previousChanges[action.hash] = newState
-                    let added = await this.contractStateDB.add({
-                        _id:state._id,
-                        _rev:state._rev,
-                        state:newState,
-                        changes:previousChanges
-                    })
-                    if(added.error)resolve({error:added.error})
-                    else resolve(added)
+                    let updated = await this.stateStorage[name].update(newState)
+                    if(updated.error) resolve({error:updated.error})
+                    else{
+                        resolve(true)
+                    }
+                    
                 }else{
-                    resolve({error:`Could not find contract named ${name}`})
+                    resolve({error:`ERROR: Could not update state of contract ${name}. Storage does not exist or is not loaded`})
                 }
+               
             }else{
                 resolve({error:`ERROR: Could not update state. Missing required parameters (name, state)`})
             }
@@ -241,5 +298,6 @@ class ContractTable{
 
     
 }
+
 
 module.exports = ContractTable

@@ -21,10 +21,10 @@ class Block{
     this.blockFork = {}
     this.totalDifficulty = '0x1'
     this.difficulty = 1;
-    this.hash = this.calculateHash();
     this.merkleRoot = this.createMerkleRoot(this.transactions);
     this.actionMerkleRoot = this.createMerkleRoot(this.actions);
     this.nonce = 0;
+    this.hash = this.calculateHash();
     this.valid = true;
     this.minedBy = '';
     this.challenge = 1;
@@ -37,6 +37,7 @@ class Block{
     Will be called on every iteration of the mining method
   */
   calculateHash(){
+    
     this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce + this.actionMerkleRoot).toString();
   }
 
@@ -44,18 +45,17 @@ class Block{
   mine(difficulty){
       return new Promise((resolve)=>{
         if(!process.ACTIVE_MINER){
-        
+          
           process.ACTIVE_MINER = require('child_process').fork(`./backend/tools/proofOfWork.js`);
           process.ACTIVE_MINER.send({block:this, difficulty:difficulty})
           process.ACTIVE_MINER.on('message', (message)=>{
             
-            if(message.message){
-              console.log(message.message)
-            }
+            if(message.message) console.log(message.message)
             if(message.success){
               let block = message.success
               resolve(block)
             }else if(message.aborted){
+              process.ACTIVE_MINER.kill()
               resolve(false)
               
             }

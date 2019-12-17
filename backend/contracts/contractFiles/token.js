@@ -3,9 +3,7 @@ const Account = require('Account')
 const Action = require('Action')
 const ContractAction = require('ContractAction')
 const Permissions = require('Permissions')
-const createContractInterface = require('createContractInterface')
 const makeExternal = require('makeExternal')
-const getFunctionArguments = require('getFunctionArguments')
 const deploy = require('deploy')
 const save = require('save')
 const commit = require('commit')
@@ -46,7 +44,6 @@ class Token{
                     maxSupply:maxSupply,
                     creator:creator,
                     supply:maxSupply,
-                    history:{},
                     permissions: new Permissions(account),
                 }
     
@@ -91,16 +88,6 @@ class Token{
                         
                         token.supply -= amount;
                         
-                        let nonce = Object.keys(token.history).length + 1
-
-                        this.state.tokens[symbol].history[nonce] = {
-                            actionType:'issue',
-                            from:issuer,
-                            to:receiver,
-                            amount:amount,
-                            timestamp:Date.now()
-                        }
-
                         if(token.accountBalances){
                             let receiverBalance = this.state.tokens[symbol].accountBalances[receiver]
                             
@@ -160,16 +147,6 @@ class Token{
 
                     if(sender == receiver) throw new Error('Cannot transfer coins to the same account')
                 
-                        let nonce = Object.keys(token.history).length + 1
-
-                        token.history[nonce] = {
-                            actionType:'transfer',
-                            from:sender,
-                            to:receiver,
-                            amount:amount,
-                            timestamp:Date.now()
-                        }
-
                         if(!token.accountBalances) throw new Error('Account balances have not yet been set. Token must have been issued first')
                         let receiverBalance = token.accountBalances[receiver]
                             

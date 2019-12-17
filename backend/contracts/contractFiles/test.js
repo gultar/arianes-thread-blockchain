@@ -1,4 +1,4 @@
-
+const makeExternal = require('makeExternal')
 class FuckUp{
     constructor(fuck){
         this.counter = 0
@@ -29,10 +29,29 @@ class FuckUp{
         }
     }
 
+    test(){
+        
+    }
+
     getInterface(){
-        return {
-            fuckup:{"type":"function","name":"fuckup"},
-            boom:{"type":"function","name":"boom"}
-        }
+        let api = makeExternal({
+            fuckup:{
+                type:'set',
+                args:[],
+                description:'Fucks up real bad'
+            },
+            boom:{
+                type:'set',
+                args:[],
+                description:'Boom chika chika boom boom'
+            },
+            test:{
+                type:'set',
+                args:[],
+                description:'test'
+            },
+        })
+
+        return api
     }
 }

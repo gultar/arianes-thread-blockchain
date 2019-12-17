@@ -389,6 +389,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                     
                       let vm = new ContractVM()
                       let result = await vm.singleRun(deployContract)
+                      
                       if(result){
                         
                         let action = new Action({

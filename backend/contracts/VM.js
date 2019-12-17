@@ -267,7 +267,7 @@ class ContractVM{
                 signals.once('deployed', (API)=>{
                     resolve({
                         contractAPI:API,
-                        state:this.sandbox.stateStorage
+                        state:this.sandbox.stateStorage.state
                     })
                 })
                 signals.once('failed', (failure)=>{

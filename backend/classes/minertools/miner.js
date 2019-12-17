@@ -71,10 +71,7 @@ class Miner{
 
         this.socket.on('latestBlock', (block)=>{
           if(block){
-            if(!this.previousBlock || this.previousBlock.blockNumber <= block){
-              this.previousBlock = block;
-            }
-            
+            this.previousBlock = block;
           }
         })
         this.socket.on('run', ()=>{
@@ -121,7 +118,8 @@ class Miner{
               this.socket.emit('newBlock', block)
               this.pause()
               this.previousBlock = null;
-              this.socket.emit('getLatestBlock', block)
+              this.minerStarted = false;
+              this.buildingBlock = false;
               this.run()
               
             }else{
@@ -139,7 +137,10 @@ class Miner{
 
     run(){
       this.transactionUpdate = setInterval(()=>{
-        if(!this.buildingBlock && !this.mining && !this.minerStarted){
+        console.log('Building block',this.buildingBlock)
+        console.log('Miner started', this.minerStarted)
+        console.log('Pool', this.sizeOfPool())
+        if(!this.buildingBlock && !this.minerStarted){
           if(this.sizeOfPool() > 0){
             if(!this.readyToMine){
               this.socket.emit('isReady')

@@ -17,6 +17,7 @@ const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 //************Blockchain classes****************/
 const Blockchain = require('./backend/classes/chain');
+const Block = require('./backend/classes/block')
 const NodeList = require('./backend/classes/nodelist');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountCreator = require('./backend/classes/accountCreator');
@@ -337,24 +338,30 @@ class Node {
            
             let nextBlock = this.chain.chain[index + 1]
             if(nextBlock){
-              let transactions = await this.chain.chainDB.get(nextBlock.hash)
-              .catch(e => console.log(e))
-              let actions = {}
+              let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+              if(block){
+                if(block.error) socket.emit('nextBlock', {error:block.error})
+                socket.emit('nextBlock', block)
+              }else{
+                socket.emit('nextBlock', {error:`ERROR: Could not find block body of ${nextBlock.hash} at block index ${nextBlock.blockNumber}`})
+              }
+              // let transactions = await this.chain.getBlockTransactions(nextBlock.hash)
+              // if(transactions){
+              //   if(transactions.error) socket.emit('nextBlock', {error:transactions.error})
+              //   transactions = transactions[transactions._id]
+              //   let actions =  await this.chain.getBlockActions(nextBlock.hash)
+              //   if(actions.error) socket.emit('nextBlock',{error:actions.error})
+
+              //   nextBlock.actions = actions
                 
-                if(transactions){
-                  transactions = transactions[transactions._id]
-    
-                  if(transactions.actions){
-                    actions = JSON.parse(JSON.stringify(transactions.actions))
-                    delete transactions.actions
-                    nextBlock.actions = actions
-                  }
-                  
-                  nextBlock.transactions = transactions;
-                  socket.emit('nextBlock', nextBlock)
-                }else{
-                  socket.emit('nextBlock', {error:'Could not find transactions'})
-                }
+              //   nextBlock.transactions = transactions;
+              //   socket.emit('nextBlock', nextBlock)
+              // }else{
+              //   socket.emit('nextBlock', {error:`Could not find transactions of block ${nextBlock.hash}`})
+              // }
+              
+                
+                
             }else{
               console.log('Chain does not contain block at ', index+1)
             }
@@ -376,17 +383,10 @@ class Node {
         
           let blockIndex = this.chain.getIndexOfBlockHash(hash);
           if(blockIndex){
-            let block = await this.chain.extractHeader(this.chain.chain[blockIndex]);
+            let block = await this.chain.fetchBlockFromDB(blockIndex);
             if(block){
-              let transactions = await this.chain.chainDB.get(hash)
-              .catch(e => console.log(e))
-              if(transactions){
-                transactions = transactions[transactions._id]
-                block.transactions = transactions;
-              }else{
-                socket.emit('blockFromHash', {error:'Could not find transactions'})
-              }
-              socket.emit('blockFromHash', block)
+              if(block.error) socket.emit('blockFromHash', {error:block.error})
+              else socket.emit('blockFromHash', block)
               
             }else if(blockIndex == this.chain.getLatestBlock().blockNumber + 1){
               socket.emit('blockFromHash', {end:'End of blockchain'})
@@ -761,7 +761,7 @@ class Node {
             awaitRequest()
           }, 5000)
         }else{
-          logger('getNextBlock Request failed. No answer')
+          logger('Blockchain download failed. No answer')
           closeConnection()
         }
       }
@@ -793,24 +793,6 @@ class Node {
             peer.emit('getNextBlock', block.hash)
             awaitRequest()
           }
-        // let isAlreadyAdded = await this.chain.chainHasBlockOfHash(block.hash)
-
-          // if(block.previousHash != lastHash && !isAlreadyAdded){
-            
-          // }else if(!isAlreadyAdded){
-            
-          //   let isBlockFork = await this.chain.newBlockFork(block)
-          //   if(isBlockFork.error){
-          //     closeConnection()
-          //     resolve({ error: isBlockFork.error })
-          //   }else{
-          //     peer.emit('getNextBlock', block.hash)
-          //     resolve(true)
-          //   }
-
-          // }else if(isAlreadyAdded){
-          //   peer.emit('getNextBlock', block.hash)
-          // }
           
         }
       })
@@ -821,7 +803,12 @@ class Node {
     
   }
 
-
+/**
+ * 
+ * @param {Socket} peer - Outbound peer connection socket
+ * @param {Object} status - Blockchain status object indicating latest block received on their part
+ * @description - Queries peer for its latest block before attempting to download and validate their blockchain, block by block
+ */
   receiveBlockchainStatus(peer, status){
     return new Promise(async (resolve) =>{
       if(this.chain instanceof Blockchain && peer && status){
@@ -911,7 +898,7 @@ class Node {
   }
 
   /**
-    Broadcast only to this node's connected peers. Does not gossip
+    Broadcast only to this node's connected peers. Does not send peer messages
     @param {string} $eventType - Type of node event
     @param {object} $data - Various data to be broadcasted
   */
@@ -924,6 +911,7 @@ class Node {
     @param {string} $eventType - Event type/name
     @param {Object} $data - May be an object or any kind of data
     @param {Object} $moreData - Optional: any kind of data also
+    @description - Broadcasts socket events. This is how peer messages are sent
   */
   broadcast(eventType, data){
     try{
@@ -931,7 +919,8 @@ class Node {
           Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
             this.connectionsToPeers[peerAddress].emit(eventType, data, (acknowledged)=>{
               if(acknowledged){
-                // logger(`Peer ${peerAddress} received peer message`)
+                //If peer is malicious, could implement a way to reduce their reputation score
+                //and close connection if the score is too low
               }else if(eventType == 'peerMessage' && !acknowledge){
                 logger(`Peer ${peerAddress} did not acknowledge peerMessage`)
                 setTimeout(()=> {
@@ -987,6 +976,13 @@ class Node {
     }
   }
 
+  /**
+    Send an node event to peer
+    @param {string} $eventType - Event type/name
+    @param {Object} $data - May be an object or any kind of data
+    @param {string} $address - peer address
+    @description - RESTful API to query about blockchain and wallet states
+  */
   initChainInfoAPI(app){
     app.get('/getWalletBalance', async(req, res)=>{
         let publicKey = req.query.publicKey;
@@ -1056,11 +1052,13 @@ class Node {
   /**
     Internode API that can be used by UIs to get data from blockchain and send transactions
     @param {Object} $app - Express App
+    @description - REST API to broadcast actions and transactions as well as querying for
+                   information about them
   */
   initHTTPAPI(app){
     try{
       let rateLimiter = new RateLimit({
-        windowMs: 1000, // 1 hour window 
+        windowMs: 1000, //1 minute window 
         max: 100, // start blocking after 100 requests 
         message: "Too many requests per second"
       });
@@ -1193,9 +1191,7 @@ class Node {
           res.send("ERROR: An Error occurred")
         }
         
-      });
-
-
+      })
 
       app.get('/getBlockHeader',(req, res)=>{
         var blockNumber = req.query.hash;
@@ -1228,32 +1224,6 @@ class Node {
       socket.on('connectionRequest', (address)=>{
         this.connectToPeer(address, (peer)=>{});
       });
-
-      socket.on('getBlockchainSize', async ()=>{
-        let total = 0;
-        console.log('Calculating, please wait...')
-        for(var i=0; i < this.chain.chain.length; i++){
-          const Transaction = require('./backend/classes/transaction')
-          let headerSize = Transaction.getTransactionSize(this.chain.chain[i])
-          let transactions = await this.chain.chainDB.get(this.chain.chain[i].hash)
-          let bodySize = Transaction.getTransactionSize(transactions)
-          total += (headerSize + bodySize)
-        }
-
-        console.log('Total blockchain size is :', total)
-      })
-
-      socket.on('getBlockSize',async (blockNumber)=>{
-        try{
-          const Transaction = require('./backend/classes/transaction')
-          let headerSize = Transaction.getTransactionSize(this.chain.chain[blockNumber])
-          let transactions = await this.chain.chainDB.get(this.chain.chain[blockNumber].hash)
-          let bodySize = Transaction.getTransactionSize(transactions)
-          console.log("Total block size",headerSize + bodySize)
-        }catch(e){
-          console.log(e)
-        }
-      })
 
       socket.on('transaction',async (transaction)=>{
         try{
@@ -1392,13 +1362,6 @@ class Node {
         console.log(JSON.stringify(state, null, 1))
       })
 
-      socket.on('getRawBlockHeader', async(number)=>{
-        if(number){
-          let header = await this.chain.chainDB.get(number.toString()).catch(e => console.log(e))
-          console.log(header)
-        }
-      })
-
       socket.on('getBlockForks', ()=>{
         console.log(this.chain.blockForks)
       })
@@ -1422,13 +1385,6 @@ class Node {
         
       })
 
-      // socket.on('rollbackState', (name, hash)=>{
-      //   let action = {
-      //     hash:hash
-      //   }
-      //   let rolledBack = this.chain.contractTable.rollbackState(name, action)
-      //   console.log(rolledBack)
-      // })
 
       socket.on('verbose', ()=>{
         
@@ -1473,51 +1429,6 @@ class Node {
         console.log(action)
       })
 
-      socket.on('vmSpeedTest', async ()=>{
-        // let vmMaster = require('./backend/contracts/build/vmMaster')
-        let calls = {}
-        for(var i=0; i < 20000; i++){
-          let call = {
-            fromAccount: 'tuor',
-            data:{
-              contractName: 'Token',
-              method: 'issue',
-              params: {
-                symbol:'GOLD',
-                amount:10,
-                receiver:'huor'
-              },
-            },
-            hash:sha256(Math.random().toString())
-          }
-
-          calls[call.hash] = call
-        }
-        
-        let startTime = Date.now()
-        let result = await this.chain.executeManyCalls(calls)
-         let endTime = Date.now()
-         console.log(`Received ${Object.keys(result).length} results`)
-        // console.log(result)
-        console.log(`Finished in ${(endTime - startTime) /1000 } seconds`)
-        
-      })
-
-      socket.on('testDeployContract', async ()=>{
-        let contract = await this.chain.contractTable.getContract('Token')
-        let ContractVM = require('./backend/contracts/VM')
-        let VM = new ContractVM({
-          code:'',
-          type:'NodeVM'
-        })
-        VM.buildVM()
-        let added = VM.setContractClass('Token', contract.code)
-        // console.log(added)
-        let result = await VM.deployContract('Token', contract.account)
-        console.log(result)
-
-      })
-
       socket.on('disconnect', ()=>{
         var index = this.userInterfaces.length
         this.userInterfaces.splice(index-1, 1)
@@ -1557,55 +1468,101 @@ class Node {
    
   }
 
-  minerConnector(api){
+  async minerConnector(api){
     logger('Miner connected!');
-    let isReady = false
+    let hasSentBlock = false
+    let transactionsToMine = {}
+    let minimumSize = 1
+    
+    let actionsToMine = {}
+    
+    let poolHasTransactions = this.mempool.sizeOfPool() > 0
+    
+    const createRawBlock = async () =>{
+      let transactions = await this.mempool.gatherTransactionsForBlock()
+      if(transactions.error) console.log(transactions.error)
+      transactionsToMine = { ...transactionsToMine, ...transactions }
+      let actions = await this.mempool.gatherActionsForBlock()
+      if(actions.error) console.log(actions.error)
+      let rawBlock = {
+        timestamp:Date.now(),
+        transactions:transactionsToMine,
+        actions:actionsToMine,
+        previousHash:this.chain.getLatestBlock().hash,
+        blockNumber:this.chain.getLatestBlock().blockNumber + 1
+      } 
+      
+      return rawBlock
+    }
+
     api.emit('latestBlock', this.chain.getLatestBlock())
     api.on('isReady', ()=>{ api.emit('startMining') })
     api.on('readyToRun', ()=>{ api.emit('run') })
     
-    //In use
-    api.on('fetchTransactions', async ()=>{
-      if(this.mempool.sizeOfPool() > 0 && !this.gatheringTransactions){
-        this.gatheringTransactions = true
-        let transactions = await this.mempool.gatherTransactionsForBlock()
-        if(transactions){
-          api.emit('newTransactions', transactions)
-          this.gatheringTransactions = false
-        }
+    if(poolHasTransactions && !hasSentBlock){
+      hasSentBlock = true
+      
+      let rawBlock = await createRawBlock()
+      api.emit('startMining', rawBlock)
+      transactionsToMine = {}
+      actionsToMine = {}
+    }
+
+    this.mempool.events.on('newTransaction', async (transaction)=>{
+      // console.log('New event', transaction)
+      transactionsToMine[transaction.hash] = transaction
+      if(Object.keys(transactionsToMine).length >= minimumSize && !hasSentBlock){
+        hasSentBlock = true
+        
+        let rawBlock = await createRawBlock()
+        api.emit('startMining', rawBlock)
+        transactionsToMine = {}
+        actionsToMine = {}
       }
+      
     })
 
-    //In use
-    api.on('fetchActions', async ()=>{
-      if(this.mempool.sizeOfActionPool() > 0){
-        let actions = await this.mempool.gatherActionsForBlock()
-        api.emit('newActions', actions)
-      }
+    this.mempool.events.on('newAction', (action)=>{
+      actionsToMine[action.hash] = action
     })
+
+
+    //In use
+    // api.on('fetchTransactions', async ()=>{
+    //   if(this.mempool.sizeOfPool() > 0){
+    //     this.gatheringTransactions = true
+    //     let transactions = await this.mempool.gatherTransactionsForBlock()
+    //     if(Object.keys(transactions).length > 0){
+    //       api.emit('newTransactions', transactions)
+    //       this.gatheringTransactions = false
+    //     }
+    //   }
+    // })
+
+    //In use
+    // api.on('fetchActions', async ()=>{
+    //   if(this.mempool.sizeOfActionPool() > 0){
+    //     let actions = await this.mempool.gatherActionsForBlock()
+    //     api.emit('newActions', actions)
+    //   }
+    // })
 
     api.on('newBlock', async (block)=>{
       if(this.chain.isBusy) api.emit('stopMining')
       else{
         if(block){
-          this.chain.pushBlock(block)
-          .then((synced)=>{
-            if(synced.error){
-              console.log(synced.error)
-            }else{
-              
-              this.sendPeerMessage('newBlockFound', block);
-              // if(!this.chain.isBusy && block.blockNumber == this.chain.getLatestBlock() - 1){ // Don't send the previous block again
-              //   api.emit('latestBlock', this.chain.getLatestBlock())
-              // }
-              api.emit('latestBlock', this.chain.getLatestBlock())
-              
-              
-            api.emit('run')
-              
-            }
+          let synced = await this.chain.pushBlock(block)
+          hasSentBlock = false
+
+          if(synced.error){
+            console.log(synced.error)
+          }else{
+            this.sendPeerMessage('newBlockFound', block);
+
+            api.emit('latestBlock', this.chain.getLatestBlock())
             
-          })
+            
+          }
   
         }else{
           logger('ERROR: New mined block is undefined')
@@ -1615,6 +1572,7 @@ class Node {
     })
 
     api.on('getLatestBlock', (minersPreviousBlock)=>{
+      
       if(this.chain instanceof Blockchain){
         if(minersPreviousBlock){
           if(minersPreviousBlock.blockNumber <= this.chain.getLatestBlock().blockNumber){
@@ -1622,9 +1580,9 @@ class Node {
               api.emit('latestBlock', this.chain.getLatestBlock())
              
             }
-            
           }
         }else{
+          
           if(!this.chain.isBusy){
             api.emit('latestBlock', this.chain.getLatestBlock())
            
@@ -1947,33 +1905,49 @@ class Node {
             
           }
         let contract = await this.chain.contractTable.getContract(call.data.contractName)
+        //Checking if the method invoked is open to external execution
         let contractAPI = contract.contractAPI
+        if(!contractAPI) resolve({ error:'ERROR: Contract does not have an API' })
+        
         let contractMethod = contractAPI[call.data.method];
+        if(!contractMethod) resolve({error:'ERROR Unknown contract method'})
         
         if(contractMethod.type == 'get'){
-          let result = await this.chain.executeSingleCall(call)
+          //'Get' methods dont modify contract state, obviously
+          let result = await this.chain.testCall(call)
           if(result.error) resolve({error:result.error})
-          else{
+          else if(result){
             //Possible breaking point
             let returnedValue = result.executed
             resolve({success: { value:returnedValue.value }, call:call})
           }
+
         }else if(contractMethod.type == 'set'){
-          let result = await this.chain.executeSingleCall(call)
+          //'Set' method may modify state.
+          //Could implement a way to protect contract state from arbitrary
+          //modifications while still allowing authorized accounts to modifiy it
+          //legitimately.
+          let result = await this.chain.testCall(call)
           
           if(result.error) resolve({error:result.error})
           else{
+            //Transactions added to pool for confirmation by peers blocks or by this
+            //node's miner's blocks. 
             let added = await this.mempool.addTransaction(transaction);
             if(added.error){
               resolve({error:added.error})
             }else{
+              //Could implement a verbose level for the node
               this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
               if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
               
+              //Broadcast new transaction to connected peers for them to validate and send it
+              //themselves.
               this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
               resolve(result)
             }
           }
+
         }else{
           resolve({error:`Invalid contract method type on api of contract ${contract.name}`})
         }
@@ -2015,6 +1989,7 @@ class Node {
           }else{
             this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
             //Action will be added to this.mempool only is valid and if corresponds with contract call
+            if(this.verbose) logger(chalk.blue('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
             let added = await  this.mempool.addAction(action)
             resolve({action:action, success:success})
           }
@@ -2122,7 +2097,7 @@ DHT_PORT=${this.peerDiscoveryPort}
       this.chain.save()
       this.sendPeerMessage('getBlockchainStatus')
       let backUp = await this.chain.saveLastKnownBlockToDB()
-      
+      if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
   }
 
