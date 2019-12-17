@@ -630,6 +630,7 @@ class Blockchain{
       
       let blockEntry = await this.chainDB.get(blockNumber.toString())
       if(blockEntry){
+        console.log('Found this block entry', blockEntry)
         if(blockEntry .error) resolve({error:blockEntry .error})
         let block = blockEntry[blockEntry._id]
         resolve(block)

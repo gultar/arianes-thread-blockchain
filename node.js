@@ -344,12 +344,13 @@ class Node {
         await rateLimiter.consume(socket.handshake.address).catch(e => { 
           // console.log("Peer sent too many 'getNextBlock' events") 
         }); // consume 1 point per event from IP
+        console.log('Peer wants block', hash)
         let index = this.chain.getIndexOfBlockHash(hash)
         if(index || index === 0){
           if(hash == this.chain.getLatestBlock().hash){
             socket.emit('nextBlock', {end:'End of blockchain'})
           }else{
-           
+            
             let nextBlock = this.chain.chain[index + 1]
             if(nextBlock){
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
@@ -1876,7 +1877,14 @@ class Node {
                   if(!valid.error){
 
                     let txBroadcasted = await this.handleTransactionType(transaction)
-                    resolve(txBroadcasted)
+                    if(txBroadcasted.error){
+                      this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                      if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                      resolve({error:txBroadcasted.error});
+                    }else{
+                      
+                    }
+                    
 
                   }else{
   
@@ -1947,13 +1955,6 @@ class Node {
             if(added.error){
               resolve({error:added.error})
             }else{
-              //Could implement a verbose level for the node
-              this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-              
-              //Broadcast new transaction to connected peers for them to validate and send it
-              //themselves.
-              this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
               resolve(result)
             }
           }
@@ -1971,10 +1972,7 @@ class Node {
           if(added.error){
             resolve({error:added.error})
           }else{
-            this.UILog('-> Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-            if(this.verbose) logger(chalk.blue('->')+' Emitted transaction: '+ transaction.hash.substr(0, 15)+"...")
-            
-            this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); //Propagate transaction
+          
             resolve(transaction)
           }
       }
