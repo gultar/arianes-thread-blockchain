@@ -344,7 +344,6 @@ class Node {
         await rateLimiter.consume(socket.handshake.address).catch(e => { 
           // console.log("Peer sent too many 'getNextBlock' events") 
         }); // consume 1 point per event from IP
-        console.log('Peer wants block', hash)
         let index = this.chain.getIndexOfBlockHash(hash)
         if(index || index === 0){
           if(hash == this.chain.getLatestBlock().hash){
