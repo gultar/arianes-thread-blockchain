@@ -35,6 +35,7 @@ program
 .option('-c, --cpuTime', 'Amount of cpu time to reserve for the execution of transaction call')
 .description('Sends a transaction to another wallet')
 .action(async ()=>{
+    console.log('Sending to ', nodeAddress)
     if(program.walletName && program.password && nodeAddress){
         if(program.fromAddress){
             if(program.toAddress){
