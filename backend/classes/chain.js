@@ -109,7 +109,7 @@ class Blockchain{
    */
   genesisBlockToDB(genesisBlock){
     return new Promise(async (resolve)=>{
-      console.log('Added genesis block to db', genesisBlock)
+      
       let added = await this.chainDB.put({
           id:'0',
           key:'0',
