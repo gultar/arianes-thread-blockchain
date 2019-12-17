@@ -2193,6 +2193,7 @@ class Blockchain{
           resolve({error:'ERROR: Unknown contract task'})
           break;
         default:
+          console.log(action)
           resolve({error:'ERROR: Invalid contract call'})
       }
       
