@@ -695,8 +695,8 @@ class Blockchain{
   getBodyFromDB(hash){
     return new Promise(async (resolve)=>{
       if(hash){
+        let header = this.getBlockFromHash(hash)
         let bodyEntry = await this.chainDB.get(hash)
-        console.log(bodyEntry)
         if(bodyEntry){
             if(bodyEntry.error) resolve({error:bodyEntry.error})
             let body = bodyEntry[bodyEntry._id]
@@ -730,11 +730,11 @@ class Blockchain{
             resolve(block)
           }
         }else{
-          // console.log('ERROR Could not get block body')
+          console.log('ERROR Could not get block body')
           resolve(false)
         }
       }else{
-        // console.log('ERROR Could not get block header')
+        console.log('ERROR Could not get block header')
         resolve(false)
       }
     })
@@ -2351,7 +2351,7 @@ class Blockchain{
        
         
       }else{
-        resolve({error:'ACTION ERROR: Could not get contract account'})
+        resolve({error:'ACTION ERROR: Could not get contract account '+action.fromAccount})
       }
     })
   }

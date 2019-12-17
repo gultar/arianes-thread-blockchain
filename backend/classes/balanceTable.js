@@ -364,21 +364,25 @@ class BalanceTable{
 
        saveBalances(block){
            return new Promise(async (resolve)=>{
-            
-            let added = await this.stateDB.put({
-                id:block.blockNumber.toString(),
-                key:block.blockNumber.toString(),
-                value: { 
-                    states:this.states,
-                    merkleRoot:block.merkleRoot,
-                    actionMerkleRoot:block.actionMerkleRoot,
-                    transactionsHashes:block.txHashes,
-                    actionHashes:block.actionHashes
-                }
-            })
-            
-            if(added.error) resolve({error:added})
-            else resolve(added)
+            if(block){
+                 
+                let added = await this.stateDB.put({
+                    id:block.blockNumber.toString(),
+                    key:block.blockNumber.toString(),
+                    value: { 
+                        states:this.states,
+                        merkleRoot:block.merkleRoot,
+                        actionMerkleRoot:block.actionMerkleRoot,
+                        transactionsHashes:block.txHashes,
+                        actionHashes:block.actionHashes
+                    }
+                })
+                
+                if(added.error) resolve({error:added})
+                else resolve(added)
+            }else{
+                resolve({error:'ERROR: Could not save balance states. Block provided is undefined'})
+            }
            })
        }
 

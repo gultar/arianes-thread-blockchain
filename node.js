@@ -317,6 +317,20 @@ class Node {
       }
     })
 
+    socket.on('getBlock', async (blockNumber)=>{
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
+      if(blockNumber && typeof blockNumber == 'number'){
+        let block = await this.chain.getBlockFromDB(blockNumber);
+        if(block){
+          socket.emit('block', block)
+        }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
+          socket.emit('block', {end:'End of block chain'})
+        }else{
+          socket.emit('block', {error:'Block not found'})
+        }
+      }
+    })
+
     socket.on('getGenesisBlock', async ()=>{
       await rateLimiter.consume(socket.handshake.address).catch(e => { 
         // console.log("Peer sent too many 'getNextBlock' events") 
@@ -383,7 +397,7 @@ class Node {
         
           let blockIndex = this.chain.getIndexOfBlockHash(hash);
           if(blockIndex){
-            let block = await this.chain.fetchBlockFromDB(blockIndex);
+            let block = await this.chain.getBlockFromDB(blockIndex);
             if(block){
               if(block.error) socket.emit('blockFromHash', {error:block.error})
               else socket.emit('blockFromHash', block)
@@ -1340,7 +1354,7 @@ class Node {
       })
 
       socket.on('getBlock', async(blockNumber)=>{
-        let block = await this.chain.fetchBlockFromDB(blockNumber)
+        let block = await this.chain.getBlockFromDB(blockNumber)
         if(block){
           socket.emit('block', block)
         }
