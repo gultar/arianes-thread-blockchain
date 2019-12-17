@@ -175,7 +175,7 @@ program
 
 program.parse(process.argv)
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger('Shutting down node and saving state');
   
 
@@ -184,16 +184,16 @@ process.on('SIGINT', () => {
     process.ACTIVE_MINER.kill()
   }
 
+  node.chain.vmController.stop()
+
   // node.closeNode()
   
-  node.save()
-  .then((saved)=>{
-    if(saved){
-      process.exit()
-    }
-  })
-  .catch(e=> console.log(e))
-  
+  let saved = await node.save()
+  .catch(e=>{
+     console.log(e)
+     process.exit()
+    })
+  process.exit()
 
 });
 

@@ -335,7 +335,7 @@ class Node {
       await rateLimiter.consume(socket.handshake.address).catch(e => { 
         // console.log("Peer sent too many 'getNextBlock' events") 
       }); // consume 1 point per event from IP
-      let genesisBlock = this.chain.chain[0];
+      let genesisBlock = this.chain.getGenesisBlockFromDB()
       socket.emit('genesisBlock', genesisBlock)
     })
 
@@ -851,22 +851,18 @@ class Node {
                     }else{
                       //Need to Validate Genesis Block
                       //Swap local genesis block with peer's genesis block
-                      this.chain.genesisBlockSwap(genesisBlock)
-                      .then(async (swapped)=>{
-                        if(swapped.error) resolve(false)
-
-                        let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                        if(downloaded.error){
-                          logger('Could not download blockchain')
-                          console.log(downloaded.error)
-                          resolve(false)
-                        }else{
-                          peer.send('getBlockchainStatus')
-                          resolve(true)
-                        }
-
-                      })
-
+                      console.log('received a new genesis block')
+                      // let swapped = await this.chain.genesisBlockSwap(genesisBlock)
+                      // if(swapped.error) resolve(false)
+                      let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                      if(downloaded.error){
+                        logger('Could not download blockchain')
+                        console.log(downloaded.error)
+                        resolve(false)
+                      }else{
+                        peer.send('getBlockchainStatus')
+                        resolve(true)
+                      }
                     }
   
                   })
@@ -2055,11 +2051,11 @@ class Node {
           {
             resolve(true)
           }else{
-            reject('ERROR: Could not save all files')
+            reject({error:'ERROR: Could not save all files'})
           }
         
       }catch(e){
-        reject(e)
+        reject({error:e})
       }
       
     })

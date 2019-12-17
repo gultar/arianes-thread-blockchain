@@ -109,7 +109,7 @@ class Blockchain{
    */
   genesisBlockToDB(genesisBlock){
     return new Promise(async (resolve)=>{
-      
+      console.log('Added genesis block to db', genesisBlock)
       let added = await this.chainDB.put({
           id:'0',
           key:'0',
@@ -131,7 +131,7 @@ class Blockchain{
   genesisBlockSwap(peerGenesisBlock){
     return new Promise(async (resolve)=>{
       if(peerGenesisBlock){
-        if(peerGenesisBlock.hash !== this.chain[0].hash){
+        if(peerGenesisBlock.hash !== this.chain[0].hash && peerGenesisBlock.blockNumber.toString() == '0'){
           this.chain[0] = peerGenesisBlock
           let addedNewGenesisBlock = await this.chainDB.add({
               _id:'0',
@@ -2811,9 +2811,9 @@ class Blockchain{
       //See if genesis block has been added to database
       try{
         let genesisBlock = await this.getGenesisBlockFromDB()
-
         if(genesisBlock){
           if(genesisBlock.error) reject(genesisBlock.error)
+          this.chain[0] = genesisBlock
           let lastBlock = await this.getLastKnownBlockFromDB()
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)

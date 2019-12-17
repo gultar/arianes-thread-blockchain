@@ -260,6 +260,10 @@ class VMController{
 
     }
 
+    stop(){
+        this.vmBootstrap.stop()
+    }
+
 
 }
 

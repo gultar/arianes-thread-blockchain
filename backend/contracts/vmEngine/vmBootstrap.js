@@ -167,6 +167,12 @@ class VMBootstrap{
         this.startVM()
     }
 
+    stop(){
+        this.child.kill()
+        clearInterval(this.ping)
+        this.events.removeAllListeners()
+    }
+
 }
 
 module.exports = VMBootstrap
