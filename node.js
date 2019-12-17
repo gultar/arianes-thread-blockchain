@@ -1497,7 +1497,7 @@ class Node {
       if(transactions.error) console.log(transactions.error)
       transactionsToMine = { ...transactionsToMine, ...transactions }
       let actions = await this.mempool.gatherActionsForBlock()
-      actionsToMine = { ...actionsToMine, actions }
+      actionsToMine = { ...actionsToMine, ...actions }
       if(actions.error) console.log(actions.error)
       let rawBlock = {
         timestamp:Date.now(),
