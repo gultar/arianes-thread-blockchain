@@ -1495,6 +1495,7 @@ class Node {
       let transactions = await this.mempool.gatherTransactionsForBlock()
       if(transactions.error) console.log(transactions.error)
       transactionsToMine = { ...transactionsToMine, ...transactions }
+      if(Object.keys(transactionsToMine).length == 0) return { error:'Could not create block without transactions' }
       let actions = await this.mempool.gatherActionsForBlock()
       actionsToMine = { ...actionsToMine, ...actions }
       if(actions.error) console.log(actions.error)
@@ -1512,6 +1513,11 @@ class Node {
     api.emit('latestBlock', this.chain.getLatestBlock())
     api.on('isReady', ()=>{ api.emit('startMining') })
     api.on('readyToRun', ()=>{ api.emit('run') })
+
+    api.on('isNewBlockReady', async ()=>{
+      let newRawBlock = await createRawBlock()
+      if(!newRawBlock.error) api.emit('startMining', newRawBlock)
+    })
     
     if(poolHasTransactions && !hasSentBlock){
       hasSentBlock = true
@@ -1523,7 +1529,7 @@ class Node {
     }
 
     this.mempool.events.on('newTransaction', async (transaction)=>{
-      // console.log('New event', transaction)
+      
       transactionsToMine[transaction.hash] = transaction
       if(Object.keys(transactionsToMine).length >= minimumSize && !hasSentBlock){
         hasSentBlock = true

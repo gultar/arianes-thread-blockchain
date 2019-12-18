@@ -243,10 +243,12 @@ class Mempool{
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
 
-                        let used = await this.useTransaction(hash)
-                        if(used){
-                            if(used.error) errors[hash] = used.error
-                            transactions[transaction.hash] = transaction
+                        if(transaction.fromAddress !== 'coinbase'){
+                            let used = await this.useTransaction(hash)
+                            if(used){
+                                if(used.error) errors[hash] = used.error
+                                transactions[transaction.hash] = transaction
+                            }
                         }
                     }
                     
@@ -336,6 +338,8 @@ class Mempool{
                         if(deleted.error) errors[hash] = deleted.error 
                     }
                     
+                }else{
+                    // console.log('Could not find transaction '+hash+" to delete")
                 }
                 
             }

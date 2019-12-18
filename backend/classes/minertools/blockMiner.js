@@ -66,6 +66,7 @@ class Miner{
         this.socket.on('startMining', (rawBlock)=>{
             this.start(rawBlock)
         })
+        
         this.socket.on('stopMining', ()=>{ this.pause() })
 
         this.socket.on('error', error => console.log('ERROR',error))
@@ -75,14 +76,6 @@ class Miner{
         })
       }
     }
-
-    // sizeOfPool(){
-    //   return Object.keys(this.pool.pendingTransactions).length
-    // }
-
-    // sizeOfActionPool(){
-    //   return Object.keys(this.pool.pendingActions).length
-    // }
 
     async start(rawBlock){
         
@@ -118,33 +111,12 @@ class Miner{
     run(){
       let stayUpdated = setInterval(()=>{
         this.socket.emit('getLatestBlock')
+        if(!this.minerStarted) this.socket.emit('isNewBlockReady')
       }, 500)
     }
 
-    // getActionsToMine(){
-    //   return new Promise((resolve)=>{
-    //     let timedOut = setTimeout(()=>{
-    //       this.socket.off('newActions')
-    //       resolve(false)
-    //     }, 2000)
-    //     this.socket.emit('fetchActions')
-    //     this.socket.on('newActions', (actions)=>{
-    //       if(actions){
-    //         this.pool.pendingActions = actions;
-    //         if(this.sizeOfActionPool() > 0) this.log(`Found ${this.sizeOfActionPool()} actions to mine`)
-    //         clearTimeout(timedOut)
-    //         this.socket.off('newActions')
-    //         resolve(true)
-    //       }else{
-    //         resolve(false)
-    //       }
-    //     })
-    //   })
-    // }
-
-
     pause(){
-      this.log('Stopping miner')
+      this.log('Mining interrupted')
         
       if(process.ACTIVE_MINER){
         process.ACTIVE_MINER.kill()
@@ -152,7 +124,6 @@ class Miner{
       }
       
       this.minerStarted = false;
-      this.readyToMine = false;
     }
 
     async createCoinbase(){
