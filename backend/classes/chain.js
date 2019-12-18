@@ -648,8 +648,6 @@ class Blockchain{
           return { outOfSync:true }
         }
       }
-
-      
   
     }
 
@@ -680,7 +678,7 @@ class Blockchain{
             let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
   
             this.branches[newBlock.hash] = [ ...branch, newBlock ]
-            delete this.branches[newBlock.previousHash]
+            // delete this.branches[newBlock.previousHash]
 
             if(forkTotalDifficulty > currentTotalDifficulty && branch.length >= 3){
               

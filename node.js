@@ -1806,6 +1806,8 @@ class Node {
                     setTimeout(()=>{
                       this.broadcast('getBlockchainStatus');
                     }, 500)
+                  }else if(addedToChain.outOfSync){
+                    this.isOutOfSync = true
                   }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }
