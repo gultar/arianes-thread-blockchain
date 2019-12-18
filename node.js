@@ -1407,6 +1407,7 @@ class Node {
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
+        console.log('LatestBlock', this.chain.getLatestBlock())
         socket.emit('rollbackResult', rolledback)
       })
 
@@ -1493,24 +1494,27 @@ class Node {
     api.on('readyToRun', ()=>{ api.emit('run') })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      if(minerPreviousBlock.blockNumber == this.chain.getLatestBlock().blockNumber){
-        if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
-          let newRawBlock = await createRawBlock()
-          if(!newRawBlock.error) {
-            api.emit('startMining', newRawBlock)
-            transactionsToMine = {}
-            actionsToMine = {}
+      if(!this.isDownloading){
+        if(minerPreviousBlock.blockNumber == this.chain.getLatestBlock().blockNumber){
+          if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
+            let newRawBlock = await createRawBlock()
+            if(!newRawBlock.error) {
+              api.emit('startMining', newRawBlock)
+              transactionsToMine = {}
+              actionsToMine = {}
+            }
+          
+          }else if(minerPreviousBlock.hash == this.chain.getLatestBlock().previousHash){
+            api.emit('latestBlock', this.chain.getLatestBlock())
+          }else{
+            api.emit('latestBlock', this.chain.getLatestBlock())
           }
-        
-        }else if(minerPreviousBlock.hash == this.chain.getLatestBlock().previousHash){
-          api.emit('latestBlock', this.chain.getLatestBlock())
+          
         }else{
           api.emit('latestBlock', this.chain.getLatestBlock())
         }
-        
-      }else{
-        api.emit('latestBlock', this.chain.getLatestBlock())
       }
+      
       
     })
     
@@ -1542,7 +1546,7 @@ class Node {
     })
 
     api.on('newBlock', async (block)=>{
-      if(this.chain.isBusy) api.emit('stopMining')
+      if(this.chain.isBusy || this.isDownloading) api.emit('stopMining')
       else{
         if(block){
           
@@ -1557,12 +1561,14 @@ class Node {
             api.emit('latestBlock', this.chain.getLatestBlock())
           }else if(synced.syncing){
             api.emit('latestBlock', this.chain.getLatestBlock())
+          }else if(synced.outOfSync){
+            
+            
+            
           }else{
             this.sendPeerMessage('newBlockFound', block);
 
             api.emit('latestBlock', this.chain.getLatestBlock())
-            
-            
           }
   
         }else{

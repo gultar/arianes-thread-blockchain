@@ -196,6 +196,69 @@ class Blockchain{
     return this.chain[this.chain.length - 1];
   }
 
+  addBlockToChain(newBlock){
+    return new Promise((resolve)=>{
+      //Push block header to chain
+      
+      let errors = {}
+      let newHeader = this.extractHeader(newBlock)
+
+      let executed = await this.balance.runBlock(newBlock)
+      if(executed.error) errors['Balance error'] = executed.error
+      else{
+
+        let saved = await this.balance.saveBalances(newBlock)
+        if(saved.error) resolve({error:saved.error})
+
+        let actions = newBlock.actions || {}
+        let allActionsExecuted = await this.executeActionBlock(actions)
+        if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
+        
+        let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
+        if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
+        
+        let callsExecuted = await this.runTransactionCalls(newBlock);
+        if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+        
+        let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+        if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
+        
+        
+        
+        //Verify is already exists
+        if(Object.keys(errors).length > 0){
+          this.isBusy = false
+          resolve({error: errors})
+        }else{
+          
+          this.spentTransactionHashes.push(...newHeader.txHashes)
+          this.chain.push(newHeader);
+          let added = await this.addBlockToDB(newBlock)
+          if(added){
+            if(added.error) resolve({error:added.error})
+
+            
+            let statesSaved = await this.contractTable.saveStates()
+            if(statesSaved.error) console.log('State saving error', statesSaved.error)
+            
+            let saved = await this.saveLastKnownBlockToDB()
+            if(saved.error) console.log('Saved last block', saved)
+            
+            if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
+            this.isBusy = false
+            resolve(true);
+            
+          }else{
+
+            this.isBusy = false
+            resolve({ error:'Could not push new block' })
+          }
+          
+        }
+      }
+    })
+  }
+
   /**
    * Validate and add block to database and blockchain
    * @param {Block} newBlock 
@@ -204,76 +267,19 @@ class Blockchain{
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
-        let errors = {}
         let isValidBlock = await this.validateBlock(newBlock);
         if(isValidBlock.error){
           resolve({error:isValidBlock.error})
         }
         else{
-          
-          
 
           var isLinked = this.isBlockLinked(newBlock);
           if(isLinked){
             this.isBusy = true
-            //Push block header to chain
-            let newHeader = this.extractHeader(newBlock)
-
-            let executed = await this.balance.runBlock(newBlock)
-            if(executed.error) errors['Balance error'] = executed.error
-            else{
-
-              let saved = await this.balance.saveBalances(newBlock)
-              if(saved.error) resolve({error:saved.error})
-
-              let actions = newBlock.actions || {}
-              let allActionsExecuted = await this.executeActionBlock(actions)
-              if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
-              
-              let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
-              if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
-              
-              let callsExecuted = await this.runTransactionCalls(newBlock);
-              if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
-              
-              let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-              if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
-              
-              
-              
-              //Verify is already exists
-              if(Object.keys(errors).length > 0){
-                this.isBusy = false
-                resolve({error: errors})
-              }else{
-                
-                this.spentTransactionHashes.push(...newHeader.txHashes)
-                this.chain.push(newHeader);
-                let added = await this.addBlockToDB(newBlock)
-                if(added){
-                  if(added.error) resolve({error:added.error})
-
-                  
-                  let statesSaved = await this.contractTable.saveStates()
-                  if(statesSaved.error) console.log('State saving error', statesSaved.error)
-                  
-                  let saved = await this.saveLastKnownBlockToDB()
-                  if(saved.error) console.log('Saved last block', saved)
-                  
-                  if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
-                  this.isBusy = false
-                  resolve(true);
-                  
-                }else{
-
-                  this.isBusy = false
-                  resolve({ error:'Could not push new block' })
-                }
-                
-              }
-            }
             
-            
+            let added = await this.addBlockToChain(newBlock)
+            if(added.error) resolve({error:added.error})
+            else resolve(added)
 
           }else{
             let newBranch = await this.createChainBranch(newBlock)
@@ -291,22 +297,7 @@ class Blockchain{
               }
               resolve(newBranch)
             }
-            // let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
-            // let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
-            // if( isLinkedToSomeBlock || isLinkedToBlockFork ){
-              
-            //   let isBlockFork = await this.newBlockFork(newBlock)
-            //   if(isBlockFork){
-            //     this.isBusy = false
-            //     if(isBlockFork.error) resolve({error:isBlockFork.error})
-            //     resolve(isBlockFork)
-            //   }
-              
-            // }else{
-            //   this.isBusy = false
-            //   resolve(false)
-            // }
-
+          
           }
           
         }
@@ -626,17 +617,35 @@ class Blockchain{
 
   async createChainBranch(newBlock){
 
-    const removeBranch = async (branch) =>{
+    const attemptToMergeBranch = async (branch) =>{
       let blockNumberOfSplit = branch[0].blockNumber
       
-      let latestBlockHash = this.getLatestBlock().hash
-      let removedBranchFromTrunk = this.chain.slice(blockNumberOfSplit - 1,  newBlock.blockNumber)
-      if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
-      this.branches[latestBlockHash] = removedBranchFromTrunk
-      console.log('Recently branched chain', this.branches[latestBlockHash].length)
-      let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
-      if(rolledBack.error) return { error:rolledBack.error }
+      if(blockNumberOfSplit > this.getLatestBlock().blockNumber){
+        return { outOfSync:true }
+      }else{
+        let latestBlockHash = this.getLatestBlock().hash
+        let removedBranchFromTrunk = this.chain.slice(blockNumberOfSplit - 1,  newBlock.blockNumber)
+        if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
+        this.branches[latestBlockHash] = removedBranchFromTrunk
+        
+        let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
+        if(rolledBack.error) return { error:rolledBack.error }
 
+        let isBranchConnectedToChain = this.getBlockFromHash(branch[0].previousHash)
+
+        if(isBranchConnectedToChain){
+          for await(let block of branch){
+            let added = await this.addBlockToChain(block)
+            if(added.error) return { error:added.error }
+          }
+          return { synced:true }
+        }else{
+          //Weirdest case here
+          return { outOfSync:true }
+        }
+      }
+
+      
       
       return { sync:true }
     }
@@ -672,9 +681,13 @@ class Blockchain{
 
             if(forkTotalDifficulty > currentTotalDifficulty){
               
-              let mergedBranch = await removeBranch(this.branches[newBlock.hash])
+              let mergedBranch = await attemptToMergeBranch(this.branches[newBlock.hash])
               if(mergedBranch.error) return { error:mergedBranch.error }
-              else return { synced:true }
+              else if(mergedBranch.outOfSync){
+                return { outOfSync:true }
+              }else{
+                return { synced:true }
+              }
               
             }else{
               return { staying:true }
@@ -683,7 +696,7 @@ class Blockchain{
             return { error:'ERROR: Recalculated total difficulty does not match new block total difficulty' }
           }
         }else{
-          
+          return { outOfSync:true }
         }
 
       }else{
