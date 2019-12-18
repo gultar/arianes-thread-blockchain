@@ -374,7 +374,7 @@ class Blockchain{
                   //By using the previousBlock Hash
                   
                   let firstBlockForkedHash = existingFork.linkedBlockHashes[0]
-                  console.log('First Block Forked Hash', firstBlockForkedHash)
+                  
                   let fork = rootBlock[firstBlockForkedHash]
                   
                   if(fork && Array.isArray(fork)){
@@ -450,9 +450,9 @@ class Blockchain{
                           this.blockForks = {}
                           if(!Array.isArray(rolledBackBlocks)) rolledBackBlocks = [rolledBackBlocks]
                           let firstBlockRemoved = rolledBackBlocks[0]
-                          console.log('Rolled back blocks',rolledBackBlocks)
+                          
                           let newLatestBlock = this.getLatestBlock()
-                          newLatestBlock[firstBlockRemoved.hash] = rolledBackBlocks[0]
+                          newLatestBlock[firstBlockRemoved.hash] = [rolledBackBlocks[0]]
                           let hashesOfRemovedBlock = []
 
                           for await(let block of rolledBackBlocks){
