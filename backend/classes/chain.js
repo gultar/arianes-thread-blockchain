@@ -741,15 +741,11 @@ class Blockchain{
       let isPartOfChain = this.chain[blockNumber]
       let isLastBlock = this.getLatestBlock().blockNumber == blockNumber
       if(isPartOfChain){
-        if(isLastBlock) {
-          let rolledback = await this.rollbackToBlock(blockNumber)
+        let rolledback = await this.rollbackToBlock(blockNumber)
           if(rolledback.error) return { error:rolledback.error }
           else{
             return true
           }
-        }else{
-          return false
-        }
       }else{
         return { error:`ERROR: Could not rollback to block ${blockNumber}. Out of bound` }
       }
