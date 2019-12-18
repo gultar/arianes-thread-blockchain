@@ -698,11 +698,11 @@ class Blockchain{
       let isValidBranchToSwap = await validateBranch(branch)
       if(isValidBranchToSwap){
         let firstBlockOfBranch = branch[0]
-
-        if(firstBlockOfBranch.previousHash !== this.chain[firstBlockOfBranch.blockNumber - 1].hash){
+        let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
+        if(!isLinkedToBlockNumber) {
           return { error:'ERROR: Branch is not linked to current chain' }
         }else{
-          let rolledback = await rollback(firstBlockOfBranch.blockNumber - 1)
+          let rolledback = await rollback(isLinkedToBlockNumber)
           if(rolledback){
             if(rolledback.error) return { error:rolledback.error }
 
@@ -1368,6 +1368,16 @@ class Blockchain{
       }
     }
 
+    return false;
+  }
+
+  async getBlockNumberOfHash(hash){
+    for await(let block of this.chain){
+      if(block.hash == hash){
+        return block.blockNumber
+      }
+    }
+    
     return false;
   }
 
