@@ -1503,7 +1503,7 @@ class Node {
     api.on('readyToRun', ()=>{ api.emit('run') })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      if(!this.isDownloading){
+      if(!this.isDownloading && !this.chain.isBusy){
         if(minerPreviousBlock.blockNumber == this.chain.getLatestBlock().blockNumber){
           if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
             let newRawBlock = await createRawBlock()
