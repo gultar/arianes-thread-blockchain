@@ -1426,7 +1426,7 @@ class Blockchain{
       var difficultyIsAboveMinimum = BigInt(parseInt(block.difficulty, 16)) >= BigInt(parseInt(this.chain[0].difficulty, 16))
 
       if(!difficultyIsAboveMinimum) resolve({error:'ERROR: Difficulty level must be above minimum set in genesis block'})
-      if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
+      // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
       if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
       if(!hasOnlyOneCoinbaseTx) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
       if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
