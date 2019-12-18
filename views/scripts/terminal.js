@@ -431,6 +431,13 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           socket.emit('update', args[0])
           break;
+        case 'validate':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('isChainValid', args[0])
+          break;
         case 'roll':
           if(!isConnected){
             connectError(cmd);
