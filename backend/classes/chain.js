@@ -285,7 +285,7 @@ class Blockchain{
             }else{
               let branched = await this.blockchainBranches(newBlock)
               this.isBusy = false
-              if(branched.error) resolve({error:newBranch.error});
+              if(branched.error) resolve({error:branched.error});
               else{
                 if(branched.staying){
                   logger(chalk.yellow(`* Staying on main blockchain`))
