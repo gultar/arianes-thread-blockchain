@@ -456,7 +456,7 @@ class Blockchain{
                             
                             //Get the first block of the removed block to place as a fork in the new head block of the chain
                             let firstBlockHeaderRemoved = rolledBackBlocks[0]
-                            if(!firstBlockHeaderRemoved) console.log('Rolled back blocks shown here', rolledBackBlocks)
+                            
                             let firstBlockRemoved = await this.getBlockFromDB(firstBlockHeaderRemoved.blockNumber)
                             let newLatestBlock = this.getLatestBlock()
                             let newChainBranch = []
