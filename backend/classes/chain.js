@@ -205,7 +205,10 @@ class Blockchain{
       if(isValidBlockJSON(newBlock)){
         let errors = {}
         let isValidBlock = await this.validateBlock(newBlock);
-        if(isValidBlock){
+        if(isValidBlock.error){
+          resolve({error:isValidBlock.error})
+        }
+        else{
           
           
 
@@ -267,10 +270,6 @@ class Blockchain{
                 }
                 
               }
-              
-              
-            
-              
             }
             
             
@@ -294,8 +293,6 @@ class Blockchain{
 
           }
           
-        }else{
-          resolve({error:'Invalid block'})
         }
       }else{
         resolve({error:'ERROR: New block undefined'})
@@ -1355,77 +1352,33 @@ class Blockchain{
       var hasOnlyOneCoinbaseTx = await this.validateUniqueCoinbaseTx(block)
       var isValidChallenge = this.validateChallenge(block);
       var areTransactionsValid = this.validateBlockTransactions(block)
-      var merkleRootIsValid = false;
+      var isLinkedToPreviousBlock = this.chain[block.blockNumber - 1].hash == block.previousHash
+      var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
       //validate difficulty
       var difficultyIsAboveMinimum = BigInt(parseInt(block.difficulty, 16)) >= BigInt(parseInt(this.chain[0].difficulty, 16))
 
-      if(!difficultyIsAboveMinimum){
-        logger('ERROR: Difficulty level must be above minimum set in genesis block')
-      }
-
-      if(!isValidTimestamp){
-        logger('ERROR: Is not valid timestamp')
-      }
-
-      if(!hashIsBelowChallenge){
-        logger('ERROR: Hash value must be below challenge value')
-      }
-
-      if(!hasOnlyOneCoinbaseTx){
-        logger('ERROR: Block must contain only one coinbase transaction')
-      }
-
-      if(areTransactionsValid.error){
-        logger('Block contains invalid transactions: ', areTransactionsValid.error)
-      }
-
+      if(!difficultyIsAboveMinimum) resolve({error:'ERROR: Difficulty level must be above minimum set in genesis block'})
+      if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
+      if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
+      if(!hasOnlyOneCoinbaseTx) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
+      if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
+      if(!isLinkedToPreviousBlock) resolve({error:'ERROR: Block is not linked to previous block'})
+      if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
+      if(!merkleRootIsValid) resolve({error:'ERROR: Merkle root of block IS NOT valid'})
+      if(!isValidHash) resolve({error:'ERROR: Is not valid block hash'})
+      if(chainAlreadyContainsBlock) resolve({error:'ERROR: Chain already contains block'})
+      
       // if(!isValidDifficulty){
       //   logger('ERROR: Recalculated difficulty did not match block difficulty')
       // }
-
-      if(!isValidChallenge){
-        logger('ERROR: Recalculated challenge did not match block challenge')
-      }
-
-      if(block.transactions){
-        merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
-      }else{
-        let transactions = await this.getBlockTransactions(block.hash)
-        if(transactions){
-            if(transactions.error) {
-                logger(transactions.error)
-                resolve(false)
-            }
-
-            merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, transactions);
-        }else{
-            resolve(false)
-        }
-      }
-
-      if(!isValidHash){
-        logger('ERROR: Is not valid block hash')
-        resolve(false)
-      }
+      
 
       // if(!timestampIsGreaterThanPrevious){
       //   logger('ERROR: Block Timestamp must be greater than previous timestamp ')
       //   resolve(false)
       // }
-
-      if(!merkleRootIsValid){
-        logger('ERROR: Merkle root of block IS NOT valid')
-        resolve(false)
-      }
-    
       
-      if(chainAlreadyContainsBlock){
-        logger('ERROR: Chain already contains block')
-        resolve(false)
-      }
-      
-
       resolve(true)
     })
     
@@ -1730,6 +1683,8 @@ class Blockchain{
       let backToNormal = newestToOldestBlocks.reverse()
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
+      logger(`Chain is now ${this.chain.length} blocks long`)
+      logger(`Head blockchain is now ${this.getLatestBlock().hash}`)
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else resolve(true)
