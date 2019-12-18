@@ -627,6 +627,34 @@ class Blockchain{
   }
 
   async createChainBranch(newBlock){
+
+    const mergedBranch = (branch) =>{
+      let blockNumberOfSplit = branch[0].blockNumber
+      let currentChainLength = this.chain.length
+      let numberOfBlocksToRemove = currentChainLength - (blockNumberOfSplit - 1)
+      
+      
+      let latestBlockHash = this.getLatestBlock().hash
+      let removedBranchFromTrunk = this.chain.splice(blockNumberOfSplit - 1,  numberOfBlocksToRemove)
+      if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
+      this.branches[latestBlockHash] = removedBranchFromTrunk
+
+      let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
+      if(rolledBack.error) return { error:rolledBack.error }
+
+      for await(let block of branch){
+        let pushed = await this.pushBlock(block)
+        if(pushed.error){
+          return { error:pushed.error }
+        }else if(pushed.staying){
+          console.log('Apparently it does not want to sync the branch')
+        }else{
+          console.log('Succesfully synced branch block')
+        }
+      }
+      return true
+    }
+
     if(newBlock){
       let isPartOfOtherBranch = this.branches[newBlock.previousHash]
       if(isPartOfOtherBranch){
@@ -635,56 +663,43 @@ class Blockchain{
         branch.push(newBlock)
 
         let blockNumberOfSplit = branch[0].blockNumber
+        console.log('Block split', blockNumberOfSplit)
         let branchingBlock = this.chain[blockNumberOfSplit - 1]
-        let totalDifficultyAtBranch = branchingBlock.totalDifficulty
-        console.log('Total diff at branch', totalDifficultyAtBranch)
-        let recalculatedTotalDifficulty = await this.calculateTotalDifficulty(branch)
-        console.log('Recalculated ', recalculatedTotalDifficulty)
-        let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
-        console.log('Sum diff:', sumOfDifficulties)
-        let isValidTotalDifficulty = sumOfDifficulties === newBlock.totalDifficulty
-        console.log('Newblock total diff', newBlock.totalDifficulty)
-        if(isValidTotalDifficulty){
-
-          let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
-          let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
-
-          if(forkTotalDifficulty > currentTotalDifficulty){
-            
-            let currentChainLength = this.chain.length
-            let numberOfBlocksToRemove = currentChainLength - (blockNumberOfSplit - 1)
-            
-            
-            let latestBlockHash = this.getLatestBlock().hash
-            let removedBranchFromTrunk = this.chain.splice(blockNumberOfSplit - 1,  numberOfBlocksToRemove)
-            if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
-            this.branches[latestBlockHash] = removedBranchFromTrunk
-
-            let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
-            if(rolledBack.error) return { error:rolledBack.error }
-
-            for await(let block of branch){
-              let pushed = await this.pushBlock(block)
-              if(pushed.error){
-                return { error:pushed.error }
-              }else if(pushed.staying){
-                console.log('Apparently it does not want to sync the branch')
-              }else{
-                console.log('Succesfully synced branch block')
-              }
+        
+        if(branchingBlock){
+          console.log('Base of split', branchingBlock.blockNumber)
+          let totalDifficultyAtBranch = branchingBlock.totalDifficulty
+          console.log('Total diff at branch', totalDifficultyAtBranch)
+          let recalculatedTotalDifficulty = await this.calculateTotalDifficulty(branch)
+          console.log('Recalculated ', recalculatedTotalDifficulty)
+          let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
+          console.log('Sum diff:', sumOfDifficulties)
+          let isValidTotalDifficulty = true //sumOfDifficulties === newBlock.totalDifficulty
+          console.log('Newblock total diff', newBlock.totalDifficulty)
+          if(isValidTotalDifficulty){
+  
+            let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
+            let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
+  
+            if(forkTotalDifficulty > currentTotalDifficulty){
+              
+              let mergedBranch = await mergedBranch([ ...branch, newBlock ])
+              if(mergedBranch.error) return { error:mergedBranch.error }
+              else return { synced:true }
+              
+            }else{
+              this.branches[newBlock.hash] = [ ...branch, newBlock ]
+              delete this.branches[newBlock.previousHash]
+              console.log('Still contains branches blocks', this.branches[newBlock.hash].length)
+              return { staying:true }
             }
-
-            return { synced:true }
-            
           }else{
-            this.branches[newBlock.hash] = [ ...branch, newBlock ]
-            delete this.branches[newBlock.previousHash]
-            console.log('Still contains branches blocks', this.branches[newBlock.hash].length)
-            return { staying:true }
+            return { error:'ERROR: Recalculated total difficulty does not match new block total difficulty' }
           }
         }else{
-          return { error:'ERROR: Recalculated total difficulty does not match new block total difficulty' }
+          
         }
+
       }else{
         this.branches[newBlock.hash] = [ newBlock ]
         return { branched:true }
