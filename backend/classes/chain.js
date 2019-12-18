@@ -332,7 +332,8 @@ class Blockchain{
                 this.blockForks[newBlock.hash] = {
                   root:newBlock.previousHash,
                   previousHash:newBlock.previousHash,
-                  hash:newBlock.hash
+                  hash:newBlock.hash,
+                  linkedBlockHashes:[newBlock.hash]
                 }
                 logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
                 logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
@@ -343,6 +344,19 @@ class Blockchain{
                 return true
             }
 
+            const findFirstBlockInFork = (newestForkedBlock) =>{
+              let previousForkedBlock = this.blockForks[newestForkedBlock.previousHash]
+              let blockBeforePrevious = this.blockForks[previousForkedBlock.previousHash]
+              if(previousForkedBlock.previousHash == previousForkedBlock.root){
+                return previousForkedBlock
+              }else if(blockBeforePrevious){
+                //Possibly dangerous
+                return findFirstBlockInFork(previousForkedBlock)
+              }else{
+                return false
+              }
+            }
+
             //Very unstable, needs to be refactored entirely
             const extendFork = async (newBlock) =>{
               //Build on top of an existing blockchain fork
@@ -351,22 +365,17 @@ class Blockchain{
               if(existingFork){
                 //Checks if new block's previous block hash is the root of the fork
                 let rootHash = this.blockForks[newBlock.previousHash].root
-                let forkedBlocksHashes = Object.keys(this.blockForks)
-                let firstBlockHashNextToRoot = forkedBlocksHashes[0]
-                //Retrieves the previous block hash
-                let previousBlockHash = this.blockForks[newBlock.previousHash].previousHash
                 //Hash of the newest block
-                let newHash = this.blockForks[newBlock.previousHash].hash
                 let rootIndex = this.getIndexOfBlockHash(rootHash)
                 
                 if(rootIndex){
                   let rootBlock = this.chain[rootIndex];
                   //Extracts the forked blocks from the block where the split happened
                   //By using the previousBlock Hash
-                  let fork = rootBlock[firstBlockHashNextToRoot]
-                  //If not found, use the new block's hash
-                  if(!fork) fork = rootBlock[newHash]
-
+                  
+                  let firstBlockForkedHash = existingFork.linkedBlockHashes[0]
+                  let fork = rootBlock[firstBlockForkedHash]
+                  
                   if(fork && Array.isArray(fork)){
                     //Build upon the fork if all criterias are met
                     fork.push(newBlock)
@@ -374,7 +383,8 @@ class Blockchain{
                     this.blockForks[newBlock.hash] = {
                       root:rootBlock.hash,
                       previousHash:newBlock.previousHash,
-                      hash:newBlock.hash
+                      hash:newBlock.hash,
+                      linkedBlockHashes:[ ...existingFork.linkedBlockHashes, newBlock.hash ]
                     }
                     return fork;
                   }else{
@@ -391,7 +401,10 @@ class Blockchain{
                   }
 
                 }else{
-                  //Again, root is not part of the chain
+                  //In this case, it would be a good idea to create a peer blockchain watcher
+                  //to follow the progress of mining. When the concurrent chain becomes longer, 
+                  //it automatically switches to the other branch, without making a fuss
+
                   console.log('RootHash', rootHash)
                   console.log('RootIndex', rootIndex)
                   console.log('Block forks', this.blockForks)
@@ -432,29 +445,6 @@ class Blockchain{
 
                             let pushed = await this.pushBlock(forkBlock)
                             if(pushed.error) resolve({ error:pushed.error })
-                        
-                            // let newHeader = this.extractHeader(forkBlock)
-                            // this.chain.push(newHeader);
-    
-                            // logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
-                            
-                            // let executed = await this.balance.runBlock(forkBlock)
-                            // if(executed.error) resolve({error:executed.error})
-
-                            // let callsExecuted = await this.runTransactionCalls(forkBlock)
-                            // if(callsExecuted.error) resolve({error:callsExecuted.error})
-
-                            // let actions = forkBlock.actions || {}
-                            // let actionsExecuted = await this.executeActionBlock(actions)
-                            // if(actionsExecuted.error) resolve({error:actionsExecuted.error})
-    
-                            // if(forkBlock.actions){
-                            //   forkBlock.transactions['actions'] = actions
-                            // }
-                            // let replaced = await this.replaceBlockFromDB(forkBlock)
-                            // if(!replaced){
-                            //   replaced = await this.putBlockToDB(forkBlock)
-                            // }
                             
                           }
     
@@ -513,6 +503,57 @@ class Blockchain{
             } 
             
           }
+      }
+    })
+  }
+
+  monitorPeerChainProgress(rejectedBlock, rejectedBecause){
+    return new Promise((resolve)=>{
+      if(rejectedBlock){
+        let reasonForRejection = rejectedBecause.error
+        if(reasonForRejection == 'Could not extend fork')
+        let blockNumberIsNotTooHigh = await rejectedBlock.blockNumber <= this.getLatestBlock().blockNumber + 1
+        if(blockNumberIsNotTooHigh){
+          let isValidBlock = await this.validateBlock(rejectedBlock)
+          if(isValidBlock){
+            let isLinkedToBlockForkOrChain = await this.findLinkToBlockForkOrChain(rejectedBlock)
+            if(isLinkedToBlockForkOrChain.blockFork){
+              let linkToBlockFork = isLinkedToBlockForkOrChain.blockFork
+              let rootHashOfBlockFork = linkToBlockFork.rootHash
+              let rootBlock = this.getBlockFromHash(rootHash)
+
+            }else if(isLinkedToBlockForkOrChain.chain){
+              let linkToChain = isLinkedToBlockForkOrChain.chain
+
+            }else{
+
+            }
+        }
+          
+        }else{
+          //Preliminary validations but without any refence to "previousBlock" since the blockNumber is probably
+          //way too high for this chain
+        }
+      }else{
+        resolve({error:'ERROR: Rejected block passed in undefined'})
+      }
+    })
+  }
+
+  findLinkToBlockForkOrChain(rejectedBlock){
+    return new Promise((resolve)=>{
+      //Rejected block is linked to a block fork that happened earlier?
+      let blockIsLinkedToBlockFork = this.blockFOrks[rejectedBlock.previousHash]
+      //Or perhaps it's linked to a block in the chain?
+      let blockNumberOfLinkToChain = this.getIndexOfBlockHash(rejectedBlock.previousHash)
+      
+      if(blockIsLinked){
+        return { blockFork:blockIsLinkedToBlockFork }
+      }else if(blockNumberOfLinkToChain){
+        let blockLinkedToChain = this.chain[blockNumberOfLinkToChain]
+        return { chain:blockLinkedToChain }
+      }else{
+        return false
       }
     })
   }

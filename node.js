@@ -233,13 +233,6 @@ class Node {
       this.connectToPeer(address);
     });
 
-    // socket.on('ping', async ()=>{
-    //   let address = socket.handshake.address
-    //   await rateLimiter.consume(address).catch(e => { console.log("Peer sent too many 'ping' events") }); // consume 1 point per event from IP
-    //   this.peersConnected[address].lastPing = Date.now()
-    //   socket.emit('pong')
-    // })
-
     socket.on('peerMessage', async(peerMessage, acknowledge)=>{
       if(!this.messageBuffer[peerMessage.messageId]){
         await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
@@ -359,22 +352,7 @@ class Node {
               }else{
                 socket.emit('nextBlock', {error:`ERROR: Could not find block body of ${nextBlock.hash} at block index ${nextBlock.blockNumber}`})
               }
-              // let transactions = await this.chain.getBlockTransactions(nextBlock.hash)
-              // if(transactions){
-              //   if(transactions.error) socket.emit('nextBlock', {error:transactions.error})
-              //   transactions = transactions[transactions._id]
-              //   let actions =  await this.chain.getBlockActions(nextBlock.hash)
-              //   if(actions.error) socket.emit('nextBlock',{error:actions.error})
-
-              //   nextBlock.actions = actions
-                
-              //   nextBlock.transactions = transactions;
-              //   socket.emit('nextBlock', nextBlock)
-              // }else{
-              //   socket.emit('nextBlock', {error:`Could not find transactions of block ${nextBlock.hash}`})
-              // }
               
-                
                 
             }else{
               console.log('Chain does not contain block at ', index+1)
@@ -1674,8 +1652,8 @@ class Node {
             case 'newBlockFound':
               let added = await this.handleNewBlockFound(data);
               if(added.error){
-                logger('New Block Found ERROR follows:')
-                console.log(added.error);
+                logger('New Block Found ERROR follows:',added.error)
+                
                 logger('--------------------------------')
               }
               break;
