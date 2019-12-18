@@ -487,12 +487,12 @@ class Blockchain{
                             newLatestBlock[firstBlockRemoved.hash] = newChainBranch
                           }
 
-                          for await(var forkBlock of fork){
+                          // for await(var forkBlock of fork){
 
-                            let pushed = await this.pushBlock(forkBlock)
-                            if(pushed.error) resolve({ error:pushed.error })
+                          //   let pushed = await this.pushBlock(forkBlock)
+                          //   if(pushed.error) resolve({ error:pushed.error })
                             
-                          }
+                          // }
                           logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                           this.isSyncingBlocks = false;
                           
