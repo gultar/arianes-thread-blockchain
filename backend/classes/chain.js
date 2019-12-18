@@ -432,29 +432,32 @@ class Blockchain{
                         if(rolledBack.error) resolve({error:rolledBack.error})
                         else{
                           for await(var forkBlock of fork){
+
+                            let pushed = await this.pushBlock(forkBlock)
+                            if(pushed.error) resolve({ error:pushed.error })
                         
-                            let newHeader = this.extractHeader(forkBlock)
-                            this.chain.push(newHeader);
+                            // let newHeader = this.extractHeader(forkBlock)
+                            // this.chain.push(newHeader);
     
-                            logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
+                            // logger(chalk.yellow(`* Merged new block ${forkBlock.hash.substr(0, 25)}... from fork `));
                             
-                            let executed = await this.balance.runBlock(forkBlock)
-                            if(executed.error) resolve({error:executed.error})
+                            // let executed = await this.balance.runBlock(forkBlock)
+                            // if(executed.error) resolve({error:executed.error})
 
-                            let callsExecuted = await this.runTransactionCalls(forkBlock)
-                            if(callsExecuted.error) resolve({error:callsExecuted.error})
+                            // let callsExecuted = await this.runTransactionCalls(forkBlock)
+                            // if(callsExecuted.error) resolve({error:callsExecuted.error})
 
-                            let actions = forkBlock.actions || {}
-                            let actionsExecuted = await this.executeActionBlock(actions)
-                            if(actionsExecuted.error) resolve({error:actionsExecuted.error})
+                            // let actions = forkBlock.actions || {}
+                            // let actionsExecuted = await this.executeActionBlock(actions)
+                            // if(actionsExecuted.error) resolve({error:actionsExecuted.error})
     
-                            if(forkBlock.actions){
-                              forkBlock.transactions['actions'] = actions
-                            }
-                            let replaced = await this.replaceBlockFromDB(forkBlock)
-                            if(!replaced){
-                              replaced = await this.putBlockToDB(forkBlock)
-                            }
+                            // if(forkBlock.actions){
+                            //   forkBlock.transactions['actions'] = actions
+                            // }
+                            // let replaced = await this.replaceBlockFromDB(forkBlock)
+                            // if(!replaced){
+                            //   replaced = await this.putBlockToDB(forkBlock)
+                            // }
                             
                           }
     
