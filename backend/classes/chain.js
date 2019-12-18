@@ -196,7 +196,7 @@ class Blockchain{
     return this.chain[this.chain.length - 1];
   }
 
-  addBlockToChain(newBlock){
+  addBlockToChain(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       //Push block header to chain
       
@@ -277,7 +277,7 @@ class Blockchain{
           if(isLinked){
             this.isBusy = true
             
-            let added = await this.addBlockToChain(newBlock)
+            let added = await this.addBlockToChain(newBlock, silent)
             if(added.error) resolve({error:added.error})
             else resolve(added)
 
