@@ -781,6 +781,15 @@ class Node {
           if(isBlockPushed.error){
             closeConnection()
             resolve({ error: isBlockPushed.error })
+          }else if(isBlockPushed.outOfSync){
+            //Do something like a diagnosis to fix out of sync blockchain
+            resolve({ error:'Blockchain is out of sync'})
+          }else if(isBlockPushed.isBusy){
+            peer.emit('getNextBlock', block.hash)
+            awaitRequest()
+          }else if(isBlockPushed.sync){
+            //Try to fix something
+            awaitRequest()
           }else{
             peer.emit('getNextBlock', block.hash)
             awaitRequest()
@@ -1557,17 +1566,15 @@ class Node {
             console.log(synced.error)
           }else if(synced.staying){
             this.sendPeerMessage('newBlockFound', block);
-
             api.emit('latestBlock', this.chain.getLatestBlock())
-          }else if(synced.syncing){
+          }else if(synced.sync){
             api.emit('latestBlock', this.chain.getLatestBlock())
           }else if(synced.outOfSync){
             
-            
-            
+          }else if(synced.isBusy){
+            api.emit('stopMining')
           }else{
             this.sendPeerMessage('newBlockFound', block);
-
             api.emit('latestBlock', this.chain.getLatestBlock())
           }
   
@@ -1662,11 +1669,15 @@ class Node {
               if(executed.error) console.log(executed.error)
               break
             case 'newBlockFound':
-              let added = await this.handleNewBlockFound(data);
-              if(added.error){
-                logger('New Block Found ERROR follows:',added.error)
-                
-                logger('--------------------------------')
+              if(!this.isOutOfSync){
+                let added = await this.handleNewBlockFound(data);
+                if(added.error){
+                  logger('New Block Found ERROR follows:',added.error)
+                  
+                  logger('--------------------------------')
+                }
+              }else{
+                logger('WARNING: Node is out of sync. Cannot receive new block until chain is fixed')
               }
               break;
             
@@ -1769,6 +1780,13 @@ class Node {
                     }else{
                       resolve(true)
                     }
+                  }else if(addedToChain.isBusy){
+                    console.log('Received a block but node is busy')
+                    setTimeout(()=>{
+                      this.broadcast('getBlockchainStatus');
+                    }, 500)
+                  }else if(addedToChain.outOfSync){
+                    this.isOutOfSync = true
                   }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }
@@ -1783,6 +1801,11 @@ class Node {
                     }else{
                       resolve(true)
                     }
+                  }else if(addedToChain.isBusy){
+                    console.log('Received a block but node is busy')
+                    setTimeout(()=>{
+                      this.broadcast('getBlockchainStatus');
+                    }, 500)
                   }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }

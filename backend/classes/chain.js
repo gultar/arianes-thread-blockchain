@@ -273,31 +273,35 @@ class Blockchain{
         }
         else{
 
-          var isLinked = this.isBlockLinked(newBlock);
-          if(isLinked){
-            this.isBusy = true
-            
-            let added = await this.addBlockToChain(newBlock, silent)
-            if(added.error) resolve({error:added.error})
-            else resolve(added)
-
-          }else{
-            let newBranch = await this.createChainBranch(newBlock)
-            this.isBusy = false
-            if(newBranch.error) resolve({error:newBranch.error});
-            else{
-              if(newBranch.staying){
-                logger(chalk.yellow(`* Staying on main blockchain`))
-                logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-              }else if(newBranch.sync){
-                logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
-              }else if(newBranch.branched){
-                logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
-                logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+          if(!this.isBusy){
+            var isLinked = this.isBlockLinked(newBlock);
+            if(isLinked){
+              this.isBusy = true
+              
+              let added = await this.addBlockToChain(newBlock, silent)
+              if(added.error) resolve({error:added.error})
+              else resolve(added)
+  
+            }else{
+              let newBranch = await this.createChainBranch(newBlock)
+              this.isBusy = false
+              if(newBranch.error) resolve({error:newBranch.error});
+              else{
+                if(newBranch.staying){
+                  logger(chalk.yellow(`* Staying on main blockchain`))
+                  logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                }else if(newBranch.sync){
+                  logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
+                }else if(newBranch.branched){
+                  logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+                  logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+                }
+                resolve(newBranch)
               }
-              resolve(newBranch)
+            
             }
-          
+          }else{
+            resolve({isBusy:true})
           }
           
         }
@@ -646,8 +650,7 @@ class Blockchain{
       }
 
       
-      
-      return { sync:true }
+  
     }
 
     if(newBlock){
@@ -679,7 +682,7 @@ class Blockchain{
             this.branches[newBlock.hash] = [ ...branch, newBlock ]
             delete this.branches[newBlock.previousHash]
 
-            if(forkTotalDifficulty > currentTotalDifficulty){
+            if(forkTotalDifficulty > currentTotalDifficulty && branch.length >= 3){
               
               let mergedBranch = await attemptToMergeBranch(this.branches[newBlock.hash])
               if(mergedBranch.error) return { error:mergedBranch.error }
