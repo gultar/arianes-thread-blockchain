@@ -450,6 +450,7 @@ class Blockchain{
                           this.blockForks = {}
                           
                           let firstBlockRemoved = rolledBackBlocks[0]
+                          console.log('Rolled back blocks',rolledBackBlocks)
                           let newLatestBlock = this.getLatestBlock()
                           newLatestBlock[firstBlockRemoved.hash] = rolledBackBlocks[0]
                           let hashesOfRemovedBlock = []
