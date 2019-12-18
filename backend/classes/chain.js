@@ -687,7 +687,9 @@ class Blockchain{
           let peerBlockchainIsLonger = newBlock.blockNumber > this.getLatestBlock().blockNumber
           
 
-          if(!currentBranchHasMoreWork && branchIsLongEnough && peerBlockchainIsLonger){
+          if(branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
+            return true
+          }else if(!currentBranchHasMoreWork && branchIsLongEnough && peerBlockchainIsLonger){
             return true
           }else if(!branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
             return true
