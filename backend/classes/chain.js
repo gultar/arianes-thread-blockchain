@@ -1364,8 +1364,8 @@ class Blockchain{
       if(!hasOnlyOneCoinbaseTx) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
       if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
       if(!isLinkedToPreviousBlock){
-        console.log('Previous', this.chain[block.blockNumber - 1].hash)
-        console.log('New', block.previousHash)
+        console.log('Previous', this.chain[block.blockNumber - 1])
+        console.log('New', block)
         resolve({error:'ERROR: Block is not linked to previous block'})
       } 
       if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
