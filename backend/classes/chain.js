@@ -1363,7 +1363,11 @@ class Blockchain{
       if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
       if(!hasOnlyOneCoinbaseTx) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
       if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
-      if(!isLinkedToPreviousBlock) resolve({error:'ERROR: Block is not linked to previous block'})
+      if(!isLinkedToPreviousBlock){
+        console.log('Previous', this.chain[block.blockNumber - 1].hash)
+        console.log('New', block.previousHash)
+        resolve({error:'ERROR: Block is not linked to previous block'})
+      } 
       if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
       if(!merkleRootIsValid) resolve({error:'ERROR: Merkle root of block IS NOT valid'})
       if(!isValidHash) resolve({error:'ERROR: Is not valid block hash'})
@@ -1684,7 +1688,7 @@ class Blockchain{
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
       logger(`Chain is now ${this.chain.length} blocks long`)
-      logger(`Head blockchain is now ${this.getLatestBlock().hash}`)
+      logger(`Head blockchain is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else resolve(true)
