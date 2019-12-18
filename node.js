@@ -1480,22 +1480,42 @@ class Node {
     let poolHasTransactions = this.mempool.sizeOfPool() > 0
     
     const createRawBlock = async () =>{
-      let transactions = await this.mempool.gatherTransactionsForBlock()
-      if(transactions.error) console.log(transactions.error)
-      transactionsToMine = { ...transactionsToMine, ...transactions }
-      if(Object.keys(transactionsToMine).length == 0) return { error:'Could not create block without transactions' }
-      let actions = await this.mempool.gatherActionsForBlock()
-      actionsToMine = { ...actionsToMine, ...actions }
-      if(actions.error) console.log(actions.error)
-      let rawBlock = {
-        timestamp:Date.now(),
-        transactions:transactionsToMine,
-        actions:actionsToMine,
-        previousHash:this.chain.getLatestBlock().hash,
-        blockNumber:this.chain.getLatestBlock().blockNumber + 1
-      } 
       
-      return rawBlock
+      if(!this.isDownloading && !this.chain.isBusy && !this.isOutOfSync){
+        let transactions = await this.mempool.gatherTransactionsForBlock()
+        if(transactions.error) console.log(transactions.error)
+        transactionsToMine = { ...transactionsToMine, ...transactions }
+        if(Object.keys(transactionsToMine).length == 0) return { error:'Could not create block without transactions' }
+        let actions = await this.mempool.gatherActionsForBlock()
+        actionsToMine = { ...actionsToMine, ...actions }
+        if(actions.error) console.log(actions.error)
+        let rawBlock = {
+          timestamp:Date.now(),
+          transactions:transactionsToMine,
+          actions:actionsToMine,
+          previousHash:this.chain.getLatestBlock().hash,
+          blockNumber:this.chain.getLatestBlock().blockNumber + 1
+        } 
+        
+        return rawBlock
+      }else{
+        console.log({ error:{
+          message:'ERROR: Node is unable to create new block',
+          reason:{
+            isDownloading:this.isDownloading,
+            isBusy:this.chain.isBusy,
+            isOutOfSync:this.isOutOfSync
+          }
+        },  })
+        return { error:{
+          message:'ERROR: Node is unable to create new block',
+          reason:{
+            isDownloading:this.isDownloading,
+            isBusy:this.chain.isBusy,
+            isOutOfSync:this.isOutOfSync
+          }
+        },  }
+      }
     }
 
     api.emit('latestBlock', this.chain.getLatestBlock())
@@ -1503,7 +1523,7 @@ class Node {
     api.on('readyToRun', ()=>{ api.emit('run') })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      if(!this.isDownloading && !this.chain.isBusy){
+      if(!this.isDownloading && !this.chain.isBusy && !this.isOutOfSync){
         if(minerPreviousBlock.blockNumber == this.chain.getLatestBlock().blockNumber){
           if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
             let newRawBlock = await createRawBlock()
@@ -1511,7 +1531,7 @@ class Node {
               api.emit('startMining', newRawBlock)
               transactionsToMine = {}
               actionsToMine = {}
-            }
+            }else console.log(newRawBlock.error)
           
           }else if(minerPreviousBlock.hash == this.chain.getLatestBlock().previousHash){
             api.emit('latestBlock', this.chain.getLatestBlock())
@@ -1543,9 +1563,14 @@ class Node {
         hasSentBlock = true
         
         let rawBlock = await createRawBlock()
-        api.emit('startMining', rawBlock)
-        transactionsToMine = {}
-        actionsToMine = {}
+        if(!rawBlock.error){
+          api.emit('startMining', rawBlock)
+          transactionsToMine = {}
+          actionsToMine = {}
+        }else{
+
+        }
+        
       }
       
     })

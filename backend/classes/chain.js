@@ -639,8 +639,12 @@ class Blockchain{
 
         if(isBranchConnectedToChain){
           for await(let block of branch){
-            let added = await this.addBlockToChain(block)
-            if(added.error) return { error:added.error }
+            let alreadyExists = await this.getBlockFromHash(block.hash)
+            if(!alreadyExists){
+              let added = await this.addBlockToChain(block)
+              if(added.error) return { error:added.error }
+            }
+            
           }
           return { synced:true }
         }else{
