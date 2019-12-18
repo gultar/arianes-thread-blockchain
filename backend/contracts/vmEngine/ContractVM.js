@@ -48,20 +48,6 @@ class ContractVM{
                         "createContractInterface":createContractInterface,
                         "makeExternal":makeExternal,
                         "getFunctionArguments":getFunctionArguments,
-                        // "loadState":function(contractName){
-                        //     return new Promise((resolve)=>{
-                        //         signals.once('state', (state)=>{
-                                    
-                        //             if(state){
-                        //                 resolve(state)
-                        //             }else{
-                        //                 signals.emit('failed', {error: `ERROR: Could not find state of contract ${contractName}`})
-                        //             }
-                        //         })
-                        //         signals.emit('getState', contractName)
-                        //     })
-                            
-                        // },
                         "getState":(contractName)=>{
                             return new Promise((resolve)=>{
                                 signals.once('state', (state)=>{
@@ -313,7 +299,16 @@ class ContractVM{
     run(call){
         return new Promise((resolve)=>{
             try{
-            
+                let timer
+                const createTimer = (time, resolve) =>{
+                    timer = setTimeout(()=>{
+                        resolve({
+                            error:"ERROR: VM timed out",
+                            hash:call.hash,
+                            contractName:call.contractName
+                        })
+                    }, time)
+                }
         
                 let instruction = call.code
                 let contractName = call.contractName
@@ -336,18 +331,17 @@ class ContractVM{
                 
                 let codeToWrap = `
                 ${instruction}
-                ${setState}
+                ${stateHeaderInstruction}
                 ${methodToRun}
 
                 `
     
                 let code = this.wrapCode( codeToWrap )
-                //contractCode
-                // console.log(importHeader + code)
+                createTimer(call.cpuTime, resolve)
                 let execute = this.vm.run(importHeader + code)
                 
                 execute(async (result)=>{
-
+                    clearTimeout(timer)
                     this.sandbox.contractStates[call.contractName] = this.sandbox.stateStorage
                     
                     resolve({

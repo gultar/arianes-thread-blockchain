@@ -84,7 +84,7 @@ class ContractStateStore{
                     else{
                         //Need to find a way to clean up unused state entries of blocks
                         this.state = state;
-                        let saved = this.save()
+                        let saved = await this.save()
                         if(saved.error) return {error:saved.error}
                         else return state
                     }

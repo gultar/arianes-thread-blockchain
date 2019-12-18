@@ -235,66 +235,78 @@ class ContractTable{
         })
     }
 
-    rollbackState(name, action){
-        return new Promise(async (resolve)=>{
-            if(name && action){
-                let state = await this.contractStateDB.get(name)
-                if(state){
-                    if(state.error) resolve({error:state.error})
-                    let stateAtAction = await this.getStateOfAction(name, action.hash)
-                    if(stateAtAction){
-                        if(stateAtAction.error) resolve({error:stateAtAction.error})
+    // rollbackState(name, action){
+    //     return new Promise(async (resolve)=>{
+    //         if(name && action){
+    //             let state = await this.contractStateDB.get(name)
+    //             if(state){
+    //                 if(state.error) resolve({error:state.error})
+    //                 let stateAtAction = await this.getStateOfAction(name, action.hash)
+    //                 if(stateAtAction){
+    //                     if(stateAtAction.error) resolve({error:stateAtAction.error})
 
-                        let previousChanges = state.changes
-                        if(previousChanges){
+    //                     let previousChanges = state.changes
+    //                     if(previousChanges){
 
-                            let actionHashes = Object.keys(previousChanges)
-                            let indexOfLastAction = actionHashes.length
-                            let positionOfAction = actionHashes.indexOf(action.hash)
-                            let numberOfActionsToRemove = indexOfLastAction - positionOfAction
-                            let actionsToRemove = actionHashes.splice(positionOfAction, numberOfActionsToRemove)
+    //                         let actionHashes = Object.keys(previousChanges)
+    //                         let indexOfLastAction = actionHashes.length
+    //                         let positionOfAction = actionHashes.indexOf(action.hash)
+    //                         let numberOfActionsToRemove = indexOfLastAction - positionOfAction
+    //                         let actionsToRemove = actionHashes.splice(positionOfAction, numberOfActionsToRemove)
                             
-                            if(numberOfActionsToRemove > 0){
-                                for await(var hashOfAction of actionsToRemove){
+    //                         if(numberOfActionsToRemove > 0){
+    //                             for await(var hashOfAction of actionsToRemove){
                                     
-                                    delete previousChanges[hashOfAction];
-                                }
+    //                                 delete previousChanges[hashOfAction];
+    //                             }
 
-                                let previousStateIndex = positionOfAction - 1
-                                let previousStateHash = actionHashes[previousStateIndex];
-                                let previousState = previousChanges[previousStateHash];
+    //                             let previousStateIndex = positionOfAction - 1
+    //                             let previousStateHash = actionHashes[previousStateIndex];
+    //                             let previousState = previousChanges[previousStateHash];
         
-                                let added = await this.contractStateDB.add({
-                                    _id:state._id,
-                                    _rev:state._rev,
-                                    state:previousState || stateAtAction,
-                                    changes:previousChanges
-                                })
-                                resolve(added)
-                            }else{
-                                resolve({error:`No actions to remove during rollback of contract ${name}`})
-                            }
+    //                             let added = await this.contractStateDB.add({
+    //                                 _id:state._id,
+    //                                 _rev:state._rev,
+    //                                 state:previousState || stateAtAction,
+    //                                 changes:previousChanges
+    //                             })
+    //                             resolve(added)
+    //                         }else{
+    //                             resolve({error:`No actions to remove during rollback of contract ${name}`})
+    //                         }
                             
-                        }else{
+    //                     }else{
 
-                        }
+    //                     }
                         
 
-                    }else{
-                        resolve({error:`Could not find contract state at specific action of contract ${name}`})
-                    }
+    //                 }else{
+    //                     resolve({error:`Could not find contract state at specific action of contract ${name}`})
+    //                 }
 
 
-                }else{
-                    resolve({error:`Could not find state of contract ${name}`})
-                }
-            }else{
-                resolve({error:'ROLLBACK ERROR: Missing required parameters: name, action'})
+    //             }else{
+    //                 resolve({error:`Could not find state of contract ${name}`})
+    //             }
+    //         }else{
+    //             resolve({error:'ROLLBACK ERROR: Missing required parameters: name, action'})
+    //         }
+    //     })
+    // }
+
+    async rollback(blockHash){
+        if(blockHash){
+            for await(let contractName of Object.keys(this.stateStorage)){
+                let storage = this.stateStorage[contractName]
+                if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
+                let rolledBack = await storage.rollback(blockHash)
+                if(rolledBack.error) return { error:rolledBack.error }
             }
-        })
+            return true
+        }else{
+            return { error:'ERROR: Roll back incomplete. Block hash provided is undefined' }
+        }
     }
-
-
 
     
 }

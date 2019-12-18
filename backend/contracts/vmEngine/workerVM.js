@@ -61,8 +61,8 @@ const workerVM = () =>{
           
           try{
 
-            let { results, errors } = await vm.runManyCalls(message.runCode)
-            process.send({ results:results, errors:errors })
+            let results = await vm.runManyCalls(message.runCode)
+            process.send(results)
 
           }catch(e){
             process.send({error:e, hash:message.hash, contractName:message.contractName})

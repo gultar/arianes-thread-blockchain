@@ -6,7 +6,6 @@ class VMBootstrap{
     constructor({ contractConnector }){
         this.contractConnector = contractConnector
         this.child = null;
-        this.timers = {}
         this.events = new EventEmitter()
         this.ping = null;
         this.pingLimit = 5
@@ -52,23 +51,19 @@ class VMBootstrap{
         this.events.on('run', (code)=>{
             
             this.child.send({run:code, hash:code.hash, contractName:code.contractName})
-            this.createTimer(code)
+            
         })
 
         this.events.on('runCode', async (codes)=>{
             
             this.child.send({runCode:codes})
-            for await(let hash of Object.keys(codes)){
-                let call = codes[hash]
-                this.createTimer(call)
-            }
             
         })
 
         this.child.on('message', async (message)=>{
             if(message.executed){
                 
-                clearTimeout(this.timers[message.hash])
+                
                 this.events.emit(message.hash, {
                     executed:message.executed,
                     contractName:message.contractName
@@ -79,18 +74,42 @@ class VMBootstrap{
             }else if(message.results){
                 
                 // this.events.emit('results', message.results)
+
                 let results = message.results
-                for await(let hash of Object.keys(results)){
-                    let result = results[hash]
-                    clearTimeout(this.timers[hash])
-                    if(result.error){
+                let errors = message.errors
+                
+                if(Object.keys(results).length == 0 && Object.keys(errors).length > 0){
+                    for await(let hash of Object.keys(errors)){
+                        let result = errors[hash]
                         this.events.emit(hash, {
                             error:result.error,
                             contractName:result.contractName,
                             hash:hash
                         })
-                    }else{
-                        
+                    }
+                }else if(Object.keys(results).length > 0 && Object.keys(errors).length > 0){
+                    let total = {  ...results, ...errors }
+                    for await(let hash of Object.keys(total)){
+                        let result = results[hash]
+    
+                        if(result.error){
+                            this.events.emit(hash, {
+                                error:result.error,
+                                contractName:result.contractName,
+                                hash:hash
+                            })
+                        }else{
+                            this.events.emit(hash, {
+                                executed:result,
+                                contractName:result.contractName,
+                                state:result.state,
+                                hash:hash
+                            })
+                        }
+                    }
+                }else if(Object.keys(results).length > 0 && Object.keys(errors).length == 0){
+                    for await(let hash of Object.keys(results)){
+                        let result = results[hash]
                         this.events.emit(hash, {
                             executed:result,
                             contractName:result.contractName,
@@ -99,6 +118,8 @@ class VMBootstrap{
                         })
                     }
                 }
+
+
 
                 this.events.emit('finished', true)
 
@@ -137,27 +158,10 @@ class VMBootstrap{
         });
 
         this.child.on('close', async (code, signal)=> { 
-            this.timers = {}
+            
         })
 
         return this.events
-    }
-
-    createTimer(code){
-        
-        if(code.cpuTime){
-            this.timers[code.hash] = setTimeout(()=>{
-                
-                this.events.emit(code.hash, {
-                    timeout:'VM Timed out',
-                    contractName:code.contractName
-                })
-                
-                delete this.timers[code.hash]
-            }, code.cpuTime)
-        }else{
-            console.log('Code does not contain cpu time',code)
-        }
     }
 
     restartVM(){

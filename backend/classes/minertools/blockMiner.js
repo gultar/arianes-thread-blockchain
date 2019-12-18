@@ -116,7 +116,9 @@ class Miner{
 
 
     run(){
-      
+      let stayUpdated = setInterval(()=>{
+        this.socket.emit('getLatestBlock')
+      }, 500)
     }
 
     // getActionsToMine(){
@@ -230,6 +232,7 @@ class Miner{
         
         let coinbase = await this.createCoinbase()
         rawBlock.transactions[coinbase.hash] = coinbase
+        rawBlock.coinbaseTransactionHash = coinbase.hash
 
         let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, this.previousBlock.hash, rawBlock.blockNumber)
         block.startMineTime = Date.now()

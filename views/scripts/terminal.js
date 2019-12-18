@@ -424,12 +424,12 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           socket.emit('getState', args[0])
           break;
-        case 'try':
+        case 'roll':
           if(!isConnected){
             connectError(cmd);
             break;
           }
-          socket.emit('tryExportContract', args[0])
+          socket.emit('rollback', args[0])
           break;
         default:
           if (cmd) {

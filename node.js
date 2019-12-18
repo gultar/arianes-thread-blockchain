@@ -1429,7 +1429,6 @@ class Node {
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
-        console.log(rolledback)
         socket.emit('rollbackResult', rolledback)
       })
 
@@ -1541,31 +1540,11 @@ class Node {
       actionsToMine[action.hash] = action
     })
 
-
-    //In use
-    // api.on('fetchTransactions', async ()=>{
-    //   if(this.mempool.sizeOfPool() > 0){
-    //     this.gatheringTransactions = true
-    //     let transactions = await this.mempool.gatherTransactionsForBlock()
-    //     if(Object.keys(transactions).length > 0){
-    //       api.emit('newTransactions', transactions)
-    //       this.gatheringTransactions = false
-    //     }
-    //   }
-    // })
-
-    //In use
-    // api.on('fetchActions', async ()=>{
-    //   if(this.mempool.sizeOfActionPool() > 0){
-    //     let actions = await this.mempool.gatherActionsForBlock()
-    //     api.emit('newActions', actions)
-    //   }
-    // })
-
     api.on('newBlock', async (block)=>{
       if(this.chain.isBusy) api.emit('stopMining')
       else{
         if(block){
+          
           let synced = await this.chain.pushBlock(block)
           hasSentBlock = false
 

@@ -259,7 +259,7 @@ class BalanceTable{
                 let entry = await this.stateDB.get(blockNumber.toString())
                 if(entry){
                     if(entry.error) resolve({error:entry.error})
-                    this.states = entry.blockState.states
+                    this.states = entry.states
                     resolve(true)
                 }else{
                     resolve({error:'Could not complete rollback. Missing block state'})
@@ -325,42 +325,42 @@ class BalanceTable{
         
     }
 
-    loadAllStates(){
-        return new Promise(async (resolve, reject)=>{
+    // loadAllStates(){
+    //     return new Promise(async (resolve, reject)=>{
             
-         try{
-             fs.exists('./data/balances.json', async (exists)=>{
-                 if(exists){
-                    let balancesFile = await readFile('./data/balances.json');
-                    if(balancesFile){
-                        let balances = JSON.parse(balancesFile);
-                        if(balances){
+    //      try{
+    //          fs.exists('./data/balances.json', async (exists)=>{
+    //              if(exists){
+    //                 let balancesFile = await readFile('./data/balances.json');
+    //                 if(balancesFile){
+    //                     let balances = JSON.parse(balancesFile);
+    //                     if(balances){
                             
-                            resolve(balances)
-                        }else{
-                            resolve(false)
-                        }
-                    }else{
-                        resolve(false)
-                    }
-                 }else{
-                    let savedBalances = await this.saveStates();
-                    if(savedBalances){
-                        resolve(savedBalances)
-                    }else{
-                        resolve(false)
-                    }
-                 }
+    //                         resolve(balances)
+    //                     }else{
+    //                         resolve(false)
+    //                     }
+    //                 }else{
+    //                     resolve(false)
+    //                 }
+    //              }else{
+    //                 let savedBalances = await this.saveStates();
+    //                 if(savedBalances){
+    //                     resolve(savedBalances)
+    //                 }else{
+    //                     resolve(false)
+    //                 }
+    //              }
                 
-             })
+    //          })
 
              
-         }catch(e){
-             console.log(e)
-             resolve(false)
-         }
-        })
-       }
+    //      }catch(e){
+    //          console.log(e)
+    //          resolve(false)
+    //      }
+    //     })
+    //    }
 
        saveBalances(block){
            return new Promise(async (resolve)=>{

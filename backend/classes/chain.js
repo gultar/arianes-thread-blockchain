@@ -207,6 +207,8 @@ class Blockchain{
         let isValidBlock = await this.validateBlock(newBlock);
         if(isValidBlock){
           
+          
+
           var isLinked = this.isBlockLinked(newBlock);
           if(isLinked){
             this.isBusy = true
@@ -217,7 +219,7 @@ class Blockchain{
             if(executed.error) errors['Balance error'] = executed.error
             else{
 
-              let saved = this.balance.saveBalances(newBlock)
+              let saved = await this.balance.saveBalances(newBlock)
               if(saved.error) resolve({error:saved.error})
 
               let actions = newBlock.actions || {}
@@ -226,10 +228,10 @@ class Blockchain{
               
               let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
               if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
-
+              
               let callsExecuted = await this.runTransactionCalls(newBlock);
               if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
-
+              
               let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
               if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
               
@@ -240,18 +242,20 @@ class Blockchain{
                 this.isBusy = false
                 resolve({error: errors})
               }else{
+                
                 this.spentTransactionHashes.push(...newHeader.txHashes)
                 this.chain.push(newHeader);
                 let added = await this.addBlockToDB(newBlock)
                 if(added){
                   if(added.error) resolve({error:added.error})
 
+                  
                   let statesSaved = await this.contractTable.saveStates()
                   if(statesSaved.error) console.log('State saving error', statesSaved.error)
-
+                  
                   let saved = await this.saveLastKnownBlockToDB()
                   if(saved.error) console.log('Saved last block', saved)
-
+                  
                   if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
                   this.isBusy = false
                   resolve(true);
@@ -786,7 +790,7 @@ class Blockchain{
             
             if(block.txHashes.includes(hash)){
               
-              let body = await this.fetchBlockFromDB(block.blockNumber)
+              let body = await this.getBlockFromDB(block.blockNumber)
               if(body){
                 transaction = body.transactions[hash];
               }else{
@@ -811,7 +815,7 @@ class Blockchain{
       for await(var block of this.chain){
         if(block.actionHashes){
           if(block.actionHashes.includes(hash)){
-            let body = await this.fetchBlockFromDB(block.blockNumber)
+            let body = await this.getBlockFromDB(block.blockNumber)
             if(body){
               if(body.actions){
                 let action = body.actions[hash];
@@ -1681,32 +1685,21 @@ class Blockchain{
       let totalBlockNumber = this.getLatestBlock().blockNumber
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
+      //Getting a copy of the blocks that will later be removed from the chain
       let blocks = this.chain.slice(number + 1, number + 1 + numberOfBlocksToRemove)
       
+      
       let rolledBack = await this.balance.rollback(number)
-      if(rolledBack.error) throw new Error(rolledBack.error)
+      if(rolledBack.error) resolve({error:rolledBack.error})
 
       
       
       let newestToOldestBlocks = blocks.reverse()
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
-
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
-      if(txHashes.length > 0){
-        for await(var hash of txHashes){
-          let transaction = await this.getTransactionFromDB(hash);
-          if(transaction.error) errors[hash] = transaction.error
-          //Rolling back transaction calls and contracts states derived from them
-          if(transaction){
-            let isTransactionCall = transaction.type == 'call'
-            if(isTransactionCall){
-              let contractName = transaction.toAddress;
-              let rolledBack = await this.contractTable.rollbackState(contractName, transaction)
-              if(rolledBack.error) errors[hash] = rolledBack.error
-            }
-          }
-        }
-      }
+
+      let stateRolledBack = await this.contractTable.rollback(newLastBlock.hash)
+      if(stateRolledBack.error) resolve({error:stateRolledBack.error})
 
       if(actionHashes.length > 0){
         for await(var hash of actionHashes){
@@ -1714,30 +1707,26 @@ class Blockchain{
           let action = await this.getActionFromDB(hash);
           if(action){
             if(action.type == 'contract'){
-              if(action.task == 'call'){
-                let contractName = action.data.contractName;
-                let rolledBack = await this.contractTable.rollbackState(contractName, action)
-                if(rolledBack.error) errors[hash] = rolledBack.error
-
-              }else if(action.task == 'deploy'){
+              if(action.task == 'deploy'){
                 let contractName = action.data.name;
                 let deleted = await this.contractTable.removeContract(contractName);
                 if(deleted.error) errors[hash] = deleted.error
 
               }
               
-            }else if(action.type == 'account'){
-              let account = action.data
-              let removed = await this.accountTable.deleteAccount(account.name, account.signature);
-              if(removed.error) errors[hash] = removed.error
-            }
+              }else if(action.type == 'account'){
+                let account = action.data
+                let removed = await this.accountTable.deleteAccount(account.name, account.signature);
+                if(removed.error) errors[hash] = removed.error
+              }
             
           }
         }
       }
 
       let backToNormal = newestToOldestBlocks.reverse()
-      let removed = this.chain.splice(number + 1, numberOfBlocksToRemove)
+      let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
+      let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else resolve(true)
@@ -2389,14 +2378,16 @@ class Blockchain{
     let codes = await this.stack.buildCode()
     if(codes.error) return {error:codes.error}
     
-    let { results, errors } = await this.vmController.executeCalls(codes)
-    if(Object.keys(errors).length > 0 && Object.keys(results).length > 0){
-      return results
-    }else if(Object.keys(errors).length > 0 && Object.keys(results).length ==0){
-      return { error:errors }
-    }else{
-      return results
-    }
+    let results = await this.vmController.executeCalls(codes)
+    if(results.error) return { error:results.error }
+    else return results
+    // if(Object.keys(errors).length > 0 && Object.keys(results).length > 0){
+    //   return results
+    // }else if(Object.keys(errors).length > 0 && Object.keys(results).length ==0){
+    //   return { error:errors }
+    // }else{
+    //   return results
+    // }
   }
 
   executeSingleCall(call){
