@@ -1514,9 +1514,26 @@ class Node {
     api.on('isReady', ()=>{ api.emit('startMining') })
     api.on('readyToRun', ()=>{ api.emit('run') })
 
-    api.on('isNewBlockReady', async ()=>{
-      let newRawBlock = await createRawBlock()
-      if(!newRawBlock.error) api.emit('startMining', newRawBlock)
+    api.on('isNewBlockReady', async (minerPreviousBlock)=>{
+      if(minerPreviousBlock.blockNumber == this.chain.getLatestBlock().blockNumber){
+        if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
+          let newRawBlock = await createRawBlock()
+          if(!newRawBlock.error) {
+            api.emit('startMining', newRawBlock)
+            transactionsToMine = {}
+            actionsToMine = {}
+          }
+        
+        }else if(minerPreviousBlock.hash == this.chain.getLatestBlock().previousHash){
+          api.emit('latestBlock', this.chain.getLatestBlock())
+        }else{
+          api.emit('latestBlock', this.chain.getLatestBlock())
+        }
+        
+      }else{
+        api.emit('latestBlock', this.chain.getLatestBlock())
+      }
+      
     })
     
     if(poolHasTransactions && !hasSentBlock){

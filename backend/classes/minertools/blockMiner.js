@@ -64,6 +64,7 @@ class Miner{
             this.previousBlock = block
         })
         this.socket.on('startMining', (rawBlock)=>{
+          console.log('Received a new block to mine')
             this.start(rawBlock)
         })
         
@@ -111,10 +112,10 @@ class Miner{
     run(){
       let stayUpdated = setInterval(()=>{
         
-        // if(!this.minerStarted){
-        //   this.socket.emit('getLatestBlock')
-        //   this.socket.emit('isNewBlockReady')
-        // }
+        this.socket.emit('getLatestBlock')
+        if(!this.minerStarted){
+          this.socket.emit('isNewBlockReady', this.previousBlock)
+        }
       }, 500)
     }
 
