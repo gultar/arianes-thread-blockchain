@@ -535,7 +535,12 @@ class Blockchain{
                                   resolve({ error:'Could not push new block' })
                                 }
               
+                              }else{
+                                console.log(`Block hash ${forkBlock.hash.substr(0,25)}  is not linked`)
+                                console.log('Block', forkBlock)
                               }
+                            }else{
+                              console.log(`Block hash ${forkBlock.hash.substr(0,25)}  is not valid ${isValidBlock}`)
                             }
                             // let pushed = await this.pushBlock(forkBlock)
                             // if(pushed.error) resolve({ error:pushed.error })
