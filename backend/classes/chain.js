@@ -628,7 +628,7 @@ class Blockchain{
 
   async createChainBranch(newBlock){
 
-    const mergedBranch = async (branch) =>{
+    const mergeBranch = async (branch) =>{
       let blockNumberOfSplit = branch[0].blockNumber
       let currentChainLength = this.chain.length
       let numberOfBlocksToRemove = currentChainLength - (blockNumberOfSplit - 1)
@@ -683,7 +683,7 @@ class Blockchain{
   
             if(forkTotalDifficulty > currentTotalDifficulty){
               
-              let mergedBranch = await mergedBranch([ ...branch, newBlock ])
+              let mergedBranch = await mergeBranch([ ...branch, newBlock ])
               if(mergedBranch.error) return { error:mergedBranch.error }
               else return { synced:true }
               
