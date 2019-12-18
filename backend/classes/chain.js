@@ -339,8 +339,8 @@ class Blockchain{
                 logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
                 //Store actual block on the chain, as an array
                 //On the parent block of the fork, called the fork root
-                this.chain[forkRootBlockNumber][newBlock.hash] = [newBlock]
-                
+                this.chain[forkRootBlockNumber][newBlock.hash] = []
+                this.chain[forkRootBlockNumber][newBlock.hash].push(newBlock)
                 return true
             }
 
@@ -374,6 +374,7 @@ class Blockchain{
                   //By using the previousBlock Hash
                   
                   let firstBlockForkedHash = existingFork.linkedBlockHashes[0]
+                  console.log('First Block Forked Hash', firstBlockForkedHash)
                   let fork = rootBlock[firstBlockForkedHash]
                   
                   if(fork && Array.isArray(fork)){
@@ -396,6 +397,7 @@ class Blockchain{
                     console.log('Newblock previous', newBlock.previousHash)
                     console.log('Block forks', this.blockForks)
                     console.log('Fork type', typeof fork)
+                    console.log('Fork', fork)
                     logger('ERROR: Fork is not an array')
                     return false
                   }
@@ -446,7 +448,7 @@ class Blockchain{
                           //In fact, the chain is not entirely rolledback, as the removed blocks will be placed 
                           //as a fork of the new branch
                           this.blockForks = {}
-
+                          
                           let firstBlockRemoved = rolledBackBlocks[0]
                           let newLatestBlock = this.getLatestBlock()
                           newLatestBlock[firstBlockRemoved.hash] = rolledBackBlocks[0]
