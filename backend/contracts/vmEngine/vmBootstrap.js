@@ -90,7 +90,7 @@ class VMBootstrap{
                 }else if(Object.keys(results).length > 0 && Object.keys(errors).length > 0){
                     let total = {  ...results, ...errors }
                     for await(let hash of Object.keys(total)){
-                        let result = results[hash]
+                        let result = total[hash]
     
                         if(result.error){
                             this.events.emit(hash, {
