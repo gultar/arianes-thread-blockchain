@@ -66,6 +66,7 @@ class Blockchain{
     this.mempool = mempool
     this.blockForks = {}
     this.isSyncingBlocks = false
+    this.chainSyncs = {}
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
     this.maxDepthForBlockForks = 3;
@@ -283,7 +284,7 @@ class Blockchain{
               if(isBlockFork){
                 this.isBusy = false
                 if(isBlockFork.error) resolve({error:isBlockFork.error})
-                resolve(true)
+                resolve(isBlockFork)
               }
               
             }else{
@@ -447,6 +448,14 @@ class Blockchain{
                           //It is still possible to revert back to this branch
                           //In fact, the chain is not entirely rolledback, as the removed blocks will be placed 
                           //as a fork of the new branch
+                          
+                          this.chainSyncs = {
+                            blockNumber:forkHeadBlock.blockNumber,
+                            hash:forkHeadBlock.hash,
+                            previousHash:forkHeadBlock.previousHash,
+                            forkLength:fork.length
+                          }
+
                           this.blockForks = {}
                           if(!Array.isArray(rolledBackBlocks)){
                             rolledBackBlocks = [rolledBackBlocks]
@@ -484,7 +493,6 @@ class Blockchain{
                             if(pushed.error) resolve({ error:pushed.error })
                             
                           }
-                          
                           logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                           this.isSyncingBlocks = false;
                           
@@ -524,11 +532,11 @@ class Blockchain{
                   }else if(resolved){
                     logger(chalk.yellow(`* Finished syncing blockchain fork`))
                     logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                    resolve(true)
+                    resolve({ syncing:true })
                   }else{
                     logger(chalk.yellow(`* Staying on main blockchain`))
                     logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                    resolve(true)
+                    resolve({ staying:true })
                   }
                 }else{
                   resolve({ error:'Could not extend fork' })

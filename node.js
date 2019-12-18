@@ -1551,6 +1551,12 @@ class Node {
 
           if(synced.error){
             console.log(synced.error)
+          }else if(synced.staying){
+            this.sendPeerMessage('newBlockFound', block);
+
+            api.emit('latestBlock', this.chain.getLatestBlock())
+          }else if(synced.syncing){
+            api.emit('latestBlock', this.chain.getLatestBlock())
           }else{
             this.sendPeerMessage('newBlockFound', block);
 
@@ -1747,7 +1753,8 @@ class Node {
                   }
 
                   let addedToChain = await this.chain.pushBlock(block);
-                  if(addedToChain){
+                  if(addedToChain && !addedToChain.syncing && addedToChain.staying){
+                    //If sending too many stale blocks, interrupt connection to peer
                     this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                     this.localServer.socket.emit('run')
                     if(addedToChain.error){
@@ -1756,19 +1763,22 @@ class Node {
                     }else{
                       resolve(true)
                     }
-                    
+                  }else if(addedToChain.syncing){
+                    this.broadcast('getBlockchainStatus');
                   }
                   
                 }else{
                   let addedToChain = await this.chain.pushBlock(block);
-                  if(addedToChain){
+                  if(addedToChain && !addedToChain.syncing && addedToChain.staying){
+                    //If sending too many stale blocks, interrupt connection to peer
                     if(addedToChain.error){
                       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                       resolve({error:addedToChain.error})
                     }else{
                       resolve(true)
                     }
-                    
+                  }else if(addedToChain.syncing){
+                    this.broadcast('getBlockchainStatus');
                   }
                 }
   
