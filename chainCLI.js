@@ -131,7 +131,7 @@ program
         openSocket(nodeAddress, (socket)=>{
                 socket.emit('rollback', blockNumber);
                 socket.on('rollbackResult', (result)=>{
-                    console.log('Rolled back', result)
+                    console.log(`Rolled back to block ${blockNumber}`)
                     socket.close()
                 })
             

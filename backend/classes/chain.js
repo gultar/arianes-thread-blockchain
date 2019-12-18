@@ -489,8 +489,56 @@ class Blockchain{
 
                           for await(var forkBlock of fork){
 
-                            let pushed = await this.pushBlock(forkBlock)
-                            if(pushed.error) resolve({ error:pushed.error })
+                            let isValidBlock = await this.validateBlock(forkBlock);
+                            if(isValidBlock){
+                              var isLinked = this.isBlockLinked(forkBlock);
+                              if(isLinked){
+                                let newHeader = this.extractHeader(forkBlock)
+                                let executed = await this.balance.runBlock(forkBlock)
+                                if(executed.error) resolve({error:executed.error})
+                                
+                                let saved = await this.balance.saveBalances(newBlock)
+                                if(saved.error) resolve({error:saved.error})
+
+                                let actions = forkBlock.actions || {}
+                                let allActionsExecuted = await this.executeActionBlock(actions)
+                                if(allActionsExecuted.error) resolve({error:allActionsExecuted.error}) 
+                                
+                                let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
+                                if(!actionsDeleted) resolve({error:'ERROR: Could not delete actions from Mempool'}) 
+                                
+                                let callsExecuted = await this.runTransactionCalls(newBlock);
+                                if(callsExecuted.error) resolve({error:callsExecuted.error})
+                                
+                                let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+                                if(!transactionsDeleted) resolve({error:'ERROR: Could not delete transactions from Mempool' })
+
+                                this.spentTransactionHashes.push(...newHeader.txHashes)
+                                this.chain.push(newHeader);
+                                let added = await this.addBlockToDB(newBlock)
+                                if(added){
+                                  if(added.error) resolve({error:added.error})
+
+                                  
+                                  let statesSaved = await this.contractTable.saveStates()
+                                  if(statesSaved.error) console.log('State saving error', statesSaved.error)
+                                  
+                                  let saved = await this.saveLastKnownBlockToDB()
+                                  if(saved.error) console.log('Saved last block', saved)
+                                  
+                                  this.isBusy = false
+                                  resolve(true);
+                                  
+                                }else{
+
+                                  this.isBusy = false
+                                  resolve({ error:'Could not push new block' })
+                                }
+              
+                              }
+                            }
+                            // let pushed = await this.pushBlock(forkBlock)
+                            // if(pushed.error) resolve({ error:pushed.error })
                             
                           }
                           logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
