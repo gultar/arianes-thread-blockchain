@@ -1531,7 +1531,7 @@ class Node {
               api.emit('startMining', newRawBlock)
               transactionsToMine = {}
               actionsToMine = {}
-            }else console.log(newRawBlock.error)
+            }
           
           }else if(minerPreviousBlock.hash == this.chain.getLatestBlock().previousHash){
             api.emit('latestBlock', this.chain.getLatestBlock())
