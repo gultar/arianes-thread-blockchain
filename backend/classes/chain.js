@@ -653,10 +653,14 @@ class Blockchain{
           this.branches[newBlock.hash] = branch
           
           let readyToSwitchToBranch = await switchToBranch(branch)
-          if(readyToSwitchToBranch){
-            return readyToSwitchToBranch
+          if(readyToSwitchToBranch.switched){
+            return { switched:true }
+          }else if(readyToSwitchToBranch.extended){
+            return { extended:true }
+          }else if(readyToSwitchToBranch.error){
+            return { error:readyToSwitchToBranch.error }
           }else{
-            return true
+            return false
           }
         }else{
           return false
@@ -693,6 +697,7 @@ class Blockchain{
             console.log('More work', currentBranchHasMoreWork)
             console.log('Branch length okay', branchIsLongEnough)
             console.log('Blockchain is longer', peerBlockchainIsLonger)
+            console.log('Branch', branch.length)
             return false
           }
   
@@ -737,7 +742,7 @@ class Blockchain{
           }
         }
       }else{
-        return false
+        return { extended:true }
       }
     }
 
