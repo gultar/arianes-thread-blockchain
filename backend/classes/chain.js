@@ -628,15 +628,12 @@ class Blockchain{
 
     const removeBranch = async (branch) =>{
       let blockNumberOfSplit = branch[0].blockNumber
-      let currentChainLength = this.chain.length
-      let numberOfBlocksToRemove = currentChainLength - (blockNumberOfSplit - 1)
-      
       
       let latestBlockHash = this.getLatestBlock().hash
       let removedBranchFromTrunk = this.chain.slice(blockNumberOfSplit - 1,  newBlock.blockNumber)
       if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
       this.branches[latestBlockHash] = removedBranchFromTrunk
-
+      console.log('Recently branched chain', this.branches[latestBlockHash].length)
       let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
       if(rolledBack.error) return { error:rolledBack.error }
 
@@ -649,22 +646,22 @@ class Blockchain{
       if(isPartOfOtherBranch){
 
         let branch = this.branches[newBlock.previousHash]
+        for await(let block of branch){
+          if(block.blockNumber == newBlock.blockNumber){
+            return { error:'ERROR: Could not add block to branch. Already contains block of that height' }
+          }
+        }
         branch.push(newBlock)
 
         let blockNumberOfSplit = branch[0].blockNumber
-        console.log('Block split', blockNumberOfSplit)
         let branchingBlock = this.chain[blockNumberOfSplit - 1]
         
         if(branchingBlock){
-          console.log('Base of split', branchingBlock.blockNumber)
+          
           let totalDifficultyAtBranch = branchingBlock.totalDifficulty
-          console.log('Total diff at branch', totalDifficultyAtBranch)
           let recalculatedTotalDifficulty = await this.calculateTotalDifficulty([ ...branch, newBlock ])
-          console.log('Recalculated ', recalculatedTotalDifficulty)
           let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
-          console.log('Sum diff:', sumOfDifficulties)
           let isValidTotalDifficulty = true //sumOfDifficulties === newBlock.totalDifficulty
-          console.log('Newblock total diff', newBlock.totalDifficulty)
           if(isValidTotalDifficulty){
   
             let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
@@ -1147,7 +1144,6 @@ class Blockchain{
      let total = 0n;
      for await(let block of chain){
        let parseDifficulty = parseInt(block.difficulty, 16)
-       console.log(`Block ${block.blockNumber} diff: ${parseDifficulty}`)
       let difficulty = BigInt(parseDifficulty)
       total += difficulty;
      }
