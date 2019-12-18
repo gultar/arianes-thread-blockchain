@@ -668,7 +668,8 @@ class Blockchain{
     }
 
     const validateBranch = async (branch) =>{
-      let totalDifficultyAtBranch = branchingBlock.totalDifficulty
+          let branchingBlock = this.chain[branch[0].blockNumber]
+          let totalDifficultyAtBranch = branchingBlock.totalDifficulty
           let recalculatedTotalDifficulty = await this.calculateTotalDifficulty(branch)
           let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
           let isValidTotalDifficulty = true //sumOfDifficulties === newBlock.totalDifficulty
