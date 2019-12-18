@@ -1352,7 +1352,6 @@ class Blockchain{
       var hasOnlyOneCoinbaseTx = await this.validateUniqueCoinbaseTx(block)
       var isValidChallenge = this.validateChallenge(block);
       var areTransactionsValid = this.validateBlockTransactions(block)
-      var isLinkedToPreviousBlock = this.chain[block.blockNumber - 1].hash == block.previousHash
       var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
       //validate difficulty
@@ -1363,11 +1362,6 @@ class Blockchain{
       if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
       if(!hasOnlyOneCoinbaseTx) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
       if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
-      if(!isLinkedToPreviousBlock){
-        console.log('Previous', this.chain[block.blockNumber - 1])
-        console.log('New', block)
-        resolve({error:'ERROR: Block is not linked to previous block'})
-      } 
       if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
       if(!merkleRootIsValid) resolve({error:'ERROR: Merkle root of block IS NOT valid'})
       if(!isValidHash) resolve({error:'ERROR: Is not valid block hash'})
