@@ -488,10 +488,11 @@ class Blockchain{
                           }
 
                           for await(var forkBlock of fork){
-
+                            let index = fork.indexOf(forkBlock)
+                            console.log('Index of block in fork', index)
                             let isValidBlock = await this.validateBlock(forkBlock);
                             if(isValidBlock){
-                              var isLinked = forkBlock.previousHash == this.chain[forkBlock.blockNumber - 1].hash
+                              var isLinked = forkBlock.previousHash == this.chain[forkBlock.blockNumber - 1].hash || (index > 0 ? forkBlock.previousHash == fork[index - 1] : false)
                               if(isLinked){
                                 let newHeader = this.extractHeader(forkBlock)
                                 let executed = await this.balance.runBlock(forkBlock)
@@ -537,7 +538,8 @@ class Blockchain{
               
                               }else{
                                 console.log(`Block hash ${forkBlock.hash.substr(0,25)}  is not linked`)
-                                console.log('Block', forkBlock)
+                                console.log('Block hash', forkBlock.hash)
+                                console.log('Previous hash', forkBlock.previousHash)
                               }
                             }else{
                               console.log(`Block hash ${forkBlock.hash.substr(0,25)}  is not valid ${isValidBlock}`)
