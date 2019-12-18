@@ -836,11 +836,6 @@ class Node {
                     if(genesisBlock.error){
                       console.log(genesisBlock.error)
                     }else{
-                      //Need to Validate Genesis Block
-                      //Swap local genesis block with peer's genesis block
-                      console.log('received a new genesis block')
-                      // let swapped = await this.chain.genesisBlockSwap(genesisBlock)
-                      // if(swapped.error) resolve(false)
                       let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                       if(downloaded.error){
                         logger('Could not download blockchain')
@@ -1631,6 +1626,7 @@ class Node {
         api.emit('error', {error: 'Chain is not ready'})
       }
     })
+    
   
     this.localServer.socket = api
   }

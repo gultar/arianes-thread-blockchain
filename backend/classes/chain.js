@@ -283,16 +283,19 @@ class Blockchain{
               else resolve(added)
   
             }else{
-              let newBranch = await this.createChainBranch(newBlock)
+              let branched = await this.blockchainBranches(newBlock)
               this.isBusy = false
-              if(newBranch.error) resolve({error:newBranch.error});
+              if(branched.error) resolve({error:newBranch.error});
               else{
-                if(newBranch.staying){
+                if(branched.staying){
                   logger(chalk.yellow(`* Staying on main blockchain`))
                   logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                }else if(newBranch.sync){
+                }else if(branched.outOfSync){
                   logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
-                }else if(newBranch.branched){
+                }else if(branched.synced){
+                  logger(chalk.yellow(`* Switched blockchain branches`))
+                  logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                }else if(branched.added){
                   logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
                   logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
                 }
@@ -619,99 +622,242 @@ class Blockchain{
   //   })
   // }
 
-  async createChainBranch(newBlock){
-
-    const attemptToMergeBranch = async (branch) =>{
-      let blockNumberOfSplit = branch[0].blockNumber
-      
-      if(blockNumberOfSplit > this.getLatestBlock().blockNumber){
-        return { outOfSync:true }
+  async blockchainBranches(newBlock){
+    const createNewBranch = (newBlock) =>{
+      let alreadyExists = this.branches[newBlock.hash]
+      if(!alreadyExists){
+        this.branches[newBlock.hash] = [ newBlock ]
+        return { added:true }
       }else{
-        let latestBlockHash = this.getLatestBlock().hash
-        let removedBranchFromTrunk = this.chain.slice(blockNumberOfSplit - 1,  newBlock.blockNumber)
-        if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
-        this.branches[latestBlockHash] = removedBranchFromTrunk
-        
-        let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
-        if(rolledBack.error) return { error:rolledBack.error }
-
-        let isBranchConnectedToChain = this.getBlockFromHash(branch[0].previousHash)
-
-        if(isBranchConnectedToChain){
-          for await(let block of branch){
-            let alreadyExists = await this.getBlockFromHash(block.hash)
-            if(!alreadyExists){
-              let added = await this.addBlockToChain(block)
-              if(added.error) return { error:added.error }
-            }
-            
-          }
-          return { synced:true }
-        }else{
-          //Weirdest case here
-          return { outOfSync:true }
-        }
+        return false
       }
-  
     }
 
-    if(newBlock){
-      let isPartOfOtherBranch = this.branches[newBlock.previousHash]
-      if(isPartOfOtherBranch){
-
-        let branch = this.branches[newBlock.previousHash]
-        for await(let block of branch){
-          if(block.blockNumber == newBlock.blockNumber){
-            return { error:'ERROR: Could not add block to branch. Already contains block of that height' }
-          }
+    const branchContainsBlockNumber = async (branch) =>{
+      for await(let block of branch){
+        if(block.blockNumber == newBlock.blockNumber){
+          return true
         }
-        branch.push(newBlock)
+      }
 
-        let blockNumberOfSplit = branch[0].blockNumber
-        let branchingBlock = this.chain[blockNumberOfSplit - 1]
+      return false
+    }
+
+    const extendBranch = async (newBlock) =>{
+      let existingBranch = this.branches[newBlock.previousHash]
+      if(existingBranch){
         
-        if(branchingBlock){
+        let chainContainsBlockNumber = await branchContainsBlockNumber(existingBranch)
+        if(!chainContainsBlockNumber){
+          let branch = [ ...existingBranch, newBlock ]
+          this.branches[newBlock.hash] = branch
           
-          let totalDifficultyAtBranch = branchingBlock.totalDifficulty
-          let recalculatedTotalDifficulty = await this.calculateTotalDifficulty([ ...branch, newBlock ])
+          let readyToSwitchToBranch = await switchToBranch(branch)
+          if(readyToSwitchToBranch){
+            return readyToSwitchToBranch
+          }else{
+            return true
+          }
+        }else{
+          return false
+        }
+        
+      }else{
+        return await createNewBranch(newBlock)
+      }
+    }
+
+    const validateBranch = async (branch) =>{
+      let totalDifficultyAtBranch = branchingBlock.totalDifficulty
+          let recalculatedTotalDifficulty = await this.calculateTotalDifficulty(branch)
           let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
           let isValidTotalDifficulty = true //sumOfDifficulties === newBlock.totalDifficulty
-          if(isValidTotalDifficulty){
+          
   
-            let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
-            let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
-  
-            this.branches[newBlock.hash] = [ ...branch, newBlock ]
-            // delete this.branches[newBlock.previousHash]
+          let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
+          let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
 
-            if(forkTotalDifficulty > currentTotalDifficulty && branch.length >= 3){
-              
-              let mergedBranch = await attemptToMergeBranch(this.branches[newBlock.hash])
-              if(mergedBranch.error) return { error:mergedBranch.error }
-              else if(mergedBranch.outOfSync){
-                return { outOfSync:true }
+          let currentBranchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
+          let branchIsLongEnough = branch.length >= 3
+          let peerBlockchainIsLonger = newBlock.blockNumber > this.getLatestBlock().blockNumber
+
+          if(!currentBranchHasMoreWork && branchIsLongEnough && peerBlockchainIsLonger){
+            return true
+          }else if(!branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
+            return true
+          }else if(!peerBlockchainIsLonger && branchIsLongEnough && currentBranchHasMoreWork){
+            return true
+          }else{
+            return false
+          }
+  
+    }
+
+    const switchToBranch = async (branch) =>{
+      let isValidBranchToSwap = await validateBranch(branch)
+      if(isValidBranchToSwap){
+        let firstBlockOfBranch = branch[0]
+
+        if(firstBlockOfBranch.previousHash !== this.chain[firstBlockOfBranch.blockNumber - 1].hash){
+          return { error:'ERROR: Branch is not linked to current chain' }
+        }else{
+          let rolledback = await rollback(firstBlockOfBranch.blockNumber - 1)
+          if(rolledback){
+            if(rolledback.error) return { error:rolledback.error }
+
+            let previousBlock = {}
+            for await(let block of branch){
+              if(block.hash !== firstBlockOfBranch.hash && previousBlock.hash !== block.previousHash){
+                console.log(`ERROR: Block ${block.blockNumber} is not linked to previous block`)
+                console.log('Previous:', previousBlock)
+                console.log('Current:', block)
+                
               }else{
-                return { synced:true }
+                let isValidBlock = await this.validateBlock(newBlock)
+                if(isValidBlock){
+                  let synced = await this.addBlockToChain(block)
+                  if(synced.error) return { error:synced.error }
+
+                  previousBlock = block;
+                }else{
+                  console.log(`ERROR: Block ${block.blockNumber} is invalid: ${isValidBlock}`)
+                }
               }
               
-            }else{
-              return { staying:true }
             }
+
+            return { switched:true }
           }else{
-            return { error:'ERROR: Recalculated total difficulty does not match new block total difficulty' }
+            return { error:`ERROR: Could not rollback to block ${firstBlockOfBranch.blockNumber - 1}. Latest block is that height` }
+          }
+        }
+      }else{
+        return false
+      }
+    }
+
+    const rollback = async (blockNumber) =>{
+      let isPartOfChain = this.chain[blockNumber]
+      let isLastBlock = this.getLatestBlock().blockNumber == blockNumber
+      if(isPartOfChain){
+        if(isLastBlock) {
+          let rolledback = await this.rollbackToBlock(blockNumber)
+          if(rolledback.error) return { error:rolledback.error }
+          else{
+            return true
           }
         }else{
-          return { outOfSync:true }
+          return false
         }
-
       }else{
-        this.branches[newBlock.hash] = [ newBlock ]
-        return { branched:true }
+        return { error:`ERROR: Could not rollback to block ${blockNumber}. Out of bound` }
       }
-    }else{
-      return { error:'ERROR: New block to branch is undefined' }
     }
+
+    let newBlockHasBeenBranched = await extendBranch(newBlock)
+    if(newBlockHasBeenBranched.error) return { error:newBlockHasBeenBranched.error }
+    else if(newBlockHasBeenBranched) return newBlockHasBeenBranched
+    else{
+      return { error:`ERROR: Could not add ${newBlock.blockNumber} to branch` }
+    }
+    
+
   }
+
+
+  // async createChainBranch(newBlock){
+
+  //   const attemptToMergeBranch = async (branch) =>{
+  //     let blockNumberOfSplit = branch[0].blockNumber
+      
+  //     if(blockNumberOfSplit > this.getLatestBlock().blockNumber){
+  //       return { outOfSync:true }
+  //     }else{
+  //       let latestBlockHash = this.getLatestBlock().hash
+  //       let removedBranchFromTrunk = this.chain.slice(blockNumberOfSplit - 1,  newBlock.blockNumber)
+  //       if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
+  //       this.branches[latestBlockHash] = removedBranchFromTrunk
+        
+  //       let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
+  //       if(rolledBack.error) return { error:rolledBack.error }
+
+  //       let isBranchConnectedToChain = this.getBlockFromHash(branch[0].previousHash)
+
+  //       if(isBranchConnectedToChain){
+  //         for await(let block of branch){
+  //           let alreadyExists = await this.getBlockFromHash(block.hash)
+  //           if(!alreadyExists){
+  //             let added = await this.addBlockToChain(block)
+  //             if(added.error) return { error:added.error }
+  //           }
+            
+  //         }
+  //         return { synced:true }
+  //       }else{
+  //         //Weirdest case here
+  //         return { outOfSync:true }
+  //       }
+  //     }
+  
+  //   }
+
+  //   if(newBlock){
+  //     let isPartOfOtherBranch = this.branches[newBlock.previousHash]
+  //     if(isPartOfOtherBranch){
+
+  //       let branch = this.branches[newBlock.previousHash]
+  //       for await(let block of branch){
+  //         if(block.blockNumber == newBlock.blockNumber){
+  //           return { error:'ERROR: Could not add block to branch. Already contains block of that height' }
+  //         }
+  //       }
+  //       branch.push(newBlock)
+
+  //       let blockNumberOfSplit = branch[0].blockNumber
+  //       let branchingBlock = this.chain[blockNumberOfSplit - 1]
+        
+  //       if(branchingBlock){
+          
+  //         let totalDifficultyAtBranch = branchingBlock.totalDifficulty
+  //         let recalculatedTotalDifficulty = await this.calculateTotalDifficulty([ ...branch, newBlock ])
+  //         let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
+  //         let isValidTotalDifficulty = true //sumOfDifficulties === newBlock.totalDifficulty
+  //         if(isValidTotalDifficulty){
+  
+  //           let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
+  //           let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
+  
+  //           this.branches[newBlock.hash] = [ ...branch, newBlock ]
+  //           // delete this.branches[newBlock.previousHash]
+
+  //           if(forkTotalDifficulty > currentTotalDifficulty && branch.length >= 3){
+              
+  //             let mergedBranch = await attemptToMergeBranch(this.branches[newBlock.hash])
+  //             if(mergedBranch.error) return { error:mergedBranch.error }
+  //             else if(mergedBranch.outOfSync){
+  //               return { outOfSync:true }
+  //             }else{
+  //               return { synced:true }
+  //             }
+              
+  //           }else{
+  //             return { staying:true }
+  //           }
+  //         }else{
+  //           return { error:'ERROR: Recalculated total difficulty does not match new block total difficulty' }
+  //         }
+  //       }else{
+  //         return { outOfSync:true }
+  //       }
+
+  //     }else{
+  //       this.branches[newBlock.hash] = [ newBlock ]
+  //       return { branched:true }
+  //     }
+  //   }else{
+  //     return { error:'ERROR: New block to branch is undefined' }
+  //   }
+  // }
 
   putHeaderToDB(block){
     return new Promise(async (resolve)=>{
