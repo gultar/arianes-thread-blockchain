@@ -110,8 +110,11 @@ class Miner{
 
     run(){
       let stayUpdated = setInterval(()=>{
-        this.socket.emit('getLatestBlock')
-        if(!this.minerStarted) this.socket.emit('isNewBlockReady')
+        
+        if(!this.minerStarted){
+          this.socket.emit('getLatestBlock')
+          this.socket.emit('isNewBlockReady')
+        }
       }, 500)
     }
 
