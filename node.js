@@ -1753,7 +1753,7 @@ class Node {
                   }
 
                   let addedToChain = await this.chain.pushBlock(block);
-                  if(addedToChain && !addedToChain.syncing && addedToChain.staying){
+                  if(addedToChain && !addedToChain.sync){
                     //If sending too many stale blocks, interrupt connection to peer
                     this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                     this.localServer.socket.emit('run')
@@ -1763,13 +1763,13 @@ class Node {
                     }else{
                       resolve(true)
                     }
-                  }else if(addedToChain.syncing){
+                  }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }
                   
                 }else{
                   let addedToChain = await this.chain.pushBlock(block);
-                  if(addedToChain && !addedToChain.syncing && addedToChain.staying){
+                  if(addedToChain && !addedToChain.sync){
                     //If sending too many stale blocks, interrupt connection to peer
                     if(addedToChain.error){
                       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
@@ -1777,7 +1777,7 @@ class Node {
                     }else{
                       resolve(true)
                     }
-                  }else if(addedToChain.syncing){
+                  }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }
                 }
