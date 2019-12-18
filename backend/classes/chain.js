@@ -448,7 +448,7 @@ class Blockchain{
                           //In fact, the chain is not entirely rolledback, as the removed blocks will be placed 
                           //as a fork of the new branch
                           this.blockForks = {}
-                          
+                          if(!Array.isArray(rolledBackBlock)) rolledBackBlock = [rolledBackBlocks]
                           let firstBlockRemoved = rolledBackBlocks[0]
                           console.log('Rolled back blocks',rolledBackBlocks)
                           let newLatestBlock = this.getLatestBlock()
