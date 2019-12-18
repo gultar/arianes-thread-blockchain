@@ -448,24 +448,31 @@ class Blockchain{
                           //In fact, the chain is not entirely rolledback, as the removed blocks will be placed 
                           //as a fork of the new branch
                           this.blockForks = {}
-                          if(!Array.isArray(rolledBackBlocks)) rolledBackBlocks = [rolledBackBlocks]
-                          let firstBlockRemoved = rolledBackBlocks[0]
                           
+                          //Convert a single rolled back block to an array to facilitate handling
+                          if(!Array.isArray(rolledBackBlocks)) rolledBackBlocks = [rolledBackBlocks]
+                          
+                          let firstBlockHeaderRemoved = rolledBackBlocks[0]
+                          let firstBlockRemoved = await this.getBlockFromDB(firstBlockHeaderRemoved.blockNumber)
+                          console.log('First block removed', firstBlockRemoved)
                           let newLatestBlock = this.getLatestBlock()
-                          newLatestBlock[firstBlockRemoved.hash] = [rolledBackBlocks[0]]
+                          let newChainBranch = []
                           let hashesOfRemovedBlock = []
 
-                          for await(let block of rolledBackBlocks){
-
+                          for await(let header of rolledBackBlocks){
+                            let block = await this.getBlockFromDB(header.blockNumber)
+                            newChainBranch.push(block)
                             hashesOfRemovedBlock.push(block.hash)
                             this.blockForks[block.hash] = {
                               root:newLatestBlock.hash,
                               previousHash:block.previousHash,
-                              hash:newBlock.hash,
+                              hash:block.hash,
                               linkedBlockHashes:[ ...hashesOfRemovedBlock ]
                             }
 
                           }
+
+                          newLatestBlock[firstBlockRemoved.hash] = newChainBranch
 
                           for await(var forkBlock of fork){
 
