@@ -507,56 +507,56 @@ class Blockchain{
     })
   }
 
-  monitorPeerChainProgress(rejectedBlock, rejectedBecause){
-    return new Promise((resolve)=>{
-      if(rejectedBlock){
-        let reasonForRejection = rejectedBecause.error
-        if(reasonForRejection == 'Could not extend fork')
-        let blockNumberIsNotTooHigh = await rejectedBlock.blockNumber <= this.getLatestBlock().blockNumber + 1
-        if(blockNumberIsNotTooHigh){
-          let isValidBlock = await this.validateBlock(rejectedBlock)
-          if(isValidBlock){
-            let isLinkedToBlockForkOrChain = await this.findLinkToBlockForkOrChain(rejectedBlock)
-            if(isLinkedToBlockForkOrChain.blockFork){
-              let linkToBlockFork = isLinkedToBlockForkOrChain.blockFork
-              let rootHashOfBlockFork = linkToBlockFork.rootHash
-              let rootBlock = this.getBlockFromHash(rootHash)
+  // monitorPeerChainProgress(rejectedBlock, rejectedBecause){
+  //   return new Promise((resolve)=>{
+  //     if(rejectedBlock){
+  //       let reasonForRejection = rejectedBecause.error
+  //       if(reasonForRejection == 'Could not extend fork')
+  //       let blockNumberIsNotTooHigh = await rejectedBlock.blockNumber <= this.getLatestBlock().blockNumber + 1
+  //       if(blockNumberIsNotTooHigh){
+  //         let isValidBlock = await this.validateBlock(rejectedBlock)
+  //         if(isValidBlock){
+  //           let isLinkedToBlockForkOrChain = await this.findLinkToBlockForkOrChain(rejectedBlock)
+  //           if(isLinkedToBlockForkOrChain.blockFork){
+  //             let linkToBlockFork = isLinkedToBlockForkOrChain.blockFork
+  //             let rootHashOfBlockFork = linkToBlockFork.rootHash
+  //             let rootBlock = this.getBlockFromHash(rootHash)
 
-            }else if(isLinkedToBlockForkOrChain.chain){
-              let linkToChain = isLinkedToBlockForkOrChain.chain
+  //           }else if(isLinkedToBlockForkOrChain.chain){
+  //             let linkToChain = isLinkedToBlockForkOrChain.chain
 
-            }else{
+  //           }else{
 
-            }
-        }
+  //           }
+  //       }
           
-        }else{
-          //Preliminary validations but without any refence to "previousBlock" since the blockNumber is probably
-          //way too high for this chain
-        }
-      }else{
-        resolve({error:'ERROR: Rejected block passed in undefined'})
-      }
-    })
-  }
+  //       }else{
+  //         //Preliminary validations but without any refence to "previousBlock" since the blockNumber is probably
+  //         //way too high for this chain
+  //       }
+  //     }else{
+  //       resolve({error:'ERROR: Rejected block passed in undefined'})
+  //     }
+  //   })
+  // }
 
-  findLinkToBlockForkOrChain(rejectedBlock){
-    return new Promise((resolve)=>{
-      //Rejected block is linked to a block fork that happened earlier?
-      let blockIsLinkedToBlockFork = this.blockFOrks[rejectedBlock.previousHash]
-      //Or perhaps it's linked to a block in the chain?
-      let blockNumberOfLinkToChain = this.getIndexOfBlockHash(rejectedBlock.previousHash)
+  // findLinkToBlockForkOrChain(rejectedBlock){
+  //   return new Promise((resolve)=>{
+  //     //Rejected block is linked to a block fork that happened earlier?
+  //     let blockIsLinkedToBlockFork = this.blockFOrks[rejectedBlock.previousHash]
+  //     //Or perhaps it's linked to a block in the chain?
+  //     let blockNumberOfLinkToChain = this.getIndexOfBlockHash(rejectedBlock.previousHash)
       
-      if(blockIsLinked){
-        return { blockFork:blockIsLinkedToBlockFork }
-      }else if(blockNumberOfLinkToChain){
-        let blockLinkedToChain = this.chain[blockNumberOfLinkToChain]
-        return { chain:blockLinkedToChain }
-      }else{
-        return false
-      }
-    })
-  }
+  //     if(blockIsLinked){
+  //       return { blockFork:blockIsLinkedToBlockFork }
+  //     }else if(blockNumberOfLinkToChain){
+  //       let blockLinkedToChain = this.chain[blockNumberOfLinkToChain]
+  //       return { chain:blockLinkedToChain }
+  //     }else{
+  //       return false
+  //     }
+  //   })
+  // }
 
   putHeaderToDB(block){
     return new Promise(async (resolve)=>{
