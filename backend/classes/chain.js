@@ -635,7 +635,7 @@ class Blockchain{
       
       
       let latestBlockHash = this.getLatestBlock().hash
-      let removedBranchFromTrunk = this.chain.splice(blockNumberOfSplit - 1,  numberOfBlocksToRemove)
+      let removedBranchFromTrunk = this.chain.slice(blockNumberOfSplit - 1,  newBlock.blockNumber)
       if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
       this.branches[latestBlockHash] = removedBranchFromTrunk
 
