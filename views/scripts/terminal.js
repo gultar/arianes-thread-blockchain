@@ -424,6 +424,13 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           socket.emit('getState', args[0])
           break;
+        case 'update':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('update', args[0])
+          break;
         case 'roll':
           if(!isConnected){
             connectError(cmd);

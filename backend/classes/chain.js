@@ -66,7 +66,7 @@ class Blockchain{
     this.mempool = mempool
     this.blockForks = {}
     this.isSyncingBlocks = false
-    this.chainSyncs = {}
+    this.branches = {}
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
     this.maxDepthForBlockForks = 3;
@@ -276,21 +276,38 @@ class Blockchain{
             
 
           }else{
-            let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
-            let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
-            if( isLinkedToSomeBlock || isLinkedToBlockFork ){
-              
-              let isBlockFork = await this.newBlockFork(newBlock)
-              if(isBlockFork){
-                this.isBusy = false
-                if(isBlockFork.error) resolve({error:isBlockFork.error})
-                resolve(isBlockFork)
+            let newBranch = await this.createChainBranch()
+            this.isBusy = false
+            if(newBranch.error) resolve({error:newBranch.error});
+            else{
+              if(newBranch.staying){
+                logger(chalk.yellow(`* Staying on main blockchain`))
+                logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+              }else if(newBranch.synced){
+                logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
+                logger(chalk.yellow(`* Finished syncing blockchain fork`))
+                logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+              }else if(newBranch.branched){
+                logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+                logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
               }
-              
-            }else{
-              this.isBusy = false
-              resolve(false)
+              resolve(newBranch)
             }
+            // let isLinkedToSomeBlock = this.getIndexOfBlockHash(newBlock.previousHash)
+            // let isLinkedToBlockFork = this.blockForks[newBlock.previousHash]
+            // if( isLinkedToSomeBlock || isLinkedToBlockFork ){
+              
+            //   let isBlockFork = await this.newBlockFork(newBlock)
+            //   if(isBlockFork){
+            //     this.isBusy = false
+            //     if(isBlockFork.error) resolve({error:isBlockFork.error})
+            //     resolve(isBlockFork)
+            //   }
+              
+            // }else{
+            //   this.isBusy = false
+            //   resolve(false)
+            // }
 
           }
           
@@ -490,6 +507,8 @@ class Blockchain{
                           for await(var forkBlock of fork){
                             let index = fork.indexOf(forkBlock)
                             console.log('Index of block in fork', index)
+                            console.log('Forked block hash', forkBlock.hash)
+                            console.log('Forked previous hash', forkBlock.previousHash)
                             let isValidBlock = await this.validateBlock(forkBlock);
                             if(isValidBlock){
                               var isLinked = forkBlock.previousHash == this.chain[forkBlock.blockNumber - 1].hash || (index > 0 ? forkBlock.previousHash == fork[index - 1] : false)
@@ -585,6 +604,7 @@ class Blockchain{
                   if(resolved.error){
                     resolve({error:resolved.error})
                   }else if(resolved){
+                    logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                     logger(chalk.yellow(`* Finished syncing blockchain fork`))
                     logger(chalk.yellow(`* Now working on head block ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
                     resolve({ syncing:true })
@@ -604,6 +624,64 @@ class Blockchain{
           }
       }
     })
+  }
+
+  async createChainBranch(newBlock){
+    if(newBlock){
+      let isPartOfOtherBranch = this.branches[newBlock.previousHash]
+      if(isPartOfOtherBranch){
+        let branch = this.branches[newBlock.previousHash]
+        branch.push(newBlock)
+        let blockNumberOfSplit = branch[0].blockNumber
+        let trunk = this.chain.slice(0, blockNumberOfSplit - 1)
+        let recalculatedTotalDifficulty = await this.calculateTotalDifficulty(trunk + branch)
+        let isValidTotalDifficulty = recalculatedTotalDifficulty === newBlock.totalDifficulty
+        if(isValidTotalDifficulty){
+          let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
+          let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
+          if(forkTotalDifficulty > currentTotalDifficulty){
+            
+            let currentChainLength = this.chain.length
+            let numberOfBlocksToRemove = currentChainLength - (blockNumberOfSplit - 1)
+            
+            
+            let latestBlockHash = this.getLatestBlock().hash
+            let removedBranchFromTrunk = this.chain.splice(blockNumberOfSplit - 1,  numberOfBlocksToRemove)
+            if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
+            this.branches[latestBlockHash] = removedBranchFromTrunk
+
+            let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
+            if(rolledBack.error) return { error:rolledBack.error }
+
+            for await(let block of branch){
+              let pushed = await this.pushBlock(block)
+              if(pushed.error){
+                return { error:pushed.error }
+              }else if(pushed.staying){
+                console.log('Apparently it does not want to sync the branch')
+              }else{
+                console.log('Succesfully synced branch block')
+              }
+            }
+
+            return { synced:true }
+            
+          }else{
+            this.branches[newBlock.hash] = [ ...branch, newBlock ]
+            delete this.branches[newBlock.previousHash]
+            console.log('Still contains branches blocks', this.branches[newBlock.hash].length)
+            return { staying:true }
+          }
+        }else{
+          return { error:'ERROR: Recalculated total difficulty does not match new block total difficulty' }
+        }
+      }else{
+        this.branches[newBlock.hash] = [ newBlock ]
+        return { branched:true }
+      }
+    }else{
+
+    }
   }
 
   // monitorPeerChainProgress(rejectedBlock, rejectedBecause){
@@ -1094,6 +1172,23 @@ class Blockchain{
 
     return total.toString(16);
   }
+
+  /***
+   * Calculates the total work done on the blockchain by adding all block
+  * difficulties, parsed to BigInt from hex
+  * @param {Blockchain} chain 
+  * @return {string} Total difficulty of given blockchain, expressed as a hex string 
+   */
+
+  async calculateTotalDifficulty(chain=this.chain){
+     let total = 0n;
+     for await(let block of chain){
+      let difficulty = BigInt(parseInt(block.difficulty, 16))
+      total += difficulty;
+     }
+
+     return total.toString(16)
+   }
 
   /**
    * 
