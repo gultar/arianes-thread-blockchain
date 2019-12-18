@@ -491,7 +491,7 @@ class Blockchain{
 
                             let isValidBlock = await this.validateBlock(forkBlock);
                             if(isValidBlock){
-                              var isLinked = this.isBlockLinked(forkBlock);
+                              var isLinked = forkBlock.previousHash == this.chain[forkBlock.blockNumber - 1].hash
                               if(isLinked){
                                 let newHeader = this.extractHeader(forkBlock)
                                 let executed = await this.balance.runBlock(forkBlock)
