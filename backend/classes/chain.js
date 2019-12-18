@@ -681,6 +681,7 @@ class Blockchain{
           let currentBranchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
           let branchIsLongEnough = branch.length >= 3
           let peerBlockchainIsLonger = newBlock.blockNumber > this.getLatestBlock().blockNumber
+          
 
           if(!currentBranchHasMoreWork && branchIsLongEnough && peerBlockchainIsLonger){
             return true
@@ -689,6 +690,9 @@ class Blockchain{
           }else if(!peerBlockchainIsLonger && branchIsLongEnough && currentBranchHasMoreWork){
             return true
           }else{
+            console.log('More work', currentBranchHasMoreWork)
+            console.log('Branch length okay', branchIsLongEnough)
+            console.log('Blockchain is longer', peerBlockchainIsLonger)
             return false
           }
   
