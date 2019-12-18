@@ -448,32 +448,35 @@ class Blockchain{
                           //In fact, the chain is not entirely rolledback, as the removed blocks will be placed 
                           //as a fork of the new branch
                           this.blockForks = {}
+                          if(!Array.isArray(rolledBackBlocks)){
+                            rolledBackBlocks = [rolledBackBlocks]
+                          }
+                          if(rolledBackBlocks.length > 0){
+                            //Convert a single rolled back block to an array to facilitate handling
+                            
+                            //Get the first block of the removed block to place as a fork in the new head block of the chain
+                            let firstBlockHeaderRemoved = rolledBackBlocks[0]
+                            if(!firstBlockHeaderRemoved) console.log('Rolled back blocks shown here', rolledBackBlocks)
+                            let firstBlockRemoved = await this.getBlockFromDB(firstBlockHeaderRemoved.blockNumber)
+                            let newLatestBlock = this.getLatestBlock()
+                            let newChainBranch = []
+                            let hashesOfRemovedBlock = []
 
-                          //Convert a single rolled back block to an array to facilitate handling
-                          if(!Array.isArray(rolledBackBlocks)) rolledBackBlocks = [rolledBackBlocks]
-                          
-                          //Get the first block of the removed block to place as a fork in the new head block of the chain
-                          let firstBlockHeaderRemoved = rolledBackBlocks[0]
-                          if(!firstBlockHeaderRemoved) console.log('Rolled back blocks shown here', rolledBackBlocks)
-                          let firstBlockRemoved = await this.getBlockFromDB(firstBlockHeaderRemoved.blockNumber)
-                          let newLatestBlock = this.getLatestBlock()
-                          let newChainBranch = []
-                          let hashesOfRemovedBlock = []
+                            for await(let header of rolledBackBlocks){
+                              let block = await this.getBlockFromDB(header.blockNumber)
+                              newChainBranch.push(block)
+                              hashesOfRemovedBlock.push(block.hash)
+                              this.blockForks[block.hash] = {
+                                root:newLatestBlock.hash,
+                                previousHash:block.previousHash,
+                                hash:block.hash,
+                                linkedBlockHashes:[ ...hashesOfRemovedBlock ]
+                              }
 
-                          for await(let header of rolledBackBlocks){
-                            let block = await this.getBlockFromDB(header.blockNumber)
-                            newChainBranch.push(block)
-                            hashesOfRemovedBlock.push(block.hash)
-                            this.blockForks[block.hash] = {
-                              root:newLatestBlock.hash,
-                              previousHash:block.previousHash,
-                              hash:block.hash,
-                              linkedBlockHashes:[ ...hashesOfRemovedBlock ]
                             }
 
+                            newLatestBlock[firstBlockRemoved.hash] = newChainBranch
                           }
-
-                          newLatestBlock[firstBlockRemoved.hash] = newChainBranch
 
                           for await(var forkBlock of fork){
 
