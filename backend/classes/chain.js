@@ -437,10 +437,33 @@ class Blockchain{
                     let isValidTotalDifficulty = this.calculateWorkDone(fork)
                     if(isValidTotalDifficulty){
                       let forkHeadBlock = fork[0];
-                      let rolledBack = await this.rollbackToBlock(forkHeadBlock.blockNumber - 1)
-                      if(rolledBack){
-                        if(rolledBack.error) resolve({error:rolledBack.error})
+                      let rolledBackBlocks = await this.rollbackToBlock(forkHeadBlock.blockNumber - 1)
+                      if( rolledBackBlocks){
+                        if( rolledBackBlocks.error) resolve({error: rolledBackBlocks.error})
                         else{
+                          //Here we recreate new blockFork entries so that if a block is to be mined on top of it
+                          //It is still possible to revert back to this branch
+                          //In fact, the chain is not entirely rolledback, as the removed blocks will be placed 
+                          //as a fork of the new branch
+                          this.blockForks = {}
+
+                          let firstBlockRemoved = rolledBackBlocks[0]
+                          let newLatestBlock = this.getLatestBlock()
+                          newLatestBlock[firstBlockRemoved.hash] = rolledBackBlocks[0]
+                          let hashesOfRemovedBlock = []
+
+                          for await(let block of rolledBackBlocks){
+
+                            hashesOfRemovedBlock.push(block.hash)
+                            this.blockForks[block.hash] = {
+                              root:newLatestBlock.hash,
+                              previousHash:block.previousHash,
+                              hash:newBlock.hash,
+                              linkedBlockHashes:[ ...hashesOfRemovedBlock ]
+                            }
+
+                          }
+
                           for await(var forkBlock of fork){
 
                             let pushed = await this.pushBlock(forkBlock)
@@ -448,7 +471,8 @@ class Blockchain{
                             
                           }
     
-                          this.blockForks = {}
+                          console.log('New block forks', this.blockForks)
+                          
                           logger(chalk.yellow(`* Synced ${fork.length} blocks from forked branch`))
                           this.isSyncingBlocks = false;
                           
@@ -1726,7 +1750,7 @@ class Blockchain{
       logger(`Head blockchain is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
-      else resolve(true)
+      else resolve(removed)
     })
   }
   
