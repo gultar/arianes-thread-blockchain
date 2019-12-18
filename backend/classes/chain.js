@@ -197,7 +197,7 @@ class Blockchain{
   }
 
   addBlockToChain(newBlock){
-    return new Promise((resolve)=>{
+    return new Promise(async (resolve)=>{
       //Push block header to chain
       
       let errors = {}
