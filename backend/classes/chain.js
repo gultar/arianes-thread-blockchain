@@ -668,7 +668,7 @@ class Blockchain{
       }
       
     }else{
-      return await createNewBranch(newBlock)
+      return await this.createNewBranch(newBlock)
     }
   }
 
