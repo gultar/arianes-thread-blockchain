@@ -274,8 +274,7 @@ class Blockchain{
         }
         else{
 
-          if(!this.isBusy){
-            var isLinked = this.isBlockLinked(newBlock);
+          var isLinked = this.isBlockLinked(newBlock);
             if(isLinked){
               this.isBusy = true
               
@@ -304,9 +303,11 @@ class Blockchain{
               }
             
             }
-          }else{
-            resolve({isBusy:true})
-          }
+          // if(!this.isBusy){
+            
+          // }else{
+          //   resolve({isBusy:true})
+          // }
           
         }
       }else{

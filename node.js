@@ -1973,11 +1973,6 @@ class Node {
                     if(addedToChain.error){
                       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                       resolve({error:addedToChain.error})
-                    }else if(addedToChain.isBusy){
-                      console.log('Received a block but node is busy')
-                      setTimeout(()=>{
-                        this.broadcast('getBlockchainStatus');
-                      }, 500)
                     }else if(addedToChain.outOfSync){
                       console.log('Okay about to try to fix branch')
                       this.isOutOfSync = true
@@ -2006,11 +2001,6 @@ class Node {
                     if(addedToChain.error){
                       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                       resolve({error:addedToChain.error})
-                    }else if(addedToChain.isBusy){
-                      console.log('Received a block but node is busy')
-                      setTimeout(()=>{
-                        this.broadcast('getBlockchainStatus');
-                      }, 500)
                     }else if(addedToChain.outOfSync){
                       this.isOutOfSync = true
                       let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
