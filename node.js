@@ -958,6 +958,54 @@ class Node {
     })
   }
 
+  fixBranchOutOfSyncIssue(missingBlockHash){
+    /***
+     *  1. Received block which were not linked to any branch   ... [] <-
+     *  2. Look for missing block through querying the most up to date peer [!]-[!]  ... []
+     *  3. 
+     */
+    return new Promise(async (resolve)=>{
+      let missingLinkBlocks = await this.getMissingBlocksToSyncBranch(missingBlockHash)
+      if(missingLinkBlocks.error){
+        resolve({error:missingLinkBlocks.error})
+      }else if(missingLinkBlocks){
+        
+        if(missingLinkBlocks.isLinked){
+
+          let blocksReceived = missingLinkBlocks.isLinked
+          let firstReceived = blocksReceived[0]
+          let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
+          unlinkedBranch = [ ...blocksReceived, ...unlinkedBranch ]
+
+          resolve({success:true, isLinked:true})
+          
+        }else if(missingLinkBlocks.isBranch){
+
+          let blocksReceived = missingLinkBlocks.isBranch
+          let firstReceived = blocksReceived[0]
+          let linkedBranch = this.chain.branches[firstReceived.hash]
+          if(linkedBranch){
+            
+            linkedBranch = [ ...linkedBranch, ...blocksReceived ]
+            let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
+            let linkedTwoBranches = [ ...linkedBranch, ...unlinkedBranch ]
+            let latestBranchBlock = linkedTwoBranches[linkedTwoBranches.length - 1]
+            this.chain.branches[latestBranchBlock.hash] = linkedTwoBranches
+
+            resolve({success:true, isBranch:true})
+          }else{
+            resolve({error: 'ERROR: Missing blocks received appeared not to be linked to any branch'})
+          }
+
+        }
+
+      }else{
+        resolve({error:'ERROR: Could not find missing blocks'})
+      }
+
+    })
+  }
+
 
   getMissingBlocksToSyncBranch(unsyncedBlockHash){
     return new Promise(async (resolve)=>{
@@ -967,8 +1015,10 @@ class Node {
       else{
         peer.on('previousBlock', (block)=>{
           if(block.end){
+            peer.off('previousBlock')
             resolve({error:block.end})
           }else if(block.error){
+            peer.off('previousBlock')
             resolve({error:block.error})
           }else if(block){
             let isPartOfBranch = this.chain.branches[block.hash]
@@ -976,12 +1026,13 @@ class Node {
     
             if(isLinkedToChain){
               peer.off('previousBlock')
-              resolve({ isLinked:[ ...missingBlocks, block ] })
+              // "Unshifted" manually since we're looking backyards, not forwards
+              resolve({ isLinked:[ block, ...missingBlocks ] })
             }else if(isPartOfBranch){
               peer.off('previousBlock')
-              resolve({ isBranch:[ ...missingBlocks, block ] })
+              resolve({ isBranch:[ block, ...missingBlocks ] })
             }else{
-              missingBlocks = [ ... missingBlocks, block]
+              missingBlocks = [ block, ... missingBlocks]
               peer.emit('getPreviousBlock', block.hash)
             }
           }
@@ -1506,7 +1557,13 @@ class Node {
       })
 
       socket.on('testgetMostUpToDatePeer', async ()=>{
-        console.log(await this.getMissingBlocksToSyncBranch('000118d8e039099287a60ad7d15e580e135ced19a2b9431d077bdcd50ee3ce0c'))
+        let index = this.chain.getIndexOfBlockHash('000118d8e039099287a60ad7d15e580e135ced19a2b9431d077bdcd50ee3ce0c')
+        console.log('Index', index)
+        let unlinkedBlock = this.chain.chain[index]
+        let nextBlock = this.chain.chain[index + 1]
+        let nextNextBlock = this.chain.chain[index + 2]
+        this.chain.unlinkedBranches[unlinkedBlock.previousHash] = [ unlinkedBlock, nextBlock, nextNextBlock ]
+        console.log(await this.fixBranchOutOfSyncIssue('000118d8e039099287a60ad7d15e580e135ced19a2b9431d077bdcd50ee3ce0c'))
       })
 
       socket.on('getMempool', ()=>{
@@ -1920,28 +1977,14 @@ class Node {
                     }, 500)
                   }else if(addedToChain.outOfSync){
                     this.isOutOfSync = true
-                    let missingLinkBlocks = await this.getMissingBlocksToSyncBranch(addedToChain.outOfSync)
-                    if(missingLinkBlocks.isLinked){
-
-                    }else if(missingLinkBlocks.isBranch){
-                      let blocksReceived = missingLinkBlocks.isBranch
-                      let firstReceived = blocksReceived[0]
-                      let connectedToBranch = this.chain.branches[firstReceived.hash]
-                      if(connectedToBranch){
-                        for await(let block of blocksReceived){
-                          let extended = await this.chain.blockchainBranches(block)
-                          if(extended.error){
-
-                          }else{
-                            console.log(`Extended branch with missing block ${block.blockNumber}`)
-                          }
-                        }
-                      }
-                    }else if(missingLinkBlocks.error){
-
+                    let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
+                    if(fixed.error) resolve({error:fixed.error})
+                    else if(fixed.success){
+                      resolve(fixed)
                     }else{
-
+                      resolve({error:'ERROR Node did not manage to fix branch'})
                     }
+ 
                   }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }
