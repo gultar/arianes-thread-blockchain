@@ -145,7 +145,7 @@ program
         }else{
           const { Worker } = require('worker_threads');
           let worker = new Worker(`
-          let Miner = require('./backend/classes/minerTools/miner')
+          let Miner = require('./backend/classes/minerTools/blockMiner')
           let miner = new Miner({
               publicKey:'',
               verbose:false,
