@@ -1755,6 +1755,7 @@ class Node {
           }else if(synced.sync){
             api.emit('latestBlock', this.chain.getLatestBlock())
           }else if(synced.outOfSync){
+            console.log('Okay about to try to fix branch')
             this.isOutOfSync = true
             let fixed = await this.fixBranchOutOfSyncIssue(synced.outOfSync)
             console.log('Tried to fix blockchain', fixed)
@@ -1962,6 +1963,7 @@ class Node {
                   }
 
                   let addedToChain = await this.chain.pushBlock(block);
+                  
                   if(addedToChain && !addedToChain.sync){
 
                     
@@ -1971,59 +1973,60 @@ class Node {
                     if(addedToChain.error){
                       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                       resolve({error:addedToChain.error})
-                    }else{
-                      resolve(true)
-                    }
-                  }else if(addedToChain.isBusy){
-                    console.log('Received a block but node is busy')
-                    setTimeout(()=>{
+                    }else if(addedToChain.isBusy){
+                      console.log('Received a block but node is busy')
+                      setTimeout(()=>{
+                        this.broadcast('getBlockchainStatus');
+                      }, 500)
+                    }else if(addedToChain.outOfSync){
+                      console.log('Okay about to try to fix branch')
+                      this.isOutOfSync = true
+                      let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
+                      console.log('Tried to fix blockchain', fixed)
+                      if(fixed.error) resolve({error:fixed.error})
+                      else if(fixed.success){
+                        
+                        resolve(fixed)
+                      }else{
+                        resolve({error:'ERROR Node did not manage to fix branch'})
+                      }
+   
+                    }else if(addedToChain.sync){
                       this.broadcast('getBlockchainStatus');
-                    }, 500)
-                  }else if(addedToChain.outOfSync){
-                    this.isOutOfSync = true
-                    let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
-                    console.log('Tried to fix blockchain', fixed)
-                    if(fixed.error) resolve({error:fixed.error})
-                    else if(fixed.success){
-                      
-                      resolve(fixed)
-                    }else{
-                      resolve({error:'ERROR Node did not manage to fix branch'})
                     }
- 
-                  }else if(addedToChain.sync){
-                    this.broadcast('getBlockchainStatus');
+                    resolve(true)
+
+                    
+                    
                   }
-                  
                 }else{
                   let addedToChain = await this.chain.pushBlock(block);
-                  if(addedToChain && !addedToChain.sync){
+                  if(addedToChain){
                     //If sending too many stale blocks, interrupt connection to peer
                     if(addedToChain.error){
                       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                       resolve({error:addedToChain.error})
-                    }else{
-                      resolve(true)
-                    }
-                  }else if(addedToChain.isBusy){
-                    console.log('Received a block but node is busy')
-                    setTimeout(()=>{
-                      this.broadcast('getBlockchainStatus');
-                    }, 500)
-                  }else if(addedToChain.outOfSync){
-                    this.isOutOfSync = true
-                    let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
-                    console.log('Tried to fix blockchain', fixed)
-                    if(fixed.error) resolve({error:fixed.error})
-                    else if(fixed.success){
+                    }else if(addedToChain.isBusy){
+                      console.log('Received a block but node is busy')
+                      setTimeout(()=>{
+                        this.broadcast('getBlockchainStatus');
+                      }, 500)
+                    }else if(addedToChain.outOfSync){
+                      this.isOutOfSync = true
+                      let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
+                      console.log('Tried to fix blockchain', fixed)
+                      if(fixed.error) resolve({error:fixed.error})
+                      else if(fixed.success){
+                        
+                        resolve(fixed)
+                      }else{
+                        resolve({error:'ERROR Node did not manage to fix branch'})
+                      }
                       
-                      resolve(fixed)
-                    }else{
-                      resolve({error:'ERROR Node did not manage to fix branch'})
+                    }else if(addedToChain.sync){
+                      this.broadcast('getBlockchainStatus');
                     }
-                    
-                  }else if(addedToChain.sync){
-                    this.broadcast('getBlockchainStatus');
+                    resolve(true)
                   }
                 }
   
