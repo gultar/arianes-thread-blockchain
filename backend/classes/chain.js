@@ -2004,7 +2004,7 @@ class Blockchain{
             if(block.actionHashes){
               actionHashes = [  ...actionHashes, ...block.actionHashes ]
             }else{
-              console.log('No action hashes')
+              // console.log('No action hashes')
             }
           }
           resolve(actionHashes)
@@ -2018,7 +2018,7 @@ class Blockchain{
             if(block.txHashes){
               txHashes = [  ...txHashes, ...block.txHashes ]
             }else{
-              console.log('No tx hashes')
+              // console.log('No tx hashes')
             }
           }
           resolve(txHashes)

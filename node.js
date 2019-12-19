@@ -1755,7 +1755,11 @@ class Node {
           }else if(synced.sync){
             api.emit('latestBlock', this.chain.getLatestBlock())
           }else if(synced.outOfSync){
+            this.isOutOfSync = true
+            let fixed = await this.fixBranchOutOfSyncIssue(synced.outOfSync)
+            console.log('Tried to fix blockchain', fixed)
             
+
           }else if(synced.isBusy){
             api.emit('stopMining')
           }else{
@@ -1978,8 +1982,10 @@ class Node {
                   }else if(addedToChain.outOfSync){
                     this.isOutOfSync = true
                     let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
+                    console.log('Tried to fix blockchain', fixed)
                     if(fixed.error) resolve({error:fixed.error})
                     else if(fixed.success){
+                      
                       resolve(fixed)
                     }else{
                       resolve({error:'ERROR Node did not manage to fix branch'})
@@ -2006,6 +2012,16 @@ class Node {
                     }, 500)
                   }else if(addedToChain.outOfSync){
                     this.isOutOfSync = true
+                    let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
+                    console.log('Tried to fix blockchain', fixed)
+                    if(fixed.error) resolve({error:fixed.error})
+                    else if(fixed.success){
+                      
+                      resolve(fixed)
+                    }else{
+                      resolve({error:'ERROR Node did not manage to fix branch'})
+                    }
+                    
                   }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }
