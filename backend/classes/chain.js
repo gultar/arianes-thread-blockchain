@@ -657,6 +657,8 @@ class Blockchain{
             return { switched:true }
           }else if(readyToSwitchToBranch.extended){
             return { extended:true }
+          }else if(readyToSwitchToBranch.outOfSync){
+            return { outOfSync:true }
           }else if(readyToSwitchToBranch.error){
             return { error:readyToSwitchToBranch.error }
           }else{
@@ -711,7 +713,7 @@ class Blockchain{
         let firstBlockOfBranch = branch[0]
         let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
         if(!isLinkedToBlockNumber) {
-          return { error:'ERROR: Branch is not linked to current chain' }
+          return { outOfSync:firstBlockOfBranch.previousHash }
         }else{
           let rolledback = await rollback(isLinkedToBlockNumber)
           if(rolledback){

@@ -87,6 +87,7 @@ class Node {
     this.userInterfaces = [];
     this.peersConnected = {}; //From ioServer to ioClient
     this.connectionsToPeers = {}; //From ioClient to ioServer
+    this.peersLatestBlocks = {}
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
     this.blocksToValidate = []
@@ -330,6 +331,42 @@ class Node {
       }); // consume 1 point per event from IP
       let genesisBlock = this.chain.getGenesisBlockFromDB()
       socket.emit('genesisBlock', genesisBlock)
+    })
+
+    socket.on('getPreviousBlock', async (hash)=>{
+      if(hash){
+        await rateLimiter.consume(socket.handshake.address).catch(e => { 
+          // console.log("Peer sent too many 'getNextBlock' events") 
+        }); // consume 1 point per event from IP
+        let index = this.chain.getIndexOfBlockHash(hash)
+        if(index && index > 0){
+          if(hash == this.chain.chain[0].hash){
+            socket.emit('previousBlock', {end:'Reached genesis block'})
+          }else{
+            
+            let previousBlock = this.chain.chain[index - 1]
+            if(previousBlock){
+              let block = await this.chain.getBlockFromDB(previousBlock.blockNumber)
+              if(block){
+                if(block.error) socket.emit('previousBlock', {error:block.error})
+                socket.emit('previousBlock', block)
+              }else{
+                socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${previousBlock.hash} at block index ${previousBlock.blockNumber}`})
+              }
+              
+                
+            }else{
+              console.log('Chain does not contain block at ', index+1)
+            }
+
+            
+          }
+          
+        }else{
+          socket.emit('previousBlock', {error:'Block not found'})
+        }
+      }
+      
     })
 
     socket.on('getNextBlock', async (hash)=>{
@@ -738,7 +775,6 @@ class Node {
       let startHash = this.chain.getLatestBlock().hash;
       let lastHash = lastHeader.hash;
       let length = lastHeader.blockNumber + 1;
-
       this.isDownloading = true;
       let unansweredRequests = 0;
       let maxRetryNumber = 10
@@ -766,7 +802,6 @@ class Node {
       peer.on('nextBlock', async (block)=>{
         unansweredRequests = 0
         clearTimeout(this.retrySending)
-
         if(block.end){
           logger('Blockchain updated successfully!')
           // clearInterval(retry)
@@ -791,6 +826,7 @@ class Node {
             //Try to fix something
             awaitRequest()
           }else{
+            
             peer.emit('getNextBlock', block.hash)
             awaitRequest()
           }
@@ -815,9 +851,8 @@ class Node {
       if(this.chain instanceof Blockchain && peer && status){
         if(!this.isDownloading){
           let { totalDifficultyHex, bestBlockHeader, length } = status;
-        
           if(totalDifficultyHex && bestBlockHeader && length){
-            
+            this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
             let thisTotalDifficultyHex = await this.chain.getTotalDifficulty();
             // Possible major bug, will not sync if chain is longer but has different block at a given height
             let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
@@ -828,21 +863,25 @@ class Node {
               
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
+
+                
   
                 if(this.chain.getLatestBlock().blockNumber == 0){
                   this.downloadGenesisBlock(peer)
                   .then( async (genesisBlock)=>{
-
+                    
                     if(genesisBlock.error){
                       console.log(genesisBlock.error)
                     }else{
                       let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                       if(downloaded.error){
-                        logger('Could not download blockchain')
-                        console.log(downloaded.error)
+                        
+                        let resolved = await this.getMissingBlocksToSyncBranch(block)
                         resolve(false)
                       }else{
                         peer.send('getBlockchainStatus')
+
+
                         resolve(true)
                       }
                     }
@@ -887,6 +926,71 @@ class Node {
       }
     })
     
+  }
+
+  getMostUpToDatePeer(){
+    return new Promise(async (resolve)=>{
+      if(Object.keys(this.connectionsToPeers).length > 0){
+        let heightestTotalDifficulty = '0x001'
+        let mostUpdateToDatePeer = null
+        for await(let address of Object.keys(this.connectionsToPeers)){
+          let peer = this.connectionsToPeers[address]
+
+          let peerLatestBlock = this.peersLatestBlocks[address]
+
+          let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
+          if(totalDifficulty > BigInt(parseInt(heightestTotalDifficulty, 16))){
+            heightestTotalDifficulty = peerLatestBlock.totalDifficulty
+            mostUpdateToDatePeer = peer
+          }
+          
+        }
+
+        if(mostUpdateToDatePeer){
+          resolve(mostUpdateToDatePeer)
+        }else{
+          resolve(false)
+        }
+        
+      }else{
+        resolve(false)
+      }
+    })
+  }
+
+
+  getMissingBlocksToSyncBranch(unsyncedBlockHash){
+    return new Promise(async (resolve)=>{
+      let missingBlocks = []
+      let peer = await this.getMostUpToDatePeer()
+      if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
+      else{
+        peer.on('previousBlock', (block)=>{
+          if(block.end){
+            resolve({error:block.end})
+          }else if(block.error){
+            resolve({error:block.error})
+          }else if(block){
+            let isPartOfBranch = this.chain.branches[block.hash]
+            let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
+    
+            if(isLinkedToChain){
+              peer.off('previousBlock')
+              resolve({ isLinked:[ ...missingBlocks, block ] })
+            }else if(isPartOfBranch){
+              peer.off('previousBlock')
+              resolve({ isBranch:[ ...missingBlocks, block ] })
+            }else{
+              missingBlocks = [ ... missingBlocks, block]
+              peer.emit('getPreviousBlock', block.hash)
+            }
+          }
+        })
+      }
+
+
+      peer.emit('getPreviousBlock', unsyncedBlockHash)
+    })
   }
 
   /**
@@ -1401,6 +1505,10 @@ class Node {
         this.broadcast('getBlockchainStatus');
       })
 
+      socket.on('testgetMostUpToDatePeer', async ()=>{
+        console.log(await this.getMissingBlocksToSyncBranch('000118d8e039099287a60ad7d15e580e135ced19a2b9431d077bdcd50ee3ce0c'))
+      })
+
       socket.on('getMempool', ()=>{
         socket.emit('mempool', { transactions:this.mempool.txReceipts, actions:this.mempool.actionReceipts });
       })
@@ -1691,7 +1799,7 @@ class Node {
               break
             case 'newBlockFound':
               if(!this.isOutOfSync){
-                let added = await this.handleNewBlockFound(data);
+                let added = await this.handleNewBlockFound(data, originAddress);
                 if(added.error){
                   logger('New Block Found ERROR follows:',added.error)
                   
@@ -1765,7 +1873,7 @@ class Node {
     return info
   }
 
-  handleNewBlockFound(data){
+  handleNewBlockFound(data, fromPeer){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
         if(!this.isDownloading){
@@ -1780,6 +1888,8 @@ class Node {
 
               if(this.chain.validateBlockHeader(block)){
 
+                this.peersLatestBlocks[fromPeer] = block
+
                 if(this.localServer && this.localServer.socket){
 
                   this.localServer.socket.emit('stopMining')
@@ -1792,6 +1902,8 @@ class Node {
 
                   let addedToChain = await this.chain.pushBlock(block);
                   if(addedToChain && !addedToChain.sync){
+
+                    
                     //If sending too many stale blocks, interrupt connection to peer
                     this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                     this.localServer.socket.emit('run')
@@ -1808,6 +1920,28 @@ class Node {
                     }, 500)
                   }else if(addedToChain.outOfSync){
                     this.isOutOfSync = true
+                    let missingLinkBlocks = await this.getMissingBlocksToSyncBranch(addedToChain.outOfSync)
+                    if(missingLinkBlocks.isLinked){
+
+                    }else if(missingLinkBlocks.isBranch){
+                      let blocksReceived = missingLinkBlocks.isBranch
+                      let firstReceived = blocksReceived[0]
+                      let connectedToBranch = this.chain.branches[firstReceived.hash]
+                      if(connectedToBranch){
+                        for await(let block of blocksReceived){
+                          let extended = await this.chain.blockchainBranches(block)
+                          if(extended.error){
+
+                          }else{
+                            console.log(`Extended branch with missing block ${block.blockNumber}`)
+                          }
+                        }
+                      }
+                    }else if(missingLinkBlocks.error){
+
+                    }else{
+
+                    }
                   }else if(addedToChain.sync){
                     this.broadcast('getBlockchainStatus');
                   }

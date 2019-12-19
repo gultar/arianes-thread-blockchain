@@ -422,7 +422,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
-          socket.emit('getState', args[0])
+          socket.emit('testgetMostUpToDatePeer', args[0])
           break;
         case 'update':
           if(!isConnected){
