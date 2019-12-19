@@ -632,7 +632,7 @@ class Blockchain{
     }
   }
 
-  async branchContainsBlockNumber(branch){
+  async branchContainsBlockNumber(newBlock, branch){
     for await(let block of branch){
       if(block.blockNumber == newBlock.blockNumber){
         return true
@@ -646,7 +646,7 @@ class Blockchain{
     let existingBranch = this.branches[newBlock.previousHash]
     if(existingBranch){
       
-      let chainContainsBlockNumber = await this.branchContainsBlockNumber(existingBranch)
+      let chainContainsBlockNumber = await this.branchContainsBlockNumber(newBlock, existingBranch)
       if(!chainContainsBlockNumber){
         let branch = [ ...existingBranch, newBlock ]
         this.branches[newBlock.hash] = branch
