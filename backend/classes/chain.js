@@ -273,18 +273,46 @@ class Blockchain{
           resolve({error:isValidBlock.error})
         }
         else{
-
             var isLinked = this.isBlockLinked(newBlock);
             let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+
+            
+
+              
+            
             if(isLinked && !blockNumberAlreadyExists){
               this.isBusy = true
-              
               let added = await this.addBlockToChain(newBlock, silent)
               if(added.error) resolve({error:added.error})
               else resolve(added)
-  
-            }else{
-              let branched = await this.blockchainBranches(newBlock)
+            }else if(isLinked && !blockNumberAlreadyExists){
+              let newBlockHasBeenBranched = await this.extendBranch(newBlock)
+              if(newBlockHasBeenBranched.error) resolve({ error:newBlockHasBeenBranched.error })
+              else if(newBlockHasBeenBranched){
+                let branched = newBlockHasBeenBranched
+                if(branched.staying){
+                  logger(chalk.yellow(`* Staying on main blockchain`))
+                  logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                }else if(branched.outOfSync){
+                  logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
+                }else if(branched.synced){
+                  logger(chalk.yellow(`* Switched blockchain branches`))
+                  logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                }else if(branched.added){
+                  logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+                  logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+                }
+                resolve(branched)
+              }
+              else{
+                resolve({ error:`ERROR: Could not add ${newBlock.blockNumber} to branch` })
+              }
+            
+            }else if(!isLinked && !blockNumberAlreadyExists){
+
+            }
+
+            let branched = await this.blockchainBranches(newBlock)
               this.isBusy = false
               if(branched.error) resolve({error:branched.error});
               else{
@@ -302,8 +330,6 @@ class Blockchain{
                 }
                 resolve(branched)
               }
-            
-            }
           // if(!this.isBusy){
             
           // }else{
@@ -432,7 +458,7 @@ class Blockchain{
             }else{
               let isValidBlock = await this.validateBlock(newBlock)
               if(isValidBlock){
-                let synced = await this.addBlockToChain(block)
+                let synced = await this.pushBlock(block)
                 if(synced.error) return { error:synced.error }
 
                 previousBlock = block;

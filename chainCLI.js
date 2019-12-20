@@ -142,6 +142,21 @@ program
 })
 
 program
+.command('update')
+.description('Roll back to previous on the chain, reverting the state of transactions, actions, contracts and accounts ')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('update');
+                socket.close()
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('getstate <blockHash> <contractName>')
 .description('Get state of contract at a given block hash')
 .action((blockHash, contractName)=>{

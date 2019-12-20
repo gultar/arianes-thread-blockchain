@@ -1766,10 +1766,17 @@ class Node {
           }else if(synced.sync){
             api.emit('latestBlock', this.chain.getLatestBlock())
           }else if(synced.outOfSync){
-            console.log('Okay about to try to fix branch')
-            this.isOutOfSync = true
-            let fixed = await this.fixBranchOutOfSyncIssue(synced.outOfSync)
-            console.log('Tried to fix blockchain', fixed)
+            console.log('Attempting to solve the blockchain sync problem by rolling back changes')
+            let currentBlockNumber = this.getLatestBlock().blockNumber
+            let rolledback = await this.chain.rollbackToBlock(currentBlockNumber - 15)
+            if(rolledback.error) console.log('Blockchain fix failed:', rolledback.error)
+            else{
+              this.broadcast('getBlockchainStatus')
+            } 
+            // console.log('Okay about to try to fix branch')
+            // this.isOutOfSync = true
+            // let fixed = await this.fixBranchOutOfSyncIssue(synced.outOfSync)
+            // console.log('Tried to fix blockchain', fixed)
             
 
           }else if(synced.isBusy){
