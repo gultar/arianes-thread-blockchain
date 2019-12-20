@@ -141,7 +141,8 @@ class ContractVM{
                 
                 try{
                     ${code}
-                    save(instance.state)
+                    //save(instance.state)
+                    result.state = instance.state
                     callback(result)
                 }catch(err){
                     fail(err.message)
@@ -288,6 +289,7 @@ class ContractVM{
 
                 let result = await this.run(call)
                 
+                console.log('Result', result)
                 if(result.error) errors[hash] = result
                 else results[hash] = result
             }
@@ -342,16 +344,21 @@ class ContractVM{
                 
                 execute(async (result)=>{
                     clearTimeout(timer)
-                    if(this.sandbox.stateStorage && Object.keys(this.sandbox.stateStorage).length > 1){
-                        this.sandbox.contractStates[call.contractName] = this.sandbox.stateStorage
+                    if(result.state && Object.keys(result.state).length > 0){
+                        this.sandbox.contractStates[call.contractName] = result.state
+                        console.log('Setting gold state', result.state.tokens.GOLD)
                     }else{
-                        console.log(`State received from result ${call.hash} is empty`)
+                        resolve({
+                            error:`State received from result ${call.hash} is empty`,
+                            hash:call.hash,
+                            contractName:call.contractName
+                        })
                     }
                     
                     resolve({
-                        value:result,
+                        value:result.success,
                         hash:call.hash,
-                        state:this.sandbox.contractStates[call.contractName],
+                        state:result.state, //this.sandbox.contractStates[call.contractName]
                         contractName:contractName
                     })
                     

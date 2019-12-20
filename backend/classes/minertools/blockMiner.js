@@ -205,21 +205,26 @@ class Miner{
 
     async prepareBlockForMining(rawBlock){
         
-        let coinbase = await this.createCoinbase()
-        rawBlock.transactions[coinbase.hash] = coinbase
-        rawBlock.coinbaseTransactionHash = coinbase.hash
+        if(rawBlock){
+          let coinbase = await this.createCoinbase()
+          rawBlock.transactions[coinbase.hash] = coinbase
+          rawBlock.coinbaseTransactionHash = coinbase.hash
 
-        let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, this.previousBlock.hash, rawBlock.blockNumber)
-        block.startMineTime = Date.now()
+          let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, this.previousBlock.hash, rawBlock.blockNumber)
+          block.startMineTime = Date.now()
+          
+          //Set difficulty level
+          let difficulty = new Difficulty(this.genesis)
+          block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
+          block.challenge = difficulty.setNewChallenge(block)
+          block.totalDifficulty = this.calculateTotalDifficulty(block)
+          block.minedBy = this.wallet.publicKey;
+          return block
+        }else{
+          return false
+        }
+
         
-        //Set difficulty level
-        let difficulty = new Difficulty(this.genesis)
-        block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
-        block.challenge = difficulty.setNewChallenge(block)
-        block.totalDifficulty = this.calculateTotalDifficulty(block)
-        block.minedBy = this.wallet.publicKey;
-
-        return block
     }
 
     // orderTransactionsByTimestamp(transactions){
