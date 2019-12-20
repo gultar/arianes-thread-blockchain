@@ -147,6 +147,7 @@ program
 .action((blockHash, contractName)=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
+                console.log('Socket open')
                 socket.emit('getContractState', blockHash, contractName);
                 socket.close()
             
