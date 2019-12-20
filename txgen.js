@@ -4,6 +4,7 @@ const program = require('commander');
 const axios = require('axios')
 const Transaction = require('./backend/classes/transaction')
 const WalletManager = require('./backend/classes/walletManager')
+const ioClient = require('socket.io-client');
 const manager = new WalletManager()
 const activePort = require('dotenv').config({ path: './config/.env' })
 if (activePort.error) throw activePort.error
@@ -22,6 +23,16 @@ const parseDataArgument = (dataString) =>{
     })
 }
 
+const openSocket = async (address, runFunction) =>{
+    let socket = ioClient(address, {'timeout':1000, 'connect_timeout': 1000});
+    
+    if(socket){
+        runFunction(socket);
+    }else{
+        console.log('Could not connect to node')
+    }
+}
+
 const txgen = (program) =>{
     return new Promise(async (resolve)=>{
         let amount = JSON.parse(program.amount);
@@ -29,43 +40,55 @@ const txgen = (program) =>{
         if(program.data){
             data = await parseDataArgument(program.data)
         }
-        
-        
-        let transaction = new Transaction
-            ({
-                fromAddress:program.fromAddress,
-                toAddress:program.toAddress,
-                amount:amount,
-                data:data,
-                type:program.type
-            });
-            let wallet = await manager.loadByWalletName(program.walletName)
-            if(wallet){
-                let unlocked = await wallet.unlock(program.password)
-                if(unlocked){
-                    let signature = await wallet.sign(transaction.hash);
-                    if(signature){
-                        transaction.signature = signature;
-                        axios.post(`${nodeAddress}/transaction`, transaction)
-                        .then( success => {
-                            console.log(JSON.stringify(success.data, null, 2))
-                            setTimeout(()=>{
-                                txgen(program)
-                               }, 200) 
-                        })
-                        .catch( e => {
-                            console.log(e)
-                            resolve(false)
-                        })
+        openSocket(`${nodeAddress}`, (socket)=>{
+            
+            let generator = setInterval(async ()=>{
+                    let transaction = new Transaction
+                    ({
+                        fromAddress:program.fromAddress,
+                        toAddress:program.toAddress,
+                        amount:amount,
+                        data:data,
+                        type:program.type
+                    });
+                let wallet = await manager.loadByWalletName(program.walletName)
+                if(wallet){
+                    let unlocked = await wallet.unlock(program.password)
+                    if(unlocked){
+                        let signature = await wallet.sign(transaction.hash);
+                        if(signature){
+                            transaction.signature = signature;
+                            socket.emit('transaction', transaction)
+                            
+                            // axios.post(`${nodeAddress}/transaction`, transaction)
+                            // .then( success => {
+                            //     console.log(JSON.stringify(success.data, null, 2))
+                            //     setTimeout(()=>{
+                            //         txgen(program)
+                            //        }, 20) 
+                            // })
+                            // .catch( e => {
+                            //     console.log(e)
+                            //     resolve(false)
+                            // })
+                        }else{
+                            console.log('ERROR: Could not sign transaction')
+                        }
                     }else{
-                        console.log('ERROR: Could not sign transaction')
+                        console.log('ERROR: Could not unlock wallet')
                     }
                 }else{
-                    console.log('ERROR: Could not unlock wallet')
+                    console.log('ERROR: Could not find wallet')
                 }
-            }else{
-                console.log('ERROR: Could not find wallet')
-            }
+                
+            }, 20)
+            socket.on('transactionEmitted', (result)=>{
+                if(result.error) clearInterval(generator)
+                console.log(result)
+            })
+        })
+        
+        
     })
 }
 

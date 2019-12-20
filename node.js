@@ -1256,7 +1256,7 @@ class Node {
           if(isValidTransactionJSON(req.body) || isValidTransactionCallJSON(req.body)){
             let transaction = req.body
             
-            this.broadcastTransaction(transaction)
+            this.broadcastTransaction(transaction, true)
             .then((transactionEmitted)=>{
               
               if(transactionEmitted.error){
@@ -1375,17 +1375,17 @@ class Node {
       socket.on('transaction',async (transaction)=>{
         try{
           if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
-            let transactionEmitted = await this.broadcastTransaction(transaction)
+            let transactionEmitted = await this.broadcastTransaction(transaction, false)
               
             if(transactionEmitted.success){
               let result = { result:transactionEmitted.success, receipt:transaction }
-              res.send(JSON.stringify(result, null, 2));
+              socket.emit('transactionEmitted',JSON.stringify(result, null, 2));
             }else if(transactionEmitted.isReadOnly){
               let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
-              res.send(JSON.stringify(result, null, 2));
+              socket.emit('transactionEmitted',JSON.stringify(result, null, 2));
             }else{
               let receipt = JSON.stringify(transaction, null, 2)
-              res.send(receipt);
+              socket.emit('transactionEmitted',receipt);
             }
           }else{
             socket.emit('transactionEmitted', { error:'ERROR: Invalid transaction format' })
@@ -2091,7 +2091,7 @@ class Node {
    @param {number} $amount - Amount of coins to send. Optional IF blockbase query
    @param {object} $data - data to send along with transaction
  */
-  broadcastTransaction(transaction){
+   broadcastTransaction(transaction, test){
     return new Promise(async (resolve)=>{
       try{
           if(this.chain instanceof Blockchain){
@@ -2105,7 +2105,7 @@ class Node {
                 .then( async (valid) =>{
                   if(!valid.error){
 
-                    let txBroadcasted = await this.handleTransactionType(transaction)
+                    let txBroadcasted = await this.handleTransactionType(transaction, test)
                     if(txBroadcasted.error){
                       this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
                       if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
@@ -2140,7 +2140,7 @@ class Node {
     })
   }
 
-  handleTransactionType(transaction){
+  handleTransactionType(transaction, test){
     return new Promise(async (resolve)=>{
         if(transaction.type == 'call'){
           let call = {
@@ -2179,18 +2179,27 @@ class Node {
           //Could implement a way to protect contract state from arbitrary
           //modifications while still allowing authorized accounts to modifiy it
           //legitimately.
-          let result = await this.chain.testCall(call)
+          if(test){
+            let result = await this.chain.testCall(call)
           
-          if(result.error) resolve({error:result.error})
-          else{
-            //Transactions added to pool for confirmation by peers blocks or by this
-            //node's miner's blocks. 
-            let added = await this.mempool.addTransaction(transaction);
-            if(added.error){
-              resolve({error:added.error})
-            }else{
-              resolve(result)
+            if(result.error) resolve({error:result.error})
+            else{
+              //Transactions added to pool for confirmation by peers blocks or by this
+              //node's miner's blocks. 
+              let added = await this.mempool.addTransaction(transaction);
+              if(added.error){
+                resolve({error:added.error})
+              }else{
+                resolve(result)
+              }
             }
+          }else{
+            let added = await this.mempool.addTransaction(transaction);
+              if(added.error){
+                resolve({error:added.error})
+              }else{
+                resolve(added)
+              }
           }
 
         }else{

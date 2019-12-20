@@ -124,7 +124,8 @@ class VMController{
                 let added = await this.vmBootstrap.addContract(contractName, contractCode)
                 if(added.error) return { error:added.error } 
                 let state = await this.contractConnector.getState(contractName)
-                if(state){
+                if(state && Object.keys(state).length > 0){
+                    console.log('Okay, about to send state to VM', state)
                     let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
                     if(stateAdded.error) return { error:stateAdded.error }
 

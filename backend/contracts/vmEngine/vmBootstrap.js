@@ -8,7 +8,7 @@ class VMBootstrap{
         this.child = null;
         this.events = new EventEmitter()
         this.ping = null;
-        this.pingLimit = 5
+        this.pingLimit = 25
     }
 
     async addContract(contractName){
@@ -126,15 +126,16 @@ class VMBootstrap{
 
                 
             }else if(message.getState){
-                
+                console.log('VM Request state because its loaded state is empty')
                 let state = await this.contractConnector.getState(message.getState);
-                if(state){
-                    if(state.error) console.log('State error', state.error)
+                if(state && Object.keys(state).length > 0){
+                    if(state.error) this.child.send({error:state.error})
                     else{
                         this.child.send({ state:state })
                     }
                 }else{
-                    console.log('Could not find state of '+message.getState)
+                    this.child.send({error:'Could not find state of '+message.getState})
+                    console.log()
                 }
             }else if(message.error){
                 console.log('VM ERROR:',message)

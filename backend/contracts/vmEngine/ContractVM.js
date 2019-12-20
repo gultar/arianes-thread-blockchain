@@ -50,15 +50,20 @@ class ContractVM{
                         "getFunctionArguments":getFunctionArguments,
                         "getState":(contractName)=>{
                             return new Promise((resolve)=>{
-                                signals.once('state', (state)=>{
+                                if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
+                                    resolve(this.sandbox.contractStates[contractName])
+                                }else{
+                                    this.signals.once('state', (state)=>{
                                     
-                                    if(state){
-                                        resolve(this.sandbox.contractStates[contractName]) 
-                                    }else{
-                                        signals.emit('failed', {error: `ERROR: Could not find state of contract ${contractName}`})
-                                    }
-                                })
-                                signals.emit('getState', contractName)
+                                        if(state && Object.keys(state)){
+                                            resolve(state) 
+                                        }else{
+                                            this.signals.emit('failed', {error: `ERROR: Could not find state of contract ${contractName}`})
+                                        }
+                                    })
+                                    this.signals.emit('getState', contractName)
+                                }
+                                
                             })
                             
                         },
@@ -311,6 +316,8 @@ class ContractVM{
                 let timer
                 const createTimer = (time, resolve) =>{
                     timer = setTimeout(()=>{
+                        console.log('TIMED OUT', call.hash)
+                        this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
                         resolve({
                             error:"ERROR: VM timed out",
                             hash:call.hash,
@@ -344,7 +351,8 @@ class ContractVM{
                 ${methodToRun}
 
                 `
-    
+                // console.log('State before run', this.sandbox.contractStates[call.contractName])
+
                 let code = this.wrapCode( codeToWrap )
                 createTimer(call.cpuTime, resolve)
                 let execute = this.vm.run(importHeader + code)
@@ -353,12 +361,11 @@ class ContractVM{
                     clearTimeout(timer)
                     if(result.state && Object.keys(result.state).length > 0){
                         this.sandbox.contractStates[call.contractName] = result.state
+                        // console.log('State after run', this.sandbox.contractStates[call.contractName])
+                        
                     }else{
-                        resolve({
-                            error:`State received from result ${call.hash} is empty`,
-                            hash:call.hash,
-                            contractName:call.contractName
-                        })
+                        console.log('Forced to rollback execution of call', call.hash)
+                        this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
                     }
                     
                     resolve({
