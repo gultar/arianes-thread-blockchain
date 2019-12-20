@@ -289,7 +289,6 @@ class ContractVM{
 
                 let result = await this.run(call)
                 
-                console.log('Result', result)
                 if(result.error) errors[hash] = result
                 else results[hash] = result
             }
@@ -346,7 +345,6 @@ class ContractVM{
                     clearTimeout(timer)
                     if(result.state && Object.keys(result.state).length > 0){
                         this.sandbox.contractStates[call.contractName] = result.state
-                        console.log('Setting gold state', result.state.tokens.GOLD)
                     }else{
                         resolve({
                             error:`State received from result ${call.hash} is empty`,

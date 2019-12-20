@@ -40,7 +40,6 @@ class VMController{
                 }
 
                 if(Object.keys(errors).length > 0){
-                    console.log('CALL ERRORS: ', errors)
                     resolve({error:errors})
                 }else{
                     for await(let contractName of Object.keys(states)){
