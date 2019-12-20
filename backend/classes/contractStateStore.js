@@ -84,9 +84,19 @@ class ContractStateStore{
                     else{
                         //Need to find a way to clean up unused state entries of blocks
                         this.state = state;
-                        let saved = await this.save()
-                        if(saved.error) return {error:saved.error}
-                        else return state
+                        let added = this.database.put({
+                            id:blockHash,
+                            key:blockHash,
+                            value:{
+                                state:this.state,
+                                hash:blockHash,
+                            }
+                        })
+                        if(added.error) return { error:added.error }
+                        else return added
+                        // let saved = await this.save()
+                        // if(saved.error) return {error:saved.error}
+                        // else return state
                     }
                 }else{
                     return { error:`ERROR: Could not rollback to block ${blockHash}. State at this block does not exist` }
