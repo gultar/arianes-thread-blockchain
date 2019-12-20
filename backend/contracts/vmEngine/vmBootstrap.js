@@ -128,7 +128,7 @@ class VMBootstrap{
                 
                 let state = await this.contractConnector.getState(message.getState);
                 if(state){
-                    if(state.error) console.log('State.error')
+                    if(state.error) console.log('State error', state.error)
                     else{
                         this.child.send({ state:state })
                     }

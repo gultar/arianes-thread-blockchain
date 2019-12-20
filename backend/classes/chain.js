@@ -2221,7 +2221,6 @@ class Blockchain{
       }
 
     }else{
-      logger('ERROR: Transaction is undefined');
       resolve({error:'ERROR: Transaction is undefined'})
     }
 

@@ -30,18 +30,30 @@ class VMController{
                     if(results.error) errors[hash] = result
                     else{
                         results[hash] = result
-                        states[result.contractName] = result.state
+                        if(result.state && Object.keys(result.state).length > 0){
+                            states[result.contractName] = result.state
+                        }
+                        
                     }
                 }
             })
     
             this.vmChannel.on('finished', async ()=>{
                 for await(let contractName of Object.keys(states)){
-                    let state = states[contractName]
-                    let updated = await this.contractConnector.updateState({
-                        name:contractName,
-                        newState:state,
-                    })
+                    if(states[contractName]){
+                        let state = states[contractName]
+                        if(state && Object.keys(state).length > 0){
+                            let updated = await this.contractConnector.updateState({
+                                name:contractName,
+                                newState:state,
+                            })
+                            if(updated.error) console.log('STATE ERROR:', updated.error)
+                        }else{
+                            console.log('STATE ERROR: Did not update state because state provided by VM was empty')
+                        }
+                    }
+                    
+                    
                 }
                 if(Object.keys(errors).length > 0){
                     resolve({error:errors})

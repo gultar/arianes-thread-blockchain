@@ -1863,9 +1863,7 @@ class Node {
               if(!this.isOutOfSync){
                 let added = await this.handleNewBlockFound(data, originAddress);
                 if(added.error){
-                  logger('New Block Found ERROR follows:',added.error)
-                  
-                  logger('--------------------------------')
+                  logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                 }
               }else{
                 logger('WARNING: Node is out of sync. Cannot receive new block until chain is fixed')
@@ -1971,7 +1969,6 @@ class Node {
                     this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                     this.localServer.socket.emit('run')
                     if(addedToChain.error){
-                      logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
                       resolve({error:addedToChain.error})
                     }else if(addedToChain.outOfSync){
                       console.log('Okay about to try to fix branch')
