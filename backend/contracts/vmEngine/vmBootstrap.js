@@ -73,55 +73,56 @@ class VMBootstrap{
 
             }else if(message.results){
                 
-                // this.events.emit('results', message.results)
+                this.events.emit('results', message.results)
+                // this.events.emit('finished', true)
 
-                let results = message.results
-                let errors = message.errors
-                
-                if(Object.keys(results).length == 0 && Object.keys(errors).length > 0){
-                    for await(let hash of Object.keys(errors)){
-                        let result = errors[hash]
-                        this.events.emit(hash, {
-                            error:result.error,
-                            contractName:result.contractName,
-                            hash:hash
-                        })
-                    }
-                }else if(Object.keys(results).length > 0 && Object.keys(errors).length > 0){
-                    let total = {  ...results, ...errors }
-                    for await(let hash of Object.keys(total)){
-                        let result = total[hash]
+                // let results = message.results
+                // let errors = message.errors
+                // 
+                // if(Object.keys(results).length == 0 && Object.keys(errors).length > 0){
+                //     for await(let hash of Object.keys(errors)){
+                //         let result = errors[hash]
+                //         this.events.emit(hash, {
+                //             error:result.error,
+                //             contractName:result.contractName,
+                //             hash:hash
+                //         })
+                //     }
+                // }else if(Object.keys(results).length > 0 && Object.keys(errors).length > 0){
+                //     let total = {  ...results, ...errors }
+                //     for await(let hash of Object.keys(total)){
+                //         let result = total[hash]
     
-                        if(result.error){
-                            this.events.emit(hash, {
-                                error:result.error,
-                                contractName:result.contractName,
-                                hash:hash
-                            })
-                        }else{
-                            this.events.emit(hash, {
-                                executed:result,
-                                contractName:result.contractName,
-                                state:result.state,
-                                hash:hash
-                            })
-                        }
-                    }
-                }else if(Object.keys(results).length > 0 && Object.keys(errors).length == 0){
-                    for await(let hash of Object.keys(results)){
-                        let result = results[hash]
-                        this.events.emit(hash, {
-                            executed:result,
-                            contractName:result.contractName,
-                            state:result.state,
-                            hash:hash
-                        })
-                    }
-                }
+                //         if(result.error){
+                //             this.events.emit(hash, {
+                //                 error:result.error,
+                //                 contractName:result.contractName,
+                //                 hash:hash
+                //             })
+                //         }else{
+                //             this.events.emit(hash, {
+                //                 executed:result,
+                //                 contractName:result.contractName,
+                //                 state:result.state,
+                //                 hash:hash
+                //             })
+                //         }
+                //     }
+                // }else if(Object.keys(results).length > 0 && Object.keys(errors).length == 0){
+                //     for await(let hash of Object.keys(results)){
+                //         let result = results[hash]
+                //         this.events.emit(hash, {
+                //             executed:result,
+                //             contractName:result.contractName,
+                //             state:result.state,
+                //             hash:hash
+                //         })
+                //     }
+                // }
 
 
 
-                this.events.emit('finished', true)
+                
 
                 
             }else if(message.getState){

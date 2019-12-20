@@ -29,13 +29,37 @@ class VMController{
                     
                     if(results.error) errors[hash] = result
                     else{
-                        results[hash] = result
                         if(result.state && Object.keys(result.state).length > 0){
                             states[result.contractName] = result.state
+                            results[hash] = result
+                        }else{
+                            errors[hash] = result
                         }
                         
                     }
                 }
+
+                if(Object.keys(errors).length > 0){
+                    console.log('CALL ERRORS: ', errors)
+                    resolve({error:errors})
+                }else{
+                    for await(let contractName of Object.keys(states)){
+                        let state = states[contractName]
+                        if(state && Object.keys(state).length > 0){
+                            let updated = await this.contractConnector.updateState({
+                                name:contractName,
+                                newState:state,
+                            })
+                            if(updated.error) console.log('STATE ERROR:', updated.error)
+                            
+                        }else{
+                            console.log('STATE ERROR: Did not update state because state provided by VM was empty')
+                        }
+                    }
+                    resolve({ results:results, states:states })
+                    
+                }
+                
             })
     
             this.vmChannel.on('finished', async ()=>{
@@ -56,6 +80,7 @@ class VMController{
                     
                 }
                 if(Object.keys(errors).length > 0){
+                    console.log('CALL ERRORS: ', errors)
                     resolve({error:errors})
                 }else{
                     resolve({ results:results, states:states })
@@ -72,8 +97,13 @@ class VMController{
                     }else if(result.timeout){
                         errors[hash] = result
                     }else{
-                        results[hash] = result
-                        states[result.contractName] = result.state
+                        
+                        if(result.state && Object.keys(result.state).length > 0){
+                            states[result.contractName] = result.state
+                            results[hash] = result
+                        }else{
+                            errors[hash] = result
+                        }
                     }
                     this.vmChannel.removeAllListeners(call.hash)
                 })
@@ -124,8 +154,6 @@ class VMController{
             let { results, state } = result;
             return { results:results, state:state }
         }
-
-        // return { results:results, errors:errors }
 
     }
 

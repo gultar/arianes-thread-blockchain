@@ -342,12 +342,16 @@ class ContractVM{
                 
                 execute(async (result)=>{
                     clearTimeout(timer)
-                    this.sandbox.contractStates[call.contractName] = this.sandbox.stateStorage
+                    if(this.sandbox.stateStorage && Object.keys(this.sandbox.stateStorage).length > 1){
+                        this.sandbox.contractStates[call.contractName] = this.sandbox.stateStorage
+                    }else{
+                        console.log(`State received from result ${call.hash} is empty`)
+                    }
                     
                     resolve({
                         value:result,
                         hash:call.hash,
-                        state:this.sandbox.stateStorage,
+                        state:this.sandbox.contractStates[call.contractName],
                         contractName:contractName
                     })
                     
