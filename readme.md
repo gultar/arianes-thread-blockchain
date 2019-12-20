@@ -1,6 +1,6 @@
 # Thousandfold blocks
 
-A Nodejs + Socket.io + PouchDB blockchain platform with signed transactions, p2p communication, block synchronization between peers, block conflict resolution (although still pretty simple), a working proof of work algorithm, a difficulty increase algorithm.
+A Nodejs + Socket.io + Rocket-Store PoW Blockchain platform with support for smart contracts written in Nodejs. It's still a WIP and will likely remain so for a while but feel free to reach out or contribute to this project as I would like to see it put to good use eventually
 
 
 
@@ -17,10 +17,10 @@ Aside from some fine tuning, here are some possible future implementations:
 You need to clone the repo in a folder
 
 ```
-git clone https://github.com/gultar/blockchain-simulation
-cd ./blockchain-simulation
+git clone https://github.com/gultar/blockchain
+cd ./blockchain
 ```
-Then you need to install Node.js
+Then you need to install Node.js, if you haven't already
 
 ```
 $ curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
@@ -117,6 +117,7 @@ Commands:
 ## Sending a transaction
 
 In order to send a transaction, you may either use the CLI tool or send a signed JSON data packet to your local blockchain node.
+The transaction will then be relayed to all connected peers for validation and mining.
 
 The basic structure of a transaction is as follows:
 
