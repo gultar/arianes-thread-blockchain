@@ -148,7 +148,9 @@ program
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
                 socket.emit('update');
-                socket.close()
+                setTimeout(()=>{
+                    socket.close()
+                }, 1000)
             
         })
     }else{
