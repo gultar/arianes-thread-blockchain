@@ -128,12 +128,12 @@ class VMBootstrap{
                 
                 let state = await this.contractConnector.getState(message.getState);
                 if(state){
-                    if(state.error) this.child.send({ state:null })
+                    if(state.error) console.log('State.error')
                     else{
                         this.child.send({ state:state })
                     }
                 }else{
-                    this.child.send({ state:null })
+                    console.log('Could not find state of '+message.getState)
                 }
             }else if(message.error){
                 console.log('VM ERROR:',message)

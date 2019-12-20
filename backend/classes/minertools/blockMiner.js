@@ -64,7 +64,7 @@ class Miner{
             this.previousBlock = block
         })
         this.socket.on('startMining', (rawBlock)=>{
-          console.log('Received a new block to mine')
+          
             this.start(rawBlock)
         })
         

@@ -51,7 +51,7 @@ const txgen = (program) =>{
                             console.log(JSON.stringify(success.data, null, 2))
                             setTimeout(()=>{
                                 txgen(program)
-                               }, 20) 
+                               }, 200) 
                         })
                         .catch( e => {
                             console.log(e)
