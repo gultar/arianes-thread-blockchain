@@ -417,12 +417,12 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           loadWallet(cmd, args);
           break;
-        case 'test':
+        case 'state':
           if(!isConnected){
             connectError(cmd);
             break;
           }
-          socket.emit('testgetMostUpToDatePeer', args[0])
+          socket.emit('getContractState', args[0], args[1])
           break;
         case 'update':
           if(!isConnected){

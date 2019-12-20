@@ -142,6 +142,21 @@ program
 })
 
 program
+.command('getstate <blockHash> <contractName>')
+.description('Get state of contract at a given block hash')
+.action((blockHash, contractName)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('getContractState', blockHash, contractName);
+                socket.close()
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('reset')
 .description('Requests some general information about the blockchain')
 .action(()=>{
