@@ -1881,7 +1881,7 @@ class Node {
               if(!this.isOutOfSync){
                 let added = await this.handleNewBlockFound(data, originAddress);
                 if(added.error){
-                  logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
+                  logger(chalk.red('REJECTED BLOCK:'), added.error)
                 }
               }else{
                 logger('WARNING: Node is out of sync. Cannot receive new block until chain is fixed')

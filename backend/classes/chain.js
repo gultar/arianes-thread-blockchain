@@ -273,68 +273,49 @@ class Blockchain{
           resolve({error:isValidBlock.error})
         }
         else{
-            var isLinked = this.isBlockLinked(newBlock);
-            let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+            let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
+            if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
+            else{
 
-            
+              var isLinked = this.isBlockLinked(newBlock);
+              let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
 
-              
-            
-            if(isLinked && !blockNumberAlreadyExists){
-              this.isBusy = true
-              let added = await this.addBlockToChain(newBlock, silent)
-              if(added.error) resolve({error:added.error})
-              else resolve(added)
-            }else if(isLinked && !blockNumberAlreadyExists){
-              let newBlockHasBeenBranched = await this.extendBranch(newBlock)
-              if(newBlockHasBeenBranched.error) resolve({ error:newBlockHasBeenBranched.error })
-              else if(newBlockHasBeenBranched){
-                let branched = newBlockHasBeenBranched
-                if(branched.staying){
-                  logger(chalk.yellow(`* Staying on main blockchain`))
-                  logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                }else if(branched.outOfSync){
-                  logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
-                }else if(branched.synced){
-                  logger(chalk.yellow(`* Switched blockchain branches`))
-                  logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                }else if(branched.added){
-                  logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
-                  logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+              if(isLinked && !blockNumberAlreadyExists){
+                this.isBusy = true
+                let added = await this.addBlockToChain(newBlock, silent)
+                if(added.error) resolve({error:added.error})
+                else resolve(added)
+              }else{
+                let newBlockHasBeenBranched = await this.extendBranch(newBlock)
+                if(newBlockHasBeenBranched.error) resolve({ error:newBlockHasBeenBranched.error })
+                else if(newBlockHasBeenBranched){
+                  let branched = newBlockHasBeenBranched
+                  if(branched.staying){
+                    logger(chalk.yellow(`* Staying on main blockchain`))
+                    logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                  }else if(branched.outOfSync){
+                    logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
+                  }else if(branched.synced){
+                    logger(chalk.yellow(`* Switched blockchain branches`))
+                    logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+                  }else if(branched.added){
+                    logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+                    logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+                  }
+                  resolve(branched)
                 }
-                resolve(branched)
+                else{
+                  resolve({ error:`ERROR: Could not add ${newBlock.blockNumber} to branch` })
+                }
+              
               }
-              else{
-                resolve({ error:`ERROR: Could not add ${newBlock.blockNumber} to branch` })
-              }
-            
-            }else if(!isLinked && !blockNumberAlreadyExists){
 
             }
-
-            let branched = await this.blockchainBranches(newBlock)
-              this.isBusy = false
-              if(branched.error) resolve({error:branched.error});
-              else{
-                if(branched.staying){
-                  logger(chalk.yellow(`* Staying on main blockchain`))
-                  logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                }else if(branched.outOfSync){
-                  logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
-                }else if(branched.synced){
-                  logger(chalk.yellow(`* Switched blockchain branches`))
-                  logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                }else if(branched.added){
-                  logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
-                  logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
-                }
-                resolve(branched)
-              }
-          // if(!this.isBusy){
+              
             
-          // }else{
-          //   resolve({isBusy:true})
-          // }
+
+
+           
           
         }
       }else{
@@ -1147,6 +1128,13 @@ class Blockchain{
     return false;
   }
 
+  async getBlockbyHash(hash){
+    for await(let block of this.chain){
+      if(block.hash === hash) return block
+    }
+
+    return false;
+  }
 
 
   checkBalance(publicKey){
