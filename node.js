@@ -1432,6 +1432,7 @@ class Node {
       })
 
       socket.on('getContractState', async (hash, contractName)=>{
+        console.log('Got something')
         let storage = await this.chain.contractTable.stateStorage[contractName]
         let state = await storage.getState(hash)
         console.log(state)
