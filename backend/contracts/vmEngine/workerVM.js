@@ -80,9 +80,11 @@ const workerVM = () =>{
 
             if(typeof message.setState == 'object' && message.contractName){
               
-              vm.setState(message.setState, message.contractName)
+              let stateSet = await vm.setState(message.setState, message.contractName)
+              if(stateSet.error) process.send({error:stateSet.error, contractName:message.contractName })
+              
             }else{
-              process.send({error:'ERROR: Must provide state of type object and contract name', hash:message.hash, contractName:message.contractName})
+              process.send({error:'ERROR: Must provide state of type object and contract name', contractName:message.contractName})
             }
 
         }else if(message.contractCode){
@@ -95,8 +97,10 @@ const workerVM = () =>{
             }
 
         }else if(message.state){
+          //to be removed
            vm.signals.emit('state', message.state)
         }else if(message.contract){
+          //to be removed
            vm.signals.emit('contract', message.contract)
         }else if(message.ping){
            process.send({pong:true})

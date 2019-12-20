@@ -98,19 +98,25 @@ class ContractVM{
         }
     }
 
+    //to be removed
     transferState(nextState, contractName){
         if(nextState){
-            this.sandbox.stateStorage = nextState
             this.sandbox.contractStates[contractName] = nextState
         }
     }
 
     setState(nextState, contractName){
-        if(nextState && contractName){
+        if(nextState && Object.keys(nextState).length > 0 && contractName){
             this.sandbox.contractStates[contractName] = nextState
+            return true
+        }else{
+            if(!nextState) return { error:`Could not set state of ${contractName} because state is undefined` }
+            else if(Object.keys(nextState).length == 0) return { error:`Could not set state of ${contractName} because state is an empty object` }
+            else if(!contractName) return { error:`Could not set state because contract name is undefined. State: ${nextState}` }
         }
     }
 
+    //to be removed
     setInitialState(state){
         if(state){
             this.sandbox.stateStorage = state
@@ -119,6 +125,7 @@ class ContractVM{
         }
     }
 
+    //to be removed
     convertToVMCode(label, code){
        return `
        let ${label}String = '${JSON.stringify(code)}'
@@ -155,6 +162,7 @@ class ContractVM{
         return functionWrapper
     }
 
+    //to be removed or implemented
     buildContractFunctionWrapper(contractName, initParams){
         let functionWrapper = `
 
