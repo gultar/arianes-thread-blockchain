@@ -2987,7 +2987,8 @@ class Blockchain{
                   if(block.error) {
                     reject(block.error)
                   }
-      
+                  console.log('loading', block.blockNumber)
+                  console.log('hash', block.hash)
                   //Could plug in balance loading from DB here
                   let txHashes = Object.keys(block.transactions)
                   let actionHashes = Object.keys(block.actions)
