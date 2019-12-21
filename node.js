@@ -2009,7 +2009,7 @@ class Node {
                           if(actionsPutback.error) resolve({error:actionsPutback.error})
                         }
                       }
-                      console.log('Result of block handling', added)
+                      
                       resolve(true)
                     }
                     
