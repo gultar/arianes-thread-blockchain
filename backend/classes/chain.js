@@ -228,7 +228,6 @@ class Blockchain{
         
         //Verify is already exists
         if(Object.keys(errors).length > 0){
-          this.isBusy = false
           resolve({error: errors})
         }else{
           
@@ -246,12 +245,11 @@ class Blockchain{
             if(saved.error) console.log('Saved last block', saved)
             
             if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
-            this.isBusy = false
+            
             resolve(true);
             
           }else{
 
-            this.isBusy = false
             resolve({ error:'Could not push new block' })
           }
           
@@ -276,7 +274,7 @@ class Blockchain{
             let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
             if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
             else{
-              this.isBusy = true
+              
               var isLinked = this.isBlockLinked(newBlock);
               var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
               let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
@@ -296,9 +294,7 @@ class Blockchain{
                */
               if(isLinked){
                 if(blockNumberAlreadyExists){
-                  console.log('createNewBranch - already exists')
                   let branched = await this.createNewBranch(newBlock);
-                  console.log('Has branched')
                   if(branched.error) resolve({error:branched.error})
                   else resolve(branched)
                 }else{
@@ -308,24 +304,19 @@ class Blockchain{
                 }
               }else{
                 if(isLinkedToChain){
-                  console.log('createNewBranch - linked to chain')
                   let branched = await this.createNewBranch(newBlock);
-                  console.log('Has branched', branched)
                   if(branched.error) resolve({error:branched.error})
                   else resolve(branched)
                 }else if(isLinkedToBranch){
-                  console.log('extendBranch')
                   let extended = await this.extendBranch(newBlock)
                   if(extended.error) resolve({error:extended})
                   else resolve(extended)
                 }else if(isLinkedToUnlinkedBranch){
-                  console.log('extendUnlinkedBranch')
                   let extended = await this.extendUnlinkedBranch(newBlock);
                   if(extended.error) resolve({error:extended.error})
                   else resolve(extended)
                   //extend unlinked branch
                 }else{
-                  console.log('createNewUnlinkedBranch')
                   let branched = await this.createNewUnlinkedBranch(newBlock)
                   if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
                   else resolve(branched)

@@ -1700,7 +1700,7 @@ class Node {
     
     const createRawBlock = async () =>{
       
-      if(!this.isDownloading && !this.chain.isBusy && !this.isOutOfSync){
+      if(!this.isDownloading){
         let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions.error) console.log(transactions.error)
         transactionsToMine = { ...transactionsToMine, ...transactions }
@@ -1742,7 +1742,7 @@ class Node {
     api.on('readyToRun', ()=>{ api.emit('run') })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      if(!this.isDownloading && !this.chain.isBusy && !this.isOutOfSync){
+      if(!this.isDownloading){
         if(minerPreviousBlock.blockNumber == this.chain.getLatestBlock().blockNumber){
           if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
             let newRawBlock = await createRawBlock()
@@ -1786,7 +1786,7 @@ class Node {
     
 
     api.on('newBlock', async (block)=>{
-      if(this.chain.isBusy || this.isDownloading) api.emit('stopMining')
+      if(this.isDownloading) api.emit('stopMining')
       else{
         if(block){
           
@@ -1794,7 +1794,7 @@ class Node {
           hasSentBlock = false
 
           if(added.error){
-            console.log(added.error)
+            console.log('Adding error:',added.error)
           }else{
             this.sendPeerMessage('newBlockFound', block);
             api.emit('latestBlock', block)
@@ -1812,14 +1812,14 @@ class Node {
       if(this.chain instanceof Blockchain){
         if(minersPreviousBlock){
           if(minersPreviousBlock.blockNumber <= this.chain.getLatestBlock().blockNumber){
-            if(!this.chain.isBusy && !this.isDownloading){
+            if(!this.isDownloading){
               api.emit('latestBlock', this.chain.getLatestBlock())
              
             }
           }
         }else{
           
-          if(!this.chain.isBusy  && !this.isDownloading){
+          if(!this.isDownloading){
             api.emit('latestBlock', this.chain.getLatestBlock())
            
           }
@@ -1993,6 +1993,7 @@ class Node {
                 let added = await this.chain.pushBlock(block);
                   if(added.error) resolve({error:added.error})
                   else{
+                    
                     //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                     if(added.findMissing){
                       let fixed = await this.fixUnlinkedBranch(added.findMissing);
