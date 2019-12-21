@@ -1865,16 +1865,18 @@ class Blockchain{
       let mainBranch = []
       for await(let header of removed){
         let block = await this.getBlockFromDB(header.blockNumber);
-        if(block.error) removed = [] //If, for some reason, could not get block from db, just cancel the removed blocks alltogether, to avoid
-                                      //Creating a branch with headers only
-        else mainBranch.push(block)
+        if(block.error){
+          console.log('An error occurred while getting block '+header.blockNumber)
+        }else{
+          mainBranch.push(block)
+        }
       }
       
       logger('Rolled back to block ', number)
       logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
-        resolve(removed)
+        resolve(mainBranch)
       }
     })
   }
