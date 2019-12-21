@@ -413,7 +413,7 @@ class Blockchain{
         let isValidCandidateBranch = await this.validateBranch(newBlock, existingUnlinkedBranch);
 
         if(isValidCandidateBranch){
-          logger(chalk.yellow(`* Will now attempt to find missing previous block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+          logger(chalk.yellow(`* Will now attempt to find missing previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
           //By returning this, node will query peers this newBlock hash's previous blocks 
           //until it either links to blockchain or to a branch that is itself linked to the blockchain
           return { findMissing:newBlock.hash }
@@ -497,7 +497,7 @@ class Blockchain{
             }
             
           }
-          logger(chalk.cyan(`* Swapped branches up to block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+          logger(chalk.cyan(`* Swapped branches up to block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
           return { switched:true }
         }
         
