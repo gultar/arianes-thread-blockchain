@@ -65,7 +65,7 @@ class Miner{
             this.previousBlock = block
         })
         this.socket.on('startMining', (rawBlock)=>{
-          console.log('Wants to start mining', rawBlock)
+          
             if(rawBlock.error) console.log(rawBlock.error)
             else if(rawBlock){
               if(!this.minerStarted){
@@ -138,7 +138,6 @@ class Miner{
 
     run(){
       this.routine = setInterval(()=>{
-        console.log('Shit shit')
         if(!this.minerStarted){
           this.socket.emit('getLatestBlock')
           this.socket.emit('isNewBlockReady', this.previousBlock)

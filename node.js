@@ -1780,7 +1780,7 @@ class Node {
             transactionsToMine = {}
             actionsToMine = {}
         }else{
-          console.log(newRawBlock.error)
+          // console.log(newRawBlock.error)
         }
       }else{
         api.emit('startMining', false)
