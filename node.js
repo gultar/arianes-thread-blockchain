@@ -864,32 +864,8 @@ class Node {
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
 
-                
   
-                if(this.chain.getLatestBlock().blockNumber == 0){
-                  this.downloadGenesisBlock(peer)
-                  .then( async (genesisBlock)=>{
-                    
-                    if(genesisBlock.error){
-                      console.log(genesisBlock.error)
-                    }else{
-                      let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                      if(downloaded.error){
-                        
-                        // let resolved = await this.getMissingBlocksToSyncBranch(block)
-                        resolve(false)
-                      }else{
-                        peer.send('getBlockchainStatus')
-
-
-                        resolve(true)
-                      }
-                    }
-  
-                  })
-                  
-                }else{
-                  let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                   if(downloaded.error){
                     logger('Could not download blockchain')
                     console.log(downloaded.error)
@@ -898,7 +874,6 @@ class Node {
                     peer.send('getBlockchainStatus')
                     resolve(true)
                   }
-                }
   
                
               }else{
@@ -1774,13 +1749,13 @@ class Node {
     })
     this.mempool.events.on('newTransaction', async (transaction)=>{
       transactionsToMine[transaction.hash] = transaction
-      let newRawBlock = await createRawBlock()
-      if(!newRawBlock.error) {
-        hasSentBlock = true
-        api.emit('startMining', newRawBlock)
-        transactionsToMine = {}
-        actionsToMine = {}
-      }
+      // let newRawBlock = await createRawBlock()
+      // if(!newRawBlock.error) {
+      //   hasSentBlock = true
+      //   api.emit('startMining', newRawBlock)
+      //   transactionsToMine = {}
+      //   actionsToMine = {}
+      // }
     })
 
     
