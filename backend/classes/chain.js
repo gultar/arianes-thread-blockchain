@@ -469,6 +469,7 @@ class Blockchain{
     let firstBlockOfBranch = branch[0]
     //Is the branch linked to current blockchain?
     let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
+    console.log('Branch is linked to ', isLinkedToBlockNumber)
     if(!isLinkedToBlockNumber) {
       //If it is not linked, proceed to find the missing  
       //By adding the branch here, we may look for the missing block, then, when found, we can add it back in and connect
@@ -476,8 +477,10 @@ class Blockchain{
       this.unlinkedBranches[firstBlockOfBranch.previousHash] = branch
       return { outOfSync:firstBlockOfBranch.previousHash }
     }else{
+      
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
-      let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber + 1)
+
+      let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
         console.log('Rolled back result', rolledback)
         if(rolledback && Array.isArray(rolledback)){
@@ -501,14 +504,14 @@ class Blockchain{
 
               let synced = await this.addBlockToChain(block, true)
               if(synced.error) {
-                let rolledbackAgain = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
-                for await(let oldBlock of rolledback){
-                  let addedBackIn = await this.addBlockToChain(oldBlock)
-                  if(addedBackIn.error) return { error:addedBackIn.error }
-                  else{
+                if(rolledback){
+                  for await(let oldBlock of rolledback){
+                    let addedBackIn = await this.addBlockToChain(oldBlock)
+                    if(addedBackIn.error) return { error:addedBackIn.error }
                     logger(`Swap failed: readding block ${oldBlock.blockNumber} : ${block.hash.substr(0, 15)}...`)
                   }
                 }
+                
                 return { staying:true }
               }
               logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${block.hash.substr(0, 20)}...`));

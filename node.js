@@ -2001,9 +2001,10 @@ class Node {
                 }
                 this.isDownloading = true
                 let added = await this.chain.pushBlock(block);
+                this.isDownloading = false
                   if(added.error) resolve({error:added.error})
                   else{
-                    this.isDownloading = false
+                    
                     //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                     if(added.findMissing){
                       let fixed = await this.fixUnlinkedBranch(added.findMissing);
