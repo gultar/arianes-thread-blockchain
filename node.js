@@ -1672,8 +1672,6 @@ class Node {
     
     let actionsToMine = {}
     
-    let poolHasTransactions = this.mempool.sizeOfPool() > 0
-    
     const createRawBlock = async () =>{
       
       if(!this.isDownloading && !this.chain.isBusy && !this.isOutOfSync){

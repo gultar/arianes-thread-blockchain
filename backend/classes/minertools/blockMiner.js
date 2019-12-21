@@ -65,7 +65,11 @@ class Miner{
         })
         this.socket.on('startMining', (rawBlock)=>{
             if(rawBlock.error) console.log(rawBlock.error)
-            else this.start(rawBlock)
+            else{
+              if(!this.minerStarted){
+                this.start(rawBlock)
+              }
+            }
             
         })
         
@@ -99,6 +103,8 @@ class Miner{
             this.socket.emit('newBlock', block)
             this.minerStarted = false;
             this.previousBlock = block;
+            
+            
           }else{
             this.pause()
             this.log('Mining unsuccessful')
@@ -113,8 +119,8 @@ class Miner{
     run(){
       let stayUpdated = setInterval(()=>{
         
-        this.socket.emit('getLatestBlock')
         if(!this.minerStarted){
+          this.socket.emit('getLatestBlock')
           this.socket.emit('isNewBlockReady', this.previousBlock)
         }
       }, 500)
