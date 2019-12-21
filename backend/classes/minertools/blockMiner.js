@@ -88,35 +88,39 @@ class Miner{
         
           
         let block = await this.prepareBlockForMining(rawBlock);
-        if(this.previousBlock.hash !== block.hash){
-          if(block && !this.minerStarted){
-            this.minerStarted = true
-            this.log('Starting to mine next block')
-            this.log('Number of transactions being mined: ', Object.keys(block.transactions).length)
-            this.log('Number of actions being mined: ', Object.keys(block.actions).length)
-            this.log('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
-            this.log('At difficulty: ', parseInt(block.difficulty, 16))
-            let success = await block.mine(block.difficulty);
-            if(success){
-              this.pause()
-              block.endMineTime = Date.now()
-              block = success;
-              this.successMessage(block)
-              this.socket.emit('newBlock', block)
-              this.minerStarted = false;
-              this.previousBlock = block;
-              this.blockNumbersMined[block.blockNumber] = true
-              
+        if(block){
+          if(this.previousBlock.hash !== block.hash){
+            if(!this.minerStarted){
+              this.minerStarted = true
+              this.log('Starting to mine next block')
+              this.log('Number of transactions being mined: ', Object.keys(block.transactions).length)
+              this.log('Number of actions being mined: ', Object.keys(block.actions).length)
+              this.log('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
+              this.log('At difficulty: ', parseInt(block.difficulty, 16))
+              let success = await block.mine(block.difficulty);
+              if(success){
+                this.pause()
+                block.endMineTime = Date.now()
+                block = success;
+                this.successMessage(block)
+                this.socket.emit('newBlock', block)
+                this.minerStarted = false;
+                this.previousBlock = block;
+                this.blockNumbersMined[block.blockNumber] = true
+                
+              }else{
+                this.pause()
+                this.log('Mining unsuccessful')
+                this.minerStarted = false;
+              }
             }else{
-              this.pause()
-              this.log('Mining unsuccessful')
-              this.minerStarted = false;
+              this.log('Miner already started')
             }
           }else{
-            this.log('Miner already started')
+            this.log('Will not mine the same block twice')
           }
         }else{
-          this.log('Will not mine the same block twice')
+          this.log('Could not mine. Miner does not have next block')
         }
 
       }

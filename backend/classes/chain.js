@@ -1447,7 +1447,7 @@ class Blockchain{
         }
       }
 
-      resolve(true)
+      resolve(coinbase)
     })
   }
 
@@ -1485,7 +1485,8 @@ class Blockchain{
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = await this.validateBlockTimestamp(block)
-      var hasOnlyOneCoinbaseTx = await this.validateUniqueCoinbaseTx(block)
+      var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
+      var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
       var isValidChallenge = this.validateChallenge(block);
       var areTransactionsValid = await this.validateBlockTransactions(block)
       var doesNotContainDoubleSpend = await this.verifyPresenceOfTransactions(block)
@@ -1496,8 +1497,9 @@ class Blockchain{
 
       if(!difficultyIsAboveMinimum) resolve({error:'ERROR: Difficulty level must be above minimum set in genesis block'})
       // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
+      if(!coinbaseIsAttachedToBlock) resolve({error:'ERROR: Coinbase transaction is not attached to block '+block.blockNummber})
       if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
-      if(!hasOnlyOneCoinbaseTx) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
+      if(!singleCoinbase) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
       if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
       if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
       if(!merkleRootIsValid) resolve({error:'ERROR: Merkle root of block IS NOT valid'})
@@ -1863,6 +1865,14 @@ class Blockchain{
       
     })
   }
+
+  coinbaseIsAttachedToBlock(transaction, block){
+    if(block.coinbaseTransactionHash === transaction.hash){
+      return true
+    }else{
+      return false
+    }
+  }
   
   blockContainsOnlyValidTransactions(block){
     return new Promise(async (resolve, reject)=>{
@@ -2108,13 +2118,13 @@ class Blockchain{
         try{
   
           let isChecksumValid = this.validateChecksum(transaction);
-          let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
+          // let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
           let hasTheRightMiningRewardAmount = transaction.amount + transaction.miningFee <= (this.miningReward + this.calculateTransactionMiningFee(transaction));
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
           if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
           if(!hasTheRightMiningRewardAmount) resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
-          if(!isAttachedToMinedBlock) resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
+          // if(!isAttachedToMinedBlock) resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           if(!transactionSizeIsNotTooBig) resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'});
           
           resolve(true)
@@ -2840,6 +2850,8 @@ class Blockchain{
     }else{
       return false
     }
+    
+    
   }
 
     /**
