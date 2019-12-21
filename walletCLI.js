@@ -9,6 +9,13 @@ const sha1 = require('sha1')
 const Transaction = require('./backend/classes/transaction');
 const { readFile, validatePublicKey } = require('./backend/tools/utils');
 let api = new WalletQueryTool();
+const activePort = require('dotenv').config({ path: './config/.env' })
+
+if (activePort.error) {
+    throw activePort.error
+}
+
+const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
  
 //Commands to implement
 //Version
@@ -69,8 +76,8 @@ const runWalletCLI = async () =>{
           .command('balance <publicKey>')
           .description('Displays balance of a wallet')
           .action(async ( publicKey )=>{
-            if(program.url){
-              api.getWalletBalanceOfPublicKey(publicKey, program.url);
+            if(nodeAddress){
+              api.getWalletBalanceOfPublicKey(publicKey, nodeAddress);
               
             }else{
               console.log('Need to provide URL of running node')
@@ -82,8 +89,8 @@ const runWalletCLI = async () =>{
           .command('history <walletName>')
           .description('Displays history of a wallet')
           .action(( walletName )=>{
-            if(program.url){
-              api.getWalletHistory(walletName, program.url);
+            if(nodeAddress){
+              api.getWalletHistory(walletName, nodeAddress);
             }else{
               console.log('Need to provide URL of running node')
             }

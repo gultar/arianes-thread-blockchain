@@ -289,7 +289,7 @@ class Blockchain{
                *  switched - Swapped branches with one that has more work or is longer
                * Unlinked branches
                *  branched / extended - Either created or extended an unlinked blockchain branch, nothing to do here
-               *  findMissing - Query peer with the longest blockchain for the missing block
+               *  findMissing - Query peer with the longest blockchain for the missing blocks at block hash
                * 
                * Basically, the only other result to handle, aside from an error or a success, is findMissing
                */
@@ -330,65 +330,6 @@ class Blockchain{
 
   }
 
-  // pushBlock(newBlock, silent=false){
-  //   return new Promise(async (resolve)=>{
-  //     if(isValidBlockJSON(newBlock)){
-  //       let isValidBlock = await this.validateBlock(newBlock);
-  //       if(isValidBlock.error){
-  //         resolve({error:isValidBlock.error})
-  //       }
-  //       else{
-  //           let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-  //           if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
-  //           else{
-
-  //             var isLinked = this.isBlockLinked(newBlock);
-  //             let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
-
-  //             if(isLinked && !blockNumberAlreadyExists){
-  //               this.isBusy = true
-  //               let added = await this.addBlockToChain(newBlock, silent)
-  //               if(added.error) resolve({error:added.error})
-  //               else resolve(added)
-  //             }else{
-  //               let newBlockHasBeenBranched = await this.extendBranch(newBlock)
-  //               if(newBlockHasBeenBranched.error) resolve({ error:newBlockHasBeenBranched.error })
-  //               else if(newBlockHasBeenBranched){
-  //                 let branched = newBlockHasBeenBranched
-  //                 if(branched.staying){
-  //                   logger(chalk.yellow(`* Staying on main blockchain`))
-  //                   logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-  //                 }else if(branched.outOfSync){
-  //                   logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
-  //                 }else if(branched.synced){
-  //                   logger(chalk.yellow(`* Switched blockchain branches`))
-  //                   logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-  //                 }else if(branched.added){
-  //                   logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
-  //                   logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
-  //                 }
-  //                 resolve(branched)
-  //               }
-  //               else{
-  //                 resolve({ error:`ERROR: Could not add ${newBlock.blockNumber} to branch` })
-  //               }
-              
-  //             }
-
-  //           }
-              
-            
-
-
-           
-          
-  //       }
-  //     }else{
-  //       resolve({error:'ERROR: New block undefined'})
-  //     }
-  //   })
-
-  // }
 
   async createNewBranch(newBlock){
     let alreadyExists = this.branches[newBlock.hash]
@@ -468,7 +409,9 @@ class Blockchain{
 
         if(isValidCandidateBranch){
           logger(chalk.yellow(`* Will now attempt to find missing previous block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
-          return { findMissing:true }
+          //By returning this, node will query peers this newBlock hash's previous blocks 
+          //until it either links to blockchain or to a branch that is itself linked to the blockchain
+          return { findMissing:newBlock.hash }
         }else{
           return { extended:true }
         }
@@ -549,7 +492,7 @@ class Blockchain{
             }
             
           }
-          
+          logger(chalk.cyan(`* Swapped branches up to block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
           return { switched:true }
         }
         

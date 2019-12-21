@@ -64,8 +64,9 @@ class Miner{
             this.previousBlock = block
         })
         this.socket.on('startMining', (rawBlock)=>{
-          
-            this.start(rawBlock)
+            if(rawBlock.error) console.log(rawBlock.error)
+            else this.start(rawBlock)
+            
         })
         
         this.socket.on('stopMining', ()=>{ this.pause() })

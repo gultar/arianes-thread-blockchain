@@ -958,53 +958,77 @@ class Node {
     })
   }
 
-  fixBranchOutOfSyncIssue(missingBlockHash){
-    /***
-     *  1. Received block which were not linked to any branch   ... [] <-
-     *  2. Look for missing block through querying the most up to date peer [!]-[!]  ... []
-     *  3. 
-     */
+  fixUnlinkedBranch(unlinkedHash){
     return new Promise(async (resolve)=>{
-      let missingLinkBlocks = await this.getMissingBlocksToSyncBranch(missingBlockHash)
-      if(missingLinkBlocks.error){
-        resolve({error:missingLinkBlocks.error})
-      }else if(missingLinkBlocks){
-        
-        if(missingLinkBlocks.isLinked){
-
-          let blocksReceived = missingLinkBlocks.isLinked
-          let firstReceived = blocksReceived[0]
-          let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
-          unlinkedBranch = [ ...blocksReceived, ...unlinkedBranch ]
-
-          resolve({success:true, isLinked:true})
-          
-        }else if(missingLinkBlocks.isBranch){
-
-          let blocksReceived = missingLinkBlocks.isBranch
-          let firstReceived = blocksReceived[0]
-          let linkedBranch = this.chain.branches[firstReceived.hash]
-          if(linkedBranch){
-            
-            linkedBranch = [ ...linkedBranch, ...blocksReceived ]
-            let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
-            let linkedTwoBranches = [ ...linkedBranch, ...unlinkedBranch ]
-            let latestBranchBlock = linkedTwoBranches[linkedTwoBranches.length - 1]
-            this.chain.branches[latestBranchBlock.hash] = linkedTwoBranches
-
-            resolve({success:true, isBranch:true})
+        //Finding missing blocks from an unlinked branch where block was pushed. 
+        //By finding the missing blocks, current branch is to be swapped with it
+        let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
+        if(missingBlocks.error) resolve({error:missingBlocks.error})
+        else if(missingBlocks.isBranch){
+          let firstBlock = missingBlocks[0]
+          let branch = this.chain.branches[firstBlock.previousHash]
+          let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
+          branch = [ ...branch, ...missingBlocks, ...unlinkedBranch ]
+          let latestBranchedBlock = branch[branch.length - 1]
+          let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
+          if(isValidCandidate){
+            let switched = await this.chain.switchToBranch(branch);
+            if(switched.error) resolve({error:switched.error})
+            resolve({switched:switched})
           }else{
-            resolve({error: 'ERROR: Missing blocks received appeared not to be linked to any branch'})
+            resolve({fixed:true})
           }
-
-        }
-
-      }else{
-        resolve({error:'ERROR: Could not find missing blocks'})
-      }
-
+        } 
     })
   }
+
+  // fixBranchOutOfSyncIssue(missingBlockHash){
+  //   /***
+  //    *  1. Received block which were not linked to any branch   ... [] <-
+  //    *  2. Look for missing block through querying the most up to date peer [!]-[!]  ... []
+  //    *  3. 
+  //    */
+  //   return new Promise(async (resolve)=>{
+  //     let missingLinkBlocks = await this.getMissingBlocksToSyncBranch(missingBlockHash)
+  //     if(missingLinkBlocks.error){
+  //       resolve({error:missingLinkBlocks.error})
+  //     }else if(missingLinkBlocks){
+        
+  //       if(missingLinkBlocks.isLinked){
+
+  //         let blocksReceived = missingLinkBlocks.isLinked
+  //         let firstReceived = blocksReceived[0]
+  //         let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
+  //         unlinkedBranch = [ ...blocksReceived, ...unlinkedBranch ]
+
+  //         resolve({success:true, isLinked:true})
+          
+  //       }else if(missingLinkBlocks.isBranch){
+
+  //         let blocksReceived = missingLinkBlocks.isBranch
+  //         let firstReceived = blocksReceived[0]
+  //         let linkedBranch = this.chain.branches[firstReceived.hash]
+  //         if(linkedBranch){
+            
+  //           linkedBranch = [ ...linkedBranch, ...blocksReceived ]
+  //           let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
+  //           let linkedTwoBranches = [ ...linkedBranch, ...unlinkedBranch ]
+  //           let latestBranchBlock = linkedTwoBranches[linkedTwoBranches.length - 1]
+  //           this.chain.branches[latestBranchBlock.hash] = linkedTwoBranches
+
+  //           resolve({success:true, isBranch:true})
+  //         }else{
+  //           resolve({error: 'ERROR: Missing blocks received appeared not to be linked to any branch'})
+  //         }
+
+  //       }
+
+  //     }else{
+  //       resolve({error:'ERROR: Could not find missing blocks'})
+  //     }
+
+  //   })
+  // }
 
 
   getMissingBlocksToSyncBranch(unsyncedBlockHash){
@@ -1699,6 +1723,7 @@ class Node {
           if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
             let newRawBlock = await createRawBlock()
             if(!newRawBlock.error) {
+              hasSentBlock = true
               api.emit('startMining', newRawBlock)
               transactionsToMine = {}
               actionsToMine = {}
@@ -1726,61 +1751,25 @@ class Node {
       transactionsToMine = {}
       actionsToMine = {}
     }
-
-    this.mempool.events.on('newTransaction', async (transaction)=>{
-      
-      transactionsToMine[transaction.hash] = transaction
-      if(Object.keys(transactionsToMine).length >= minimumSize && !hasSentBlock){
-        hasSentBlock = true
-        
-        let rawBlock = await createRawBlock()
-        if(!rawBlock.error){
-          api.emit('startMining', rawBlock)
-          transactionsToMine = {}
-          actionsToMine = {}
-        }else{
-
-        }
-        
-      }
-      
-    })
-
     this.mempool.events.on('newAction', (action)=>{
       actionsToMine[action.hash] = action
     })
+    this.mempool.events.on('newTransaction', async (transaction)=>{
+      transactionsToMine[transaction.hash] = transaction
+    })
+
+    
 
     api.on('newBlock', async (block)=>{
       if(this.chain.isBusy || this.isDownloading) api.emit('stopMining')
       else{
         if(block){
           
-          let synced = await this.chain.pushBlock(block)
+          let added = await this.chain.pushBlock(block)
           hasSentBlock = false
 
-          if(synced.error){
-            console.log(synced.error)
-          }else if(synced.staying){
-            this.sendPeerMessage('newBlockFound', block);
-            api.emit('latestBlock', this.chain.getLatestBlock())
-          }else if(synced.sync){
-            api.emit('latestBlock', this.chain.getLatestBlock())
-          }else if(synced.outOfSync){
-            console.log('Attempting to solve the blockchain sync problem by rolling back changes')
-            let currentBlockNumber = this.getLatestBlock().blockNumber
-            let rolledback = await this.chain.rollbackToBlock(currentBlockNumber - 15)
-            if(rolledback.error) console.log('Blockchain fix failed:', rolledback.error)
-            else{
-              this.broadcast('getBlockchainStatus')
-            } 
-            // console.log('Okay about to try to fix branch')
-            // this.isOutOfSync = true
-            // let fixed = await this.fixBranchOutOfSyncIssue(synced.outOfSync)
-            // console.log('Tried to fix blockchain', fixed)
-            
-
-          }else if(synced.isBusy){
-            api.emit('stopMining')
+          if(added.error){
+            console.log(added.error)
           }else{
             this.sendPeerMessage('newBlockFound', block);
             api.emit('latestBlock', this.chain.getLatestBlock())
@@ -1798,14 +1787,14 @@ class Node {
       if(this.chain instanceof Blockchain){
         if(minersPreviousBlock){
           if(minersPreviousBlock.blockNumber <= this.chain.getLatestBlock().blockNumber){
-            if(!this.chain.isBusy){
+            if(!this.chain.isBusy && !this.isDownloading){
               api.emit('latestBlock', this.chain.getLatestBlock())
              
             }
           }
         }else{
           
-          if(!this.chain.isBusy){
+          if(!this.chain.isBusy  && !this.isDownloading){
             api.emit('latestBlock', this.chain.getLatestBlock())
            
           }
@@ -1968,72 +1957,106 @@ class Node {
 
                 this.peersLatestBlocks[fromPeer] = block
 
-                if(this.localServer && this.localServer.socket){
+                let minerOn = this.localServer && this.localServer.socket
 
-                  
-
-                  let addedToChain = await this.chain.pushBlock(block);
-                  
-                  if(addedToChain && !addedToChain.sync){
-                    this.localServer.socket.emit('stopMining')
-                    let putback = await this.mempool.putbackTransactions(block)
-                    if(putback.error) resolve({error:putback.error})
-                    if(block.actions){
-                      let actionsPutback = await this.mempool.putbackActions(block)
-                      if(actionsPutback.error) resolve({error:actionsPutback.error})
-                    }
-                    
-                    //If sending too many stale blocks, interrupt connection to peer
-                    this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                    this.localServer.socket.emit('run')
-                    if(addedToChain.error){
-                      resolve({error:addedToChain.error})
-                    }else if(addedToChain.outOfSync){
-                      console.log('Okay about to try to fix branch')
-                      this.isOutOfSync = true
-                      let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
-                      console.log('Tried to fix blockchain', fixed)
-                      if(fixed.error) resolve({error:fixed.error})
-                      else if(fixed.success){
-                        
-                        resolve(fixed)
-                      }else{
-                        resolve({error:'ERROR Node did not manage to fix branch'})
-                      }
-   
-                    }else if(addedToChain.sync){
-                      this.broadcast('getBlockchainStatus');
-                    }
-                    resolve(true)
-
-                    
-                    
-                  }
-                }else{
-                  let addedToChain = await this.chain.pushBlock(block);
-                  if(addedToChain){
-                    //If sending too many stale blocks, interrupt connection to peer
-                    if(addedToChain.error){
-                      logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
-                      resolve({error:addedToChain.error})
-                    }else if(addedToChain.outOfSync){
-                      this.isOutOfSync = true
-                      let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
-                      console.log('Tried to fix blockchain', fixed)
-                      if(fixed.error) resolve({error:fixed.error})
-                      else if(fixed.success){
-                        
-                        resolve(fixed)
-                      }else{
-                        resolve({error:'ERROR Node did not manage to fix branch'})
-                      }
-                      
-                    }else if(addedToChain.sync){
-                      this.broadcast('getBlockchainStatus');
-                    }
-                    resolve(true)
-                  }
+                if(minerOn){
+                  let isLinked = await this.chain.getBlockbyHash(block.previousHash)
+                  if(isLinked) this.localServer.socket.emit('stopMining')
                 }
+
+                let added = await this.chain.pushBlock(block);
+                  if(added.error) resolve({error:added.error})
+                  else{
+                    //If not linked, stop mining after pushing the block, to allow more time for mining on this node
+                    if(added.findMissing){
+                      let fixed = await this.fixUnlinkedBranch(added.findMissing);
+                      if(fixed.error) resolve({error:fixed.error})
+                      else resolve(fixed)
+                    }else{
+                      if(minerOn){
+                        if(!isLinked) this.localServer.socket.emit('stopMining')
+                        this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                        let putback = await this.mempool.putbackTransactions(block)
+                        if(putback.error) resolve({error:putback.error})
+                        if(block.actions){
+                          let actionsPutback = await this.mempool.putbackActions(block)
+                          if(actionsPutback.error) resolve({error:actionsPutback.error})
+                        }
+                      }
+                    }
+                    
+
+                    
+                  }
+
+
+
+                // if(){
+                //   //If new block is linked and is valid, stop mining. Otherwise, keep going
+                  
+
+                //   //Either push to blockchain or to a branch
+                  
+                  
+                //   if(addedToChain && !addedToChain.sync){
+                    
+                //     let putback = await this.mempool.putbackTransactions(block)
+                //     if(putback.error) resolve({error:putback.error})
+                //     if(block.actions){
+                //       let actionsPutback = await this.mempool.putbackActions(block)
+                //       if(actionsPutback.error) resolve({error:actionsPutback.error})
+                //     }
+                    
+                //     //If sending too many stale blocks, interrupt connection to peer
+                    
+                //     if(addedToChain.error){
+                //       resolve({error:addedToChain.error})
+                //     }else if(addedToChain.outOfSync){
+                //       console.log('Okay about to try to fix branch')
+                //       this.isOutOfSync = true
+                //       let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
+                //       console.log('Tried to fix blockchain', fixed)
+                //       if(fixed.error) resolve({error:fixed.error})
+                //       else if(fixed.success){
+                        
+                //         resolve(fixed)
+                //       }else{
+                //         resolve({error:'ERROR Node did not manage to fix branch'})
+                //       }
+   
+                //     }else if(addedToChain.sync){
+                //       this.broadcast('getBlockchainStatus');
+                //     }
+                //     resolve(true)
+
+                    
+                    
+                //   }
+                // }else{
+                //   let addedToChain = await this.chain.pushBlock(block);
+                //   if(addedToChain){
+                //     //If sending too many stale blocks, interrupt connection to peer
+                //     if(addedToChain.error){
+                //       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
+                //       resolve({error:addedToChain.error})
+                //     }else if(addedToChain.outOfSync){
+                //       this.isOutOfSync = true
+                //       let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
+                //       console.log('Tried to fix blockchain', fixed)
+                //       if(fixed.error) resolve({error:fixed.error})
+                //       else if(fixed.success){
+                        
+                //         resolve(fixed)
+                //       }else{
+                //         resolve({error:'ERROR Node did not manage to fix branch'})
+                //       }
+                      
+                //     }else if(addedToChain.sync){
+                //       this.broadcast('getBlockchainStatus');
+                //     }
+                //     resolve(true)
+                //   }
+                // }
   
               }else{
                 resolve({error:'ERROR:New block header is invalid'})
