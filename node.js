@@ -1692,7 +1692,7 @@ class Node {
     
     let actionsToMine = {}
     
-    const createRawBlock = async () =>{
+    const createRawBlock = async (nextBlock=this.getLatestBlock()) =>{
       
       if(!this.isDownloading){
         let transactions = await this.mempool.gatherTransactionsForBlock()
@@ -1706,8 +1706,8 @@ class Node {
           timestamp:Date.now(),
           transactions:transactionsToMine,
           actions:actionsToMine,
-          previousHash:this.chain.getLatestBlock().hash,
-          blockNumber:this.chain.getLatestBlock().blockNumber + 1
+          previousHash:nextBlock.hash,
+          blockNumber:nextBlock.blockNumber + 1
         } 
         
         return rawBlock
@@ -1737,26 +1737,24 @@ class Node {
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
       if(!this.isDownloading){
-        if(minerPreviousBlock.blockNumber == this.chain.getLatestBlock().blockNumber){
-          if(minerPreviousBlock.hash == this.chain.getLatestBlock().hash){
-            let newRawBlock = await createRawBlock()
-            if(!newRawBlock.error) {
-              hasSentBlock = true
-              api.emit('startMining', newRawBlock)
-              transactionsToMine = {}
-              actionsToMine = {}
-            }else{
-              // console.log(newRawBlock.error)
-            }
-          
-          }else if(minerPreviousBlock.hash == this.chain.getLatestBlock().previousHash){
-            api.emit('latestBlock', this.chain.getLatestBlock())
-          }else{
-            api.emit('latestBlock', this.chain.getLatestBlock())
+        let branches = this.chain.branches;
+        let nextBlock = {}
+        for await(let branchHash of Object.keys(branches)){
+          let branch = branches[branchHash]
+          let lastBlock = branch[branch.length - 1]
+          if(lastBlock.blockNumber >= this.getLatestBlock().blockNumber){
+            let branchDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
+            let currentDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
+
+            nextBlock = ( branchDifficulty > currentDifficulty ? lastBlock : this.getLatestBlock() )
           }
-          
-        }else{
-          api.emit('latestBlock', this.chain.getLatestBlock())
+        }
+        let newRawBlock = await createRawBlock(nextBlock)
+        if(!newRawBlock.error) {
+          hasSentBlock = true
+            api.emit('startMining', newRawBlock)
+            transactionsToMine = {}
+            actionsToMine = {}
         }
       }
       
