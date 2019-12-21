@@ -484,6 +484,7 @@ class Blockchain{
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
       let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
+        console.log('Rollback', rolledback)
         let lastRolledBackBlock = rolledback[rolledback.length - 1]
         this.branches[lastRolledBackBlock.hash] = rolledback
         if(rolledback.error) return { error:rolledback.error }
@@ -1873,7 +1874,7 @@ class Blockchain{
       logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
-        resolve(mainBranch.length == removed.length ? mainBranch : false)
+        resolve(removed)
       }
     })
   }
