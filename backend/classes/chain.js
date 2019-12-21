@@ -201,11 +201,13 @@ class Blockchain{
   addBlockToChain(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       //Push block header to chain
-      
+      var isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
       let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
       if(blockNumberAlreadyExists || blockAlreadyExists){
         resolve({error:'ERROR: Block already exists'})
+      }else if(!isNextBlock){
+        resolve({error:'ERROR: BlockNumber of new block does not follow this chain'})
       }else{
 
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
