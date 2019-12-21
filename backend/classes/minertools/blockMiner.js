@@ -152,7 +152,7 @@ class Miner{
         process.ACTIVE_MINER.kill()
         process.ACTIVE_MINER = false;
       }
-      
+      this.socket.send('newBlock', { failed:this.previousBlock })
       this.minerStarted = false;
     }
 
