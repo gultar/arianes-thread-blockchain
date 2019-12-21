@@ -1787,15 +1787,17 @@ class Node {
       else{
         if(block){
           hasSentBlock = false
-          let added = await this.chain.pushBlock(block)
-          
-
-          if(added.error){
-            console.log('Adding error:',added.error)
-          }else{
-            this.sendPeerMessage('newBlockFound', block);
-            api.emit('latestBlock', block)
+          let isValid = await this.chain.validateBlock(block)
+          if(isValid){
+            if(isValid.error) console.log('Is not valid mined block', isValid.error)
+            let added = await this.chain.addBlockToChain(block)
+            if(added.error) console.log('ERROR: Could not add mined block', added.error)
+            else{
+              this.sendPeerMessage('newBlockFound', block);
+              api.emit('latestBlock', block)
+            }
           }
+         
   
         }else if(block.failed){
           hasSentBlock = false

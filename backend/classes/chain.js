@@ -202,58 +202,64 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       //Push block header to chain
       
-      let errors = {}
-      let newHeader = this.extractHeader(newBlock)
-
-      let executed = await this.balance.runBlock(newBlock)
-      if(executed.error) errors['Balance error'] = executed.error
-      else{
-
-        let saved = await this.balance.saveBalances(newBlock)
-        if(saved.error) resolve({error:saved.error})
-
-        let actions = newBlock.actions || {}
-        let allActionsExecuted = await this.executeActionBlock(actions)
-        if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
-        
-        let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
-        if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
-        
-        let callsExecuted = await this.runTransactionCalls(newBlock);
-        if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
-        
-        let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-        if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
-        
-        
-        
-        //Verify is already exists
-        if(Object.keys(errors).length > 0){
-          resolve({error: errors})
-        }else{
+      let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+      let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
+      if(blockNumberAlreadyExists || blockAlreadyExists){
+        resolve({error:'ERROR: Block already exists'})
+      }else{
+        let errors = {}
+        let newHeader = this.extractHeader(newBlock)
+  
+        let executed = await this.balance.runBlock(newBlock)
+        if(executed.error) errors['Balance error'] = executed.error
+        else{
+  
+          let saved = await this.balance.saveBalances(newBlock)
+          if(saved.error) resolve({error:saved.error})
+  
+          let actions = newBlock.actions || {}
+          let allActionsExecuted = await this.executeActionBlock(actions)
+          if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
           
-          this.spentTransactionHashes.push(...newHeader.txHashes)
-          this.chain.push(newHeader);
-          let added = await this.addBlockToDB(newBlock)
-          if(added){
-            if(added.error) resolve({error:added.error})
-
-            
-            let statesSaved = await this.contractTable.saveStates()
-            if(statesSaved.error) console.log('State saving error', statesSaved.error)
-            
-            let saved = await this.saveLastKnownBlockToDB()
-            if(saved.error) console.log('Saved last block', saved)
-            
-            if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
-            
-            resolve(true);
-            
+          let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
+          if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
+          
+          let callsExecuted = await this.runTransactionCalls(newBlock);
+          if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+          
+          let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+          if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
+          
+          
+          
+          //Verify is already exists
+          if(Object.keys(errors).length > 0){
+            resolve({error: errors})
           }else{
-
-            resolve({ error:'Could not push new block' })
+            
+            this.spentTransactionHashes.push(...newHeader.txHashes)
+            this.chain.push(newHeader);
+            let added = await this.addBlockToDB(newBlock)
+            if(added){
+              if(added.error) resolve({error:added.error})
+  
+              
+              let statesSaved = await this.contractTable.saveStates()
+              if(statesSaved.error) console.log('State saving error', statesSaved.error)
+              
+              let saved = await this.saveLastKnownBlockToDB()
+              if(saved.error) console.log('Saved last block', saved)
+              
+              if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
+              
+              resolve(true);
+              
+            }else{
+  
+              resolve({ error:'Could not push new block' })
+            }
+            
           }
-          
         }
       }
     })
