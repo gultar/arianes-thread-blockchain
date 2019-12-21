@@ -137,12 +137,12 @@ class Miner{
 
 
     run(){
-      this.routine = setInterval(()=>{
-        if(!this.minerStarted){
-          this.socket.emit('getLatestBlock')
-          this.socket.emit('isNewBlockReady', this.previousBlock)
-        }
-      }, 2000)
+      // this.routine = setInterval(()=>{
+      //   if(!this.minerStarted){
+      //     this.socket.emit('getLatestBlock')
+      //     this.socket.emit('isNewBlockReady', this.previousBlock)
+      //   }
+      // }, 2000)
     }
 
     pause(){

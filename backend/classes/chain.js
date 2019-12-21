@@ -1813,7 +1813,7 @@ class Blockchain{
       //Getting a copy of the blocks that will later be removed from the chain
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
       
-      let blocks = this.chain.slice(startNumber + 1, this.chain.length - 1)
+      let blocks = this.chain.slice(startNumber + 1, this.chain.length)
       console.log('Block rolled back', blocks)
       
       let rolledBack = await this.balance.rollback(number)
@@ -1824,10 +1824,10 @@ class Blockchain{
       let newestToOldestBlocks = blocks.reverse()
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
-      console.log('Spent before', this.spentTransactionHashes.length)
+      
       this.spentTransactionHashes = this.spentTransactionHashes.filter(hash => !txHashes.includes(hash));
       this.spentActionHashes = this.spentActionHashes.filter(hash => !actionHashes.includes(hash));
-      console.log('Spent after', this.spentTransactionHashes.length)
+      
       let stateRolledBack = await this.contractTable.rollback(newLastBlock.hash)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
 
