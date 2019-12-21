@@ -1692,7 +1692,7 @@ class Node {
     
     let actionsToMine = {}
     
-    const createRawBlock = async (nextBlock=this.getLatestBlock()) =>{
+    const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
       
       if(!this.isDownloading){
         let transactions = await this.mempool.gatherTransactionsForBlock()
@@ -1738,8 +1738,9 @@ class Node {
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
       if(!this.isDownloading){
         let branches = this.chain.branches;
-        let nextBlock = {}
+        let nextBlock = null 
         for await(let branchHash of Object.keys(branches)){
+          
           let branch = branches[branchHash]
           let lastBlock = branch[branch.length - 1]
           if(lastBlock.blockNumber >= this.getLatestBlock().blockNumber){
@@ -1749,6 +1750,7 @@ class Node {
             nextBlock = ( branchDifficulty > currentDifficulty ? lastBlock : this.getLatestBlock() )
           }
         }
+        if(!nextBlock) nextBlock = this.chain.getLatestBlock()
         let newRawBlock = await createRawBlock(nextBlock)
         if(!newRawBlock.error) {
           hasSentBlock = true
