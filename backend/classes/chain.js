@@ -375,7 +375,8 @@ class Blockchain{
       if(alreadyInBranch) return false;
       else{
         existingBranch.push(newBlock)
-
+        this.branches[newBlock.hash] = [ ...existingBranch ]
+        delete this.branches[newBlock.previousHash]
         logger(chalk.cyan(`* Extended branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
         //check out branch and validate it
         //if valid candidate for branch swap, swap
