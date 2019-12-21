@@ -449,21 +449,12 @@ class Blockchain{
 
 
   async validateBranch(newBlock, branch){
-        // let branchingBlock = this.chain[branch[0].blockNumber]
-        // let totalDifficultyAtBranch = branchingBlock.totalDifficulty
-        // let recalculatedTotalDifficulty = await this.calculateTotalDifficulty(branch)
-        // let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
-        // let isValidTotalDifficulty = true //sumOfDifficulties === newBlock.totalDifficulty
-        
-
+       
         let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
         let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
 
         let branchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
-        let branchIsLongEnough = branch.length >= 3
-        let peerBlockchainIsLonger = newBlock.blockNumber > this.getLatestBlock().blockNumber
         
-
         if(branchHasMoreWork){
           return true
         }else{
@@ -486,7 +477,7 @@ class Blockchain{
       return { outOfSync:firstBlockOfBranch.previousHash }
     }else{
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
-      let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
+      let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber + 1)
       if(rolledback){
         console.log('Rolled back result', rolledback)
         if(rolledback && Array.isArray(rolledback)){
