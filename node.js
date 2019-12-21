@@ -1958,10 +1958,11 @@ class Node {
                 this.peersLatestBlocks[fromPeer] = block
 
                 let minerOn = this.localServer && this.localServer.socket
+                let isBlockLinked = await this.chain.getBlockbyHash(block.previousHash)
 
                 if(minerOn){
-                  let isLinked = await this.chain.getBlockbyHash(block.previousHash)
-                  if(isLinked) this.localServer.socket.emit('stopMining')
+                  
+                  if(isBlockLinked) this.localServer.socket.emit('stopMining')
                 }
 
                 let added = await this.chain.pushBlock(block);
@@ -1974,7 +1975,7 @@ class Node {
                       else resolve(fixed)
                     }else{
                       if(minerOn){
-                        if(!isLinked) this.localServer.socket.emit('stopMining')
+                        if(!isBlockLinked) this.localServer.socket.emit('stopMining')
                         this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                         let putback = await this.mempool.putbackTransactions(block)
                         if(putback.error) resolve({error:putback.error})
