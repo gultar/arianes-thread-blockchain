@@ -66,6 +66,7 @@ const openSocket = async (address, runFunction) =>{
 
 program
 .option('-u, --url <nodeURL>', "URL of running node to send transaction to")
+.option('-y, --yes', 'Skip prompt')
 
 program
 .command('getinfo')
@@ -179,32 +180,48 @@ program
 program
 .command('reset')
 .description('Requests some general information about the blockchain')
+.option('-y, --yes', 'Skip prompt')
 .action(()=>{
     const inquirer = require('inquirer');
     const { exec } = require('child_process');
     let validation = {
         type: 'input', name: 'validation', message: 'Are you sure you want to delete all blockchain files? ("yes" or "no")' 
     }
-    inquirer.prompt(validation)
-    .then((answer)=>{
-        if(answer.validation == 'yes' || answer.validation == 'y' || answer.validation == '1'){
-            // exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/* data/accountsDB/* data/cpuTimeAllocationsDB/* data/memAllocationsDB/* data/contractDB/* data/contractStateDB/* data/accounts.json data/transactionDB/* data/actionDB/* data/balanceDB/*', (err, stdout, stderr) => {
-            exec('rm -r -f databases/*',(err, stdout, stderr)=>{
-                if (err) {
-                  // node couldn't execute the command
-                  return;
-                }
-                console.log('Deleted all blockchain files')
-                // the *entire* stdout and stderr (buffered)
-                if(stdout) console.log(`stdout: ${stdout}`);
-                if(stderr) console.log(`stderr: ${stderr}`);
-                
-              });
-        }else{
-            console.log('Blockchain files were left untouched')
-        }
-        
-    })
+    if(program.yes){
+        exec('rm -r -f databases/*',(err, stdout, stderr)=>{
+            if (err) {
+              // node couldn't execute the command
+              return;
+            }
+            console.log('Deleted all blockchain files')
+            // the *entire* stdout and stderr (buffered)
+            if(stdout) console.log(`stdout: ${stdout}`);
+            if(stderr) console.log(`stderr: ${stderr}`);
+            
+          });
+    }else{
+        inquirer.prompt(validation)
+        .then((answer)=>{
+            if(answer.validation == 'yes' || answer.validation == 'y' || answer.validation == '1'){
+                // exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/* data/accountsDB/* data/cpuTimeAllocationsDB/* data/memAllocationsDB/* data/contractDB/* data/contractStateDB/* data/accounts.json data/transactionDB/* data/actionDB/* data/balanceDB/*', (err, stdout, stderr) => {
+                    exec('rm -r -f databases/*',(err, stdout, stderr)=>{
+                        if (err) {
+                        // node couldn't execute the command
+                        return;
+                        }
+                        console.log('Deleted all blockchain files')
+                        // the *entire* stdout and stderr (buffered)
+                        if(stdout) console.log(`stdout: ${stdout}`);
+                        if(stderr) console.log(`stderr: ${stderr}`);
+                        
+                    });
+            }else{
+                console.log('Blockchain files were left untouched')
+            }
+            
+        })
+    }
+    
     
 })
 
