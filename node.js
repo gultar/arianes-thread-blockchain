@@ -374,8 +374,10 @@ class Node {
         await rateLimiter.consume(socket.handshake.address).catch(e => { 
           // console.log("Peer sent too many 'getNextBlock' events") 
         }); // consume 1 point per event from IP
+
         let index = this.chain.getIndexOfBlockHash(hash)
-        if(index || index === 0){
+        let isGenesis = this.chain[0].hash == hash
+        if(index || isGenesis){
           if(hash == this.chain.getLatestBlock().hash){
             socket.emit('nextBlock', {end:'End of blockchain'})
           }else{
@@ -1996,11 +1998,11 @@ class Node {
                   
                   if(isBlockLinked) this.localServer.socket.emit('stopMining')
                 }
-
+                this.isDownloading = true
                 let added = await this.chain.pushBlock(block);
                   if(added.error) resolve({error:added.error})
                   else{
-                    
+                    this.isDownloading = false
                     //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                     if(added.findMissing){
                       let fixed = await this.fixUnlinkedBranch(added.findMissing);
