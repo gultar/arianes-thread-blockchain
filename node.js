@@ -1751,6 +1751,8 @@ class Node {
               api.emit('startMining', newRawBlock)
               transactionsToMine = {}
               actionsToMine = {}
+            }else{
+              // console.log(newRawBlock.error)
             }
           
           }else if(minerPreviousBlock.hash == this.chain.getLatestBlock().previousHash){
@@ -1772,6 +1774,13 @@ class Node {
     })
     this.mempool.events.on('newTransaction', async (transaction)=>{
       transactionsToMine[transaction.hash] = transaction
+      let newRawBlock = await createRawBlock()
+      if(!newRawBlock.error) {
+        hasSentBlock = true
+        api.emit('startMining', newRawBlock)
+        transactionsToMine = {}
+        actionsToMine = {}
+      }
     })
 
     
@@ -1991,7 +2000,7 @@ class Node {
                       else resolve(fixed)
                     }else{
                       if(minerOn){
-                        // if(!isBlockLinked) this.localServer.socket.emit('stopMining')
+                        if(!isBlockLinked) this.localServer.socket.emit('stopMining')
                         this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                         let putback = await this.mempool.putbackTransactions(block)
                         if(putback.error) resolve({error:putback.error})
@@ -2000,82 +2009,13 @@ class Node {
                           if(actionsPutback.error) resolve({error:actionsPutback.error})
                         }
                       }
-
-                      resolve(added)
+                      console.log('Result of block handling', added)
+                      resolve(true)
                     }
                     
 
                     
                   }
-
-
-
-                // if(){
-                //   //If new block is linked and is valid, stop mining. Otherwise, keep going
-                  
-
-                //   //Either push to blockchain or to a branch
-                  
-                  
-                //   if(addedToChain && !addedToChain.sync){
-                    
-                //     let putback = await this.mempool.putbackTransactions(block)
-                //     if(putback.error) resolve({error:putback.error})
-                //     if(block.actions){
-                //       let actionsPutback = await this.mempool.putbackActions(block)
-                //       if(actionsPutback.error) resolve({error:actionsPutback.error})
-                //     }
-                    
-                //     //If sending too many stale blocks, interrupt connection to peer
-                    
-                //     if(addedToChain.error){
-                //       resolve({error:addedToChain.error})
-                //     }else if(addedToChain.outOfSync){
-                //       console.log('Okay about to try to fix branch')
-                //       this.isOutOfSync = true
-                //       let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
-                //       console.log('Tried to fix blockchain', fixed)
-                //       if(fixed.error) resolve({error:fixed.error})
-                //       else if(fixed.success){
-                        
-                //         resolve(fixed)
-                //       }else{
-                //         resolve({error:'ERROR Node did not manage to fix branch'})
-                //       }
-   
-                //     }else if(addedToChain.sync){
-                //       this.broadcast('getBlockchainStatus');
-                //     }
-                //     resolve(true)
-
-                    
-                    
-                //   }
-                // }else{
-                //   let addedToChain = await this.chain.pushBlock(block);
-                //   if(addedToChain){
-                //     //If sending too many stale blocks, interrupt connection to peer
-                //     if(addedToChain.error){
-                //       logger(chalk.red('REJECTED BLOCK:'), addedToChain.error)
-                //       resolve({error:addedToChain.error})
-                //     }else if(addedToChain.outOfSync){
-                //       this.isOutOfSync = true
-                //       let fixed = await this.fixBranchOutOfSyncIssue(addedToChain.outOfSync)
-                //       console.log('Tried to fix blockchain', fixed)
-                //       if(fixed.error) resolve({error:fixed.error})
-                //       else if(fixed.success){
-                        
-                //         resolve(fixed)
-                //       }else{
-                //         resolve({error:'ERROR Node did not manage to fix branch'})
-                //       }
-                      
-                //     }else if(addedToChain.sync){
-                //       this.broadcast('getBlockchainStatus');
-                //     }
-                //     resolve(true)
-                //   }
-                // }
   
               }else{
                 resolve({error:'ERROR:New block header is invalid'})
@@ -2086,6 +2026,7 @@ class Node {
             resolve({error:e})
           }
         }else{
+          console.log('Node is busy, putting block in blocks to validate')
           //Need to store while downloading. Then, when done, validate them one by one
           this.blocksToValidate.push(data);
         }

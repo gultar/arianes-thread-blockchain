@@ -298,6 +298,7 @@ class Blockchain{
                 if(blockNumberAlreadyExists){
                   console.log('createNewBranch - already exists')
                   let branched = await this.createNewBranch(newBlock);
+                  console.log('Has branched')
                   if(branched.error) resolve({error:branched.error})
                   else resolve(branched)
                 }else{
@@ -309,6 +310,7 @@ class Blockchain{
                 if(isLinkedToChain){
                   console.log('createNewBranch - linked to chain')
                   let branched = await this.createNewBranch(newBlock);
+                  console.log('Has branched', branched)
                   if(branched.error) resolve({error:branched.error})
                   else resolve(branched)
                 }else if(isLinkedToBranch){
