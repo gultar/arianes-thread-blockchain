@@ -1739,9 +1739,12 @@ class Node {
     api.emit('latestBlock', this.chain.getLatestBlock())
     api.on('isReady', ()=>{ api.emit('startMining') })
     api.on('readyToRun', ()=>{ api.emit('run') })
+    api.on('isMining', ()=>{
+      
+    })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      if(!this.isDownloading){
+      if(!this.isDownloading && !hasSentBlock){
         let branches = this.chain.branches;
         let nextBlock = null 
         for await(let branchHash of Object.keys(branches)){
@@ -1775,14 +1778,6 @@ class Node {
     })
     this.mempool.events.on('newTransaction', async (transaction)=>{
       api.emit('transactionSent')
-      // transactionsToMine[transaction.hash] = transaction
-      // let newRawBlock = await createRawBlock()
-      // if(!newRawBlock.error) {
-      //   hasSentBlock = true
-      //   api.emit('startMining', newRawBlock)
-      //   transactionsToMine = {}
-      //   actionsToMine = {}
-      // }
     })
 
     
