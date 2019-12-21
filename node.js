@@ -1696,16 +1696,17 @@ class Node {
       
       if(!this.isDownloading){
         let transactions = await this.mempool.gatherTransactionsForBlock()
-        if(transactions.error) console.log(transactions.error)
-        transactionsToMine = { ...transactionsToMine, ...transactions }
+        if(transactions.error) console.log('Mempool error: ',transactions.error)
+
+        // transactionsToMine = { ...transactionsToMine, ...transactions }
         if(Object.keys(transactionsToMine).length == 0) return { error:'Could not create block without transactions' }
         let actions = await this.mempool.gatherActionsForBlock()
-        actionsToMine = { ...actionsToMine, ...actions }
-        if(actions.error) console.log(actions.error)
+        // actionsToMine = { ...actionsToMine, ...actions }
+        if(actions.error) console.log('Mempool error:',actions.error)
         let rawBlock = {
           timestamp:Date.now(),
-          transactions:transactionsToMine,
-          actions:actionsToMine,
+          transactions:transactions,
+          actions:actions,
           previousHash:nextBlock.hash,
           blockNumber:nextBlock.blockNumber + 1
         } 
