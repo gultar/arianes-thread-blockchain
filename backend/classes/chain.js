@@ -2979,7 +2979,7 @@ class Blockchain{
           let lastBlock = await this.getLastKnownBlockFromDB()
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)
-          
+            this.chain[0] = genesisBlock
             logger('Loaded last known block')
             for await(let blockNumber of [...iterator.keys()]){
               let block = await this.getBlockFromDB(blockNumber)
