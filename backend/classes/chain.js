@@ -287,7 +287,7 @@ class Blockchain{
           let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
           if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
           else{
-            
+            var isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
             var isLinked = this.isBlockLinked(newBlock);
             var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
             let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
@@ -1175,7 +1175,7 @@ class Blockchain{
   isBlockLinked(block){
     if(block){
       var lastBlock = this.getLatestBlock();
-      if(lastBlock.hash === block.previousHash && block.blockNumber == lastBlock.blockNumber + 1){
+      if(lastBlock.hash === block.previousHash){
         return true;
       }
       return false;
