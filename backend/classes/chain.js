@@ -278,6 +278,7 @@ class Blockchain{
             else{
               this.isBusy = true
               var isLinked = this.isBlockLinked(newBlock);
+              var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
               let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
               let isLinkedToBranch = this.branches[newBlock.previousHash]
               let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
@@ -304,7 +305,11 @@ class Blockchain{
                   else resolve(added)
                 }
               }else{
-                if(isLinkedToBranch){
+                if(isLinkedToChain){
+                  let branched = await this.createNewBranch(newBlock);
+                  if(branched.error) resolve({error:branched.error})
+                  else resolve(branched)
+                }else if(isLinkedToBranch){
                   let extended = await this.extendBranch(newBlock)
                   if(extended.error) resolve({error:extended})
                   else resolve(extended)
@@ -335,7 +340,7 @@ class Blockchain{
     let alreadyExists = this.branches[newBlock.hash]
     if(!alreadyExists){
       this.branches[newBlock.hash] = [ newBlock ]
-      logger(chalk.cyan(`* Created new branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+      logger(chalk.cyan(`* New branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
       return { added:true }
     }else{
       return false
@@ -346,7 +351,7 @@ class Blockchain{
     let alreadyExists = this.unlinkedBranches[newBlock.hash]
     if(!alreadyExists){
       this.unlinkedBranches[newBlock.hash] = [ newBlock ]
-      logger(chalk.yellow(`* Created new unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+      logger(chalk.yellow(`* New unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
       return { added:true }
     }else{
       return false
@@ -371,7 +376,7 @@ class Blockchain{
       else{
         existingBranch.push(newBlock)
 
-        logger(chalk.cyan(`* Extended branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+        logger(chalk.cyan(`* Extended branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
         //check out branch and validate it
         //if valid candidate for branch swap, swap
         //if not, stay on main chain
@@ -400,7 +405,7 @@ class Blockchain{
       else{
         existingUnlinkedBranch.push(newBlock)
 
-        logger(chalk.yellow(`* Extended unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+        logger(chalk.yellow(`* Extended unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
         //check out branch and validate it
         //if valid candidate for branch swap, swap
         //if not, stay on main chain
