@@ -1175,11 +1175,12 @@ class Blockchain{
   isBlockLinked(block){
     if(block){
       var lastBlock = this.getLatestBlock();
-      console.log(this.getLatestBlock())
-      console.log(block)
-      if(lastBlock.hash === block.previousHash){
+      if(lastBlock.hash == block.previousHash){
         return true;
       }
+      
+      console.log(lastBlock.hash)
+      console.log(block.previousHash)
       return false;
     }
     
