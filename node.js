@@ -1707,21 +1707,22 @@ class Node {
     let nextBlock = {}
 
     const getNextBlock = async () =>{
-      let branches = this.chain.branches;
-        let nextBlock = false 
-        for await(let branchHash of Object.keys(branches)){
+      // let branches = this.chain.branches;
+      //   let nextBlock = false 
+      //   for await(let branchHash of Object.keys(branches)){
           
-          let branch = branches[branchHash]
-          let lastBlock = branch[branch.length - 1]
-          if(lastBlock.blockNumber >= this.chain.getLatestBlock().blockNumber){
-            let branchDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
-            let currentDifficulty = BigInt(parseInt(this.chain.getLatestBlock().totalDifficulty, 16))
+      //     let branch = branches[branchHash]
+      //     let lastBlock = branch[branch.length - 1]
+      //     if(lastBlock.blockNumber >= this.chain.getLatestBlock().blockNumber){
+      //       let branchDifficulty = BigInt(parseInt(lastBlock.totalDifficulty, 16))
+      //       let currentDifficulty = BigInt(parseInt(this.chain.getLatestBlock().totalDifficulty, 16))
 
-            nextBlock = ( branchDifficulty > currentDifficulty ? lastBlock : this.chain.getLatestBlock() )
-          }
-        }
-        if(!nextBlock) return this.chain.getLatestBlock()
-        return nextBlock
+      //       nextBlock = ( branchDifficulty > currentDifficulty ? lastBlock : this.chain.getLatestBlock() )
+      //     }
+      //   }
+      //   if(!nextBlock) return this.chain.getLatestBlock()
+      //   return nextBlock
+      return this.chain.getLatestBlock()
     }
     
     const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
