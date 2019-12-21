@@ -279,7 +279,9 @@ class Blockchain{
               this.isBusy = true
               var isLinked = this.isBlockLinked(newBlock);
               var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
+              console.log(newBlock.blockNumber)
               let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+              console.log(this.chain)
               let isLinkedToBranch = this.branches[newBlock.previousHash]
               let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
 
@@ -2901,7 +2903,7 @@ class Blockchain{
         let genesisBlock = await this.getGenesisBlockFromDB()
         if(genesisBlock){
           if(genesisBlock.error) reject(genesisBlock.error)
-          this.chain[0] = genesisBlock
+          // this.chain[0] = genesisBlock
           let lastBlock = await this.getLastKnownBlockFromDB()
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)
