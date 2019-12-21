@@ -136,7 +136,7 @@ class Miner{
 
 
     run(){
-      let stayUpdated = setInterval(()=>{
+      this.routine = setInterval(()=>{
         
         if(!this.minerStarted){
           this.socket.emit('getLatestBlock')
@@ -154,6 +154,7 @@ class Miner{
       }
       this.socket.send('newBlock', { failed:this.previousBlock })
       this.minerStarted = false;
+      clearInterval(this.routine)
     }
 
     async createCoinbase(){
