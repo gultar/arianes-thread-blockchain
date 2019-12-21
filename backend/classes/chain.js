@@ -205,7 +205,7 @@ class Blockchain{
       let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
       if(blockNumberAlreadyExists || blockAlreadyExists){
-        resolve({error:'ERROR: Block already exists'})
+        resolve({error:`ERROR: Block ${newBlock.blockNumber} already exists`})
       }else if(!isNextBlock){
         resolve({error:'ERROR: BlockNumber of new block does not follow this chain'})
       }else{
@@ -1862,8 +1862,9 @@ class Blockchain{
       }
 
       let backToNormal = newestToOldestBlocks.reverse()
-      
-      let removed = this.chain.splice(startNumber, numberOfBlocksToRemove)
+      console.log('Before', this.chain.length)
+      let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
+      console.log('After',this.chain.length)
       let mainBranch = []
       for await(let header of removed){
         let block = await this.getBlockFromDB(header.blockNumber);
