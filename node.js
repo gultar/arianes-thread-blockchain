@@ -377,8 +377,7 @@ class Node {
 
         let index = this.chain.getIndexOfBlockHash(hash)
         let isGenesis = this.chain.chain[0].hash == hash
-        console.log('Genesis',this.chain.chain[0].hash)
-        console.log('Receive', hash)
+        
         if(index || isGenesis){
           if(hash == this.chain.getLatestBlock().hash){
             socket.emit('nextBlock', {end:'End of blockchain'})

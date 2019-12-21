@@ -2987,8 +2987,6 @@ class Blockchain{
                   if(block.error) {
                     reject(block.error)
                   }
-                  console.log('loading', block.blockNumber)
-                  console.log('hash', block.hash)
                   //Could plug in balance loading from DB here
                   let txHashes = Object.keys(block.transactions)
                   let actionHashes = Object.keys(block.actions)
@@ -3000,13 +2998,7 @@ class Blockchain{
                     resolve(true)
                   }
                 }
-              // if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
-              // if(blockNumber > 0 && blockNumber !== '0'){
-                
-              // }else{
-              //   if(blockNumber > 0) logger(`ERROR: Could not find block ${blockNumber}`)
-              // }
-             
+              
             }
           }else{
             this.chain.push(genesisBlock)
