@@ -376,7 +376,7 @@ class Node {
         }); // consume 1 point per event from IP
 
         let index = this.chain.getIndexOfBlockHash(hash)
-        let isGenesis = this.chain[0].hash == hash
+        let isGenesis = this.chain.chain[0].hash == hash
         if(index || isGenesis){
           if(hash == this.chain.getLatestBlock().hash){
             socket.emit('nextBlock', {end:'End of blockchain'})
