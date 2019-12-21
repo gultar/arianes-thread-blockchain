@@ -1762,7 +1762,7 @@ class Node {
             console.log(added.error)
           }else{
             this.sendPeerMessage('newBlockFound', block);
-            api.emit('latestBlock', this.chain.getLatestBlock())
+            api.emit('latestBlock', block)
           }
   
         }else{

@@ -286,16 +286,17 @@ class Blockchain{
               /**
                * Possible return values
                * Linked branches
-               *  branched / extended - Either created or extended a blockchain branch, nothing to do here
+               *  extended - Either created or extended a blockchain branch, nothing to do here
                *  switched - Swapped branches with one that has more work or is longer
                * Unlinked branches
-               *  branched / extended - Either created or extended an unlinked blockchain branch, nothing to do here
+               *  extended - Either created or extended an unlinked blockchain branch, nothing to do here
                *  findMissing - Query peer with the longest blockchain for the missing blocks at block hash
                * 
                * Basically, the only other result to handle, aside from an error or a success, is findMissing
                */
               if(isLinked){
                 if(blockNumberAlreadyExists){
+                  console.log('createNewBranch - already exists')
                   let branched = await this.createNewBranch(newBlock);
                   if(branched.error) resolve({error:branched.error})
                   else resolve(branched)
@@ -306,19 +307,23 @@ class Blockchain{
                 }
               }else{
                 if(isLinkedToChain){
+                  console.log('createNewBranch - linked to chain')
                   let branched = await this.createNewBranch(newBlock);
                   if(branched.error) resolve({error:branched.error})
                   else resolve(branched)
                 }else if(isLinkedToBranch){
+                  console.log('extendBranch')
                   let extended = await this.extendBranch(newBlock)
                   if(extended.error) resolve({error:extended})
                   else resolve(extended)
                 }else if(isLinkedToUnlinkedBranch){
+                  console.log('extendUnlinkedBranch')
                   let extended = await this.extendUnlinkedBranch(newBlock);
                   if(extended.error) resolve({error:extended.error})
                   else resolve(extended)
                   //extend unlinked branch
                 }else{
+                  console.log('createNewUnlinkedBranch')
                   let branched = await this.createNewUnlinkedBranch(newBlock)
                   if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
                   else resolve(branched)
@@ -341,7 +346,7 @@ class Blockchain{
     if(!alreadyExists){
       this.branches[newBlock.hash] = [ newBlock ]
       logger(chalk.cyan(`* New branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
-      return { added:true }
+      return true
     }else{
       return false
     }
@@ -352,7 +357,7 @@ class Blockchain{
     if(!alreadyExists){
       this.unlinkedBranches[newBlock.hash] = [ newBlock ]
       logger(chalk.yellow(`* New unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
-      return { added:true }
+      return true
     }else{
       return false
     }
