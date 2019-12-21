@@ -400,7 +400,7 @@ class Blockchain{
   async extendUnlinkedBranch(newBlock){
     let existingUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
     if(existingUnlinkedBranch){
-      let alreadyInBranch = await this.branchAlreadyContainsBlock(newBlock, existingUnlinkedBranch)
+      let alreadyInBranch = await this.branchContainsBlockNumber(newBlock, existingUnlinkedBranch)
       if(alreadyInBranch) return false;
       else{
         existingUnlinkedBranch.push(newBlock)
