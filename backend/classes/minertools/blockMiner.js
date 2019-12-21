@@ -119,7 +119,7 @@ class Miner{
               }else{
                 this.pause()
                 this.log('Mining unsuccessful')
-                this.socket.send('newBlock', { failed:this.previousBlock })
+                this.socket.send('newBlock', { failed:block })
                 this.minerStarted = false;
               }
             }else{
@@ -136,13 +136,13 @@ class Miner{
 
 
     run(){
-      // let stayUpdated = setInterval(()=>{
+      let stayUpdated = setInterval(()=>{
         
-      //   if(!this.minerStarted){
-      //     this.socket.emit('getLatestBlock')
-      //     this.socket.emit('isNewBlockReady', this.previousBlock)
-      //   }
-      // }, 500)
+        if(!this.minerStarted){
+          this.socket.emit('getLatestBlock')
+          this.socket.emit('isNewBlockReady', this.previousBlock)
+        }
+      }, 2000)
     }
 
     pause(){
