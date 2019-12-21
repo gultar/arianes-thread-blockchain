@@ -335,7 +335,7 @@ class Blockchain{
     let alreadyExists = this.branches[newBlock.hash]
     if(!alreadyExists){
       this.branches[newBlock.hash] = [ newBlock ]
-      logger(chalk.cyan(`* Created new branch at block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+      logger(chalk.cyan(`* Created new branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
       return { added:true }
     }else{
       return false
