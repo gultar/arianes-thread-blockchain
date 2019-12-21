@@ -2971,7 +2971,7 @@ class Blockchain{
         let genesisBlock = await this.getGenesisBlockFromDB()
         if(genesisBlock){
           if(genesisBlock.error) reject(genesisBlock.error)
-          // this.chain[0] = genesisBlock
+          this.chain[0] = genesisBlock
           let lastBlock = await this.getLastKnownBlockFromDB()
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)
