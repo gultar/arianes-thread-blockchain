@@ -291,7 +291,8 @@ class Blockchain{
           else{
             var isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
             var isLinked = this.isBlockLinked(newBlock);
-            var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
+            var linkToChain = await this.getBlockbyHash(newBlock.previousHash)
+            var isLinkedToChain = linkToChain && linkToChain.blockNumber == newBlock.blockNumber + 1
             let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
             let isLinkedToBranch = this.branches[newBlock.previousHash]
             let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
