@@ -21,6 +21,7 @@ class Miner{
         this.minerReady = false;
         this.minerStarted = false;
         this.miningReward = 50;
+        this.blockNumbersMined = {}
         this.pool = {
           pendingTransactions:{},
           pendingActions:{}
@@ -104,7 +105,7 @@ class Miner{
               this.socket.emit('newBlock', block)
               this.minerStarted = false;
               this.previousBlock = block;
-              
+              this.blockNumbersMined[block.blockNumber] = true
               
             }else{
               this.pause()
@@ -217,7 +218,7 @@ class Miner{
 
     async prepareBlockForMining(rawBlock){
         
-        if(rawBlock){
+        if(rawBlock && !this.blockNumbersMined[rawBlock.blockNumber]){
           let coinbase = await this.createCoinbase()
           rawBlock.transactions[coinbase.hash] = coinbase
           rawBlock.coinbaseTransactionHash = coinbase.hash
