@@ -33,4 +33,4 @@ class Download{
 
 let d = new Download
 //d.bundleAndServe()
- d.download('bf09fe8a93cc14dd9a8f821c0b9224612184f3a0')
+ d.download('4ee38187df575c87bee4c940f38c3642d9ff2763')
