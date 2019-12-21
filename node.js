@@ -876,7 +876,7 @@ class Node {
                       let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                       if(downloaded.error){
                         
-                        let resolved = await this.getMissingBlocksToSyncBranch(block)
+                        // let resolved = await this.getMissingBlocksToSyncBranch(block)
                         resolve(false)
                       }else{
                         peer.send('getBlockchainStatus')
@@ -965,7 +965,7 @@ class Node {
         let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
-          console.log('Number of branched missing blocks', missingBlocks.length)
+          console.log('Number of branched missing blocks', missingBlocks)
           let firstBlock = missingBlocks.isBranch[0]
           console.log('First missing block', firstBlock)
           let branch = this.chain.branches[firstBlock.previousHash]
@@ -1077,10 +1077,10 @@ class Node {
             if(isLinkedToChain){
               peer.off('previousBlock')
               // "Unshifted" manually since we're looking backyards, not forwards
-              resolve({ isLinked:[ block, ...missingBlocks ] })
+              resolve({ isLinked:missingBlocks })
             }else if(isPartOfBranch){
               peer.off('previousBlock')
-              resolve({ isBranch:[ block, ...missingBlocks ] })
+              resolve({ isBranch:missingBlocks })
             }else{
               missingBlocks = [ block, ... missingBlocks]
               peer.emit('getPreviousBlock', block.hash)
