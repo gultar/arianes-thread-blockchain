@@ -1991,7 +1991,7 @@ class Node {
                       else resolve(fixed)
                     }else{
                       if(minerOn){
-                        if(!isBlockLinked) this.localServer.socket.emit('stopMining')
+                        // if(!isBlockLinked) this.localServer.socket.emit('stopMining')
                         this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
                         let putback = await this.mempool.putbackTransactions(block)
                         if(putback.error) resolve({error:putback.error})

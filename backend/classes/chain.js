@@ -348,7 +348,7 @@ class Blockchain{
       logger(chalk.cyan(`* New branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
       return true
     }else{
-      return false
+      return { error:'ERROR: Block already exists in branch' }
     }
   }
 
@@ -359,7 +359,7 @@ class Blockchain{
       logger(chalk.yellow(`* New unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
       return true
     }else{
-      return false
+      return { error:'ERROR: Block already exists in branch' }
     }
   }
 
