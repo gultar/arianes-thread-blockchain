@@ -207,6 +207,12 @@ class Blockchain{
       if(blockNumberAlreadyExists || blockAlreadyExists){
         resolve({error:'ERROR: Block already exists'})
       }else{
+
+        var areTransactionsValid = await this.validateBlockTransactions(block)
+        if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
+        var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(block)
+        if(!doesNotContainDoubleSpend) resolve({error:'ERROR: Block may not contain a transaction that is already spent'})
+        
         let errors = {}
         let newHeader = this.extractHeader(newBlock)
   
@@ -1511,8 +1517,6 @@ class Blockchain{
       var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
       var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
       var isValidChallenge = this.validateChallenge(block);
-      var areTransactionsValid = await this.validateBlockTransactions(block)
-      var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(block)
       var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
       //validate difficulty
@@ -1523,7 +1527,7 @@ class Blockchain{
       if(!coinbaseIsAttachedToBlock) resolve({error:'ERROR: Coinbase transaction is not attached to block '+block.blockNummber})
       if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
       if(!singleCoinbase) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
-      if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
+      
       if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
       if(!merkleRootIsValid) resolve({error:'ERROR: Merkle root of block IS NOT valid'})
       if(!isValidHash) resolve({error:'ERROR: Is not valid block hash'})
