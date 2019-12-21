@@ -510,12 +510,12 @@ class Blockchain{
                   let addedBackIn = await this.addBlockToChain(oldBlock)
                   if(addedBackIn.error) return { error:addedBackIn.error }
                   else{
-                    logger(`Swap failed: readding block ${oldBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`)
+                    logger(`Swap failed: readding block ${oldBlock.blockNumber} : ${block.hash.substr(0, 15)}...`)
                   }
                 }
                 return { staying:true }
               }
-              logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
+              logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${block.hash.substr(0, 20)}...`));
               previousBlock = block;
             }
             
