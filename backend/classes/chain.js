@@ -62,6 +62,7 @@ class Blockchain{
       contractTable:this.contractTable
     })
     this.spentTransactionHashes = []
+    this.spentActionHashes = []
     this.difficulty = new Difficulty(genesis)
     this.mempool = mempool
     this.blockForks = {}
@@ -1489,7 +1490,7 @@ class Blockchain{
       var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
       var isValidChallenge = this.validateChallenge(block);
       var areTransactionsValid = await this.validateBlockTransactions(block)
-      var doesNotContainDoubleSpend = await this.verifyPresenceOfTransactions(block)
+      var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(block)
       var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
       //validate difficulty
@@ -1635,10 +1636,21 @@ class Blockchain{
     
   // }
 
-  async verifyPresenceOfTransactions(block){
+  async blockDoesNotContainDoubleSpend(block){
     let txHashes = Object.keys(block.transactions);
     let actionHashes = Object.keys(block.actions);
 
+    for await(let hash of txHashes){
+      let exists = this.spentTransactionHashes.includes(hash)
+      if(exists) return false
+    }
+
+    for await(let hash of actionHashes){
+      let exists = this.spentActionHashes.includes(hash)
+      if(exists) return false
+    }
+
+    return true
 
   }
 
@@ -2939,7 +2951,9 @@ class Blockchain{
       
                   //Could plug in balance loading from DB here
                   let txHashes = Object.keys(block.transactions)
+                  let actionHashes = Object.keys(block.actions)
                   this.spentTransactionHashes = [...this.spentTransactionHashes, ...txHashes]
+                  this.spentActionHashes = [ ...this.spentActionHashes, ...actionHashes ]
                   this.chain.push(block)
                   if(blockNumber == lastBlock.blockNumber){
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
