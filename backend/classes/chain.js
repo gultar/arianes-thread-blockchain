@@ -1487,7 +1487,8 @@ class Blockchain{
       var isValidTimestamp = await this.validateBlockTimestamp(block)
       var hasOnlyOneCoinbaseTx = await this.validateUniqueCoinbaseTx(block)
       var isValidChallenge = this.validateChallenge(block);
-      var areTransactionsValid = this.validateBlockTransactions(block)
+      var areTransactionsValid = await this.validateBlockTransactions(block)
+      var doesNotContainDoubleSpend = await this.verifyPresenceOfTransactions(block)
       var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
       //validate difficulty
@@ -1632,7 +1633,12 @@ class Blockchain{
     
   // }
 
-  
+  async verifyPresenceOfTransactions(block){
+    let txHashes = Object.keys(block.transactions);
+    let actionHashes = Object.keys(block.actions);
+
+
+  }
 
 
   /**
@@ -1817,10 +1823,19 @@ class Blockchain{
       let backToNormal = newestToOldestBlocks.reverse()
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
+      let mainBranch = []
+      for await(let header of removed){
+        let block = this.getBlockFromDB(header.blockNumber);
+        if(block.error) removed = [] //If, for some reason, could not get block from db, just cancel the removed blocks alltogether, to avoid
+                                      //Creating a branch with headers only
+        else mainBranch.push(block)
+      }
       logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
-      else resolve(removed)
+      else{
+        resolve(mainBranch.length == removed.length ? mainBranch : false)
+      }
     })
   }
   
@@ -1927,9 +1942,10 @@ class Blockchain{
         let alreadyExistsInBlockchain = this.spentTransactionHashes.includes(transaction.hash)
         if(alreadyExistsInBlockchain) resolve({error:'Transaction already exists in blockchain'})
 
-        let alreadyExistsInMempool = await this.mempool.getTransaction(transaction.hash)
-        if(alreadyExistsInMempool) resolve({error:'Transaction already exists in mempool'})
-        else if(alreadyExistsInMempool.error) resolve({error:alreadyExistsInMempool})
+        // let alreadyExistsInMempool = await this.mempool.getTransaction(transaction.hash)
+        // if(alreadyExistsInMempool) resolve({error:'Transaction already exists in mempool'})
+
+        // else if(alreadyExistsInMempool.error) resolve({error:alreadyExistsInMempool})
 
         if(isTransactionCall){
 
@@ -2093,7 +2109,7 @@ class Blockchain{
   
           let isChecksumValid = this.validateChecksum(transaction);
           let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
-          let hasTheRightMiningRewardAmount = transaction.amount == (this.miningReward + this.calculateTransactionMiningFee(transaction));
+          let hasTheRightMiningRewardAmount = transaction.amount + transaction.miningFee <= (this.miningReward + this.calculateTransactionMiningFee(transaction));
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
           if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
@@ -2818,15 +2834,12 @@ class Blockchain{
     @param {object} $transaction - Transaction to be inspected
     @return {object} Block to which the coinbase transaction is linked
   */
-  coinbaseTxIsAttachedToBlock(transaction){
-    let found = false;
-
-    let block = this.getBlockFromHash(transaction.blockHash)
-    if(block.hash == transaction.blockHash){
-      found = block;
+  coinbaseTxIsAttachedToBlock(transaction, block){
+    if(block.coinbaseTransactionHash === transaction.hash){
+      return true
+    }else{
+      return false
     }
-        
-    return found
   }
 
     /**
@@ -2914,7 +2927,7 @@ class Blockchain{
       
                   //Could plug in balance loading from DB here
                   let txHashes = Object.keys(block.transactions)
-                  this.spentTransactionHashes.push(...txHashes)
+                  this.spentTransactionHashes = [...this.spentTransactionHashes, ...txHashes]
                   this.chain.push(block)
                   if(blockNumber == lastBlock.blockNumber){
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
