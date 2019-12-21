@@ -1777,7 +1777,6 @@ class Blockchain{
       return true;
   }
 
-
   rollbackToBlock(number){
     return new Promise(async (resolve)=>{
 
@@ -1787,8 +1786,6 @@ class Blockchain{
           for(var block of blocks){
             if(block.actionHashes){
               actionHashes = [  ...actionHashes, ...block.actionHashes ]
-            }else{
-              // console.log('No action hashes')
             }
           }
           resolve(actionHashes)
@@ -1804,23 +1801,19 @@ class Blockchain{
               
               txHashes = [  ...txHashes, ...block.txHashes ]
             }
-            // else if(block.transactions){
-            //   let blockTxHashes = Object.keys(block.transactions)
-            //   txHashes = [ ...txHashes, ...blockTxHashes ]
-            //   // console.log('No tx hashes')
-            // }
           }
           resolve(txHashes)
         })
       }
 
       let errors = {}
-      let totalBlockNumber = this.getLatestBlock().blockNumber
+      let totalBlockNumber = this.chain.length
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
       //Getting a copy of the blocks that will later be removed from the chain
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
-      let blocks = this.chain.slice(startNumber, startNumber + numberOfBlocksToRemove)
+      
+      let blocks = this.chain.slice(startNumber, this.chain.length - 1)
       
       
       let rolledBack = await this.balance.rollback(number)
