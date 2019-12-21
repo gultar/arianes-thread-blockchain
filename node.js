@@ -1970,18 +1970,18 @@ class Node {
 
                 if(this.localServer && this.localServer.socket){
 
-                  this.localServer.socket.emit('stopMining')
-                  let putback = await this.mempool.putbackTransactions(block)
-                  if(putback.error) resolve({error:putback.error})
-                  if(block.actions){
-                    let actionsPutback = await this.mempool.putbackActions(block)
-                    if(actionsPutback.error) resolve({error:actionsPutback.error})
-                  }
+                  
 
                   let addedToChain = await this.chain.pushBlock(block);
                   
                   if(addedToChain && !addedToChain.sync){
-
+                    this.localServer.socket.emit('stopMining')
+                    let putback = await this.mempool.putbackTransactions(block)
+                    if(putback.error) resolve({error:putback.error})
+                    if(block.actions){
+                      let actionsPutback = await this.mempool.putbackActions(block)
+                      if(actionsPutback.error) resolve({error:actionsPutback.error})
+                    }
                     
                     //If sending too many stale blocks, interrupt connection to peer
                     this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())

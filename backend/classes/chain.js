@@ -276,47 +276,52 @@ class Blockchain{
             let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
             if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
             else{
-
+              this.isBusy = true
               var isLinked = this.isBlockLinked(newBlock);
               let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+              let isLinkedToBranch = this.branches[newBlock.previousHash]
+              let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
 
-              if(isLinked && !blockNumberAlreadyExists){
-                this.isBusy = true
-                let added = await this.addBlockToChain(newBlock, silent)
-                if(added.error) resolve({error:added.error})
-                else resolve(added)
+              /**
+               * Possible return values
+               * Linked branches
+               *  branched / extended - Either created or extended a blockchain branch, nothing to do here
+               *  switched - Swapped branches with one that has more work or is longer
+               * Unlinked branches
+               *  branched / extended - Either created or extended an unlinked blockchain branch, nothing to do here
+               *  findMissing - Query peer with the longest blockchain for the missing block
+               * 
+               * Basically, the only other result to handle, aside from an error or a success, is findMissing
+               */
+              if(isLinked){
+                if(blockNumberAlreadyExists){
+                  let branched = await this.createNewBranch(newBlock);
+                  if(branched.error) resolve({error:branched.error})
+                  else resolve(branched)
+                }else{
+                  let added = await this.addBlockToChain(newBlock, silent)
+                  if(added.error) resolve({error:added.error})
+                  else resolve(added)
+                }
               }else{
-                let newBlockHasBeenBranched = await this.extendBranch(newBlock)
-                if(newBlockHasBeenBranched.error) resolve({ error:newBlockHasBeenBranched.error })
-                else if(newBlockHasBeenBranched){
-                  let branched = newBlockHasBeenBranched
-                  if(branched.staying){
-                    logger(chalk.yellow(`* Staying on main blockchain`))
-                    logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                  }else if(branched.outOfSync){
-                    logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
-                  }else if(branched.synced){
-                    logger(chalk.yellow(`* Switched blockchain branches`))
-                    logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
-                  }else if(branched.added){
-                    logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
-                    logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
-                  }
-                  resolve(branched)
+                if(isLinkedToBranch){
+                  let extended = await this.extendBranch(newBlock)
+                  if(extended.error) resolve({error:extended})
+                  else resolve(extended)
+                }else if(isLinkedToUnlinkedBranch){
+                  let extended = await this.extendUnlinkedBranch(newBlock);
+                  if(extended.error) resolve({error:extended.error})
+                  else resolve(extended)
+                  //extend unlinked branch
+                }else{
+                  let branched = await this.createNewUnlinkedBranch(newBlock)
+                  if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
+                  else resolve(branched)
+                  //create new unlinked branch
                 }
-                else{
-                  resolve({ error:`ERROR: Could not add ${newBlock.blockNumber} to branch` })
-                }
-              
               }
 
             }
-              
-            
-
-
-           
-          
         }
       }else{
         resolve({error:'ERROR: New block undefined'})
@@ -325,10 +330,82 @@ class Blockchain{
 
   }
 
+  // pushBlock(newBlock, silent=false){
+  //   return new Promise(async (resolve)=>{
+  //     if(isValidBlockJSON(newBlock)){
+  //       let isValidBlock = await this.validateBlock(newBlock);
+  //       if(isValidBlock.error){
+  //         resolve({error:isValidBlock.error})
+  //       }
+  //       else{
+  //           let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
+  //           if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
+  //           else{
+
+  //             var isLinked = this.isBlockLinked(newBlock);
+  //             let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+
+  //             if(isLinked && !blockNumberAlreadyExists){
+  //               this.isBusy = true
+  //               let added = await this.addBlockToChain(newBlock, silent)
+  //               if(added.error) resolve({error:added.error})
+  //               else resolve(added)
+  //             }else{
+  //               let newBlockHasBeenBranched = await this.extendBranch(newBlock)
+  //               if(newBlockHasBeenBranched.error) resolve({ error:newBlockHasBeenBranched.error })
+  //               else if(newBlockHasBeenBranched){
+  //                 let branched = newBlockHasBeenBranched
+  //                 if(branched.staying){
+  //                   logger(chalk.yellow(`* Staying on main blockchain`))
+  //                   logger(chalk.yellow(`* Head block is ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+  //                 }else if(branched.outOfSync){
+  //                   logger(chalk.yellow(`* Trying to sync with peers' blockchains`))
+  //                 }else if(branched.synced){
+  //                   logger(chalk.yellow(`* Switched blockchain branches`))
+  //                   logger(chalk.yellow(`* Head block is now ${chalk.white(this.getLatestBlock().hash.substr(0, 25))}...`))
+  //                 }else if(branched.added){
+  //                   logger(chalk.yellow(`* Added new block fork ${newBlock.hash.substr(0, 25)}...`));
+  //                   logger(chalk.yellow(`* At block number ${newBlock.blockNumber}...`));
+  //                 }
+  //                 resolve(branched)
+  //               }
+  //               else{
+  //                 resolve({ error:`ERROR: Could not add ${newBlock.blockNumber} to branch` })
+  //               }
+              
+  //             }
+
+  //           }
+              
+            
+
+
+           
+          
+  //       }
+  //     }else{
+  //       resolve({error:'ERROR: New block undefined'})
+  //     }
+  //   })
+
+  // }
+
   async createNewBranch(newBlock){
     let alreadyExists = this.branches[newBlock.hash]
     if(!alreadyExists){
       this.branches[newBlock.hash] = [ newBlock ]
+      logger(chalk.cyan(`* Created new branch at block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+      return { added:true }
+    }else{
+      return false
+    }
+  }
+
+  async createNewUnlinkedBranch(newBlock){
+    let alreadyExists = this.unlinkedBranches[newBlock.hash]
+    if(!alreadyExists){
+      this.unlinkedBranches[newBlock.hash] = [ newBlock ]
+      logger(chalk.yellow(`* Created new unlinked branch at block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
       return { added:true }
     }else{
       return false
@@ -348,32 +425,60 @@ class Blockchain{
   async extendBranch(newBlock){
     let existingBranch = this.branches[newBlock.previousHash]
     if(existingBranch){
-      
-      let chainContainsBlockNumber = await this.branchContainsBlockNumber(newBlock, existingBranch)
-      if(!chainContainsBlockNumber){
-        let branch = [ ...existingBranch, newBlock ]
-        this.branches[newBlock.hash] = branch
-        
-        let readyToSwitchToBranch = await this.switchToBranch(newBlock, branch)
-        if(readyToSwitchToBranch.switched){
-          return { switched:true }
-        }else if(readyToSwitchToBranch.extended){
-          return { extended:true }
-        }else if(readyToSwitchToBranch.outOfSync){
-          return { outOfSync:true }
-        }else if(readyToSwitchToBranch.error){
-          return { error:readyToSwitchToBranch.error }
+      let alreadyInBranch = await this.branchAlreadyContainsBlock(newBlock, existingBranch)
+      if(alreadyInBranch) return false;
+      else{
+        existingBranch.push(newBlock)
+
+        logger(chalk.cyan(`* Extended branch at block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+        //check out branch and validate it
+        //if valid candidate for branch swap, swap
+        //if not, stay on main chain
+
+        let isValidCandidateBranch = await this.validateBranch(newBlock, existingBranch);
+
+        if(isValidCandidateBranch){
+          let switched = await this.switchToBranch(existingBranch)
+          if(switched.error) return { error:switched.error }
+          else return { switched:switched }
         }else{
-          return false
+          return { extended:true }
         }
-      }else{
-        return false
       }
       
     }else{
       return await this.createNewBranch(newBlock)
     }
   }
+
+  async extendUnlinkedBranch(newBlock){
+    let existingUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
+    if(existingUnlinkedBranch){
+      let alreadyInBranch = await this.branchAlreadyContainsBlock(newBlock, existingUnlinkedBranch)
+      if(alreadyInBranch) return false;
+      else{
+        existingUnlinkedBranch.push(newBlock)
+
+        logger(chalk.yellow(`* Extended unlinked branch at block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+        //check out branch and validate it
+        //if valid candidate for branch swap, swap
+        //if not, stay on main chain
+
+        let isValidCandidateBranch = await this.validateBranch(newBlock, existingUnlinkedBranch);
+
+        if(isValidCandidateBranch){
+          logger(chalk.yellow(`* Will now attempt to find missing previous block ${newblock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+          return { findMissing:true }
+        }else{
+          return { extended:true }
+        }
+      }
+      
+    }else{
+      return await this.createNewUnlinkedBranch(newBlock)
+    }
+  }
+
 
   async validateBranch(newBlock, branch){
         // let branchingBlock = this.chain[branch[0].blockNumber]
@@ -409,25 +514,25 @@ class Blockchain{
 
   }
 
-  async switchToBranch(newBlock, branch){
+  async switchToBranch(branch){
     //Do the branching block respect two out of the three rules to proceed with the switching
     //of blockchain branches?
-    let isValidBranchToSwap = await this.validateBranch(newBlock, branch)
-    if(isValidBranchToSwap){
-      let firstBlockOfBranch = branch[0]
-      //Is the branch linked to current blockchain?
-      let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
-      if(!isLinkedToBlockNumber) {
-        //If it is not linked, proceed to find the missing  
-        //By adding the branch here, we may look for the missing block, then, when found, we can add it back in and connect
-        //possibly two branches or connect the branch to the chain
-        this.unlinkedBranches[firstBlockOfBranch.previousHash] = branch
-        return { outOfSync:firstBlockOfBranch.previousHash }
-      }else{
-        //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
-        let rolledback = await this.rollbackToSyncBranch(isLinkedToBlockNumber)
-        if(rolledback){
-          if(rolledback.error) return { error:rolledback.error }
+    let firstBlockOfBranch = branch[0]
+    //Is the branch linked to current blockchain?
+    let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
+    if(!isLinkedToBlockNumber) {
+      //If it is not linked, proceed to find the missing  
+      //By adding the branch here, we may look for the missing block, then, when found, we can add it back in and connect
+      //possibly two branches or connect the branch to the chain
+      this.unlinkedBranches[firstBlockOfBranch.previousHash] = branch
+      return { outOfSync:firstBlockOfBranch.previousHash }
+    }else{
+      //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
+      let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
+      if(rolledback){
+
+        if(rolledback.error) return { error:rolledback.error }
+        else{
 
           let previousBlock = {}
           for await(let block of branch){
@@ -437,30 +542,25 @@ class Blockchain{
               console.log('Current:', block)
               
             }else{
-              let isValidBlock = await this.validateBlock(newBlock)
-              if(isValidBlock){
-                let synced = await this.pushBlock(block)
-                if(synced.error) return { error:synced.error }
+              let synced = await this.pushBlock(block)
+              if(synced.error) return { error:synced.error }
 
-                previousBlock = block;
-              }else{
-                console.log(`ERROR: Block ${block.blockNumber} is invalid: ${isValidBlock}`)
-              }
+              previousBlock = block;
             }
             
           }
-
+          
           return { switched:true }
-        }else{
-          return { error:`ERROR: Could not rollback to block ${firstBlockOfBranch.blockNumber - 1}. Latest block is that height` }
         }
+        
+
+      }else{
+        return { error:`ERROR: Could not rollback to block ${firstBlockOfBranch.blockNumber - 1}. Latest block is that height` }
       }
-    }else{
-      return { extended:true }
     }
   }
 
-  async rollbackToSyncBranch(blockNumber){
+  async rollbackToMergeBranch(blockNumber){
     let isPartOfChain = this.chain[blockNumber]
     let isLastBlock = this.getLatestBlock().blockNumber == blockNumber
     if(isPartOfChain){
@@ -473,20 +573,6 @@ class Blockchain{
       return { error:`ERROR: Could not rollback to block ${blockNumber}. Out of bound` }
     }
   }
-
-  async blockchainBranches(newBlock){
-
-
-    let newBlockHasBeenBranched = await this.extendBranch(newBlock)
-    if(newBlockHasBeenBranched.error) return { error:newBlockHasBeenBranched.error }
-    else if(newBlockHasBeenBranched) return newBlockHasBeenBranched
-    else{
-      return { error:`ERROR: Could not add ${newBlock.blockNumber} to branch` }
-    }
-    
-
-  }
-
 
   // async createChainBranch(newBlock){
 
