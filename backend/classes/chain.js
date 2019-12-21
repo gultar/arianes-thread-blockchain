@@ -469,22 +469,7 @@ class Blockchain{
         }else{
           false
         }
-        // if(branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
-        //   return true
-        // }else if(!currentBranchHasMoreWork && branchIsLongEnough && peerBlockchainIsLonger){
-        //   return true
-        // }else if(!branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
-        //   return true
-        // }else if(!peerBlockchainIsLonger && branchIsLongEnough && currentBranchHasMoreWork){
-        //   return true
-        // }else{
-        //   console.log('More work', currentBranchHasMoreWork)
-        //   console.log('Branch length okay', branchIsLongEnough)
-        //   console.log('Blockchain is longer', peerBlockchainIsLonger)
-        //   console.log('Branch', branch.length)
-        //   return false
-        // }
-
+       
   }
 
   async switchToBranch(branch){
@@ -503,7 +488,7 @@ class Blockchain{
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
       let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
-        console.log('Rollback', rolledback)
+        
         let lastRolledBackBlock = rolledback[rolledback.length - 1]
         this.branches[lastRolledBackBlock.hash] = rolledback
         if(rolledback.error) return { error:rolledback.error }
@@ -518,7 +503,7 @@ class Blockchain{
               
             }else{
 
-              let synced = await this.pushBlock(block)
+              let synced = await this.addBlockToChain(block, true)
               if(synced.error) {
                 let rolledbackAgain = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
                 for await(let oldBlock of rolledback){
@@ -530,7 +515,7 @@ class Blockchain{
                 }
                 return { staying:true }
               }
-              
+              logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
               previousBlock = block;
             }
             
