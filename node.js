@@ -1742,15 +1742,7 @@ class Node {
       
       
     })
-    
-    if(poolHasTransactions && !hasSentBlock){
-      hasSentBlock = true
-      
-      let rawBlock = await createRawBlock()
-      api.emit('startMining', rawBlock)
-      transactionsToMine = {}
-      actionsToMine = {}
-    }
+  
     this.mempool.events.on('newAction', (action)=>{
       actionsToMine[action.hash] = action
     })
