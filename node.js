@@ -864,14 +864,7 @@ class Node {
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
 
-                
-  
-                if(this.chain.getLatestBlock().blockNumber == 0){
-                  let genesisBlock = await this.downloadGenesisBlock(peer)
-                  if(genesisBlock.error){
-                    console.log(genesisBlock.error)
-                  }else{
-                    let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                     if(downloaded.error){
                       logger('Could not download blockchain')
                       console.log(downloaded.error)
@@ -880,19 +873,34 @@ class Node {
                       peer.send('getBlockchainStatus')
                       resolve(true)
                     }
-                  }
+  
+                // if(this.chain.getLatestBlock().blockNumber == 0){
+                //   let genesisBlock = await this.downloadGenesisBlock(peer)
+                //   if(genesisBlock.error){
+                //     console.log(genesisBlock.error)
+                //   }else{
+                //     let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                //     if(downloaded.error){
+                //       logger('Could not download blockchain')
+                //       console.log(downloaded.error)
+                //       resolve(false)
+                //     }else{
+                //       peer.send('getBlockchainStatus')
+                //       resolve(true)
+                //     }
+                //   }
                   
-                }else{
-                  let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                  if(downloaded.error){
-                    logger('Could not download blockchain')
-                    console.log(downloaded.error)
-                    resolve(false)
-                  }else{
-                    peer.send('getBlockchainStatus')
-                    resolve(true)
-                  }
-                }
+                // }else{
+                //   let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                //   if(downloaded.error){
+                //     logger('Could not download blockchain')
+                //     console.log(downloaded.error)
+                //     resolve(false)
+                //   }else{
+                //     peer.send('getBlockchainStatus')
+                //     resolve(true)
+                //   }
+                // }
   
                
               }else{

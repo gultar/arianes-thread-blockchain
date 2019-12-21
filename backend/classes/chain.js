@@ -2974,17 +2974,13 @@ class Blockchain{
         let genesisBlock = await this.getGenesisBlockFromDB()
         if(genesisBlock){
           if(genesisBlock.error) reject(genesisBlock.error)
-          this.chain[0] = genesisBlock
           let lastBlock = await this.getLastKnownBlockFromDB()
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)
           
             logger('Loaded last known block')
             for await(let blockNumber of [...iterator.keys()]){
-              
-              if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
-              if(blockNumber > 0){
-                let block = await this.getBlockFromDB(blockNumber)
+              let block = await this.getBlockFromDB(blockNumber)
                 if(block){
                   if(block.error) {
                     reject(block.error)
@@ -3001,9 +2997,12 @@ class Blockchain{
                     resolve(true)
                   }
                 }
-              }else{
-                if(blockNumber > 0) logger(`ERROR: Could not find block ${blockNumber}`)
-              }
+              // if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
+              // if(blockNumber > 0 && blockNumber !== '0'){
+                
+              // }else{
+              //   if(blockNumber > 0) logger(`ERROR: Could not find block ${blockNumber}`)
+              // }
              
             }
           }else{
