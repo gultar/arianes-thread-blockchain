@@ -1699,7 +1699,7 @@ class Node {
         if(transactions.error) console.log('Mempool error: ',transactions.error)
 
         // transactionsToMine = { ...transactionsToMine, ...transactions }
-        if(Object.keys(transactionsToMine).length == 0) return { error:'Could not create block without transactions' }
+        if(Object.keys(transactions).length == 0) return { error:'Could not create block without transactions' }
         let actions = await this.mempool.gatherActionsForBlock()
         // actionsToMine = { ...actionsToMine, ...actions }
         if(actions.error) console.log('Mempool error:',actions.error)
@@ -1759,16 +1759,19 @@ class Node {
             transactionsToMine = {}
             actionsToMine = {}
         }
+      }else{
+        api.emit('startMining', false)
       }
       
       
     })
   
     this.mempool.events.on('newAction', (action)=>{
-      actionsToMine[action.hash] = action
+      api.emit('actionSent')
     })
     this.mempool.events.on('newTransaction', async (transaction)=>{
-      transactionsToMine[transaction.hash] = transaction
+      api.emit('transactionSent')
+      // transactionsToMine[transaction.hash] = transaction
       // let newRawBlock = await createRawBlock()
       // if(!newRawBlock.error) {
       //   hasSentBlock = true

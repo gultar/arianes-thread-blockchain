@@ -66,12 +66,18 @@ class Miner{
         })
         this.socket.on('startMining', (rawBlock)=>{
             if(rawBlock.error) console.log(rawBlock.error)
-            else{
+            else if(rawBlock){
               if(!this.minerStarted){
                 this.start(rawBlock)
               }
             }
             
+        })
+        this.socket.on('transactionSent', ()=>{
+          this.socket.emit('isNewBlockReady', this.previousBlock)
+        })
+        this.socket.on('actionSent', ()=>{
+          this.socket.emit('isNewBlockReady', this.previousBlock)
         })
         
         this.socket.on('stopMining', ()=>{ this.pause() })
