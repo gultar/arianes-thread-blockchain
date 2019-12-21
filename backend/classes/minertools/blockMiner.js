@@ -64,6 +64,9 @@ class Miner{
         this.socket.on('latestBlock', (block)=>{
             this.previousBlock = block
         })
+        this.socket.on('willStartMiningAgain', ()=>{
+          this.socket.emit('isReady')
+      })
         this.socket.on('startMining', (rawBlock)=>{
             if(rawBlock.error) console.log(rawBlock.error)
             else if(rawBlock){

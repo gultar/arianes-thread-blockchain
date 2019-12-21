@@ -1768,8 +1768,8 @@ class Node {
 
     api.emit('latestBlock', nextBlock)
     
-    api.on('isMining', ()=>{
-      
+    api.on('isReady', ()=>{
+      hasSentBlock = false
     })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
@@ -2012,7 +2012,7 @@ class Node {
                       if(minerOn){
                         if(!isBlockLinked) this.localServer.socket.emit('stopMining')
                         this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                        this.localServer.socket.emit('run')
+                        this.localServer.socket.emit('startMiningAgain')
                         let putback = await this.mempool.putbackTransactions(block)
                         if(putback.error) resolve({error:putback.error})
                         if(block.actions){
