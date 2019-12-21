@@ -75,9 +75,11 @@ class Miner{
         })
         this.socket.on('transactionSent', ()=>{
           this.socket.emit('isNewBlockReady', this.previousBlock)
+          this.socket.emit('getLatestBlock')
         })
         this.socket.on('actionSent', ()=>{
           this.socket.emit('isNewBlockReady', this.previousBlock)
+          this.socket.emit('getLatestBlock')
         })
         
         this.socket.on('stopMining', ()=>{ this.pause() })
