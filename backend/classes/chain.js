@@ -459,26 +459,31 @@ class Blockchain{
         let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
         let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
 
-        let currentBranchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
+        let branchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
         let branchIsLongEnough = branch.length >= 3
         let peerBlockchainIsLonger = newBlock.blockNumber > this.getLatestBlock().blockNumber
         
 
-        if(branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
-          return true
-        }else if(!currentBranchHasMoreWork && branchIsLongEnough && peerBlockchainIsLonger){
-          return true
-        }else if(!branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
-          return true
-        }else if(!peerBlockchainIsLonger && branchIsLongEnough && currentBranchHasMoreWork){
+        if(branchHasMoreWork){
           return true
         }else{
-          console.log('More work', currentBranchHasMoreWork)
-          console.log('Branch length okay', branchIsLongEnough)
-          console.log('Blockchain is longer', peerBlockchainIsLonger)
-          console.log('Branch', branch.length)
-          return false
+          false
         }
+        // if(branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
+        //   return true
+        // }else if(!currentBranchHasMoreWork && branchIsLongEnough && peerBlockchainIsLonger){
+        //   return true
+        // }else if(!branchIsLongEnough && currentBranchHasMoreWork && peerBlockchainIsLonger){
+        //   return true
+        // }else if(!peerBlockchainIsLonger && branchIsLongEnough && currentBranchHasMoreWork){
+        //   return true
+        // }else{
+        //   console.log('More work', currentBranchHasMoreWork)
+        //   console.log('Branch length okay', branchIsLongEnough)
+        //   console.log('Blockchain is longer', peerBlockchainIsLonger)
+        //   console.log('Branch', branch.length)
+        //   return false
+        // }
 
   }
 
