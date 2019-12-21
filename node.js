@@ -1525,6 +1525,10 @@ class Node {
           
       })
 
+      socket.on('getChain', ()=>{
+        console.log(this.chain.chain)
+      })
+
       socket.on('getState', async (contractName)=>{
           let state = await this.chain.contractTable.getState(contractName)
           console.log(JSON.stringify(state,null,2))

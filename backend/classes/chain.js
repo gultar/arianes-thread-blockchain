@@ -267,66 +267,70 @@ class Blockchain{
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
-        let isValidBlock = await this.validateBlock(newBlock);
-        if(isValidBlock.error){
-          resolve({error:isValidBlock.error})
-        }
+
+        let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
+        if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
         else{
-            let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-            if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
-            else{
-              
-              var isLinked = this.isBlockLinked(newBlock);
-              var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
-              let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
-              let isLinkedToBranch = this.branches[newBlock.previousHash]
-              let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
+          
+          var isLinked = this.isBlockLinked(newBlock);
+          var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
+          let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+          let isLinkedToBranch = this.branches[newBlock.previousHash]
+          let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
 
-              /**
-               * Possible return values
-               * Linked branches
-               *  extended - Either created or extended a blockchain branch, nothing to do here
-               *  switched - Swapped branches with one that has more work or is longer
-               * Unlinked branches
-               *  extended - Either created or extended an unlinked blockchain branch, nothing to do here
-               *  findMissing - Query peer with the longest blockchain for the missing blocks at block hash
-               * 
-               * Basically, the only other result to handle, aside from an error or a success, is findMissing
-               */
-              if(isLinked){
-                if(blockNumberAlreadyExists){
-                  let branched = await this.createNewBranch(newBlock);
-                  if(branched.error) resolve({error:branched.error})
-                  else resolve(branched)
-                }else{
-                  let added = await this.addBlockToChain(newBlock, silent)
-                  if(added.error) resolve({error:added.error})
-                  else resolve(added)
-                }
-              }else{
-                if(isLinkedToChain){
-                  let branched = await this.createNewBranch(newBlock);
-                  if(branched.error) resolve({error:branched.error})
-                  else resolve(branched)
-                }else if(isLinkedToBranch){
-                  let extended = await this.extendBranch(newBlock)
-                  if(extended.error) resolve({error:extended})
-                  else resolve(extended)
-                }else if(isLinkedToUnlinkedBranch){
-                  let extended = await this.extendUnlinkedBranch(newBlock);
-                  if(extended.error) resolve({error:extended.error})
-                  else resolve(extended)
-                  //extend unlinked branch
-                }else{
-                  let branched = await this.createNewUnlinkedBranch(newBlock)
-                  if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
-                  else resolve(branched)
-                  //create new unlinked branch
-                }
+          /**
+           * Possible return values
+           * Linked branches
+           *  extended - Either created or extended a blockchain branch, nothing to do here
+           *  switched - Swapped branches with one that has more work or is longer
+           * Unlinked branches
+           *  extended - Either created or extended an unlinked blockchain branch, nothing to do here
+           *  findMissing - Query peer with the longest blockchain for the missing blocks at block hash
+           * 
+           * Basically, the only other result to handle, aside from an error or a success, is findMissing
+           */
+          if(isLinked){
+            if(blockNumberAlreadyExists){
+              let branched = await this.createNewBranch(newBlock);
+              if(branched.error) resolve({error:branched.error})
+              else resolve(branched)
+            }else{
+              let isValidBlock = await this.validateBlock(newBlock);
+              if(isValidBlock.error){
+                resolve({error:isValidBlock.error})
               }
-
+              else{
+                let added = await this.addBlockToChain(newBlock, silent)
+                if(added.error) resolve({error:added.error})
+                else resolve(added)
+              }
+              
             }
+          }else{
+            if(isLinkedToChain){
+              let branched = await this.createNewBranch(newBlock);
+              if(branched.error) resolve({error:branched.error})
+              else resolve(branched)
+            }else if(isLinkedToBranch){
+              let extended = await this.extendBranch(newBlock)
+              if(extended.error) resolve({error:extended})
+              else resolve(extended)
+            }else if(isLinkedToUnlinkedBranch){
+              let extended = await this.extendUnlinkedBranch(newBlock);
+              if(extended.error) resolve({error:extended.error})
+              else resolve(extended)
+              //extend unlinked branch
+            }else{
+              let branched = await this.createNewUnlinkedBranch(newBlock)
+              if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
+              else resolve(branched)
+              //create new unlinked branch
+            }
+          }
+
         }
+
+        
       }else{
         resolve({error:'ERROR: New block undefined'})
       }
@@ -493,8 +497,19 @@ class Blockchain{
               console.log('Current:', block)
               
             }else{
+
               let synced = await this.pushBlock(block)
-              if(synced.error) return { error:synced.error }
+              if(synced.error) {
+                let rolledbackAgain = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
+                for await(let oldBlock of rolledback){
+                  let addedBackIn = await this.addBlockToChain(oldBlock)
+                  if(addedBackIn.error) return { error:addedBackIn.error }
+                  else{
+                    logger(`Swap failed: readding block ${oldBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`)
+                  }
+                }
+                return { staying:true }
+              }
               
               previousBlock = block;
             }
@@ -1780,12 +1795,17 @@ class Blockchain{
       const collectTransactionHashes = async (blocks) =>{
         return new Promise(async (resolve)=>{
           let txHashes = []
+          
           for(var block of blocks){
             if(block.txHashes){
+              
               txHashes = [  ...txHashes, ...block.txHashes ]
-            }else{
-              // console.log('No tx hashes')
             }
+            // else if(block.transactions){
+            //   let blockTxHashes = Object.keys(block.transactions)
+            //   txHashes = [ ...txHashes, ...blockTxHashes ]
+            //   // console.log('No tx hashes')
+            // }
           }
           resolve(txHashes)
         })
@@ -1796,7 +1816,8 @@ class Blockchain{
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
       //Getting a copy of the blocks that will later be removed from the chain
-      let blocks = this.chain.slice(number + 1, number + 1 + numberOfBlocksToRemove)
+      let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
+      let blocks = this.chain.slice(startNumber, startNumber + numberOfBlocksToRemove)
       
       
       let rolledBack = await this.balance.rollback(number)
@@ -1807,6 +1828,9 @@ class Blockchain{
       let newestToOldestBlocks = blocks.reverse()
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
+      
+      this.spentTransactionHashes = this.spentTransactionHashes.filter(hash => !txHashes.includes(hash));
+      this.spentActionHashes = this.spentActionHashes.filter(hash => !actionHashes.includes(hash));
 
       let stateRolledBack = await this.contractTable.rollback(newLastBlock.hash)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
@@ -1835,17 +1859,18 @@ class Blockchain{
       }
 
       let backToNormal = newestToOldestBlocks.reverse()
-      let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
-      let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
+      
+      let removed = this.chain.splice(startNumber, numberOfBlocksToRemove)
       let mainBranch = []
       for await(let header of removed){
-        let block = this.getBlockFromDB(header.blockNumber);
+        let block = await this.getBlockFromDB(header.blockNumber);
         if(block.error) removed = [] //If, for some reason, could not get block from db, just cancel the removed blocks alltogether, to avoid
                                       //Creating a branch with headers only
         else mainBranch.push(block)
       }
-      logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
+      
       logger('Rolled back to block ', number)
+      logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
         resolve(mainBranch.length == removed.length ? mainBranch : false)
@@ -2954,7 +2979,7 @@ class Blockchain{
                   let actionHashes = Object.keys(block.actions)
                   this.spentTransactionHashes = [...this.spentTransactionHashes, ...txHashes]
                   this.spentActionHashes = [ ...this.spentActionHashes, ...actionHashes ]
-                  this.chain.push(block)
+                  this.chain.push(this.extractHeader(block))
                   if(blockNumber == lastBlock.blockNumber){
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
                     resolve(true)

@@ -133,13 +133,13 @@ class Miner{
 
 
     run(){
-      let stayUpdated = setInterval(()=>{
+      // let stayUpdated = setInterval(()=>{
         
-        if(!this.minerStarted){
-          this.socket.emit('getLatestBlock')
-          this.socket.emit('isNewBlockReady', this.previousBlock)
-        }
-      }, 500)
+      //   if(!this.minerStarted){
+      //     this.socket.emit('getLatestBlock')
+      //     this.socket.emit('isNewBlockReady', this.previousBlock)
+      //   }
+      // }, 500)
     }
 
     pause(){
