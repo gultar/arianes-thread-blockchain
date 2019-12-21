@@ -492,7 +492,7 @@ class Blockchain{
             }else{
               let synced = await this.pushBlock(block)
               if(synced.error) return { error:synced.error }
-
+              
               previousBlock = block;
             }
             

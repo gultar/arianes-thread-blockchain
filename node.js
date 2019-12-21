@@ -1976,6 +1976,8 @@ class Node {
                           if(actionsPutback.error) resolve({error:actionsPutback.error})
                         }
                       }
+
+                      resolve(added)
                     }
                     
 
