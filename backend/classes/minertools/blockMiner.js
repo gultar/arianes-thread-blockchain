@@ -117,6 +117,7 @@ class Miner{
               }else{
                 this.pause()
                 this.log('Mining unsuccessful')
+                this.socket.send('newBlock', { failed:this.previousBlock })
                 this.minerStarted = false;
               }
             }else{

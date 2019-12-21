@@ -1786,9 +1786,9 @@ class Node {
       if(this.isDownloading) api.emit('stopMining')
       else{
         if(block){
-          
-          let added = await this.chain.pushBlock(block)
           hasSentBlock = false
+          let added = await this.chain.pushBlock(block)
+          
 
           if(added.error){
             console.log('Adding error:',added.error)
@@ -1797,6 +1797,8 @@ class Node {
             api.emit('latestBlock', block)
           }
   
+        }else if(block.failed){
+          hasSentBlock = false
         }else{
           logger('ERROR: New mined block is undefined')
         }
