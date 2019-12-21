@@ -346,10 +346,12 @@ class Blockchain{
   }
 
   async createNewUnlinkedBranch(newBlock){
-    let alreadyExists = this.unlinkedBranches[newBlock.hash]
+    //Pushing new block with previous so that node may find the missing blocks and use the last one found to 
+    //fetch the unlinkedBranch created here
+    let alreadyExists = this.unlinkedBranches[newBlock.previousHash]
     if(!alreadyExists){
-      this.unlinkedBranches[newBlock.hash] = [ newBlock ]
-      logger(chalk.yellow(`* New unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
+      this.unlinkedBranches[newBlock.previousHash] = [ newBlock ]
+      logger(chalk.yellow(`* Ulinked branch at previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
       return true
     }else{
       return { error:'ERROR: Block already exists in branch' }

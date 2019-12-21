@@ -864,8 +864,26 @@ class Node {
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
 
+                
   
-                let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                if(this.chain.getLatestBlock().blockNumber == 0){
+                  let genesisBlock = await this.downloadGenesisBlock(peer)
+                  if(genesisBlock.error){
+                    console.log(genesisBlock.error)
+                  }else{
+                    let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                    if(downloaded.error){
+                      logger('Could not download blockchain')
+                      console.log(downloaded.error)
+                      resolve(false)
+                    }else{
+                      peer.send('getBlockchainStatus')
+                      resolve(true)
+                    }
+                  }
+                  
+                }else{
+                  let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
                   if(downloaded.error){
                     logger('Could not download blockchain')
                     console.log(downloaded.error)
@@ -874,6 +892,7 @@ class Node {
                     peer.send('getBlockchainStatus')
                     resolve(true)
                   }
+                }
   
                
               }else{
@@ -948,7 +967,7 @@ class Node {
           let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
           console.log('Unlinked chain length', unlinkedBranch.length)
           branch = [ ...branch, ...missingBlocks, ...unlinkedBranch ]
-          console.log('Unlinked chain new length', unlinkedBranch.length)
+          console.log('Unlinked chain new length', branch.length)
           let latestBranchedBlock = branch[branch.length - 1]
           console.log('Last branched block num', latestBranchedBlock.blockNumber)
           let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
