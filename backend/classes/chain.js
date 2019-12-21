@@ -488,11 +488,12 @@ class Blockchain{
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
       let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
+        console.log('Rolled back result', rolledback)
         if(rolledback && Array.isArray(rolledback)){
           let lastRolledBackBlock = rolledback[rolledback.length - 1]
           this.branches[lastRolledBackBlock.hash] = rolledback
         }else{
-          console.log('Rollback result', rolledback)
+          console.log('Rolled back is not array', rolledback)
         }
        
         if(rolledback.error) return { error:rolledback.error }
@@ -1175,8 +1176,6 @@ class Blockchain{
         return true;
       }
       
-      console.log(lastBlock.hash)
-      console.log(block.previousHash)
       return false;
     }
     
