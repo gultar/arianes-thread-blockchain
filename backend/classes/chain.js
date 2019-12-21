@@ -208,9 +208,9 @@ class Blockchain{
         resolve({error:'ERROR: Block already exists'})
       }else{
 
-        var areTransactionsValid = await this.validateBlockTransactions(block)
+        var areTransactionsValid = await this.validateBlockTransactions(newBlock)
         if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
-        var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(block)
+        var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(newBlock)
         if(!doesNotContainDoubleSpend) resolve({error:'ERROR: Block may not contain a transaction that is already spent'})
         
         let errors = {}
