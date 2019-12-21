@@ -64,10 +64,8 @@ class Miner{
         this.socket.on('latestBlock', (block)=>{
             this.previousBlock = block
         })
-        this.socket.on('willStartMiningAgain', ()=>{
-          this.socket.emit('isReady')
-      })
         this.socket.on('startMining', (rawBlock)=>{
+          console.log('Wants to start mining', rawBlock)
             if(rawBlock.error) console.log(rawBlock.error)
             else if(rawBlock){
               if(!this.minerStarted){
@@ -140,7 +138,7 @@ class Miner{
 
     run(){
       this.routine = setInterval(()=>{
-        
+        console.log('Shit shit')
         if(!this.minerStarted){
           this.socket.emit('getLatestBlock')
           this.socket.emit('isNewBlockReady', this.previousBlock)
@@ -157,7 +155,7 @@ class Miner{
       }
       this.socket.send('newBlock', { failed:this.previousBlock })
       this.minerStarted = false;
-      clearInterval(this.routine)
+      // clearInterval(this.routine)
     }
 
     async createCoinbase(){

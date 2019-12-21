@@ -1698,7 +1698,7 @@ class Node {
 
   async minerConnector(api){
     logger('Miner connected!');
-    let hasSentBlock = false
+    api.hasSentBlock = false
     let transactionsToMine = {}
     let minimumSize = 1
     
@@ -1767,22 +1767,19 @@ class Node {
     nextBlock = await getNextBlock()
 
     api.emit('latestBlock', nextBlock)
-    
-    api.on('isReady', ()=>{
-      hasSentBlock = false
-    })
+
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      if(!this.isDownloading && !hasSentBlock){
+      if(!this.isDownloading && !api.hasSentBlock){
         let nextBlock = await getNextBlock()
         let newRawBlock = await createRawBlock(nextBlock)
         if(!newRawBlock.error) {
-          hasSentBlock = true
+          api.hasSentBlock = true
             api.emit('startMining', newRawBlock)
             transactionsToMine = {}
             actionsToMine = {}
         }else{
-
+          console.log(newRawBlock.error)
         }
       }else{
         api.emit('startMining', false)
@@ -1804,7 +1801,7 @@ class Node {
       if(this.isDownloading) api.emit('stopMining')
       else{
         if(block){
-          hasSentBlock = false
+          api.hasSentBlock = false
           let isValid = await this.chain.validateBlock(block)
           if(isValid){
             if(isValid.error) console.log('Is not valid mined block', isValid.error)
@@ -1821,7 +1818,7 @@ class Node {
         }else if(block.failed){
           logger('Miner was interrupted')
           api.emit('latestBlock', nextBlock)
-          hasSentBlock = false
+          api.hasSentBlock = false
         }else{
           logger('ERROR: New mined block is undefined')
         }
@@ -2012,7 +2009,7 @@ class Node {
                       if(minerOn){
                         if(!isBlockLinked) this.localServer.socket.emit('stopMining')
                         this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                        this.localServer.socket.emit('startMiningAgain')
+                        this.localServer.socket.hasSentBlock = false
                         let putback = await this.mempool.putbackTransactions(block)
                         if(putback.error) resolve({error:putback.error})
                         if(block.actions){
