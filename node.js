@@ -965,11 +965,17 @@ class Node {
         let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
-          let firstBlock = missingBlocks[0]
+          console.log('Number of branched missing blocks', missingBlocks.length)
+          let firstBlock = missingBlocks.isBranch[0]
+          console.log('First missing block', firstBlock)
           let branch = this.chain.branches[firstBlock.previousHash]
+          console.log('Linked chain length', branch.length)
           let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
+          console.log('Unlinked chain length', unlinkedBranch.length)
           branch = [ ...branch, ...missingBlocks, ...unlinkedBranch ]
+          console.log('Unlinked chain new length', unlinkedBranch.length)
           let latestBranchedBlock = branch[branch.length - 1]
+          console.log('Last branched block num', latestBranchedBlock.blockNumber)
           let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
           if(isValidCandidate){
             let switched = await this.chain.switchToBranch(branch);
@@ -978,7 +984,27 @@ class Node {
           }else{
             resolve({fixed:true})
           }
-        } 
+        }else if(missingBlocks.isLinked){
+          console.log('Number of linked missing blocks', missingBlocks.length)
+          let firstBlock = missingBlocks.isLinked[0]
+          console.log('First missing block', firstBlock)
+          let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
+          console.log('Unlinked chain length', unlinkedBranch.length)
+          unlinkedBranch = [ ...missingBlocks, ...unlinkedBranch ]
+          console.log('Unlinked chain new length', unlinkedBranch.length)
+          let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
+          console.log('Last branched block num', latestBranchedBlock.blockNumber)
+          this.chain.branches[latestBranchedBlock.hash] = unlinkedBranch
+          let branch = this.chain.branches[latestBranchedBlock.hash]
+          let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
+          if(isValidCandidate){
+            let switched = await this.chain.switchToBranch(branch);
+            if(switched.error) resolve({error:switched.error})
+            resolve({switched:switched})
+          }else{
+            resolve({fixed:true})
+          }
+        }
     })
   }
 

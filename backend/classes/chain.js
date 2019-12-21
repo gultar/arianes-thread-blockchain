@@ -502,7 +502,7 @@ class Blockchain{
             }
             
           }
-          logger(chalk.cyan(`* Swapped branches up to block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+          logger(chalk.cyan(`* Swapped branches`));
           return { switched:true }
         }
         
