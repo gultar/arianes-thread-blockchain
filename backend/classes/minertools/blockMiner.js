@@ -112,7 +112,7 @@ class Miner{
                 this.socket.emit('newBlock', block)
                 this.minerStarted = false;
                 this.previousBlock = block;
-                this.blockNumbersMined[block.blockNumber] = true
+                // this.blockNumbersMined[block.blockNumber] = true
                 
               }else{
                 this.pause()
@@ -228,7 +228,7 @@ class Miner{
 
     async prepareBlockForMining(rawBlock){
         
-        if(rawBlock && !this.blockNumbersMined[rawBlock.blockNumber]){
+        if(rawBlock && rawBlock.blockNumber > this.previousBlock.blockNumber){
           let coinbase = await this.createCoinbase()
           rawBlock.transactions[coinbase.hash] = coinbase
           let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, this.previousBlock.hash, rawBlock.blockNumber)

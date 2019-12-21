@@ -267,68 +267,68 @@ class Blockchain{
   pushBlock(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       if(isValidBlockJSON(newBlock)){
-
-        let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-        if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
-        else{
-          
-          var isLinked = this.isBlockLinked(newBlock);
-          var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
-          let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
-          let isLinkedToBranch = this.branches[newBlock.previousHash]
-          let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
-
-          /**
-           * Possible return values
-           * Linked branches
-           *  extended - Either created or extended a blockchain branch, nothing to do here
-           *  switched - Swapped branches with one that has more work or is longer
-           * Unlinked branches
-           *  extended - Either created or extended an unlinked blockchain branch, nothing to do here
-           *  findMissing - Query peer with the longest blockchain for the missing blocks at block hash
-           * 
-           * Basically, the only other result to handle, aside from an error or a success, is findMissing
-           */
-          if(isLinked){
-            if(blockNumberAlreadyExists){
-              let branched = await this.createNewBranch(newBlock);
-              if(branched.error) resolve({error:branched.error})
-              else resolve(branched)
-            }else{
-              let isValidBlock = await this.validateBlock(newBlock);
-              if(isValidBlock.error){
-                resolve({error:isValidBlock.error})
-              }
-              else{
-                let added = await this.addBlockToChain(newBlock, silent)
-                if(added.error) resolve({error:added.error})
-                else resolve(added)
-              }
-              
-            }
-          }else{
-            if(isLinkedToChain){
-              let branched = await this.createNewBranch(newBlock);
-              if(branched.error) resolve({error:branched.error})
-              else resolve(branched)
-            }else if(isLinkedToBranch){
-              let extended = await this.extendBranch(newBlock)
-              if(extended.error) resolve({error:extended})
-              else resolve(extended)
-            }else if(isLinkedToUnlinkedBranch){
-              let extended = await this.extendUnlinkedBranch(newBlock);
-              if(extended.error) resolve({error:extended.error})
-              else resolve(extended)
-              //extend unlinked branch
-            }else{
-              let branched = await this.createNewUnlinkedBranch(newBlock)
-              if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
-              else resolve(branched)
-              //create new unlinked branch
-            }
-          }
-
+        let isValidBlock = await this.validateBlock(newBlock);
+        if(isValidBlock.error){
+          resolve({error:isValidBlock.error})
         }
+        else{
+          let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
+          if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
+          else{
+            
+            var isLinked = this.isBlockLinked(newBlock);
+            var isLinkedToChain = await this.getBlockbyHash(newBlock.previousHash)
+            let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
+            let isLinkedToBranch = this.branches[newBlock.previousHash]
+            let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
+  
+            /**
+             * Possible return values
+             * Linked branches
+             *  extended - Either created or extended a blockchain branch, nothing to do here
+             *  switched - Swapped branches with one that has more work or is longer
+             * Unlinked branches
+             *  extended - Either created or extended an unlinked blockchain branch, nothing to do here
+             *  findMissing - Query peer with the longest blockchain for the missing blocks at block hash
+             * 
+             * Basically, the only other result to handle, aside from an error or a success, is findMissing
+             */
+            if(isLinked){
+              if(blockNumberAlreadyExists){
+                let branched = await this.createNewBranch(newBlock);
+                if(branched.error) resolve({error:branched.error})
+                else resolve(branched)
+              }else{
+                
+                let added = await this.addBlockToChain(newBlock, silent)
+                  if(added.error) resolve({error:added.error})
+                  else resolve(added)
+              }
+            }else{
+              if(isLinkedToChain){
+                let branched = await this.createNewBranch(newBlock);
+                if(branched.error) resolve({error:branched.error})
+                else resolve(branched)
+              }else if(isLinkedToBranch){
+                let extended = await this.extendBranch(newBlock)
+                if(extended.error) resolve({error:extended})
+                else resolve(extended)
+              }else if(isLinkedToUnlinkedBranch){
+                let extended = await this.extendUnlinkedBranch(newBlock);
+                if(extended.error) resolve({error:extended.error})
+                else resolve(extended)
+                //extend unlinked branch
+              }else{
+                let branched = await this.createNewUnlinkedBranch(newBlock)
+                if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
+                else resolve(branched)
+                //create new unlinked branch
+              }
+            }
+  
+          }
+        }
+
 
         
       }else{
@@ -1163,7 +1163,7 @@ class Blockchain{
   isBlockLinked(block){
     if(block){
       var lastBlock = this.getLatestBlock();
-      if(lastBlock.hash === block.previousHash){
+      if(lastBlock.hash === block.previousHash && block.blockNumber == lastBlock.blockNumber + 1){
         return true;
       }
       return false;
