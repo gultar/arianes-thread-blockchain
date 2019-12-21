@@ -479,7 +479,8 @@ class Blockchain{
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
       let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
-
+        let lastRolledBackBlock = rolledback[rolledback.length - 1]
+        this.branches[lastRolledBackBlock.hash] = rolledback
         if(rolledback.error) return { error:rolledback.error }
         else{
 
@@ -516,7 +517,7 @@ class Blockchain{
       let rolledback = await this.rollbackToBlock(blockNumber)
         if(rolledback.error) return { error:rolledback.error }
         else{
-          return true
+          return rolledback
         }
     }else{
       return { error:`ERROR: Could not rollback to block ${blockNumber}. Out of bound` }
