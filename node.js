@@ -1982,7 +1982,13 @@ class Node {
 
                 if(minerOn){
                   
-                  if(isBlockLinked) this.localServer.socket.emit('stopMining')
+                  this.localServer.socket.emit('stopMining')
+                  let putback = await this.mempool.putbackTransactions(block)
+                  if(putback.error) resolve({error:putback.error})
+                  if(block.actions){
+                    let actionsPutback = await this.mempool.putbackActions(block)
+                    if(actionsPutback.error) resolve({error:actionsPutback.error})
+                  }
                 }
                 this.isDownloading = true
                 let added = await this.chain.pushBlock(block);
