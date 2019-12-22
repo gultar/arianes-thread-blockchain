@@ -339,7 +339,7 @@ class Node {
           // console.log("Peer sent too many 'getNextBlock' events") 
         }); // consume 1 point per event from IP
         let index = this.chain.getIndexOfBlockHash(hash)
-        console.log(`Requested block ${hash} at index ${index}`)
+        
         if(index && index > 0){
           if(hash == this.chain.chain[0].hash){
             socket.emit('previousBlock', {end:'Reached genesis block'})
@@ -930,22 +930,22 @@ class Node {
     return new Promise(async (resolve)=>{
         //Finding missing blocks from an unlinked branch where block was pushed. 
         //By finding the missing blocks, current branch is to be swapped with it
-        console.log('About to find missing blocks')
+        // console.log('About to find missing blocks')
         let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
         
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
-          console.log('Number of branched missing blocks', missingBlocks)
+          // console.log('Number of branched missing blocks', missingBlocks)
           let firstBlock = missingBlocks.isBranch[0]
-          console.log('First missing block', firstBlock)
+          // console.log('First missing block', firstBlock)
           let branch = this.chain.branches[firstBlock.previousHash]
-          console.log('Linked chain length', branch.length)
+          // console.log('Linked chain length', branch.length)
           let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
-          console.log('Unlinked chain length', unlinkedBranch.length)
+          // console.log('Unlinked chain length', unlinkedBranch.length)
           branch = [ ...branch, ...missingBlocks, ...unlinkedBranch ]
-          console.log('Unlinked chain new length', branch.length)
+          // console.log('Unlinked chain new length', branch.length)
           let latestBranchedBlock = branch[branch.length - 1]
-          console.log('Last branched block num', latestBranchedBlock.blockNumber)
+          // console.log('Last branched block num', latestBranchedBlock.blockNumber)
           let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
           if(isValidCandidate){
             let switched = await this.chain.switchToBranch(branch);
@@ -955,15 +955,18 @@ class Node {
             resolve({fixed:true})
           }
         }else if(missingBlocks.isLinked){
-          console.log('Number of linked missing blocks', missingBlocks.length)
+          // console.log('Number of linked missing blocks', missingBlocks.length)
+          if(!Array.isArray(missingBlocks.isLinked) && typeof missingBlocks.isLinked == 'object'){
+            missingBlocks.isLinked = [ missingBlocks.isLinked ]
+          }
           let firstBlock = missingBlocks.isLinked[0]
-          console.log('First missing block', firstBlock)
+          // console.log('First missing block', firstBlock)
           let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
-          console.log('Unlinked chain length', unlinkedBranch.length)
-          unlinkedBranch = [ ...missingBlocks, ...unlinkedBranch ]
-          console.log('Unlinked chain new length', unlinkedBranch.length)
+          // console.log('Unlinked chain length', unlinkedBranch.length)
+          unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
+          // console.log('Unlinked chain new length', unlinkedBranch.length)
           let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
-          console.log('Last branched block num', latestBranchedBlock.blockNumber)
+          // console.log('Last branched block num', latestBranchedBlock.blockNumber)
           this.chain.branches[latestBranchedBlock.hash] = unlinkedBranch
           let branch = this.chain.branches[latestBranchedBlock.hash]
           let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
@@ -982,43 +985,48 @@ class Node {
   //Heavy WIP
   getMissingBlocksToSyncBranch(unsyncedBlockHash){
     return new Promise(async (resolve)=>{
-      let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
-      let missingBlocks = []
-      let peer = await this.getMostUpToDatePeer()
-      console.log('Up to date peer is of type ', typeof peer)
-      if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
-      else{
-        peer.emit('getPreviousBlock', unsyncedBlockHash)
-        peer.on('previousBlock', (block)=>{
-          console.log('Received a missing block', block)
-          if(block.end){
-            peer.off('previousBlock')
-            clearTimeout(timeout)
-            resolve({error:block.end})
-          }else if(block.error){
-            peer.off('previousBlock')
-            clearTimeout(timeout)
-            resolve({error:block.error})
-          }else if(block){
-            let isPartOfBranch = this.chain.branches[block.hash]
-            let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
-    
-            if(isLinkedToChain){
-              peer.off('previousBlock')
-              // "Unshifted" manually since we're looking backyards, not forwards
-              clearTimeout(timeout)
-              resolve({ isLinked:missingBlocks })
-              
-            }else if(isPartOfBranch){
+      if(!unsyncedBlockHash){
+        resolve({error:'ERROR: Need to provide block hash of missing branch block'})
+      }else{
+        let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
+        let missingBlocks = []
+        let peer = await this.getMostUpToDatePeer()
+        // console.log('Up to date peer is of type ', typeof peer)
+        if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
+        else{
+          // console.log('requesting ', unsyncedBlockHash)
+          peer.emit('getPreviousBlock', unsyncedBlockHash)
+          peer.on('previousBlock', (block)=>{
+            // console.log('Received a missing block', block)
+            if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
-              resolve({ isBranch:missingBlocks })
-            }else{
-              missingBlocks = [ block, ... missingBlocks]
-              peer.emit('getPreviousBlock', block.hash)
+              resolve({error:block.end})
+            }else if(block.error){
+              peer.off('previousBlock')
+              clearTimeout(timeout)
+              resolve({error:block.error})
+            }else if(block){
+              let isPartOfBranch = this.chain.branches[block.hash]
+              let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
+      
+              if(isLinkedToChain){
+                peer.off('previousBlock')
+                // "Unshifted" manually since we're looking backyards, not forwards
+                clearTimeout(timeout)
+                resolve({ isLinked:missingBlocks })
+                
+              }else if(isPartOfBranch){
+                peer.off('previousBlock')
+                clearTimeout(timeout)
+                resolve({ isBranch:missingBlocks })
+              }else{
+                missingBlocks = [ block, ... missingBlocks]
+                peer.emit('getPreviousBlock', block.hash)
+              }
             }
-          }
-        })
+          })
+        }
       }
 
 
@@ -1949,7 +1957,8 @@ class Node {
                     this.broadcast('getBlockchainStatus')
                     resolve(rolledback)
                   }else if(added.unlinked){
-                    let fixed = await this.fixUnlinkedBranch(added.findMissing);
+                    
+                    let fixed = await this.fixUnlinkedBranch(added.unlinked);
                     if(fixed.error) resolve({error:fixed.error})
                     else resolve(fixed)
                   }else if(added.unlinkedExtended){
