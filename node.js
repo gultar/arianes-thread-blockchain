@@ -1943,10 +1943,10 @@ class Node {
                 let added = await this.chain.pushBlock(block);
                 if(added.error) resolve({error:added.error})
                 else{
-                  
+                  let currentLength = this.chain.length;
                   //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                   if(added.findMissing){
-                    let currentLength = this.chain.length;
+                    
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
                     // let fixed = await this.fixUnlinkedBranch(added.findMissing);
