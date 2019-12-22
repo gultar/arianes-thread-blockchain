@@ -935,6 +935,9 @@ class Node {
         
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
+          if(!Array.isArray(missingBlocks.isBranch) && typeof missingBlocks.isBranch == 'object'){
+            missingBlocks.isBranch = [ missingBlocks.isBranch ]
+          }
           // console.log('Number of branched missing blocks', missingBlocks)
           let firstBlock = missingBlocks.isBranch[0]
           // console.log('First missing block', firstBlock)
@@ -1653,6 +1656,20 @@ class Node {
         return { error:'Node is busy' }
       }
     }
+
+    const unwrapBlock = async (block) =>{
+      if(block){
+        let putback = await this.mempool.putbackTransactions(block)
+        if(putback.error) return {error:putback.error}
+        if(block.actions){
+          let actionsPutback = await this.mempool.putbackActions(block)
+          if(actionsPutback.error) return {error:actionsPutback.error}
+        }
+        return { transactions:putback, actions:putback }
+      }else{
+        return false
+      }
+    }
     
     const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
       
@@ -1702,6 +1719,11 @@ class Node {
 
     api.on('miningOver', ()=>{
       api.isMining = false
+    })
+
+    api.on('miningCancelled', async (block)=>{
+      let blockUnwrapped = await unwrapBlock(block)
+      if(blockUnwrapped.error) console.log(`UNWRAP ERROR: ${blockUnwrapped.error}`)
     })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{

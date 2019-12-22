@@ -18,6 +18,7 @@ class Miner{
         this.genesis = genesis
         this.manager = new WalletManager()
         this.previousBlock = false
+        this.currentMinedBlock = false
         this.minerReady = false;
         this.minerStarted = false;
         this.miningReward = 50;
@@ -103,6 +104,7 @@ class Miner{
         if(block){
           if(this.previousBlock.hash !== block.hash && !this.blockNumbersMined[block.blockNumber]){
             if(!this.minerStarted){
+              this.currentMinedBlock = block
               this.socket.emit('mining', block)
               this.minerStarted = true
               this.log('Starting to mine block '+block.blockNumber)
@@ -166,6 +168,7 @@ class Miner{
       this.minerStarted = false;
       this.socket.emit('getNewBlock')
       this.socket.emit('miningOver')
+      this.socket.emit('miningCancelled', this.currentMinedBlock)
       // clearInterval(this.routine)
     }
 
