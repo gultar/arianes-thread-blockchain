@@ -76,9 +76,9 @@ class NodeList{
     }
 
     saveNodeList(){
-        return new Promise((resolve, reject)=>{
+        return new Promise(async (resolve, reject)=>{
             try{
-                let saved = writeToFile(this, './data/nodelist.json');
+                let saved = await writeToFile(this, './databases/nodelist.json');
                 if(saved){
                     logger('Saved list of known nodes');
                     resolve(true)
