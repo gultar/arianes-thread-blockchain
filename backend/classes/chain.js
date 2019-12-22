@@ -468,10 +468,10 @@ class Blockchain{
     //Do the branching block respect two out of the three rules to proceed with the switching
     //of blockchain branches?
     let firstBlockOfBranch = branch[0]
-    console.log('Block num of hash', firstBlockOfBranch.previousHash)
+    
     //Is the branch linked to current blockchain?
     let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
-    console.log('Branch is linked to ', isLinkedToBlockNumber)
+    
     if(!isLinkedToBlockNumber) {
       //If it is not linked, proceed to find the missing  
       //By adding the branch here, we may look for the missing block, then, when found, we can add it back in and connect
@@ -484,7 +484,6 @@ class Blockchain{
 
       let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
-        console.log('Rolled back result', rolledback)
         if(rolledback && Array.isArray(rolledback)){
           let lastRolledBackBlock = rolledback[rolledback.length - 1]
           this.branches[lastRolledBackBlock.hash] = rolledback
@@ -1816,7 +1815,6 @@ class Blockchain{
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
       
       let blocks = this.chain.slice(startNumber + 1, this.chain.length)
-      console.log('Block rolled back', blocks)
       
       let rolledBack = await this.balance.rollback(number)
       if(rolledBack.error) resolve({error:rolledBack.error})
@@ -1857,9 +1855,7 @@ class Blockchain{
       }
 
       let backToNormal = newestToOldestBlocks.reverse()
-      console.log('Before', this.chain.length)
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
-      console.log('After',this.chain.length)
       let mainBranch = []
       for await(let header of removed){
         let block = await this.getBlockFromDB(header.blockNumber);
