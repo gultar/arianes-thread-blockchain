@@ -372,7 +372,7 @@ class Blockchain{
     if(!alreadyExists){
       this.unlinkedBranches[newBlock.previousHash] = [ newBlock ]
       logger(chalk.yellow(`* Ulinked branch at previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
-      return true
+      return { unlinked:true }
     }else{
       return { error:'ERROR: Block already exists in branch' }
     }
@@ -439,7 +439,7 @@ class Blockchain{
           //until it either links to blockchain or to a branch that is itself linked to the blockchain
           return { findMissing:newBlock.hash }
         }else{
-          return { extended:true }
+          return { unlinkedExtended:true }
         }
       }
       

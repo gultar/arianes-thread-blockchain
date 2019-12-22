@@ -1945,6 +1945,10 @@ class Node {
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
                     resolve(rolledback)
+                  }else if(added.unlinkedExtended){
+                    let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
+                    this.broadcast('getBlockchainStatus')
+                    resolve(rolledback)
                   }else{
                     if(minerOn){
                       this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
