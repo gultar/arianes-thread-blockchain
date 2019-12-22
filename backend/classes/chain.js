@@ -332,6 +332,7 @@ class Blockchain{
                 let extended = await this.extendUnlinkedBranch(newBlock);
                 if(extended.error) resolve({error:extended.error})
                 else resolve(extended)
+                
                 //extend unlinked branch
               }else{
                 let branched = await this.createNewUnlinkedBranch(newBlock)
@@ -371,8 +372,8 @@ class Blockchain{
     let alreadyExists = this.unlinkedBranches[newBlock.previousHash]
     if(!alreadyExists){
       this.unlinkedBranches[newBlock.previousHash] = [ newBlock ]
-      logger(chalk.yellow(`* Ulinked branch at previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
-      return { unlinked:true }
+      logger(chalk.yellow(`* Unlinked branch at previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
+      return { unlinked:newBlock.previousHash }
     }else{
       return { error:'ERROR: Block already exists in branch' }
     }

@@ -1945,6 +1945,10 @@ class Node {
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
                     resolve(rolledback)
+                  }else if(added.unlinked){
+                    let fixed = await this.fixUnlinkedBranch(added.findMissing);
+                    if(fixed.error) resolve({error:fixed.error})
+                    else resolve(fixed)
                   }else if(added.unlinkedExtended){
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
