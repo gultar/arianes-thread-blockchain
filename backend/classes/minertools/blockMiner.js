@@ -162,6 +162,8 @@ class Miner{
       }
       this.socket.send('newBlock', { failed:this.previousBlock })
       this.minerStarted = false;
+      this.socket.emit('getNewBlock')
+      this.socket.emit('miningOver')
       // clearInterval(this.routine)
     }
 

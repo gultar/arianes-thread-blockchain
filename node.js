@@ -1826,11 +1826,9 @@ class Node {
               break
             case 'newBlockFound':
               if(!this.chain.isBusy){
-                logger('Node is busy processing peer block')
                 this.chain.isBusy = true
                 let added = await this.handleNewBlockFound(data, originAddress);
                 this.chain.isBusy = false;
-                logger('Node is not longer busy')
                 if(added.error){
                   logger(chalk.red('REJECTED BLOCK:'), added.error)
                 }else{
