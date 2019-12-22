@@ -139,6 +139,8 @@ class Miner{
           }
         }else{
           this.log('Could not mine. Miner does not have next block')
+          this.socket.emit('getNewBlock')
+          this.socket.emit('miningOver')
         }
 
       }

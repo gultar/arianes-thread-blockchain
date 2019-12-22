@@ -1725,7 +1725,7 @@ class Node {
           if(isValid){
             if(isValid.error) console.log('Is not valid mined block', isValid.error)
             let added = await this.chain.addBlockToChain(block)
-            if(added.error) console.log('New Block add Error:',added.error)
+            if(added.error) logger('MinerBlock Error:',added.error)
             else{
               this.sendPeerMessage('newBlockFound', block);
               api.emit('latestBlock', this.chain.getLatestBlock())
@@ -1831,8 +1831,6 @@ class Node {
                 this.chain.isBusy = false;
                 if(added.error){
                   logger(chalk.red('REJECTED BLOCK:'), added.error)
-                }else{
-                  logger('Peer block processing result:', added)
                 }
               }
               break;
