@@ -468,6 +468,7 @@ class Blockchain{
     //Do the branching block respect two out of the three rules to proceed with the switching
     //of blockchain branches?
     let firstBlockOfBranch = branch[0]
+    console.log('Block num of hash', firstBlockOfBranch.previousHash)
     //Is the branch linked to current blockchain?
     let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
     console.log('Branch is linked to ', isLinkedToBlockNumber)

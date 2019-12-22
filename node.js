@@ -1939,9 +1939,16 @@ class Node {
                   
                   //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                   if(added.findMissing){
-                    let fixed = await this.fixUnlinkedBranch(added.findMissing);
-                    if(fixed.error) resolve({error:fixed.error})
-                    else resolve(fixed)
+                    let currentLength = this.chain.length;
+                    let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
+                    this.broadcast('getBlockchainStatus')
+                    // let fixed = await this.fixUnlinkedBranch(added.findMissing);
+                    // if(fixed.error) resolve({error:fixed.error})
+                    // else resolve(fixed)
+                  }else if(added.switched && added.switched.outOfSync){
+                    let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
+                    this.broadcast('getBlockchainStatus')
+                    resolve(rolledback)
                   }else{
                     if(minerOn){
                       this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
