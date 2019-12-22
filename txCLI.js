@@ -67,7 +67,6 @@ program
                                     .then( success => {
                                         if(success.data.result) console.log(JSON.stringify(success.data.result, null, 2))
                                         else console.log(JSON.stringify(success.data, null, 2))
-                                        
                                     })
                                     .catch( e => console.log(e))
                                 }else{

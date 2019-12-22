@@ -2,11 +2,12 @@ const store = require('rocket-store')
 const Database = require('./db')
 
 class ContractStateStore{
-    constructor({ name, getCurrentBlock }){
+    constructor({ name, getCurrentBlock, getBlock }){
         this.name = name+'Storage'
         this.database = new Database(this.name)
         this.state = {};
         this.getCurrentBlock = getCurrentBlock
+        this.getBlock = getBlock
         this.history = {}
         this.configSet = null;
     }
@@ -25,8 +26,15 @@ class ContractStateStore{
     async save(){
         try{
             let hash = this.getCurrentBlock().hash
-            
-            let added = this.database.put({
+            let previousBlock = this.getBlock(this.getCurrentBlock().blockNumber - 1)
+            let previousState = {}
+            if(previousBlock){
+                previousState = await this.getState(previousBlock.hash)
+                if(Object.keys(this.state).length == 0 && Object.keys(previousState).length > 0){
+                    this.state = previousState
+                }
+            }
+            let added = await this.database.put({
                 id:hash,
                 key:hash,
                 value:{
@@ -84,7 +92,7 @@ class ContractStateStore{
                     else{
                         //Need to find a way to clean up unused state entries of blocks
                         this.state = state;
-                        let added = this.database.put({
+                        let added = await this.database.put({
                             id:blockHash,
                             key:blockHash,
                             value:{
@@ -94,9 +102,6 @@ class ContractStateStore{
                         })
                         if(added.error) return { error:added.error }
                         else return added
-                        // let saved = await this.save()
-                        // if(saved.error) return {error:saved.error}
-                        // else return state
                     }
                 }else{
                     return { error:`ERROR: Could not rollback to block ${blockHash}. State at this block does not exist` }

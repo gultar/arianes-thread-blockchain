@@ -4,10 +4,9 @@ const sha256 = require('../tools/sha256')
 const ContractStateStore = require('./contractStateStore')
 
 class ContractTable{
-    constructor({ getCurrentBlock }){
-        // this.contractDB = new Database('./data/contractDB')
-        // this.contractStateDB = new Database('./data/contractStateDB')
+    constructor({ getCurrentBlock, getBlock }){
         this.getCurrentBlock = getCurrentBlock;
+        this.getBlock = getBlock
         this.contractDB = new Database('contracts')
         this.contractStateDB = new Database('states')
         this.stateStorage = {}
@@ -17,10 +16,14 @@ class ContractTable{
         let contractNames = await this.getAllContractNames()
 
         for await(let name of contractNames){
+            
             this.stateStorage[name] = new ContractStateStore({
                 name:name,
                 getCurrentBlock:()=>{
                     return this.getCurrentBlock()
+                },
+                getBlock:(number)=>{
+                    return this.getBlock(number)
                 }
             })
         }
@@ -51,6 +54,9 @@ class ContractTable{
                             getCurrentBlock:()=>{
                                 return this.getCurrentBlock()
                             },
+                            getBlock:(number)=>{
+                                return this.getBlock(number)
+                            }
                         })
                         
                         let updated = await this.stateStorage[name].update(state)
@@ -94,6 +100,9 @@ class ContractTable{
                     name:contractName,
                     getCurrentBlock:()=>{
                         return this.getCurrentBlock()
+                    },
+                    getBlock:(number)=>{
+                        return this.getBlock(number)
                     }
                 })
             }else{

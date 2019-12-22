@@ -66,6 +66,34 @@ const isValidTransactionCallJSON = (transaction)=>{
     }
 }
 
+const isValidCallPayloadJSON = (callPayload)=>{
+    var v = new Validator();
+    
+    var schema = {
+        "id":"/callPayload",
+        "type": "object",
+        "properties": {
+            "contractName": {"type": "string"},
+            "method":{"type":"string"},
+            "cpuTime":{"type":["number","string"]},
+            "params":{"type":"object"},
+        },
+        "required": ["contractName", "method", "cpuTime", "params"]
+    };
+
+    if(callPayload){
+        v.addSchema(schema, "/callPayload")
+        let valid = v.validate(callPayload, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            console.log(valid.errors)
+            return false;
+        }
+        
+    }
+}
+
 const isValidActionJSON = (action)=>{
     var v = new Validator();
     var schema = {
@@ -427,7 +455,8 @@ const isValidGenesisBlockJSON = (header)=>{
 
 module.exports = { 
     isValidTransactionJSON,
-    isValidTransactionCallJSON, 
+    isValidTransactionCallJSON,
+    isValidCallPayloadJSON, 
     isValidChainLengthJSON, 
     isValidWalletRequestJSON, 
     isValidGetNextBlockJSON,

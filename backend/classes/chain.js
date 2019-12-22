@@ -49,6 +49,9 @@ class Blockchain{
     this.contractTable = new ContractTable({
       getCurrentBlock:()=>{
         return this.getLatestBlock()
+      },
+      getBlock:(number)=>{
+        return this.chain[number]
       }
     })
     this.stack = new Stack({
@@ -332,13 +335,10 @@ class Blockchain{
                 let extended = await this.extendUnlinkedBranch(newBlock);
                 if(extended.error) resolve({error:extended.error})
                 else resolve(extended)
-                
-                //extend unlinked branch
               }else{
                 let branched = await this.createNewUnlinkedBranch(newBlock)
-                if(branched.error) resolve({error:'ERROR: Could not create new unlinked branch'})
+                if(branched.error) resolve({error:branched.error})
                 else resolve(branched)
-                //create new unlinked branch
               }
             }
   

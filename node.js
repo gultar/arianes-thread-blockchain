@@ -40,6 +40,7 @@ const {
 const {
   isValidTransactionJSON,
   isValidTransactionCallJSON,
+  isValidCallPayloadJSON,
   isValidWalletBalanceJSON,
   isValidActionJSON,
   isValidBlockJSON
@@ -937,6 +938,8 @@ class Node {
         else if(missingBlocks.isBranch){
           if(!Array.isArray(missingBlocks.isBranch) && typeof missingBlocks.isBranch == 'object'){
             missingBlocks.isBranch = [ missingBlocks.isBranch ]
+          }else if(missingBlocks.isBranch.length == 0){
+            resolve({error:'ERROR: Peer could not find any of the missing blocks'})
           }
           // console.log('Number of branched missing blocks', missingBlocks)
           let firstBlock = missingBlocks.isBranch[0]
@@ -1255,7 +1258,6 @@ class Node {
               if(transactionEmitted.error){
                 res.send(transactionEmitted.error)
               }else{
-                
                 if(transactionEmitted.success){
                   let result = { result:transactionEmitted.success, receipt:transaction }
                   res.send(JSON.stringify(result, null, 2));
@@ -1368,7 +1370,7 @@ class Node {
       socket.on('transaction',async (transaction)=>{
         try{
           if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
-            let transactionEmitted = await this.broadcastTransaction(transaction, false)
+            let transactionEmitted = await this.broadcastTransaction(transaction, true)
               
             if(transactionEmitted.success){
               let result = { result:transactionEmitted.success, receipt:transaction }
@@ -1983,6 +1985,7 @@ class Node {
                     let fixed = await this.fixUnlinkedBranch(added.unlinked);
                     if(fixed.error) resolve({error:fixed.error})
                     else resolve(fixed)
+
                   }else if(added.unlinkedExtended){
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
@@ -2140,6 +2143,7 @@ class Node {
 
             
           }
+        if(!isValidCallPayloadJSON(call.data)) resolve({error:'ERROR: Must provide call structure'})
         let contract = await this.chain.contractTable.getContract(call.data.contractName)
         //Checking if the method invoked is open to external execution
         let contractAPI = contract.contractAPI
@@ -2174,7 +2178,11 @@ class Node {
               if(added.error){
                 resolve({error:added.error})
               }else{
-                resolve(result)
+                if(result.executed && result.executed.value){
+                  resolve(result.executed.value)
+                }else{
+                  resolve(result)
+                }
               }
             }
           }else{

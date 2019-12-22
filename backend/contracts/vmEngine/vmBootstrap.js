@@ -140,7 +140,7 @@ class VMBootstrap{
             }else if(message.error){
                 console.log('VM ERROR:',message)
                 if(message.hash){
-                    this.events.emit(message.hash, {
+                    this.events.emit('results', {
                         error:message.error,
                         contractName:message.contractName
                     })
