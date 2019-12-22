@@ -339,26 +339,18 @@ class Node {
           // console.log("Peer sent too many 'getNextBlock' events") 
         }); // consume 1 point per event from IP
         let index = this.chain.getIndexOfBlockHash(hash)
+        console.log(`Requested block ${hash} at index ${index}`)
         if(index && index > 0){
           if(hash == this.chain.chain[0].hash){
             socket.emit('previousBlock', {end:'Reached genesis block'})
           }else{
-            
-            let previousBlock = this.chain.chain[index - 1]
-            if(previousBlock){
-              let block = await this.chain.getBlockFromDB(previousBlock.blockNumber)
-              if(block){
-                if(block.error) socket.emit('previousBlock', {error:block.error})
-                socket.emit('previousBlock', block)
-              }else{
-                socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${previousBlock.hash} at block index ${previousBlock.blockNumber}`})
-              }
-              
-                
+            let block = await this.chain.getBlockFromDB(index - 1)
+            if(block){
+              if(block.error) socket.emit('previousBlock', {error:block.error})
+              socket.emit('previousBlock', block)
             }else{
-              console.log('Chain does not contain block at ', index+1)
+              socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${previousBlock.hash} at block index ${previousBlock.blockNumber}`})
             }
-
             
           }
           
@@ -996,6 +988,7 @@ class Node {
       console.log('Up to date peer is of type ', typeof peer)
       if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
       else{
+        peer.emit('getPreviousBlock', unsyncedBlockHash)
         peer.on('previousBlock', (block)=>{
           console.log('Received a missing block', block)
           if(block.end){
@@ -1029,7 +1022,7 @@ class Node {
       }
 
 
-      peer.emit('getPreviousBlock', unsyncedBlockHash)
+      
     })
   }
 
