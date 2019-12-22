@@ -63,14 +63,16 @@ class Miner{
         })
         this.socket.on('latestBlock', (block)=>{
             this.previousBlock = block
+            this.blockNumbersMined[this.previousBlock.blockNumber] = this.previousBlock.hash
         })
         this.socket.on('startMining', (rawBlock)=>{
-          
             if(rawBlock.error) console.log(rawBlock.error)
             else if(rawBlock){
               if(!this.minerStarted){
                 this.start(rawBlock)
               }
+            }else{
+              console.log('Could not receive rawBlock')
             }
             
         })
@@ -88,6 +90,7 @@ class Miner{
         this.socket.on('error', error => console.log('ERROR',error))
         this.socket.on('disconnect', ()=>{
           this.log('Connection to node dropped')
+          this.blockNumbersMined = {}
           this.pause()
         })
       }
@@ -98,14 +101,14 @@ class Miner{
           
         let block = await this.prepareBlockForMining(rawBlock);
         if(block){
-          if(this.previousBlock.hash !== block.hash){
+          if(this.previousBlock.hash !== block.hash && !this.blockNumbersMined[block.blockNumber]){
             if(!this.minerStarted){
+              this.socket.emit('mining', block)
               this.minerStarted = true
-              this.log('Starting to mine next block')
+              this.log('Starting to mine block '+block.blockNumber)
               this.log('Number of transactions being mined: ', Object.keys(block.transactions).length)
               this.log('Number of actions being mined: ', Object.keys(block.actions).length)
               this.log('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
-              this.log('At difficulty: ', parseInt(block.difficulty, 16))
               let success = await block.mine(block.difficulty);
               if(success){
                 this.pause()
@@ -115,19 +118,24 @@ class Miner{
                 this.socket.emit('newBlock', block)
                 this.minerStarted = false;
                 this.previousBlock = block;
-                // this.blockNumbersMined[block.blockNumber] = true
+                this.socket.emit('miningOver')
+                this.blockNumbersMined[block.blockNumber] = block.hash
                 
               }else{
-                this.pause()
+                
                 this.log('Mining unsuccessful')
+                this.socket.emit('miningOver')
                 this.socket.send('newBlock', { failed:block })
                 this.minerStarted = false;
+                this.pause()
               }
             }else{
               this.log('Miner already started')
             }
           }else{
             this.log('Will not mine the same block twice')
+            this.socket.emit('getNewBlock')
+            this.socket.emit('miningOver')
           }
         }else{
           this.log('Could not mine. Miner does not have next block')
@@ -235,7 +243,7 @@ class Miner{
         if(rawBlock && rawBlock.blockNumber > this.previousBlock.blockNumber){
           let coinbase = await this.createCoinbase()
           rawBlock.transactions[coinbase.hash] = coinbase
-          let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, this.previousBlock.hash, rawBlock.blockNumber)
+          let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, rawBlock.previousHash, rawBlock.blockNumber)
           block.startMineTime = Date.now()
           block.coinbaseTransactionHash = coinbase.hash
           //Set difficulty level

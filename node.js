@@ -876,35 +876,6 @@ class Node {
                       peer.send('getBlockchainStatus')
                       resolve(true)
                     }
-  
-                // if(this.chain.getLatestBlock().blockNumber == 0){
-                //   let genesisBlock = await this.downloadGenesisBlock(peer)
-                //   if(genesisBlock.error){
-                //     console.log(genesisBlock.error)
-                //   }else{
-                //     let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                //     if(downloaded.error){
-                //       logger('Could not download blockchain')
-                //       console.log(downloaded.error)
-                //       resolve(false)
-                //     }else{
-                //       peer.send('getBlockchainStatus')
-                //       resolve(true)
-                //     }
-                //   }
-                  
-                // }else{
-                //   let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                //   if(downloaded.error){
-                //     logger('Could not download blockchain')
-                //     console.log(downloaded.error)
-                //     resolve(false)
-                //   }else{
-                //     peer.send('getBlockchainStatus')
-                //     resolve(true)
-                //   }
-                // }
-  
                
               }else{
                 console.log(bestBlockHeader)
@@ -926,7 +897,6 @@ class Node {
           resolve(true)
         }
       }else{
-        logger('ERROR: Could not handle peer chain status. Missing parameter')
         resolve(false)
       }
     })
@@ -963,6 +933,7 @@ class Node {
     })
   }
 
+  //Heavy WIP
   fixUnlinkedBranch(unlinkedHash){
     return new Promise(async (resolve)=>{
         //Finding missing blocks from an unlinked branch where block was pushed. 
@@ -1013,55 +984,8 @@ class Node {
     })
   }
 
-  // fixBranchOutOfSyncIssue(missingBlockHash){
-  //   /***
-  //    *  1. Received block which were not linked to any branch   ... [] <-
-  //    *  2. Look for missing block through querying the most up to date peer [!]-[!]  ... []
-  //    *  3. 
-  //    */
-  //   return new Promise(async (resolve)=>{
-  //     let missingLinkBlocks = await this.getMissingBlocksToSyncBranch(missingBlockHash)
-  //     if(missingLinkBlocks.error){
-  //       resolve({error:missingLinkBlocks.error})
-  //     }else if(missingLinkBlocks){
-        
-  //       if(missingLinkBlocks.isLinked){
-
-  //         let blocksReceived = missingLinkBlocks.isLinked
-  //         let firstReceived = blocksReceived[0]
-  //         let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
-  //         unlinkedBranch = [ ...blocksReceived, ...unlinkedBranch ]
-
-  //         resolve({success:true, isLinked:true})
-          
-  //       }else if(missingLinkBlocks.isBranch){
-
-  //         let blocksReceived = missingLinkBlocks.isBranch
-  //         let firstReceived = blocksReceived[0]
-  //         let linkedBranch = this.chain.branches[firstReceived.hash]
-  //         if(linkedBranch){
-            
-  //           linkedBranch = [ ...linkedBranch, ...blocksReceived ]
-  //           let unlinkedBranch = this.chain.unlinkedBranches[firstReceived.hash]
-  //           let linkedTwoBranches = [ ...linkedBranch, ...unlinkedBranch ]
-  //           let latestBranchBlock = linkedTwoBranches[linkedTwoBranches.length - 1]
-  //           this.chain.branches[latestBranchBlock.hash] = linkedTwoBranches
-
-  //           resolve({success:true, isBranch:true})
-  //         }else{
-  //           resolve({error: 'ERROR: Missing blocks received appeared not to be linked to any branch'})
-  //         }
-
-  //       }
-
-  //     }else{
-  //       resolve({error:'ERROR: Could not find missing blocks'})
-  //     }
-
-  //   })
-  // }
-
-
+  
+  //Heavy WIP
   getMissingBlocksToSyncBranch(unsyncedBlockHash){
     return new Promise(async (resolve)=>{
       let missingBlocks = []
@@ -1567,8 +1491,8 @@ class Node {
         }
       })
 
-      socket.on('isChainValid', ()=>{
-        let isValidChain = this.validateBlockchain();
+      socket.on('isChainValid', async ()=>{
+        let isValidChain = await this.validateBlockchain();
         if(isValidChain){
           logger('Blockchain is valid')
         }
@@ -1702,15 +1626,21 @@ class Node {
   async minerConnector(api){
     logger('Miner connected!');
     api.hasSentBlock = false
-    let transactionsToMine = {}
-    let minimumSize = 1
     
-    let actionsToMine = {}
 
-    let nextBlock = {}
-
-    const getNextBlock = async () =>{
-      return this.chain.getLatestBlock()
+    const sendNextBlock = async (minerPreviousBlock) =>{
+      if(!this.isDownloading && !api.hasSentBlock && !api.isMining){
+        let nextBlock = this.chain.getLatestBlock()
+        let newRawBlock = await createRawBlock(nextBlock)
+        if(!newRawBlock.error) {
+            api.hasSentBlock = true
+            api.emit('startMining', newRawBlock)
+        }else{
+          // console.log(newRawBlock.error)
+        }
+      }else{
+        return { error:'Node is busy' }
+      }
     }
     
     const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
@@ -1753,28 +1683,24 @@ class Node {
       }
     }
 
-    nextBlock = await getNextBlock()
+    
 
-    api.emit('latestBlock', nextBlock)
+    api.on('mining', (block)=>{
+      api.isMining = true
+    })
 
+    api.on('miningOver', ()=>{
+      api.isMining = false
+    })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      if(!this.isDownloading && !api.hasSentBlock){
-        let nextBlock = await getNextBlock()
-        let newRawBlock = await createRawBlock(nextBlock)
-        if(!newRawBlock.error) {
-          api.hasSentBlock = true
-            api.emit('startMining', newRawBlock)
-            transactionsToMine = {}
-            actionsToMine = {}
-        }else{
-          // console.log(newRawBlock.error)
-        }
-      }else{
-        api.emit('startMining', false)
-      }
+      let sent = await sendNextBlock(minerPreviousBlock)
       
-      
+    })
+
+    api.on('getNewBlock', async ()=>{
+      api.hasSentBlock = false
+      await sendNextBlock()
     })
   
     this.mempool.events.on('newAction', (action)=>{
@@ -1787,26 +1713,36 @@ class Node {
     
 
     api.on('newBlock', async (block)=>{
-      if(this.isDownloading) api.emit('stopMining')
+      if(this.isDownloading || this.chain.isBusy) api.emit('stopMining')
       else{
         if(block){
+          api.emit('stopMining')
           api.hasSentBlock = false
+          
+          this.chain.isBusy = true
+
           let isValid = await this.chain.validateBlock(block)
           if(isValid){
             if(isValid.error) console.log('Is not valid mined block', isValid.error)
             let added = await this.chain.addBlockToChain(block)
-            if(added.error) console.log('ERROR: Could not add mined block', added.error)
+            if(added.error) console.log('New Block add Error:',added.error)
             else{
-              nextBlock = await getNextBlock()
               this.sendPeerMessage('newBlockFound', block);
-              api.emit('latestBlock', block)
+              api.emit('latestBlock', this.chain.getLatestBlock())
             }
+
+            this.chain.isBusy = false
+            
+          }else{
+            console.log('ERROR: Mined Block is not valid!')
+            api.hasSentBlock = false
+            this.chain.isBusy = false
           }
          
   
         }else if(block.failed){
           logger('Miner was interrupted')
-          api.emit('latestBlock', nextBlock)
+          api.emit('latestBlock', this.chain.getLatestBlock())
           api.hasSentBlock = false
         }else{
           logger('ERROR: New mined block is undefined')
@@ -1818,11 +1754,13 @@ class Node {
     api.on('getLatestBlock', (minersPreviousBlock)=>{
       
       if(this.chain instanceof Blockchain){
-        api.emit('latestBlock', nextBlock)
+        api.emit('latestBlock', this.chain.getLatestBlock())
       }else{
         api.emit('error', {error: 'Chain is not ready'})
       }
     })
+
+    api.emit('latestBlock', this.chain.getLatestBlock())
     
   
     this.localServer.socket = api
@@ -1887,13 +1825,17 @@ class Node {
               if(executed.error) console.log(executed.error)
               break
             case 'newBlockFound':
-              if(!this.isOutOfSync){
+              if(!this.chain.isBusy){
+                logger('Node is busy processing peer block')
+                this.chain.isBusy = true
                 let added = await this.handleNewBlockFound(data, originAddress);
+                this.chain.isBusy = false;
+                logger('Node is not longer busy')
                 if(added.error){
                   logger(chalk.red('REJECTED BLOCK:'), added.error)
+                }else{
+                  logger('Peer block processing result:', added)
                 }
-              }else{
-                logger('WARNING: Node is out of sync. Cannot receive new block until chain is fixed')
               }
               break;
             
@@ -1967,7 +1909,7 @@ class Node {
           try{
 
             let block = JSON.parse(data);
-            let alreadyReceived = this.chain.getIndexOfBlockHash(block.hash)
+            let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
             let alreadyIsInActiveFork = this.chain.blockForks[block.hash];
   
             if(!alreadyReceived && !alreadyIsInActiveFork){
@@ -1978,10 +1920,9 @@ class Node {
                 this.peersLatestBlocks[fromPeer] = block
 
                 let minerOn = this.localServer && this.localServer.socket
-                let isBlockLinked = await this.chain.getBlockbyHash(block.previousHash)
-
+                // let isBlockLinked = await this.chain.getBlockbyHash(block.previousHash)
+                
                 if(minerOn){
-                  
                   this.localServer.socket.emit('stopMining')
                   let putback = await this.mempool.putbackTransactions(block)
                   if(putback.error) resolve({error:putback.error})
@@ -1990,40 +1931,32 @@ class Node {
                     if(actionsPutback.error) resolve({error:actionsPutback.error})
                   }
                 }
-                this.isDownloading = true
+
+                
                 let added = await this.chain.pushBlock(block);
-                this.isDownloading = false
-                  if(added.error) resolve({error:added.error})
-                  else{
-                    
-                    //If not linked, stop mining after pushing the block, to allow more time for mining on this node
-                    if(added.findMissing){
-                      let fixed = await this.fixUnlinkedBranch(added.findMissing);
-                      if(fixed.error) resolve({error:fixed.error})
-                      else resolve(fixed)
-                    }else{
-                      if(minerOn){
-                        if(!isBlockLinked) this.localServer.socket.emit('stopMining')
-                        this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                        this.localServer.socket.hasSentBlock = false
-                        let putback = await this.mempool.putbackTransactions(block)
-                        if(putback.error) resolve({error:putback.error})
-                        if(block.actions){
-                          let actionsPutback = await this.mempool.putbackActions(block)
-                          if(actionsPutback.error) resolve({error:actionsPutback.error})
-                        }
-                      }
-                      
-                      resolve(true)
+                if(added.error) resolve({error:added.error})
+                else{
+                  
+                  //If not linked, stop mining after pushing the block, to allow more time for mining on this node
+                  if(added.findMissing){
+                    let fixed = await this.fixUnlinkedBranch(added.findMissing);
+                    if(fixed.error) resolve({error:fixed.error})
+                    else resolve(fixed)
+                  }else{
+                    if(minerOn){
+                      this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                      this.localServer.socket.hasSentBlock = false
                     }
                     
-
-                    
+                    resolve(added)
                   }
+                }
   
               }else{
                 resolve({error:'ERROR:New block header is invalid'})
               }
+            }else{
+              resolve({error:'ERROR: Block already received, is either in chain or in an active branch'})
             }
           }catch(e){
             console.log(e);
@@ -2033,6 +1966,7 @@ class Node {
           console.log('Node is busy, putting block in blocks to validate')
           //Need to store while downloading. Then, when done, validate them one by one
           this.blocksToValidate.push(data);
+          resolve({error:'ERROR: Node is busy, putting block in blocks to validate'})
         }
       }else{
         resolve({error:'ERROR: Missing parameters'})
@@ -2042,13 +1976,13 @@ class Node {
   }
 
 
-  validateBlockchain(allowRollback){
+  async validateBlockchain(allowRollback){
     if(this.chain instanceof Blockchain){
       let isValid = this.chain.isChainValid();
       if(isValid.conflict){
         let atBlockNumber = isValid.conflict;
         if(allowRollback){
-          this.rollBackBlocks(atBlockNumber-1);
+          let rolledback = await this.chain.rollbackToBlock(atBlockNumber-1);
           logger('Rolled back chain up to block number ', atBlockNumber-1)
           return true;
         }else{
