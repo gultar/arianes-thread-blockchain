@@ -63,7 +63,6 @@ class VMBootstrap{
         this.child.on('message', async (message)=>{
             if(message.executed){
                 
-                
                 this.events.emit(message.hash, {
                     executed:message.executed,
                     contractName:message.contractName
@@ -125,6 +124,16 @@ class VMBootstrap{
                 
 
                 
+            }else if(message.singleResult){
+
+                let result = message.singleResult
+                this.events.emit(result.hash, {
+                    value:result.value,
+                    contractName:result.contractName,
+                    state:result.state,
+                    hash:result.hash
+                })
+                
             }else if(message.getState){
                 console.log('VM Request state because its loaded state is empty')
                 let state = await this.contractConnector.getState(message.getState);
@@ -139,10 +148,10 @@ class VMBootstrap{
                 }
             }else if(message.error){
                 console.log('VM ERROR:',message)
-                if(message.hash){
-                    this.events.emit('results', {
+                if(message.error.hash){
+                    this.events.emit(message.error.hash, {
                         error:message.error,
-                        contractName:message.contractName
+                        contractName:message.error.contractName
                     })
                 }else{
                     

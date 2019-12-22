@@ -31,6 +31,7 @@ class ContractVM{
         this.headers = {}
         this.contractClasses = {}
         this.compiled = ''
+        this.timers = {}
         this.sandbox = {
             stateStorage:{},
             contractStates:{},
@@ -80,8 +81,15 @@ class ContractVM{
                         "commit":function(result){
                             signals.emit('commited', result)
                         },
-                        "fail":function(failure){
-                            signals.emit('failed', failure)
+                        "fail":(failure)=>{
+                            
+                            if(this.timers[failure.hash]){
+                                clearTimeout(this.timers[failure.hash])
+                                signals.emit('failed', failure)
+                            }else{
+                                signals.emit('failed', failure)
+                            }
+                            
                         }
                     }
                 }
@@ -140,13 +148,14 @@ class ContractVM{
     }
     
 
-    wrapCode(code){
-
+    wrapCode(code, hash){
+        
         let functionWrapper = 
         `
             const save = require('save')
             const fail = require('fail')
             const getState = require('getState')
+            const callHash = '${hash}'
             
             async function execute(callback){
                 let instance = {};
@@ -157,7 +166,8 @@ class ContractVM{
                     result.state = instance.state
                     callback(result)
                 }catch(err){
-                    fail(err.message)
+                    let error = { error:err.message, hash:callHash }
+                    fail(error)
                 }
             }
 
@@ -236,62 +246,62 @@ class ContractVM{
     //     })
     // }
 
-    execute(call){
-        try{
+    // execute(call){
+    //     try{
             
         
-            let instruction = call.code
-            let contractName = call.contractName
-            let methodToRun = call.methodToRun
-            let contractCode = this.contractClasses[call.contractName]
-            let stateHeaderInstruction = `
-            let state = await getState("${call.contractName}");
-            await instance.setState(state);
-            `
-            let importHeader = `
-            const ${contractName} = require('${contractName}')
-            `
+    //         let instruction = call.code
+    //         let contractName = call.contractName
+    //         let methodToRun = call.methodToRun
+    //         let contractCode = this.contractClasses[call.contractName]
+    //         let stateHeaderInstruction = `
+    //         let state = await getState("${call.contractName}");
+    //         await instance.setState(state);
+    //         `
+    //         let importHeader = `
+    //         const ${contractName} = require('${contractName}')
+    //         `
             
-            let codeToWrap = `
-            ${instruction}
-            ${stateHeaderInstruction}
-            ${methodToRun}
-            `
+    //         let codeToWrap = `
+    //         ${instruction}
+    //         ${stateHeaderInstruction}
+    //         ${methodToRun}
+    //         `
 
-            let code = this.wrapCode( codeToWrap )
+    //         let code = this.wrapCode( codeToWrap )
             
-            let execute = this.vm.run(importHeader + code)
+    //         let execute = this.vm.run(importHeader + code)
             
-            execute(async (result)=>{
-                this.sandbox.contractStates[call.contractName] = this.sandbox.stateStorage
+    //         execute(async (result)=>{
+    //             this.sandbox.contractStates[call.contractName] = this.sandbox.stateStorage
                 
-                this.signals.emit('saveState', {
-                    state:this.sandbox.contractStates[call.contractName],
-                    contractName:call.contractName
-                })
+    //             this.signals.emit('saveState', {
+    //                 state:this.sandbox.contractStates[call.contractName],
+    //                 contractName:call.contractName
+    //             })
 
-                this.signals.emit('commited', {
-                    value:result,
-                    state:this.sandbox.stateStorage,
-                    hash:call.hash,
-                    contractName:call.contractName
-                })
+    //             this.signals.emit('commited', {
+    //                 value:result,
+    //                 state:this.sandbox.stateStorage,
+    //                 hash:call.hash,
+    //                 contractName:call.contractName
+    //             })
                 
                 
-            })
+    //         })
             
 
-        }catch(e){
+    //     }catch(e){
             
-            this.signals.emit('failed', {
-                error:e.message,
-                hash:call.hash,
-                contractName:call.contractName
-            })
-        }
+    //         this.signals.emit('failed', {
+    //             error:e.message,
+    //             hash:call.hash,
+    //             contractName:call.contractName
+    //         })
+    //     }
 
         
-    }
+    // }
 
     runManyCalls(calls){
         return new Promise(async (resolve)=>{
@@ -315,7 +325,7 @@ class ContractVM{
             try{
                 let timer
                 const createTimer = (time, resolve) =>{
-                    timer = setTimeout(()=>{
+                    return setTimeout(()=>{
                         console.log('TIMED OUT', call.hash)
                         this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
                         resolve({
@@ -353,12 +363,12 @@ class ContractVM{
                 `
                 // console.log('State before run', this.sandbox.contractStates[call.contractName])
 
-                let code = this.wrapCode( codeToWrap )
-                createTimer(call.cpuTime, resolve)
+                let code = this.wrapCode( codeToWrap, call.hash )
+                this.timers[call.hash] = createTimer(call.cpuTime, resolve)
                 let execute = this.vm.run(importHeader + code)
                 
                 execute(async (result)=>{
-                    clearTimeout(timer)
+                    clearTimeout(this.timers[call.hash])
                     if(result.state && Object.keys(result.state).length > 0){
                         this.sandbox.contractStates[call.contractName] = result.state
                         // console.log('State after run', this.sandbox.contractStates[call.contractName])
@@ -367,13 +377,23 @@ class ContractVM{
                         console.log('Forced to rollback execution of call', call.hash)
                         this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
                     }
+
+                    if(result.error){
+                        resolve({
+                            error:result.error.message,
+                            hash:call.hash,
+                            contractName:call.contractName
+                        })
+                    }else{
+                        resolve({
+                            value:result.success,
+                            hash:call.hash,
+                            state:result.state, //this.sandbox.contractStates[call.contractName]
+                            contractName:contractName
+                        })
+                    }
                     
-                    resolve({
-                        value:result.success,
-                        hash:call.hash,
-                        state:result.state, //this.sandbox.contractStates[call.contractName]
-                        contractName:contractName
-                    })
+                    
                     
                     
                 })

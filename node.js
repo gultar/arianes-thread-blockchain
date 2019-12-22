@@ -1678,12 +1678,10 @@ class Node {
       if(!this.isDownloading){
         let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions.error) console.log('Mempool error: ',transactions.error)
-
-        // transactionsToMine = { ...transactionsToMine, ...transactions }
-        if(Object.keys(transactions).length == 0) return { error:'Could not create block without transactions' }
         let actions = await this.mempool.gatherActionsForBlock()
-        // actionsToMine = { ...actionsToMine, ...actions }
         if(actions.error) console.log('Mempool error:',actions.error)
+        if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }
+        
         let rawBlock = {
           timestamp:Date.now(),
           transactions:transactions,

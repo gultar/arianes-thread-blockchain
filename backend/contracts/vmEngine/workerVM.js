@@ -22,8 +22,7 @@ const workerVM = () =>{
       })
 
       vm.signals.on('failed', (failure)=>{
-        
-          process.send({error:failure, hash:failure.hash, contractName:failure.contractName})
+          process.send({error:failure, hash:failure.hash})
       })
 
       vm.signals.on('getState', (contractName)=>{
@@ -31,28 +30,13 @@ const workerVM = () =>{
       })
 
       process.on('message', async(message)=>{
-        if(message.code){
-            
-            try{
-              vm.codes[message.hash] = {
-                  code:message.code,
-                  contractName:message.contractName,
-                  methodToRun:message.methodToRun
-              }
-
-              vm.run(message.hash)
-
-            }catch(e){
-              process.send({error:e, hash:message.hash, contractName:message.contractName})
-            }
-            
-            
-        }else if(message.run){
+        if(message.run){
 
           try{
             
-            vm.execute(message.run)
-
+            let result = await vm.run(message.run)
+            process.send({singleResult:result})
+            
           }catch(e){
             process.send({error:e, hash:message.hash, contractName:message.contractName})
           }
@@ -111,7 +95,9 @@ const workerVM = () =>{
           }
       })
       
-      process.on('error', err => process.send({error:err}))
+      process.on('error', err => {
+        process.send({error:err})
+      })
   
       process.on('uncaughtException', (err)=> process.send({error:err}))
 

@@ -24,40 +24,44 @@ class VMController{
             let states = {}
             
             this.vmChannel.on('results', async (results)=>{
-                for await(let hash of Object.keys(results)){
-                    let result = results[hash]
-                    
-                    if(results.error) errors[hash] = result
-                    else{
-                        if(result.state && Object.keys(result.state).length > 0){
-                            states[result.contractName] = result.state
-                            results[hash] = result
-                        }else{
-                            errors[hash] = result
+                if(results.error) resolve({error:results.error})
+                else{
+                    for await(let hash of Object.keys(results)){
+                        let result = results[hash]
+                        
+                        if(results.error) errors[hash] = result
+                        else{
+                            if(result.state && Object.keys(result.state).length > 0){
+                                states[result.contractName] = result.state
+                                results[hash] = result
+                            }else{
+                                errors[hash] = result
+                            }
+                            
                         }
+                    }
+    
+                    if(Object.keys(errors).length > 0){
+                        resolve({error:errors})
+                    }else{
+                        for await(let contractName of Object.keys(states)){
+                            let state = states[contractName]
+                            if(state && Object.keys(state).length > 0){
+                                let updated = await this.contractConnector.updateState({
+                                    name:contractName,
+                                    newState:state,
+                                })
+                                if(updated.error) console.log('STATE ERROR:', updated.error)
+                                
+                            }else{
+                                console.log('STATE ERROR: Did not update state because state provided by VM was empty')
+                            }
+                        }
+                        resolve({ results:results, states:states })
                         
                     }
                 }
-
-                if(Object.keys(errors).length > 0){
-                    resolve({error:errors})
-                }else{
-                    for await(let contractName of Object.keys(states)){
-                        let state = states[contractName]
-                        if(state && Object.keys(state).length > 0){
-                            let updated = await this.contractConnector.updateState({
-                                name:contractName,
-                                newState:state,
-                            })
-                            if(updated.error) console.log('STATE ERROR:', updated.error)
-                            
-                        }else{
-                            console.log('STATE ERROR: Did not update state because state provided by VM was empty')
-                        }
-                    }
-                    resolve({ results:results, states:states })
-                    
-                }
+                
                 
             })
     
@@ -168,7 +172,7 @@ class VMController{
                 let state = await this.contractConnector.getState(contractName)
                 if(state){
                     let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
-                    if(stateAdded.error) return { error:stateAdded.error }
+                    if(stateAdded.error) resolve({ error:stateAdded.error })
 
                     this.vmChannel.on(code.hash, async (result)=>{
                         
@@ -186,7 +190,7 @@ class VMController{
                     this.vmChannel.emit('run', code)
 
                 }else{
-
+                    resolve({error:`ERROR Could not find state of contract ${contractName}`})
                 }
                 
             }else{
