@@ -336,7 +336,7 @@ class Blockchain{
                 //extend unlinked branch
               }else{
                 let branched = await this.createNewUnlinkedBranch(newBlock)
-                if(!branched) resolve({error:'ERROR: Could not create new unlinked branch'})
+                if(branched.error) resolve({error:'ERROR: Could not create new unlinked branch'})
                 else resolve(branched)
                 //create new unlinked branch
               }

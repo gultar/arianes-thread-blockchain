@@ -938,7 +938,9 @@ class Node {
     return new Promise(async (resolve)=>{
         //Finding missing blocks from an unlinked branch where block was pushed. 
         //By finding the missing blocks, current branch is to be swapped with it
+        console.log('About to find missing blocks')
         let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
+        
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
           console.log('Number of branched missing blocks', missingBlocks)
@@ -988,16 +990,21 @@ class Node {
   //Heavy WIP
   getMissingBlocksToSyncBranch(unsyncedBlockHash){
     return new Promise(async (resolve)=>{
+      let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
       let missingBlocks = []
       let peer = await this.getMostUpToDatePeer()
+      console.log('Up to date peer is of type ', typeof peer)
       if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
       else{
         peer.on('previousBlock', (block)=>{
+          console.log('Received a missing block', block)
           if(block.end){
             peer.off('previousBlock')
+            clearTimeout(timeout)
             resolve({error:block.end})
           }else if(block.error){
             peer.off('previousBlock')
+            clearTimeout(timeout)
             resolve({error:block.error})
           }else if(block){
             let isPartOfBranch = this.chain.branches[block.hash]
@@ -1006,9 +1013,12 @@ class Node {
             if(isLinkedToChain){
               peer.off('previousBlock')
               // "Unshifted" manually since we're looking backyards, not forwards
+              clearTimeout(timeout)
               resolve({ isLinked:missingBlocks })
+              
             }else if(isPartOfBranch){
               peer.off('previousBlock')
+              clearTimeout(timeout)
               resolve({ isBranch:missingBlocks })
             }else{
               missingBlocks = [ block, ... missingBlocks]
