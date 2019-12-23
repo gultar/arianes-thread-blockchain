@@ -164,7 +164,7 @@ class ContractVM{
                     ${code}
                     //save(instance.state)
                     result.state = instance.state
-                    callback(result)
+                    callback(result, instance.state)
                 }catch(err){
                     let error = { error:err.message, hash:callHash }
                     fail(error)
@@ -367,15 +367,10 @@ class ContractVM{
                 this.timers[call.hash] = createTimer(call.cpuTime, resolve)
                 let execute = this.vm.run(importHeader + code)
                 
-                execute(async (result)=>{
+                execute(async (result, state)=>{
                     clearTimeout(this.timers[call.hash])
                     if(result.state && Object.keys(result.state).length > 0){
                         this.sandbox.contractStates[call.contractName] = result.state
-                        // console.log('State after run', this.sandbox.contractStates[call.contractName])
-                        
-                    }else{
-                        console.log('Forced to rollback execution of call', call.hash)
-                        this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
                     }
 
                     if(result.error){
@@ -386,7 +381,7 @@ class ContractVM{
                         })
                     }else{
                         resolve({
-                            value:result.success,
+                            value:result,
                             hash:call.hash,
                             state:result.state, //this.sandbox.contractStates[call.contractName]
                             contractName:contractName

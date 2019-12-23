@@ -1258,8 +1258,10 @@ class Node {
               if(transactionEmitted.error){
                 res.send(transactionEmitted.error)
               }else{
-                if(transactionEmitted.success){
-                  let result = { result:transactionEmitted.success, receipt:transaction }
+                if(transactionEmitted.value){
+                  if(transactionEmitted.value) delete transactionEmitted.value.state
+                  
+                  let result = { result:transactionEmitted.value, receipt:transaction }
                   res.send(JSON.stringify(result, null, 2));
                 }else if(transactionEmitted.isReadOnly){
                   let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
@@ -1371,12 +1373,10 @@ class Node {
         try{
           if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
             let transactionEmitted = await this.broadcastTransaction(transaction, true)
-              
-            if(transactionEmitted.success){
-              let result = { result:transactionEmitted.success, receipt:transaction }
-              socket.emit('transactionEmitted',JSON.stringify(result, null, 2));
-            }else if(transactionEmitted.isReadOnly){
-              let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
+            
+            if(transactionEmitted.value){
+              delete transactionEmitted.value.state
+              let result = { result:transactionEmitted.value, receipt:transaction }
               socket.emit('transactionEmitted',JSON.stringify(result, null, 2));
             }else{
               let receipt = JSON.stringify(transaction, null, 2)
@@ -2096,7 +2096,7 @@ class Node {
                       if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
                       resolve({error:txBroadcasted.error});
                     }else if(txBroadcasted.isReadOnly){
-                      resolve(txBroadcasted.isReadOnly);
+                      resolve({ value: txBroadcasted.isReadOnly });
                     }else{
                       this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); 
                       this.UILog('->'+' Emitted transaction : '+ transaction.hash.substr(0, 15)+"...")
@@ -2155,9 +2155,7 @@ class Node {
           let result = await this.chain.testCall(call)
           if(result.error) resolve({error:result.error})
           else if(result){
-            //Possible breaking point
-            let returnedValue = result.executed
-            resolve({ isReadOnly:{success: { value:returnedValue.value }, call:call} })
+            resolve({ isReadOnly:result , call:call} )
           }
 
         }else if(contractMethod.type == 'set'){

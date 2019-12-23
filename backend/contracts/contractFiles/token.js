@@ -101,7 +101,11 @@ class Token{
                             }
                         }
         
-                        resolve({ success:`Issued ${amount} ${symbol} to ${receiver} which has ${receiverBalance + amount}` })
+                        resolve({ success:{ 
+                            message:`Issued ${amount} ${symbol} to ${receiver}`,
+                            issuer:token.accountBalances[issuer],
+                            receiver:token.accountBalances[receiver]
+                         } })
         
                     }else{
                         throw new Error('ERROR: Current coin supply does not allow for issuance of coins')
@@ -153,7 +157,11 @@ class Token{
                         token.accountBalances[sender] = senderBalance - amount
                         token.accountBalances[receiver] = receiverBalance + amount
 
-                        resolve({ success:`Account ${sender} transfered ${amount} ${symbol} tokens to account ${receiver} which has ${receiverBalance + amount}` })
+                        resolve({ success:{
+                            message:`Account ${sender} transfered ${amount} ${symbol} tokens to account ${receiver}`,
+                            sender:token.accountBalances[sender],
+                            receiver:token.accountBalances[receiver]
+                        } })
                 
                 }else{
                     throw new Error("Account " +sender+ " is does not have enough funds");
