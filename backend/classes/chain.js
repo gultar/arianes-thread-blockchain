@@ -427,7 +427,11 @@ class Blockchain{
       let alreadyInBranch = await this.branchContainsBlockNumber(newBlock, existingUnlinkedBranch)
       if(alreadyInBranch) return false;
       else{
-        existingUnlinkedBranch.push(newBlock)
+        let firstUnlinkedBlock = existingUnlinkedBranch[0]
+        if(!firstUnlinkedBlock) return { error:'ERROR: Unlinked branch does not have a first block' }
+        this.unlinkedBranches[newBlock.hash] = [ ...this.unlinkedBranches[newBlock.previousHash], newBlock ]
+        delete this.unlinkedBranches[newBlock.previousHash]
+
 
         logger(chalk.yellow(`* Extended unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
         //check out branch and validate it
@@ -440,9 +444,9 @@ class Blockchain{
           logger(chalk.yellow(`* Will now attempt to find missing previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
           //By returning this, node will query peers this newBlock hash's previous blocks 
           //until it either links to blockchain or to a branch that is itself linked to the blockchain
-          return { findMissing:newBlock.hash }
+          return { findMissing:firstUnlinkedBlock.hash }
         }else{
-          return { unlinkedExtended:true }
+          return { unlinkedExtended:firstUnlinkedBlock.hash }
         }
       }
       
