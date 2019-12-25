@@ -364,7 +364,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                     let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
 
                     let instruction = `
-                    const deploy = async (callback)=>{
+                    const deployment = async (callback)=>{
                         try{
                             let paramString = '${initParams}'
                             let initParams = JSON.parse(paramString)
@@ -375,17 +375,17 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                             callback({error:e.message})
                         }
                     }
-                    module.exports = deploy
+                    module.exports = deployment
 
                     `
 
-                    let deployContract = contract + instruction
+                    let deploymentCode = contract + instruction
                     
                       let vm = new ContractVM()
-                      let deploy = await vm.runRawCode(deployContract)
-                      if(deploy.error) throw new Error(deploy.error)
+                      let deployment = await vm.runRawCode(deploymentCode)
+                      if(deployment.error) throw new Error(deployment.error)
 
-                      deploy((contractAPI, state)=>{
+                      deployment((contractAPI, state)=>{
                           
                         if(contractAPI.error) throw new Error(contractAPI.error)
                         if(contractAPI){
@@ -492,7 +492,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                     let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
 
                     let instruction = `
-                    const deploy = async (callback)=>{
+                    const deployment = async (callback)=>{
                         try{
                             let paramString = '${initParams}'
                             let initParams = JSON.parse(paramString)
@@ -503,17 +503,17 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                             callback({error:e.message})
                         }
                     }
-                    module.exports = deploy
+                    module.exports = deployment
 
                     `
 
-                    let deployContract = contract + instruction
+                    let deploymentCode = contract + instruction
                     
                       let vm = new ContractVM()
-                      let deploy = await vm.runRawCode(deployContract)
-                      if(deploy.error) throw new Error(deploy.error)
+                      let deployment = await vm.runRawCode(deploymentCode)
+                      if(deployment.error) throw new Error(deployment.error)
 
-                      deploy((contractAPI, state)=>{
+                      deployment((contractAPI, state)=>{
                           
                         if(contractAPI.error) throw new Error(contractAPI.error)
                         if(contractAPI){

@@ -932,33 +932,37 @@ class Node {
         //By finding the missing blocks, current branch is to be swapped with it
         // console.log('About to find missing blocks')
         let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
-        
+        console.log('Missing block:', missingBlocks)
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
           if(!Array.isArray(missingBlocks.isBranch) && typeof missingBlocks.isBranch == 'object'){
             missingBlocks.isBranch = [ missingBlocks.isBranch ]
-          }else if(missingBlocks.isBranch.length == 0){
+          }
+          
+          if(missingBlocks.isBranch.length == 0){
             resolve({error:'ERROR: Peer could not find any of the missing blocks'})
-          }
-          // console.log('Number of branched missing blocks', missingBlocks)
-          let firstBlock = missingBlocks.isBranch[0]
-          // console.log('First missing block', firstBlock)
-          let branch = this.chain.branches[firstBlock.previousHash]
-          // console.log('Linked chain length', branch.length)
-          let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
-          // console.log('Unlinked chain length', unlinkedBranch.length)
-          branch = [ ...branch, ...missingBlocks, ...unlinkedBranch ]
-          // console.log('Unlinked chain new length', branch.length)
-          let latestBranchedBlock = branch[branch.length - 1]
-          // console.log('Last branched block num', latestBranchedBlock.blockNumber)
-          let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
-          if(isValidCandidate){
-            let switched = await this.chain.switchToBranch(branch);
-            if(switched.error) resolve({error:switched.error})
-            resolve({switched:switched})
           }else{
-            resolve({fixed:true})
+             // console.log('Number of branched missing blocks', missingBlocks)
+            let firstBlock = missingBlocks.isBranch[0]
+            // console.log('First missing block', firstBlock)
+            let branch = this.chain.branches[firstBlock.previousHash]
+            // console.log('Linked chain length', branch.length)
+            let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
+            // console.log('Unlinked chain length', unlinkedBranch.length)
+            branch = [ ...branch, ...missingBlocks, ...unlinkedBranch ]
+            // console.log('Unlinked chain new length', branch.length)
+            let latestBranchedBlock = branch[branch.length - 1]
+            // console.log('Last branched block num', latestBranchedBlock.blockNumber)
+            let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
+            if(isValidCandidate){
+              let switched = await this.chain.switchToBranch(branch);
+              if(switched.error) resolve({error:switched.error})
+              resolve({switched:switched})
+            }else{
+              resolve({fixed:true})
+            }
           }
+         
         }else if(missingBlocks.isLinked){
           // console.log('Number of linked missing blocks', missingBlocks.length)
           if(!Array.isArray(missingBlocks.isLinked) && typeof missingBlocks.isLinked == 'object'){
@@ -1969,6 +1973,7 @@ class Node {
                     
                     // let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     // this.broadcast('getBlockchainStatus')
+                    logger('BRANCHING: Trying to find missing blocks to connect new unlinked branch to current blockchain')
                     let fixed = await this.fixUnlinkedBranch(added.findMissing);
                     if(fixed.error) resolve({error:fixed.error})
                     else resolve(fixed)
