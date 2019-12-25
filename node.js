@@ -1030,10 +1030,10 @@ class Node {
                 peer.off('previousBlock')
                 clearTimeout(timeout)
                 resolve({ isBranch:missingBlocks })
-              }else{
-                missingBlocks = [ block, ... missingBlocks]
-                peer.emit('getPreviousBlock', block.hash)
               }
+
+              missingBlocks = [ block, ... missingBlocks]
+              peer.emit('getPreviousBlock', block.hash)
             }
           })
         }
