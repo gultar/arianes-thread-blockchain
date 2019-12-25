@@ -968,24 +968,31 @@ class Node {
           if(!Array.isArray(missingBlocks.isLinked) && typeof missingBlocks.isLinked == 'object'){
             missingBlocks.isLinked = [ missingBlocks.isLinked ]
           }
-          let firstBlock = missingBlocks.isLinked[0]
-          // console.log('First missing block', firstBlock)
-          let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
-          console.log('Unlinked chain length', this.chain.unlinkedBranches[unlinkedHash])
-          unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
-          // console.log('Unlinked chain new length', unlinkedBranch.length)
-          let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
-          // console.log('Last branched block num', latestBranchedBlock.blockNumber)
-          this.chain.branches[latestBranchedBlock.hash] = unlinkedBranch
-          let branch = this.chain.branches[latestBranchedBlock.hash]
-          let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
-          if(isValidCandidate){
-            let switched = await this.chain.switchToBranch(branch);
-            if(switched.error) resolve({error:switched.error})
-            resolve({switched:switched})
+
+          if(missingBlocks.isLinked.length == 0){
+            resolve({error:'ERROR: Peer could not find any of the missing blocks'})
           }else{
-            resolve({fixed:true})
+            let firstBlock = missingBlocks.isLinked[0]
+            let lastBlock = missingBlocks.isLinked[missingBlocks.isLinked.length - 1]
+            // console.log('First missing block', firstBlock)
+            let unlinkedBranch = this.chain.unlinkedBranches[lastBlock.hash]
+            console.log('Unlinked chain length', this.chain.unlinkedBranches[unlinkedHash])
+            unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
+            // console.log('Unlinked chain new length', unlinkedBranch.length)
+            let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
+            // console.log('Last branched block num', latestBranchedBlock.blockNumber)
+            this.chain.branches[latestBranchedBlock.hash] = unlinkedBranch
+            let branch = this.chain.branches[latestBranchedBlock.hash]
+            let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
+            if(isValidCandidate){
+              let switched = await this.chain.switchToBranch(branch);
+              if(switched.error) resolve({error:switched.error})
+              resolve({switched:switched})
+            }else{
+              resolve({fixed:true})
+            }
           }
+          
         }
     })
   }
