@@ -1700,14 +1700,14 @@ class Node {
         return rawBlock
       }else{
         
-        console.log({ error:{
-          message:'ERROR: Node is unable to create new block',
-          reason:{
-            isDownloading:this.isDownloading,
-            isBusy:this.chain.isBusy,
-            isBuildingBlock:api.isBuildingBlock
-          }
-        },  })
+        // console.log({ error:{
+        //   message:'ERROR: Node is unable to create new block',
+        //   reason:{
+        //     isDownloading:this.isDownloading,
+        //     isBusy:this.chain.isBusy,
+        //     isBuildingBlock:api.isBuildingBlock
+        //   }
+        // },  })
 
         return { error:{
           message:'ERROR: Node is unable to create new block',
