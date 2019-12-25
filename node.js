@@ -1017,21 +1017,24 @@ class Node {
               resolve({error:block.error})
             }else if(block){
               
-              let isPartOfBranch = this.chain.branches[block.hash]
+              // let isPartOfBranch = this.chain.branches[block.hash]
               let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
-      
+              
+              missingBlocks = [ block, ... missingBlocks ]
               if(isLinkedToChain){
                 peer.off('previousBlock')
                 // "Unshifted" manually since we're looking backyards, not forwards
                 clearTimeout(timeout)
                 resolve({ isLinked:missingBlocks })
                 
-              }else if(isPartOfBranch){
-                peer.off('previousBlock')
-                clearTimeout(timeout)
-                resolve({ isBranch:missingBlocks })
-              }else{
-                missingBlocks = [ block, ... missingBlocks ]
+              }
+              // else if(isPartOfBranch){
+              //   peer.off('previousBlock')
+              //   clearTimeout(timeout)
+              //   resolve({ isBranch:missingBlocks })
+              // }
+              else{
+                
                 peer.emit('getPreviousBlock', block.hash)
               }
 
