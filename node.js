@@ -1691,6 +1691,7 @@ class Node {
         api.isBuildingBlock = true
         
         let transactions = await this.mempool.gatherTransactionsForBlock()
+        console.log('Tx', transactions)
         if(transactions.error) console.log('Mempool error: ',transactions.error)
         let actions = await this.mempool.gatherActionsForBlock()
         if(actions.error) console.log('Mempool error:',actions.error)
