@@ -3,14 +3,15 @@ const vmBootstrap = require('../contracts/vmEngine/vmBootstrap')
 const ContractConnector = require('../contracts/build/contractConnector')
 
 class VMController{
-    constructor({ contractTable }){
+    constructor({ contractTable, accountTable }){
         this.vmMaster = vmMaster;
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
         });
         
         this.vmBootstrap = new vmBootstrap({
-            contractConnector:this.contractConnector
+            contractConnector:this.contractConnector,
+            accountTable:accountTable
         });
 
         this.vmChannel = this.vmBootstrap.startVM()

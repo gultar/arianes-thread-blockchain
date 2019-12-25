@@ -117,7 +117,6 @@ class Node {
             
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
-            // let accountsLoaded = await this.chain.accountTable.loadAllAccountsFromFile();
             
             
             if(!nodeListLoaded) reject('Could not load node list')
@@ -1292,7 +1291,7 @@ class Node {
           if(isValidActionJSON(req.body)){
             let action = req.body
             
-            this.broadcastNewAction(action)
+            this.broadcastAction(action)
             .then((actionEmitted)=>{
               if(!actionEmitted.error){
                 res.send(JSON.stringify(actionEmitted, null, 2));
@@ -1939,9 +1938,9 @@ class Node {
 
             let block = JSON.parse(data);
             let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
-            let alreadyIsInActiveFork = this.chain.blockForks[block.hash];
+            let alreadyIsInActiveBranch = this.chain.branches[block.hash];
   
-            if(!alreadyReceived && !alreadyIsInActiveFork){
+            if(!alreadyReceived && !alreadyIsInActiveBranch){
               //Need to validate more before stopping miner
 
               if(this.chain.validateBlockHeader(block)){
@@ -1949,7 +1948,6 @@ class Node {
                 this.peersLatestBlocks[fromPeer] = block
 
                 let minerOn = this.localServer && this.localServer.socket
-                // let isBlockLinked = await this.chain.getBlockbyHash(block.previousHash)
                 
                 if(minerOn){
                   this.localServer.socket.emit('stopMining')
@@ -1969,25 +1967,31 @@ class Node {
                   //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                   if(added.findMissing){
                     
-                    let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
-                    this.broadcast('getBlockchainStatus')
-                    // let fixed = await this.fixUnlinkedBranch(added.findMissing);
-                    // if(fixed.error) resolve({error:fixed.error})
-                    // else resolve(fixed)
+                    // let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
+                    // this.broadcast('getBlockchainStatus')
+                    let fixed = await this.fixUnlinkedBranch(added.findMissing);
+                    if(fixed.error) resolve({error:fixed.error})
+                    else resolve(fixed)
+
                   }else if(added.switched && added.switched.outOfSync){
+                    logger('WARNING: Blockchain out of sync with peer. Rolling back changes to sync')
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
                     resolve(rolledback)
                   }else if(added.unlinked){
-                    
+                    logger('BRANCHING: Trying to find missing blocks to connect new unlinked branch to current blockchain')
                     let fixed = await this.fixUnlinkedBranch(added.unlinked);
                     if(fixed.error) resolve({error:fixed.error})
                     else resolve(fixed)
 
                   }else if(added.unlinkedExtended){
-                    let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
-                    this.broadcast('getBlockchainStatus')
-                    resolve(rolledback)
+                    logger('BRANCHING: Trying to find missing blocks to connect extended unlinked branch to blockchain')
+                    let fixed = await this.fixUnlinkedBranch(added.unlinkedExtended);
+                    if(fixed.error) resolve({error:fixed.error})
+                    else resolve(fixed)
+                    // let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
+                    // this.broadcast('getBlockchainStatus')
+                    // resolve(rolledback)
                   }else{
                     if(minerOn){
                       this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
@@ -2141,58 +2145,62 @@ class Node {
 
             
           }
-        if(!isValidCallPayloadJSON(call.data)) resolve({error:'ERROR: Must provide call structure'})
+          
+        if(!isValidCallPayloadJSON(call.data)) resolve({error:'ERROR: Must provide valid call structure'})
         let contract = await this.chain.contractTable.getContract(call.data.contractName)
         //Checking if the method invoked is open to external execution
         let contractAPI = contract.contractAPI
         if(!contractAPI) resolve({ error:'ERROR: Contract does not have an API' })
         
         let contractMethod = contractAPI[call.data.method];
-        if(!contractMethod) resolve({error:'ERROR Unknown contract method'})
         
-        if(contractMethod.type == 'get'){
-          //'Get' methods dont modify contract state, obviously
-          let result = await this.chain.testCall(call)
-          if(result.error) resolve({error:result.error})
-          else if(result){
-            resolve({ isReadOnly:result , call:call} )
-          }
-
-        }else if(contractMethod.type == 'set'){
-          //'Set' method may modify state.
-          //Could implement a way to protect contract state from arbitrary
-          //modifications while still allowing authorized accounts to modifiy it
-          //legitimately.
-          if(test){
+        if(!contractMethod) resolve({error:'ERROR Unknown contract method'})
+        else{
+          if(contractMethod.type == 'get'){
+            //'Get' methods dont modify contract state, obviously
             let result = await this.chain.testCall(call)
-          
             if(result.error) resolve({error:result.error})
-            else{
-              //Transactions added to pool for confirmation by peers blocks or by this
-              //node's miner's blocks. 
-              let added = await this.mempool.addTransaction(transaction);
-              if(added.error){
-                resolve({error:added.error})
-              }else{
-                if(result.executed && result.executed.value){
-                  resolve(result.executed.value)
+            else if(result){
+              resolve({ isReadOnly:result , call:call} )
+            }
+  
+          }else if(contractMethod.type == 'set'){
+            //'Set' method may modify state.
+            //Could implement a way to protect contract state from arbitrary
+            //modifications while still allowing authorized accounts to modifiy it
+            //legitimately.
+            if(test){
+              let result = await this.chain.testCall(call)
+            
+              if(result.error) resolve({error:result.error})
+              else{
+                //Transactions added to pool for confirmation by peers blocks or by this
+                //node's miner's blocks. 
+                let added = await this.mempool.addTransaction(transaction);
+                if(added.error){
+                  resolve({error:added.error})
                 }else{
-                  resolve(result)
+                  if(result.executed && result.executed.value){
+                    resolve(result.executed.value)
+                  }else{
+                    resolve(result)
+                  }
                 }
               }
+            }else{
+              let added = await this.mempool.addTransaction(transaction);
+                if(added.error){
+                  resolve({error:added.error})
+                }else{
+                  resolve(added)
+                }
             }
+  
           }else{
-            let added = await this.mempool.addTransaction(transaction);
-              if(added.error){
-                resolve({error:added.error})
-              }else{
-                resolve(added)
-              }
+            resolve({error:`Invalid contract method type on api of contract ${contract.name}`})
           }
-
-        }else{
-          resolve({error:`Invalid contract method type on api of contract ${contract.name}`})
         }
+        
       }else if(transaction.type == 'allocation'){
         //Validate stake and broadcast or reject
       }else if(transaction.type == 'stake'){
@@ -2210,7 +2218,7 @@ class Node {
     })
   }
 
-  broadcastNewAction(action){
+  broadcastAction(action){
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
 
@@ -2265,7 +2273,6 @@ class Node {
         let savedStates = await this.chain.balance.saveBalances(this.chain.getLatestBlock());
         let savedNodeList = await this.nodeList.saveNodeList();
         let savedMempool = await this.mempool.saveMempool();
-        //let savedAccountTable = await this.chain.accountTable.saveTable();
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();
         if( 
@@ -2274,7 +2281,6 @@ class Node {
             && savedMempool
             && savedWalletManager
             && savedNodeConfig
-            //&& savedAccountTable
             && savedStates
           )
           {

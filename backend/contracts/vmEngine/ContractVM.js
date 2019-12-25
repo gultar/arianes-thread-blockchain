@@ -14,13 +14,13 @@ const getFunctionArguments = require('get-function-arguments')
 const fs = require('fs')
 const EventEmitter = require('events')
 
-
+//Kind of useless
 class Signals extends EventEmitter{
     constructor(){
         super()
     }
 }
-
+//Serves to communicate back and forth between VM
 let signals = new Signals()
 signals.setMaxListeners(50)
 
@@ -49,14 +49,49 @@ class ContractVM{
                         "createContractInterface":createContractInterface,
                         "makeExternal":makeExternal,
                         "getFunctionArguments":getFunctionArguments,
+                        "getAccount":(name)=>{
+                            return new Promise((resolve)=>{
+                                this.signals.once('account', (account)=>{
+                                    console.log('Received account', account)
+                                    if(account && Object.keys(account).length > 0){
+                                        resolve(account) 
+                                    }else{
+                                        resolve(false)
+                                    }
+                                })
+                                this.signals.emit('getAccount', name)
+                            })
+                        },
+                        "getContract":(contractName)=>{
+                            return new Promise(async (resolve)=>{
+                                if(this.contractClasses[contractName]){
+                                    let contractClass = this.sandbox.context.require.mock[contractName]
+                                    resolve(contractClass)
+                                }else{
+                                    this.signals.once('contract', async (contract)=>{
+                                        if(contract && Object.keys(contract).length > 0){
+                                            let isSet = await this.setContractClass(contractName, contract)
+                                            let exported = await this.exportContractToSandbox(contractName)
+                                            if(exported.error)  resolve(false)
+                                            let contractClass = this.sandbox.context.require.mock[contractName]
+                                            resolve(contractClass) 
+                                        }else{
+                                           resolve(false)
+                                        }
+                                    })
+                                    this.signals.emit('getContract', contractName)
+                                }
+                            })
+                        },
                         "getState":(contractName)=>{
+                            //Promise is necessary here because of the event listener call back
                             return new Promise((resolve)=>{
                                 if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
                                     this.signals.once('state', (state)=>{
                                     
-                                        if(state && Object.keys(state)){
+                                        if(state && Object.keys(state).length > 0){
                                             resolve(state) 
                                         }else{
                                             this.signals.emit('failed', {error: `ERROR: Could not find state of contract ${contractName}`})
@@ -99,7 +134,6 @@ class ContractVM{
     }
 
     async exportContractToSandbox(contractName){
-        //DANGEROUS
         if(this.contractClasses[contractName]){
             let contractCode = this.contractClasses[contractName]
             let exportString = `module.exports = ${contractName}`
@@ -163,7 +197,7 @@ class ContractVM{
                 try{
                     ${code}
                     //save(instance.state)
-                    result.state = instance.state
+                    // result.state = instance.state
                     callback(result, instance.state)
                 }catch(err){
                     let error = { error:err.message, hash:callHash }
@@ -212,96 +246,6 @@ class ContractVM{
             return { setContractClassError:'Must pass valid contractName and classCode' }
         }
     }
-
-    // deployContract(contractName, initParams){
-    //     return new Promise(async (resolve)=>{
-    //         let contractCode = this.contractClasses[contractName]
-
-    //         let deploymentFunction = this.buildContractFunctionWrapper(contractName, initParams)
-            
-    //         this.vm.run(contractCode + deploymentFunction)
-
-    //         signals.once('commited', (contractAPI)=>{
-    //             resolve({
-    //                 value:contractAPI,
-    //                 state:this.sandbox.stateStorage
-    //             })
-    //         })
-            
-    //         signals.once('saved', (savedState)=>{
-    //             this.sandbox.stateStorage = savedState
-    //         })
-
-    //         signals.once('deployed', (contractAPI)=>{
-    //             resolve({
-    //                 contractAPI:contractAPI,
-    //                 state:this.sandbox.stateStorage
-    //             })
-    //         })
-    //         signals.once('failed', (failure)=>{
-    //             resolve({
-    //                 error:failure,
-    //             })
-    //         })
-    //     })
-    // }
-
-    // execute(call){
-    //     try{
-            
-        
-    //         let instruction = call.code
-    //         let contractName = call.contractName
-    //         let methodToRun = call.methodToRun
-    //         let contractCode = this.contractClasses[call.contractName]
-    //         let stateHeaderInstruction = `
-    //         let state = await getState("${call.contractName}");
-    //         await instance.setState(state);
-    //         `
-    //         let importHeader = `
-    //         const ${contractName} = require('${contractName}')
-    //         `
-            
-    //         let codeToWrap = `
-    //         ${instruction}
-    //         ${stateHeaderInstruction}
-    //         ${methodToRun}
-    //         `
-
-    //         let code = this.wrapCode( codeToWrap )
-            
-    //         let execute = this.vm.run(importHeader + code)
-            
-    //         execute(async (result)=>{
-    //             this.sandbox.contractStates[call.contractName] = this.sandbox.stateStorage
-                
-    //             this.signals.emit('saveState', {
-    //                 state:this.sandbox.contractStates[call.contractName],
-    //                 contractName:call.contractName
-    //             })
-
-    //             this.signals.emit('commited', {
-    //                 value:result,
-    //                 state:this.sandbox.stateStorage,
-    //                 hash:call.hash,
-    //                 contractName:call.contractName
-    //             })
-                
-                
-    //         })
-            
-
-    //     }catch(e){
-            
-    //         this.signals.emit('failed', {
-    //             error:e.message,
-    //             hash:call.hash,
-    //             contractName:call.contractName
-    //         })
-    //     }
-
-        
-    // }
 
     runManyCalls(calls){
         return new Promise(async (resolve)=>{
@@ -369,13 +313,13 @@ class ContractVM{
                 
                 execute(async (result, state)=>{
                     clearTimeout(this.timers[call.hash])
-                    if(result.state && Object.keys(result.state).length > 0){
-                        this.sandbox.contractStates[call.contractName] = result.state
+                    if(state && Object.keys(state).length > 0){
+                        this.sandbox.contractStates[call.contractName] = state
                     }
-
+                    
                     if(result.error){
                         resolve({
-                            error:result.error.message,
+                            error:result.error,
                             hash:call.hash,
                             contractName:call.contractName
                         })
@@ -383,19 +327,15 @@ class ContractVM{
                         resolve({
                             value:result,
                             hash:call.hash,
-                            state:result.state, //this.sandbox.contractStates[call.contractName]
+                            state:state, //this.sandbox.contractStates[call.contractName]
                             contractName:contractName
                         })
                     }
-                    
-                    
-                    
                     
                 })
                 
     
             }catch(e){
-                
                 resolve({
                     error:e.message,
                     hash:call.hash,
@@ -407,49 +347,6 @@ class ContractVM{
 
         
     }
-
-    // run(hash){
-    //     try{
-            
-        
-    //         let instruction = this.codes[hash].code
-    //         let contractName = this.codes[hash].contractName
-    //         let methodToRun = this.codes[hash].methodToRun
-    //         let contractCode = this.contractClasses[contractName]
-    //         let stateHeaderInstruction = `
-    //         let state = await loadState("${contractName}");
-    //         await instance.setState(state);`
-            
-    //         let codeToWrap = `
-    //         ${instruction}
-    //         ${stateHeaderInstruction}
-    //         ${methodToRun}
-    //         `
-    //         let code = this.wrapCode( codeToWrap )
-    //         let execute = this.vm.run(contractCode + code)
-            
-    //         execute(async (result)=>{
-    //             this.signals.emit('commited', {
-    //                 value:result,
-    //                 state:this.sandbox.stateStorage,
-    //                 hash:hash,
-    //                 contractName:contractName
-    //             })
-                
-    //         })
-            
-
-    //     }catch(e){
-            
-    //         this.signals.emit('failed', {
-    //             error:e.message,
-    //             hash:hash,
-    //             contractName:contractName
-    //         })
-    //     }
-
-        
-    // }
 
     
     runRawCode(code){

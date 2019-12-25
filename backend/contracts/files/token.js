@@ -8,7 +8,7 @@ const deploy = require('deploy')
 const save = require('save')
 const commit = require('commit')
 
-class Token{
+class Tokens{
     constructor(init){
         let { contractAccount } = init
         this.name = 'Token'
@@ -59,7 +59,7 @@ class Token{
 
     }
 
-    async issue(issueParams, issuerAccount){
+    issue(issueParams, issuerAccount){
         return new Promise((resolve)=>{
             let { symbol, amount, receiver } = issueParams
         if(!symbol || !typeof symbol == 'string') throw new Error('Token symbol is required')

@@ -1,5 +1,6 @@
 const makeExternal = require('makeExternal')
-
+const getContract = require('getContract')
+const getAccount = require('getAccount')
 
 class Voter{
     constructor(init){
@@ -30,7 +31,7 @@ class Ballot{
         this.state = state;
     }
     
-    createBallot(params, account){
+    async createBallot(params, account){
         let { ballotId, name, description, voteLimit, authorizedVoters } = params
 
         if(typeof ballotId != 'string') throw new Error('Ballot Id parameter must be a string')
@@ -39,13 +40,23 @@ class Ballot{
         //validate param arguments
         let ballotAlreadyExists = this.state.ballots[ballotId];
         if(!ballotAlreadyExists){
-
+            let voters = false
+            
+            if(authorizedVoters && Array.isArray(authorizedVoters)){
+                voters = {}
+               for await(let voterName of authorizedVoters){
+                    let account = await getAccount(voterName)
+                    if(account){
+                        voters[account.ownerKey] = account
+                    }
+               }
+            }
             this.state.ballots[ballotId] = {
                 name:name,
                 description:description,
                 initiator:account,
                 voteLimit:voteLimit,
-                authorizedVoters:authorizedVoters || { [account.ownerKey]:account },
+                authorizedVoters: ( voters ? {...voters} : {'*':"*"}),//{ [account.ownerKey]:account },
                 proposals:{},
                 votes:{},
                 reward:{}  //To be determined, could be collected from tx call amounts
@@ -113,14 +124,19 @@ class Ballot{
                 let isAlreadyAuthorized = ballot.authorizedVoters[account];
                 if(!isAlreadyAuthorized){
 
-                    ballot.authorizedVoters[account] = {
-                        name: account,
-                        timestamp:Date.now(),
-                        givenRightBy:callingAccount.name
+                    if(!Object.keys(ballot.authorizedVoters).includes('*')){
+                        ballot.authorizedVoters[account] = {
+                            name: account,
+                            timestamp:Date.now(),
+                            givenRightBy:callingAccount.name
+                        }
+                        this.state.ballots[ballotId] = ballot;
+    
+                        return { allowed:`Account ${account} is authorized to cast a vote` }
+                    }else{
+                        throw new Error(`All accounts are authorized to vote on ballot ${ballotId}`)
                     }
-                    this.state.ballots[ballotId] = ballot;
-
-                    return { allowed:`Account ${account} is authorized to cast a vote` }
+                    
 
                 }else{
                     throw new Error(`Account ${account} is already authorized to vote on ballot ${ballotId}`)
@@ -142,7 +158,7 @@ class Ballot{
         let ballot = this.state.ballots[ballotId];
         if(ballot){
 
-            let hasRightToVote = ballot.authorizedVoters[account.name]
+            let hasRightToVote = ballot.authorizedVoters[account.name] || Object.keys(ballot.authorizedVoters).includes('*')
             if(hasRightToVote){
                 let hasVoted = ballot.votes[account.ownerKey];
                 if(!hasVoted){
@@ -222,12 +238,12 @@ class Ballot{
             vote:{
                 type:'set',
                 authorized:'Accounts which are authorized can vote',
-                args:["ballotId","name"],
+                args:["ballotId","votingFor"],
                 description:'Vote for an account or submit a new proposal'
             },
             getBallotState:{
                 type:'get',
-                args:['id'],
+                args:['ballotId'],
                 description:`Returns the current state of the ballot`
             }
         })

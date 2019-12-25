@@ -1,5 +1,17 @@
 const Validator = require('jsonschema').Validator;
 
+const fetchErrors = (errors) =>{
+    let errorMessages = {}
+    for(let error of errors){
+        if(error.message){
+            errorMessages[error.argument] = error.message
+        }
+    }
+
+    return errorMessages;
+    
+}
+
 const isValidTransactionJSON = (transaction)=>{
     var v = new Validator();
     
@@ -87,7 +99,7 @@ const isValidCallPayloadJSON = (callPayload)=>{
         if(valid.errors.length == 0){
             return true
         }else{
-            console.log(valid.errors)
+            console.log(fetchErrors(valid.errors))
             return false;
         }
         

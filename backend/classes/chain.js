@@ -62,7 +62,8 @@ class Blockchain{
       }
     })
     this.vmController = new VMController({
-      contractTable:this.contractTable
+      contractTable:this.contractTable,
+      accountTable:this.accountTable
     })
     this.spentTransactionHashes = []
     this.spentActionHashes = []
@@ -96,7 +97,8 @@ class Blockchain{
       genesisBlock.totalDifficulty = genesisBlock.difficulty
       genesisBlock.challenge = setNewChallenge(genesisBlock)
       genesisBlock.maxCoinSupply = Math.pow(10, 10);
-      genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot )
+      genesisBlock.signatures = {}
+      genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesis.signatures )
       genesisBlock.calculateHash();
       genesisBlock.states = {
         //Other public addresses can be added to initiate their balance in the genesisBlock
@@ -2504,9 +2506,10 @@ class Blockchain{
       let account = await this.accountTable.getAccount(action.fromAccount)
       
       if(account){
-
+        
         let alreadyExists = await this.contractTable.contractDB.get(data.name)
         if(!alreadyExists){
+            
             resolve({ success:`Deployed contract ${data.name} successfully` })
         }else{
             resolve({error:'A contract with that name already exists'})

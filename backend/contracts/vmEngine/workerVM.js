@@ -29,6 +29,14 @@ const workerVM = () =>{
         process.send({ getState:contractName })
       })
 
+      vm.signals.on('getContract', (contractName)=>{
+        process.send({ getContract:contractName })
+      })
+
+      vm.signals.on('getAccount', (name)=>{
+        process.send({ getAccount:name })
+      })
+
       process.on('message', async(message)=>{
         if(message.run){
 
@@ -38,6 +46,7 @@ const workerVM = () =>{
             process.send({singleResult:result})
             
           }catch(e){
+            console.log('Caught in workerVM', e)
             process.send({error:e, hash:message.hash, contractName:message.contractName})
           }
 
@@ -81,11 +90,11 @@ const workerVM = () =>{
             }
 
         }else if(message.state){
-          //to be removed
            vm.signals.emit('state', message.state)
         }else if(message.contract){
-          //to be removed
            vm.signals.emit('contract', message.contract)
+        }else if(message.account){
+           vm.signals.emit('account', message.account)
         }else if(message.ping){
            process.send({pong:true})
         }else{

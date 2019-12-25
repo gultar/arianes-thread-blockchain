@@ -1,11 +1,5 @@
-const Transaction = require('./transaction');
-// const globalEvents = require('./constants');
 const sha256 = require('../tools/sha256');
 const merkle = require('merkle');
-const crypto = require('crypto');
-const mineBlock = require('../tools/proof')
-const {logger} = require('../tools/utils');
-const chalk = require('chalk')
 
 //Miner has to be instantiated 
 process.env.MINER = ()=>{}
@@ -37,7 +31,6 @@ class Block{
     Will be called on every iteration of the mining method
   */
   calculateHash(){
-    
     this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce + this.actionMerkleRoot).toString();
   }
 
@@ -66,9 +59,7 @@ class Block{
               console.log('stderr: ' + data);
               resolve(false)
           });
-          process.ACTIVE_MINER.on('close', function() {
-              // logger('Mining process ended')
-          })
+          process.ACTIVE_MINER.on('close', function() { })
         }else{
           //logger('ERROR: Already started miner')
         }

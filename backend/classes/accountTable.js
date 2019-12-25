@@ -101,55 +101,8 @@ class AccountTable{
           })
       }
 
-      //Deprecated
-      loadAllAccountsFromFile(){
-        return new Promise(async (resolve, reject)=>{
-         try{
-             fs.exists('./data/accounts.json', async (exists)=>{
-                 if(exists){
-                    let accountsFile = await readFile('./data/accounts.json');
-                    if(accountsFile){
-                        let accounts = JSON.parse(accountsFile);
-                        if(accounts){
-                            this.accounts = accounts;
-                            resolve(true)
-                        }else{
-                            resolve(false)
-                        }
-                    }else{
-                        resolve(false)
-                    }
-                 }else{
-                    let saved = await this.saveTable()
-                    resolve(saved)
-                 }
-                
-             })
-            
-         }catch(e){
-             console.log(e)
-             resolve(false)
-         }
-        })
-       }
 
-       //Deprecated
-      saveTable(silent=false){
-          return new Promise((resolve, reject)=>{
-            try{
-                let saved = writeToFile(this.accounts, './data/accounts.json');
-                if(saved){
-                    if(!silent) logger('Saved account table');
-                    resolve(true)
-                }else{
-                    logger('ERROR: Could not save account table')
-                }
-            }catch(e){
-                reject(e)
-            }
-          })
-        
-      }
+    
 }
 
 module.exports = AccountTable;

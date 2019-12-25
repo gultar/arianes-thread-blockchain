@@ -3,8 +3,11 @@ const Permissions = require('Permissions')
 const createContractInterface = require('createContractInterface')
 
 class Storage{
-    constructor(){
-        this.state = {}
+    constructor(initParams){
+        this.contractAccount = initParams.contractAccount
+        this.state = {
+            [initParams.contractAccount]:{}
+        }
     }
 
     setState(state){

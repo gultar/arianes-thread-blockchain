@@ -7,7 +7,7 @@ const AccountCreator = require('./backend/classes/accountCreator');
 const WalletManager = require('./backend/classes/walletManager');
 const AccountTable = require('./backend/classes/accountTable');
 const Action = require('./backend/classes/action');
-const ContractVM = require('./backend/contracts/VM.js')
+const ContractVM = require('./backend/contracts/vmEngine/ContractVM.js')
 const sha1 = require('sha1');
 const fs = require('fs');
 const activePort = require('dotenv').config({ path: './config/.env' })
@@ -363,85 +363,86 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                     let walletManager = new WalletManager();
                     let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
 
-                    let deploymentInstruction = `
-                    async function deployment(){
+                    let instruction = `
+                    const deploy = async (callback)=>{
                         try{
-
-                            const deploy = require('deploy')
-                            const save = require('save')
-                            let paramsString = '${initParams}'
-                            
-                            let initParams = JSON.parse(paramsString)
+                            let paramString = '${initParams}'
+                            let initParams = JSON.parse(paramString)
                             let instance = new ${contractName}(initParams)
                             let API = await instance.getInterface()
-                            save({state:instance.state})
-                            deploy(API)
-
+                            callback(API, instance.state)
                         }catch(e){
-                            console.log(e)
+                            callback({error:e.message})
                         }
-                        
                     }
-                    deployment()
+                    module.exports = deploy
+
                     `
 
-                    let deployContract = contract + deploymentInstruction
+                    let deployContract = contract + instruction
                     
                       let vm = new ContractVM()
-                      let result = await vm.singleRun(deployContract)
-                      
-                      if(result){
-                        
-                        let action = new Action({
-                            fromAccount:accountName,
-                            type:'contract',
-                            task:'deploy',
-                            data: {
-                                name:contractName,
-                                code:contract,
-                                contractAPI:result.contractAPI,
-                                initParams:initParams,
-                                account:accountName,
-                                state:result.state
-                            }
-                        });
+                      let deploy = await vm.runRawCode(deployContract)
+                      if(deploy.error) throw new Error(deploy.error)
 
-                        walletManager.unlockWallet(walletName, password)
-                        .then(async (unlocked)=>{
-                            
-                            if(unlocked){
-                                let signature = await wallet.sign(action.hash)
-                                if(signature){
-                                    action.signature = signature;
-                                    
-                                    axios.post(`${address}/action`, action)
-                                    .then( response => {
-                                        if(response.data.action){
-                                            let sentAction = response.data.action;
-                                            let result = response.data.contractAPI
-                                            let API = sentAction.data.contractAPI
-                                            let state = sentAction.data.state
-                                            console.log(`Successfully Deployed contract ${contractName}\n`)
-                                            console.log('Contract API:\n',API)
-                                            console.log('\nInitial state of contract:', state)
-                                            console.log('\nResult of deployment:', result)
-                                        }else{
-                                            console.log(response.data)
-                                        }
-                                        
-                                    })
-                                    .catch(e => console.log(e))
-                                    socket.close()
-                                }else{
-                                    console.log('ERROR: Could not sign action')
+                      deploy((contractAPI, state)=>{
+                          
+                        if(contractAPI.error) throw new Error(contractAPI.error)
+                        if(contractAPI){
+                        
+                            let action = new Action({
+                                fromAccount:accountName,
+                                type:'contract',
+                                task:'deploy',
+                                data: {
+                                    name:contractName,
+                                    code:contract,
+                                    contractAPI:contractAPI,
+                                    initParams:initParams,
+                                    account:accountName,
+                                    state:state
                                 }
+                            });
+    
+                            walletManager.unlockWallet(walletName, password)
+                            .then(async (unlocked)=>{
                                 
-        
-                            }else{
-                                console.log('ERROR: Could not unlock wallet')
-                            }
-                        })
-                      }
+                                if(unlocked){
+                                    let signature = await wallet.sign(action.hash)
+                                    if(signature){
+                                        action.signature = signature;
+                                        
+                                        axios.post(`${address}/action`, action)
+                                        .then( response => {
+                                            if(response.data.action){
+                                                let sentAction = response.data.action;
+                                                let result = response.data.contractAPI
+                                                let API = sentAction.data.contractAPI
+                                                let state = sentAction.data.state
+                                                console.log(`Successfully Deployed contract ${contractName}\n`)
+                                                console.log('Contract API:\n',API)
+                                                console.log('\nInitial state of contract:', state)
+                                                console.log('\nResult of deployment: Success!')
+                                            }else{
+                                                console.log(response.data)
+                                            }
+                                            
+                                        })
+                                        .catch(e => console.log(e))
+                                        socket.close()
+                                    }else{
+                                        console.log('ERROR: Could not sign action')
+                                    }
+                                    
+            
+                                }else{
+                                    console.log('ERROR: Could not unlock wallet')
+                                }
+                            })
+                          }
+                      })
+                      
+
                 }else{
                     throw new Error('ERROR: Could not find target contract file')
                 }
@@ -490,84 +491,85 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                     let walletManager = new WalletManager();
                     let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
 
-                    let deploymentInstruction = `
-                    async function deployment(){
+                    let instruction = `
+                    const deploy = async (callback)=>{
                         try{
-
-                            const deploy = require('deploy')
-                            const save = require('save')
-                            let paramsString = '${initParams}'
-                            
-                            let initParams = JSON.parse(paramsString)
+                            let paramString = '${initParams}'
+                            let initParams = JSON.parse(paramString)
                             let instance = new ${contractName}(initParams)
                             let API = await instance.getInterface()
-                            save({ state: instance.state })
-                            deploy(API)
-
+                            callback(API, instance.state)
                         }catch(e){
-                            console.log(e)
+                            callback({error:e.message})
                         }
-                        
                     }
-                    deployment()
+                    module.exports = deploy
+
                     `
 
-                      let deployContract = contract + deploymentInstruction
+                    let deployContract = contract + instruction
                     
                       let vm = new ContractVM()
-                      let result = await vm.singleRun(deployContract)
-                      if(result){
+                      let deploy = await vm.runRawCode(deployContract)
+                      if(deploy.error) throw new Error(deploy.error)
+
+                      deploy((contractAPI, state)=>{
+                          
+                        if(contractAPI.error) throw new Error(contractAPI.error)
+                        if(contractAPI){
                         
-                        let action = new Action({
-                            fromAccount:accountName,
-                            type:'contract',
-                            task:'deploy',
-                            data: {
-                                name:contractName,
-                                code:contract,
-                                contractAPI:result.contractAPI,
-                                initParams:initParams,
-                                account:accountName,
-                                state:result.state
-                            }
-                        });
-                        
-                        walletManager.unlockWallet(walletName, password)
-                        .then(async (unlocked)=>{
-                            
-                            if(unlocked){
-                                let signature = await wallet.sign(action.hash)
-                                if(signature){
-                                    action.signature = signature;
-                                    console.log('Action:', action)
-                                    axios.post(`${address}/testAction`, action)
-                                    .then( response => {
-                                        if(response.data.action){
-                                            let sentAction = response.data.action;
-                                            let result = response.data.value
-                                            let API = sentAction.data.contractAPI
-                                            let state = sentAction.data.state
-                                            console.log(`Successfully Deployed contract ${contractName}\n`)
-                                            console.log('Contract API:\n',API)
-                                            console.log('\nInitial state of contract:', state)
-                                            console.log('\nResult of deployment:', result)
-                                        }else{
-                                            console.log(response.data)
-                                        }
-                                        
-                                    })
-                                    .catch(e => console.log(e))
-                                    socket.close()
-                                }else{
-                                    console.log('ERROR: Could not sign action')
+                            let action = new Action({
+                                fromAccount:accountName,
+                                type:'contract',
+                                task:'deploy',
+                                data: {
+                                    name:contractName,
+                                    code:contract,
+                                    contractAPI:contractAPI,
+                                    initParams:initParams,
+                                    account:accountName,
+                                    state:state
                                 }
+                            });
+    
+                            walletManager.unlockWallet(walletName, password)
+                            .then(async (unlocked)=>{
                                 
-        
-                            }else{
-                                console.log('ERROR: Could not unlock wallet')
-                            }
-                        })
-                      }
+                                if(unlocked){
+                                    let signature = await wallet.sign(action.hash)
+                                    if(signature){
+                                        action.signature = signature;
+                                        
+                                        axios.post(`${address}/testAction`, action)
+                                        .then( response => {
+                                            if(response.data.action){
+                                                let sentAction = response.data.action;
+                                                let result = response.data.contractAPI
+                                                let API = sentAction.data.contractAPI
+                                                let state = sentAction.data.state
+                                                console.log(`Successfully Deployed contract ${contractName}\n`)
+                                                console.log('Contract API:\n',API)
+                                                console.log('\nInitial state of contract:', state)
+                                                console.log('\nResult of deployment:', result)
+                                            }else{
+                                                console.log(response.data)
+                                            }
+                                            
+                                        })
+                                        .catch(e => console.log(e))
+                                        socket.close()
+                                    }else{
+                                        console.log('ERROR: Could not sign action')
+                                    }
+                                    
+            
+                                }else{
+                                    console.log('ERROR: Could not unlock wallet')
+                                }
+                            })
+                          }
+                      })
+                  
                 }else{
                     throw new Error('ERROR: Could not find target contract file')
                 }

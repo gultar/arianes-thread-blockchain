@@ -3,8 +3,9 @@ const EventEmitter = require('events')
 
 
 class VMBootstrap{
-    constructor({ contractConnector }){
+    constructor({ contractConnector, accountTable }){
         this.contractConnector = contractConnector
+        this.accountTable = accountTable
         this.child = null;
         this.events = new EventEmitter()
         this.ping = null;
@@ -144,11 +145,34 @@ class VMBootstrap{
                     }
                 }else{
                     this.child.send({error:'Could not find state of '+message.getState})
-                    console.log()
+                }
+            }else if(message.getContract){
+                console.log('Requested a contract', message.getContract)
+                let contract = await this.contractConnector.getContractCode(message.getContract);
+                if(contract && Object.keys(contract).length > 0){
+                    if(contract.error) this.child.send({error:contract.error})
+                    else{
+                        this.child.send({ contract:contract })
+                    }
+                }else{
+                    this.child.send({ contract:{} })
+                }
+            }else if(message.getAccount){
+                let account = await this.accountTable.getAccount(message.getAccount);
+                if(account && Object.keys(account).length > 0){
+                    if(account.error) this.child.send({error:account.error})
+                    else{
+                        this.child.send({ account:account })
+                    }
+                }else{
+                    this.child.send({ account:{} })
                 }
             }else if(message.error){
                 console.log('VM ERROR:',message)
                 if(message.error.hash){
+                    if(message.error && Object.keys(message.error).length == 0){
+                        message.error = 'ERROR: Unknown error'
+                    }
                     this.events.emit(message.error.hash, {
                         error:message.error,
                         contractName:message.error.contractName

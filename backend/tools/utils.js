@@ -38,7 +38,7 @@ const logger = (message, arg) => {
 
 function RecalculateHash(block){
 
-  return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot).toString();
+  return sha256(block.previousHash + block.timestamp + block.merkleRoot + block.nonce + block.actionMerkleRoot ).toString();
 }
 
 function merkleRoot(dataSet){
