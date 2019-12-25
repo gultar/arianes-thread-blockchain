@@ -285,8 +285,9 @@ class Mempool{
             let hashes = Object.keys(this.actionReceipts)
             // console.log('Action Receipts:', this.actionReceipts)
             let errors = {}
+            let batchSize
             for await(var hash of hashes){
-                let batchSize = await this.calculateSizeOfBatch(actions);
+                batchSize = jsonSize(actions);
 
                 if(batchSize < this.maxBatchSize){
                     let action = await this.getAction(hash)
@@ -301,6 +302,10 @@ class Mempool{
                         
                     }
                     
+                }else{
+                    
+                    resolve(actions)
+                    break;
                 }
                 
             }
