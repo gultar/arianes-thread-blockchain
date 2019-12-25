@@ -1010,10 +1010,10 @@ class Node {
         // console.log('Up to date peer is of type ', typeof peer)
         if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
         else{
-          console.log('requesting ', unsyncedBlockHash)
+          
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            console.log('Received a missing block', block.hash)
+            
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
@@ -1024,7 +1024,7 @@ class Node {
               resolve({error:block.error})
             }else if(block){
               
-              // let isPartOfBranch = this.chain.branches[block.hash]
+              
               let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
               
               missingBlocks = [ block, ... missingBlocks ]
@@ -1035,11 +1035,7 @@ class Node {
                 resolve({ isLinked:missingBlocks })
                 
               }
-              // else if(isPartOfBranch){
-              //   peer.off('previousBlock')
-              //   clearTimeout(timeout)
-              //   resolve({ isBranch:missingBlocks })
-              // }
+              
               else{
                 
                 peer.emit('getPreviousBlock', block.hash)
