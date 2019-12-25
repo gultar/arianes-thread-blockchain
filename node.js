@@ -1535,8 +1535,9 @@ class Node {
         console.log(JSON.stringify(state, null, 1))
       })
 
-      socket.on('getBlockForks', ()=>{
-        console.log(this.chain.blockForks)
+      socket.on('getBlockSize', async (blockNumber)=>{
+        let block = await this.chain.getBlockFromDB(blockNumber)
+        console.log('Block', require('json-size')(block))
       })
 
       socket.on('showBalanceHistory', async ()=>{
@@ -1576,16 +1577,6 @@ class Node {
 
       socket.on('update', ()=>{
         this.broadcast('getBlockchainStatus');
-      })
-
-      socket.on('testgetMostUpToDatePeer', async ()=>{
-        let index = this.chain.getIndexOfBlockHash('000118d8e039099287a60ad7d15e580e135ced19a2b9431d077bdcd50ee3ce0c')
-        console.log('Index', index)
-        let unlinkedBlock = this.chain.chain[index]
-        let nextBlock = this.chain.chain[index + 1]
-        let nextNextBlock = this.chain.chain[index + 2]
-        this.chain.unlinkedBranches[unlinkedBlock.previousHash] = [ unlinkedBlock, nextBlock, nextNextBlock ]
-        console.log(await this.fixBranchOutOfSyncIssue('000118d8e039099287a60ad7d15e580e135ced19a2b9431d077bdcd50ee3ce0c'))
       })
 
       socket.on('getMempool', ()=>{
@@ -1708,7 +1699,7 @@ class Node {
         api.isBuildingBlock = false
         return rawBlock
       }else{
-        if(api.isBuildingBlock) console.log('Is already building')
+        
         // console.log({ error:{
         //   message:'ERROR: Node is unable to create new block',
         //   reason:{

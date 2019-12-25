@@ -445,6 +445,13 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           socket.emit('getChain', args[0])
           break;
+        case 'blocksize':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('getBlockSize', args[0])
+          break;
         case 'roll':
           if(!isConnected){
             connectError(cmd);
