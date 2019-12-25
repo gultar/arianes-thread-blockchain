@@ -1700,14 +1700,14 @@ class Node {
         return rawBlock
       }else{
         
-        // console.log({ error:{
-        //   message:'ERROR: Node is unable to create new block',
-        //   reason:{
-        //     isDownloading:this.isDownloading,
-        //     isBusy:this.chain.isBusy,
-        //     isOutOfSync:this.isOutOfSync
-        //   }
-        // },  })
+        console.log({ error:{
+          message:'ERROR: Node is unable to create new block',
+          reason:{
+            isDownloading:this.isDownloading,
+            isBusy:this.chain.isBusy,
+            isBuildingBlock:api.isBuildingBlock
+          }
+        },  })
 
         return { error:{
           message:'ERROR: Node is unable to create new block',
@@ -1728,11 +1728,14 @@ class Node {
 
     api.on('miningOver', ()=>{
       api.isMining = false
+      api.isBuildingBlock = false
     })
 
     api.on('miningCancelled', async (block)=>{
       let blockUnwrapped = await unwrapBlock(block)
       if(blockUnwrapped.error) console.log(`UNWRAP ERROR: ${blockUnwrapped.error}`)
+      
+      api.isBuildingBlock = false
     })
 
     api.on('isNewBlockReady', async (minerPreviousBlock)=>{
@@ -1978,32 +1981,27 @@ class Node {
                   //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                   if(added.findMissing){
                     
-                    // let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
-                    // this.broadcast('getBlockchainStatus')
-                    logger('BRANCHING: Trying to find missing blocks to connect new unlinked branch to current blockchain')
                     let fixed = await this.fixUnlinkedBranch(added.findMissing);
                     if(fixed.error) resolve({error:fixed.error})
                     else resolve(fixed)
 
                   }else if(added.switched && added.switched.outOfSync){
-                    logger('WARNING: Blockchain out of sync with peer. Rolling back changes to sync')
+                    
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
                     resolve(rolledback)
                   }else if(added.unlinked){
-                    logger('BRANCHING: Trying to find missing blocks to connect new unlinked branch to current blockchain')
+                    
                     let fixed = await this.fixUnlinkedBranch(added.unlinked);
                     if(fixed.error) resolve({error:fixed.error})
                     else resolve(fixed)
 
                   }else if(added.unlinkedExtended){
-                    logger('BRANCHING: Trying to find missing blocks to connect extended unlinked branch to blockchain')
+                    
                     let fixed = await this.fixUnlinkedBranch(added.unlinkedExtended);
                     if(fixed.error) resolve({error:fixed.error})
                     else resolve(fixed)
-                    // let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
-                    // this.broadcast('getBlockchainStatus')
-                    // resolve(rolledback)
+                    
                   }else{
                     if(minerOn){
                       this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
