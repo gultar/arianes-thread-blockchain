@@ -2,6 +2,7 @@
 const Database = require('./db')
 const jsonSize = require('json-size');
 const EventEmitter = require('events')
+const { logger } = require('../tools/utils')
 
 
 class Mempool{
@@ -16,7 +17,7 @@ class Mempool{
         this.actionReceipts = {}
         this.usedTxReceipts = {}
         this.usedActionReceipts = {}
-        this.maxBatchSize = 50000
+        this.maxBatchSize = 500000
         this.busyGathering = false
         this.events = new EventEmitter()
     }
@@ -231,23 +232,30 @@ class Mempool{
 
     gatherTransactionsForBlock(){
         return new Promise( async (resolve)=>{
+            
             let transactions = {}
             let hashes = Object.keys(this.txReceipts)
             let errors = {}
+            let batchSize = 0
             for await(var hash of hashes){
-                let batchSize = await this.calculateSizeOfBatch(transactions);
-
+                batchSize += jsonSize(transactions)//await this.calculateSizeOfBatch(transactions)
+                
                 if(batchSize < this.maxBatchSize){
                     let transaction = await this.getTransaction(hash)
                     
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
                         let used = await this.useTransaction(hash)
-                        if(used){
+                        
+                        if(used && !used.error){
                             transactions[transaction.hash] = transaction
                         }
                     }
                     
+                }else{
+                    
+                    resolve(transactions)
+                    break;
                 }
                 
             }
@@ -400,14 +408,13 @@ class Mempool{
             let totalSize = 0;
             let hashes = Object.keys(batch)
             for await(var hash of hashes){
-                let size = 0
+                
                 if(this.txReceipts[hash]){
-                    size = this.txReceipts[hash].size
+                    totalSize += jsonSize(this.txReceipts[hash])
                 }else if(this.actionReceipts[hash]){
-                    size = this.actionReceipts[hash].size
+                    totalSize += jsonSize(this.actionReceipts[hash])
                 }
-
-                totalSize += size
+                
             }
 
             resolve(totalSize)

@@ -1654,7 +1654,7 @@ class Node {
   async minerConnector(api){
     logger('Miner connected!');
     api.hasSentBlock = false
-    
+    api.isBuildingBlock = false
 
     const sendNextBlock = async (minerPreviousBlock) =>{
       if(!this.isDownloading && !api.hasSentBlock && !api.isMining){
@@ -1687,7 +1687,9 @@ class Node {
     
     const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
       
-      if(!this.isDownloading){
+      if(!this.isDownloading && !api.isBuildingBlock){
+        api.isBuildingBlock = true
+        
         let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions.error) console.log('Mempool error: ',transactions.error)
         let actions = await this.mempool.gatherActionsForBlock()
@@ -1701,23 +1703,25 @@ class Node {
           previousHash:nextBlock.hash,
           blockNumber:nextBlock.blockNumber + 1
         } 
-        
+
+        api.isBuildingBlock = false
         return rawBlock
       }else{
-        console.log({ error:{
-          message:'ERROR: Node is unable to create new block',
-          reason:{
-            isDownloading:this.isDownloading,
-            isBusy:this.chain.isBusy,
-            isOutOfSync:this.isOutOfSync
-          }
-        },  })
+        // console.log({ error:{
+        //   message:'ERROR: Node is unable to create new block',
+        //   reason:{
+        //     isDownloading:this.isDownloading,
+        //     isBusy:this.chain.isBusy,
+        //     isOutOfSync:this.isOutOfSync
+        //   }
+        // },  })
+
         return { error:{
           message:'ERROR: Node is unable to create new block',
           reason:{
             isDownloading:this.isDownloading,
             isBusy:this.chain.isBusy,
-            isOutOfSync:this.isOutOfSync
+            isBuildingBlock:api.isBuildingBlock
           }
         },  }
       }
