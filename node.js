@@ -1708,6 +1708,7 @@ class Node {
         api.isBuildingBlock = false
         return rawBlock
       }else{
+        if(api.isBuildingBlock) console.log('Is already building')
         // console.log({ error:{
         //   message:'ERROR: Node is unable to create new block',
         //   reason:{
