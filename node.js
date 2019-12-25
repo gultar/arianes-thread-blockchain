@@ -1004,15 +1004,15 @@ class Node {
         if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
         else{
           console.log('requesting ', unsyncedBlockHash)
-          peer.emit('getPreviousBlock', unsyncedBlockHash)
-          peer.on('previousBlock', (block)=>{
+          peer.emit('getBlockFromHash', unsyncedBlockHash)
+          peer.on('getBlockFromHash', (block)=>{
             console.log('Received a missing block', block)
             if(block.end){
-              peer.off('previousBlock')
+              peer.off('blockFromHash')
               clearTimeout(timeout)
               resolve({error:block.end})
             }else if(block.error){
-              peer.off('previousBlock')
+              peer.off('blockFromHash')
               clearTimeout(timeout)
               resolve({error:block.error})
             }else if(block){
@@ -1021,19 +1021,21 @@ class Node {
               let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
       
               if(isLinkedToChain){
-                peer.off('previousBlock')
+                peer.off('blockFromHash')
                 // "Unshifted" manually since we're looking backyards, not forwards
                 clearTimeout(timeout)
                 resolve({ isLinked:missingBlocks })
                 
               }else if(isPartOfBranch){
-                peer.off('previousBlock')
+                peer.off('blockFromHash')
                 clearTimeout(timeout)
                 resolve({ isBranch:missingBlocks })
+              }else{
+                missingBlocks = [ block, ... missingBlocks]
+                peer.emit('getBlockFromHash', block.hash)
               }
 
-              missingBlocks = [ block, ... missingBlocks]
-              peer.emit('getPreviousBlock', block.hash)
+              
             }
           })
         }

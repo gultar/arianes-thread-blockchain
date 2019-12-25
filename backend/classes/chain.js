@@ -429,6 +429,7 @@ class Blockchain{
       else{
         let firstUnlinkedBlock = existingUnlinkedBranch[0]
         if(!firstUnlinkedBlock) return { error:'ERROR: Unlinked branch does not have a first block' }
+        
         this.unlinkedBranches[newBlock.hash] = [ ...this.unlinkedBranches[newBlock.previousHash], newBlock ]
         delete this.unlinkedBranches[newBlock.previousHash]
 
