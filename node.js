@@ -932,7 +932,7 @@ class Node {
         //By finding the missing blocks, current branch is to be swapped with it
         // console.log('About to find missing blocks')
         let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
-        console.log('Missing block:', missingBlocks)
+        
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
           if(!Array.isArray(missingBlocks.isBranch) && typeof missingBlocks.isBranch == 'object'){
@@ -972,11 +972,11 @@ class Node {
           if(missingBlocks.isLinked.length == 0){
             resolve({error:'ERROR: Peer could not find any of the missing blocks'})
           }else{
-            let firstBlock = missingBlocks.isLinked[0]
+            
             let lastBlock = missingBlocks.isLinked[missingBlocks.isLinked.length - 1]
             // console.log('First missing block', firstBlock)
             let unlinkedBranch = this.chain.unlinkedBranches[lastBlock.hash]
-            console.log('Unlinked chain length', this.chain.unlinkedBranches[unlinkedHash])
+            
             unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
             // console.log('Unlinked chain new length', unlinkedBranch.length)
             let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
