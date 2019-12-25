@@ -971,7 +971,7 @@ class Node {
           let firstBlock = missingBlocks.isLinked[0]
           // console.log('First missing block', firstBlock)
           let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
-          // console.log('Unlinked chain length', unlinkedBranch.length)
+          console.log('Unlinked chain length', this.chain.unlinkedBranches[unlinkedHash])
           unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
           // console.log('Unlinked chain new length', unlinkedBranch.length)
           let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
@@ -1006,7 +1006,7 @@ class Node {
           console.log('requesting ', unsyncedBlockHash)
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            console.log('Received a missing block', block)
+            console.log('Received a missing block', block.hash)
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
@@ -1016,7 +1016,7 @@ class Node {
               clearTimeout(timeout)
               resolve({error:block.error})
             }else if(block){
-              console.log('Branches hashes', Object.keys(this.chain.branches))
+              
               let isPartOfBranch = this.chain.branches[block.hash]
               let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
       
@@ -1032,7 +1032,7 @@ class Node {
                 resolve({ isBranch:missingBlocks })
               }else{
                 missingBlocks = [ block, ... missingBlocks ]
-              peer.emit('getPreviousBlock', block.hash)
+                peer.emit('getPreviousBlock', block.hash)
               }
 
               
