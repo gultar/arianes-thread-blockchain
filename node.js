@@ -1568,6 +1568,11 @@ class Node {
         this.broadcast('getBlockchainStatus');
       })
 
+      socket.on('forceReceiveBlocks', ()=>{
+        logger('Will now receive new blocks mined on the network')
+        this.update = true
+      })
+
       socket.on('getMempool', ()=>{
         socket.emit('mempool', { transactions:this.mempool.txReceipts, actions:this.mempool.actionReceipts });
       })
