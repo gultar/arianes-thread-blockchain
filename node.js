@@ -1885,8 +1885,19 @@ class Node {
                 this.chain.isBusy = true
                 let added = await this.handleNewBlockFound(data, originAddress);
                 this.chain.isBusy = false;
-                if(added.error){
-                  logger(chalk.red('REJECTED BLOCK:'), added.error)
+                if(added){
+                  if(added.error){
+                    logger(chalk.red('REJECTED BLOCK:'), added.error)
+                  }
+
+                  let blocks = this.blocksToValidate
+
+                  for await(let block of blocks){
+                    let added = await this.handleNewBlockFound(data, originAddress);
+                    if(added.error){
+                      logger(chalk.red('REJECTED BLOCK TO VALIDATE:'), added.error)
+                    }
+                  }
                 }
               }
               break;
