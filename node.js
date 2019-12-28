@@ -788,7 +788,6 @@ class Node {
         clearTimeout(this.retrySending)
         if(block.end){
           logger('Blockchain updated successfully!')
-          // clearInterval(retry)
           closeConnection()
           resolve(true)
         }else if(block.error){
@@ -854,6 +853,7 @@ class Node {
                       console.log(downloaded.error)
                       resolve(false)
                     }else{
+                      this.updated = true
                       peer.send('getBlockchainStatus')
                       resolve(true)
                     }
@@ -1952,7 +1952,7 @@ class Node {
   handleNewBlockFound(data, fromPeer){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
-        if(!this.isDownloading){
+        if(!this.isDownloading && this.updated){
           try{
 
             let block = JSON.parse(data);
