@@ -6,9 +6,7 @@ const { logger } = require('../tools/utils')
 
 
 class Mempool{
-    constructor(opts){
-        // this.transactions = new Database('./data/transactionDB')
-        // this.actions = new Database('./data/actionDB')
+    constructor(){
         this.transactions = new Database('transactionsPool')
         this.actions = new Database('actionsPool')
         this.txReceipts = {}
@@ -17,7 +15,7 @@ class Mempool{
         this.actionReceipts = {}
         this.usedTxReceipts = {}
         this.usedActionReceipts = {}
-        this.maxBatchSize = 500 * 10000;
+        this.maxBatchSize = 1000 * 10000;
         this.busyGathering = false
         this.events = new EventEmitter()
     }
@@ -237,19 +235,20 @@ class Mempool{
             let hashes = Object.keys(this.txReceipts)
             let errors = {}
             let batchSize = 0
+            
             for await(var hash of hashes){
-                batchSize += jsonSize(transactions)//await this.calculateSizeOfBatch(transactions)
+                batchSize += jsonSize(transactions)
                 
                 if(batchSize < this.maxBatchSize){
                     let transaction = await this.getTransaction(hash)
                     
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
-                        let used = await this.useTransaction(hash)
                         
-                        if(used && !used.error){
-                            transactions[transaction.hash] = transaction
-                        }
+                        let used = await this.useTransaction(hash)
+                        if(used && !used.error) transactions[transaction.hash] = transaction
+                    }else{
+                        console.log('Could not get tx ', hash)
                     }
                     
                 }else{
@@ -348,6 +347,29 @@ class Mempool{
                     
                 }else{
                     // console.log('Could not find transaction '+hash+" to delete")
+                }
+                
+            }
+
+            if(Object.keys(errors) > 0){
+                resolve({error:errors})
+            }else{
+                resolve(true)
+            }
+
+        })
+    }
+
+    deleteTransactionsOfBlock(transactions){
+        return new Promise(async (resolve)=>{
+            let hashes = Object.keys(transactions)
+            let errors = {}
+
+            for(var hash of hashes){
+
+                let deleted = await this.transactions.delete({_id:hash})
+                if(deleted){
+                    if(deleted.error) errors[hash] = deleted.error 
                 }
                 
             }
@@ -522,9 +544,10 @@ class Mempool{
         return new Promise(async (resolve)=>{
             let txEntry = await this.transactions.getAll()
             let actionEntry = await this.actions.getAll()
-            // console.log(txEntry)
+            
             if(txEntry && txEntry.length){
                 for await(let index of txEntry){
+                    
                     let hash = index._id
                     this.txReceipts[hash] = index[hash]
                     // console.log(txEntry)

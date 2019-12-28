@@ -324,6 +324,7 @@ class ContractVM{
                             contractName:call.contractName
                         })
                     }else{
+                        
                         resolve({
                             value:result,
                             hash:call.hash,

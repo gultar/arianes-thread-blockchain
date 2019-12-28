@@ -59,18 +59,7 @@ const txgen = (program) =>{
                         if(signature){
                             transaction.signature = signature;
                             socket.emit('transaction', transaction)
-                            
-                            // axios.post(`${nodeAddress}/transaction`, transaction)
-                            // .then( success => {
-                            //     console.log(JSON.stringify(success.data, null, 2))
-                            //     setTimeout(()=>{
-                            //         txgen(program)
-                            //        }, 20) 
-                            // })
-                            // .catch( e => {
-                            //     console.log(e)
-                            //     resolve(false)
-                            // })
+                           
                         }else{
                             console.log('ERROR: Could not sign transaction')
                         }
@@ -81,10 +70,14 @@ const txgen = (program) =>{
                     console.log('ERROR: Could not find wallet')
                 }
                 
-            }, 500)
+            }, 1000)
             socket.on('transactionEmitted', (result)=>{
                 if(result.error) clearInterval(generator)
                 console.log(result)
+            })
+            socket.on('disconnect', ()=>{
+                console.log('Stopping txgen')
+                process.exit(0)
             })
         })
         

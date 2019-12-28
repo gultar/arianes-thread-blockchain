@@ -356,6 +356,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                     else if(typeof initParams == 'string'){
                         initParams = JSON.parse(initParams)
                     }
+                    
                     initParams.contractAccount = accountName;
                     
                     initParams = JSON.stringify(initParams)

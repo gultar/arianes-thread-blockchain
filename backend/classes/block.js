@@ -68,6 +68,72 @@ class Block{
 
   }
 
+  powerMine(difficulty){
+    return new Promise(async(resolve)=>{
+      const {
+        Worker, isMainThread, parentPort, workerData, MessageChannel
+      } = require('worker_threads');
+
+      const stopMiners = async ({ stop, abort })=>{
+        if(process.WORKER_POOL){
+          for await(let worker of process.WORKER_POOL){
+            if(stop){
+              worker.postMessage({stop:true})
+            }else if(abort){
+              worker.postMessage({abort:true})
+            }
+          }
+        }
+      }
+
+      process.WORKER_POOL = []
+      
+      if (isMainThread){
+        let cpus = require('os').cpus()
+        
+        for await(let cpu of cpus){
+          const worker = new Worker('./backend/tools/pow.js', {
+            workerData: {
+              block:this,
+              difficulty:difficulty
+            }
+          });
+          
+          worker.on('message', async(message)=>{
+            if(message.message) console.log(message.message)
+            if(message.success){
+              let block = message.success
+              process.STOP_WORKERS({stop:true})
+              resolve(block)
+            }else if(message.aborted){
+              console.log('Aborting miners')
+              process.STOP_WORKERS({ abort:true })
+              resolve(false)
+            }
+          });
+          
+          worker.on('error', async(error)=>{
+            console.log('ERROR:', error)
+            process.STOP_WORKERS({ abort:true })
+          });
+
+          worker.on('exit', (code) => {});
+
+          worker.postMessage({start:true})
+          process.WORKER_POOL.push(worker)
+        }
+
+        process.STOP_WORKERS = stopMiners
+      }else{
+        console.log('Inside Worker!');
+        console.log(isMainThread);
+      }
+
+    })
+  }
+
+
+
   createMerkleRoot(transactions){
 
   	if(transactions != undefined){

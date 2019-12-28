@@ -14,6 +14,7 @@ class Miner{
         this.address = params.address;
         this.keychain = params.keychain;
         this.verbose = params.verbose;
+        this.clusterMiner = params.clusterMiner
         this.wallet = {}
         this.genesis = genesis
         this.manager = new WalletManager()
@@ -22,6 +23,7 @@ class Miner{
         this.minerReady = false;
         this.minerStarted = false;
         this.miningReward = 50;
+        this.requeryTime = 1000 // 1 second
         this.blockNumbersMined = {}
         this.pool = {
           pendingTransactions:{},
@@ -60,7 +62,9 @@ class Miner{
         this.socket = ioClient(url, config)
         this.socket.on('connect', ()=>{
           this.log('Miner connected to ', url)
-          this.run()
+          this.socket.emit('getLatestBlock')
+          this.socket.emit('isNewBlockReady', this.previousBlock)
+
         })
         this.socket.on('latestBlock', (block)=>{
             this.previousBlock = block
@@ -77,6 +81,11 @@ class Miner{
             }
             
         })
+        this.socket.on('wait', ()=>{
+          setTimeout(()=>{
+            this.socket.emit('isNewBlockReady', this.previousBlock)
+          },this.requeryTime)
+        })
         this.socket.on('transactionSent', ()=>{
           this.socket.emit('isNewBlockReady', this.previousBlock)
           this.socket.emit('getLatestBlock')
@@ -86,7 +95,7 @@ class Miner{
           this.socket.emit('getLatestBlock')
         })
         
-        this.socket.on('stopMining', ()=>{ this.pause() })
+        this.socket.on('stopMining', ()=>{ this.pause({ abort:true }) })
 
         this.socket.on('error', error => console.log('ERROR',error))
         this.socket.on('disconnect', ()=>{
@@ -98,71 +107,67 @@ class Miner{
     }
 
     async start(rawBlock){
-        
-          
-        let block = await this.prepareBlockForMining(rawBlock);
-        if(block){
-          if(this.previousBlock.hash !== block.hash && !this.blockNumbersMined[block.blockNumber]){
-            if(!this.minerStarted){
-              this.currentMinedBlock = block
-              this.socket.emit('mining', block)
-              this.minerStarted = true
-              this.log('Starting to mine block '+block.blockNumber)
-              this.log('Number of transactions being mined: ', Object.keys(block.transactions).length)
-              this.log('Number of actions being mined: ', Object.keys(block.actions).length)
-              this.log('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
-              let success = await block.mine(block.difficulty);
-              if(success){
-                this.pause()
-                block.endMineTime = Date.now()
-                block = success;
-                this.successMessage(block)
-                this.socket.emit('newBlock', block)
-                this.minerStarted = false;
-                this.previousBlock = block;
-                this.socket.emit('miningOver')
-                this.blockNumbersMined[block.blockNumber] = block.hash
-                
-              }else{
-                
-                this.log('Mining unsuccessful')
-                this.socket.emit('miningOver')
-                this.socket.send('newBlock', { failed:block })
-                this.minerStarted = false;
-                this.pause()
-              }
+      
+      let block = await this.prepareBlockForMining(rawBlock);
+      if(block){
+        if(this.previousBlock.hash !== block.hash && !this.blockNumbersMined[block.blockNumber]){
+          if(!this.minerStarted){
+            this.currentMinedBlock = block
+            this.socket.emit('mining', block)
+            this.minerStarted = true
+            this.log('Starting to mine block '+block.blockNumber)
+            this.log('Number of transactions being mined: ', Object.keys(block.transactions).length)
+            this.log('Number of actions being mined: ', Object.keys(block.actions).length)
+            this.log('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
+            let success = false
+            
+            if(this.clusterMiner) success = await block.powerMine(block.difficulty)
+            else success = await block.mine(block.difficulty);
+            if(success){
+              this.pause()
+              block.endMineTime = Date.now()
+              block = success;
+              this.successMessage(block)
+              this.socket.emit('newBlock', block)
+              this.minerStarted = false;
+              this.previousBlock = block;
+              this.socket.emit('miningOver')
+              this.blockNumbersMined[block.blockNumber] = block.hash
+              
             }else{
-              this.log('Miner already started')
+              
+              this.log('Mining unsuccessful')
+              this.socket.emit('miningOver')
+              this.socket.send('newBlock', { failed:block })
+              this.minerStarted = false;
+              this.pause()
             }
           }else{
-            this.log('Will not mine the same block twice')
-            this.socket.emit('getNewBlock')
-            this.socket.emit('miningOver')
+            this.log('Miner already started')
           }
         }else{
-          this.log('Could not mine. Miner does not have next block')
+          this.log('Will not mine the same block twice')
           this.socket.emit('getNewBlock')
           this.socket.emit('miningOver')
         }
-
+      }else{
+        this.log('Could not mine. Miner does not have next block')
+        this.socket.emit('getNewBlock')
+        this.socket.emit('miningOver')
       }
 
-
-    run(){
-      // this.routine = setInterval(()=>{
-      //   if(!this.minerStarted){
-      //     this.socket.emit('getLatestBlock')
-      //     this.socket.emit('isNewBlockReady', this.previousBlock)
-      //   }
-      // }, 2000)
     }
 
-    pause(){
+    pause(abort=false){
       this.log('Mining interrupted')
         
       if(process.ACTIVE_MINER){
         process.ACTIVE_MINER.kill()
         process.ACTIVE_MINER = false;
+      }
+      if(process.WORKER_POOL && process.WORKER_POOL.length >0){
+        if(abort) process.STOP_WORKERS({ abort:true })
+        else process.STOP_WORKERS({ stop:true })
       }
       this.socket.send('newBlock', { failed:this.previousBlock })
       this.minerStarted = false;
@@ -200,50 +205,6 @@ class Miner{
       
     }
 
-    // async buildNewBlock(){
-
-    //   let transactions = JSON.parse(JSON.stringify(this.pool.pendingTransactions)) 
-    //   let actions = JSON.parse(JSON.stringify(this.pool.pendingActions))
-      
-    //   if(this.previousBlock){
-    //     if(Object.keys(transactions).length > 0){
-    //       if(!this.buildingBlock){
-  
-    //         this.buildingBlock = true
-    //         this.pool.pendingTransactions = {}
-    //         this.pool.pendingActions = {}
-  
-    //         transactions = await this.orderTransactionsByTimestamp(transactions)
-  
-    //         if(!this.nextCoinbase){
-    //           this.nextCoinbase = await this.createCoinbase()
-    //           transactions[this.nextCoinbase.hash] = this.nextCoinbase
-    //         }
-    //         let transactionsToAdd = JSON.parse(JSON.stringify(transactions))
-    //         let block = new Block(Date.now(), transactionsToAdd, actions);
-    //         block.coinbaseTransactionHash = this.nextCoinbase.hash
-    //         this.nextBlock = block
-  
-    //         block.startMineTime = Date.now()
-    //         block.blockNumber = this.previousBlock.blockNumber + 1;
-    //         block.previousHash = this.previousBlock.hash;
-  
-    //         let difficulty = new Difficulty(this.genesis)
-    //         block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
-    //         block.challenge = difficulty.setNewChallenge(block)
-    //         block.totalDifficulty = this.calculateTotalDifficulty(block)
-  
-    //         block.minedBy = this.wallet.publicKey;
-            
-    //         this.buildingBlock = false
-    //         return block;
-    //       }else{
-    //         return this.nextBlock
-    //       }
-    //     }
-    //   }
-      
-    // }
 
     async prepareBlockForMining(rawBlock){
         
@@ -267,37 +228,6 @@ class Miner{
         
     }
 
-    // orderTransactionsByTimestamp(transactions){
-    //   return new Promise((resolve)=>{
-    //     if(typeof transactions == 'object'){
-    //       this.log('Ordering transactions by timestamp')
-    //       let txHashes = Object.keys(transactions);
-    //       let orderedTransaction = {};
-    //       let txAndTimestamp = {};
-  
-    //       if(txHashes){
-    //         txHashes.forEach( hash =>{
-    //           let transaction = transactions[hash];
-    //           txAndTimestamp[transaction.timestamp] = hash;
-    //         })
-  
-    //         let timestamps = Object.keys(txAndTimestamp);
-    //         timestamps.sort(function(a, b){return a-b});
-    //         timestamps.forEach( timestamp=>{
-    //           let hash = txAndTimestamp[timestamp];
-    //           let transaction = transactions[hash];
-    //           orderedTransaction[hash] = transaction;
-    //         })
-  
-    //         resolve(orderedTransaction)
-  
-    //       }
-  
-    //   }
-    //   })
-
-    // }
-
     calculateTotalDifficulty(block){
       return (BigInt(parseInt(this.previousBlock.totalDifficulty, 16)) + BigInt(parseInt(block.difficulty, 16))).toString(16)
     }
@@ -318,7 +248,7 @@ class Miner{
         console.log(chalk.cyan("* Block successfully mined by : ")+block.minedBy)
         console.log(chalk.cyan('* Mined at: '), displayTime())
         console.log(chalk.cyan("* Challenge : "), pad(block.challenge, 64).substr(0, 25)+'...');
-        console.log(chalk.cyan("* Block time : "), (block.endMineTime - block.startMineTime)/1000)
+        console.log(chalk.cyan("* Block time : "), (block.timestamp - this.previousBlock.timestamp)/1000)
         console.log(chalk.cyan("* Nonce : "), block.nonce)
         console.log(chalk.cyan("* Difficulty : "), parseInt(block.difficulty, 16))
         console.log(chalk.cyan("* Total Difficulty : "), BigInt(parseInt(block.totalDifficulty, 16)))

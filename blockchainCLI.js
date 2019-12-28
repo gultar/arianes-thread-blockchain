@@ -186,7 +186,7 @@ process.on('SIGINT', async () => {
 
   node.chain.vmController.stop()
 
-  // node.closeNode()
+  
   
   let saved = await node.save()
   .catch(e=>{
@@ -196,4 +196,15 @@ process.on('SIGINT', async () => {
   process.exit()
 
 });
+
+
+
+
+
+
+
+
+
+
+
 

@@ -78,7 +78,7 @@ const isValidTransactionCallJSON = (transaction)=>{
     }
 }
 
-const isValidCallPayloadJSON = (callPayload)=>{
+const isValidCallPayloadJSON = (callPayload, returnErrors)=>{
     var v = new Validator();
     
     var schema = {
@@ -99,8 +99,8 @@ const isValidCallPayloadJSON = (callPayload)=>{
         if(valid.errors.length == 0){
             return true
         }else{
-            console.log(fetchErrors(valid.errors))
-            return false;
+            if(returnErrors) return valid.errors
+            else return false;
         }
         
     }

@@ -65,7 +65,7 @@ program
                                     // console.log(JSON.stringify(transaction, null, 2))
                                     axios.post(`${nodeAddress}/transaction`, transaction)
                                     .then( success => {
-                                        if(success.data.success) console.log(JSON.stringify(success.data.result, null, 2))
+                                        if(success.data.result) console.log(JSON.stringify(success.data.result, null, 2))
                                         else console.log(JSON.stringify(success.data, null, 2))
                                     })
                                     .catch( e => console.log(e))

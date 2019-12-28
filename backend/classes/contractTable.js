@@ -36,6 +36,7 @@ class ContractTable{
         return new Promise(async (resolve)=>{
             
             let { name, contractAPI, initParams, account, code, state } = contract
+            
             let alreadyExists = await this.contractDB.get(name)
             if(!alreadyExists){
                 let added = await this.contractDB.add({
@@ -58,7 +59,7 @@ class ContractTable{
                                 return this.getBlock(number)
                             }
                         })
-                        
+                        this.stateStorage[name].state = state;
                         let updated = await this.stateStorage[name].update(state)
                         if(updated.error) resolve({error:updated.error})
                         
@@ -155,9 +156,13 @@ class ContractTable{
     saveStates(){
         return new Promise(async (resolve)=>{
             for await(let contractName of Object.keys(this.stateStorage)){
-                let saved = await this.stateStorage[contractName].save()
+                if(this.stateStorage[contractName]){
+                    
+                    let saved = await this.stateStorage[contractName].save()
                 
-                if(saved.error) resolve({error:saved.error})
+                    if(saved.error) resolve({error:saved.error})
+                }
+                
             }
 
             resolve(true)
@@ -243,65 +248,6 @@ class ContractTable{
             }
         })
     }
-
-    // rollbackState(name, action){
-    //     return new Promise(async (resolve)=>{
-    //         if(name && action){
-    //             let state = await this.contractStateDB.get(name)
-    //             if(state){
-    //                 if(state.error) resolve({error:state.error})
-    //                 let stateAtAction = await this.getStateOfAction(name, action.hash)
-    //                 if(stateAtAction){
-    //                     if(stateAtAction.error) resolve({error:stateAtAction.error})
-
-    //                     let previousChanges = state.changes
-    //                     if(previousChanges){
-
-    //                         let actionHashes = Object.keys(previousChanges)
-    //                         let indexOfLastAction = actionHashes.length
-    //                         let positionOfAction = actionHashes.indexOf(action.hash)
-    //                         let numberOfActionsToRemove = indexOfLastAction - positionOfAction
-    //                         let actionsToRemove = actionHashes.splice(positionOfAction, numberOfActionsToRemove)
-                            
-    //                         if(numberOfActionsToRemove > 0){
-    //                             for await(var hashOfAction of actionsToRemove){
-                                    
-    //                                 delete previousChanges[hashOfAction];
-    //                             }
-
-    //                             let previousStateIndex = positionOfAction - 1
-    //                             let previousStateHash = actionHashes[previousStateIndex];
-    //                             let previousState = previousChanges[previousStateHash];
-        
-    //                             let added = await this.contractStateDB.add({
-    //                                 _id:state._id,
-    //                                 _rev:state._rev,
-    //                                 state:previousState || stateAtAction,
-    //                                 changes:previousChanges
-    //                             })
-    //                             resolve(added)
-    //                         }else{
-    //                             resolve({error:`No actions to remove during rollback of contract ${name}`})
-    //                         }
-                            
-    //                     }else{
-
-    //                     }
-                        
-
-    //                 }else{
-    //                     resolve({error:`Could not find contract state at specific action of contract ${name}`})
-    //                 }
-
-
-    //             }else{
-    //                 resolve({error:`Could not find state of contract ${name}`})
-    //             }
-    //         }else{
-    //             resolve({error:'ROLLBACK ERROR: Missing required parameters: name, action'})
-    //         }
-    //     })
-    // }
 
     async rollback(blockHash){
         if(blockHash){

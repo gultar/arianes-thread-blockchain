@@ -595,7 +595,6 @@ class Node {
           peer.on('connect_timeout', (timeout)=>{
             if(connectionAttempts >= 3) { 
               peer.destroy()
-              // delete this.connectionsToPeers[address];
             }else{
               connectionAttempts++;
             }
@@ -628,10 +627,7 @@ class Node {
               },5000);
               
               
-            }else{
-              // this.connectionsToPeers[address] = peer;
-              // logger('Already connected to target node')
-            }
+            }else{}
           })
 
           peer.on('newPeers', (peers)=> {
@@ -646,12 +642,6 @@ class Node {
             }
           })
 
-          // peer.on('pong', (pong)=>{
-          //   if(this.connectionsToPeers[address]){
-          //     this.connectionsToPeers[address].lastPing = Date.now()
-          //   }
-          // })
-
           peer.on('blockchainStatus', async (status)=>{
             logger(`Received blockchain status from peer ${address}`);
             if(!this.isDownloading){
@@ -664,7 +654,6 @@ class Node {
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
             this.connectToPeer(address)
-            // this.broadcast('getPeers')
             peer.destroy()
           })
 
@@ -1552,12 +1541,12 @@ class Node {
         console.log(history)
       })
 
-      // socket.on('showHistory', (key)=>{
-      //   if(this.chain.balance.history[key]){
-      //     console.log(JSON.stringify(this.chain.balance.history[key], null, 2))
-      //   }
-        
-      // })
+     socket.on('tryStoreCount', async ()=>{
+       let store = this.chain.contractTable.stateStorage['Tokens']
+       console.log(store)
+       let collection = await store.database.database.get('TokensStorage','*')
+       console.log(collection)
+     })
 
 
       socket.on('verbose', ()=>{
@@ -1581,6 +1570,11 @@ class Node {
 
       socket.on('getMempool', ()=>{
         socket.emit('mempool', { transactions:this.mempool.txReceipts, actions:this.mempool.actionReceipts });
+      })
+
+      socket.on('stopMining', ()=>{
+        console.log('Stopping miner')
+        this.localServer.socket.emit('stopMining')
       })
 
       socket.on('requestPeers', ()=>{
@@ -1655,6 +1649,7 @@ class Node {
             api.hasSentBlock = true
             api.emit('startMining', newRawBlock)
         }else{
+          api.emit('wait')
           // console.log(newRawBlock.error)
         }
       }else{
@@ -1678,26 +1673,29 @@ class Node {
     
     const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
       
-      if(!this.isDownloading && !api.isBuildingBlock){
-        api.isBuildingBlock = true
+      if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
+        if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
+          api.isBuildingBlock = true
         
-        let transactions = await this.mempool.gatherTransactionsForBlock()
-        
-        if(transactions.error) console.log('Mempool error: ',transactions.error)
-        let actions = await this.mempool.gatherActionsForBlock()
-        if(actions.error) console.log('Mempool error:',actions.error)
-        if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }
-        
-        let rawBlock = {
-          timestamp:Date.now(),
-          transactions:transactions,
-          actions:actions,
-          previousHash:nextBlock.hash,
-          blockNumber:nextBlock.blockNumber + 1
-        } 
-
-        api.isBuildingBlock = false
-        return rawBlock
+          let transactions = await this.mempool.gatherTransactionsForBlock()
+          if(transactions.error) console.log('Mempool error: ',transactions.error)
+          let actions = await this.mempool.gatherActionsForBlock()
+          if(actions.error) console.log('Mempool error:',actions.error)
+          if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }
+          
+          let rawBlock = {
+            timestamp:Date.now(),
+            transactions:transactions,
+            actions:actions,
+            previousHash:nextBlock.hash,
+            blockNumber:nextBlock.blockNumber + 1
+          } 
+  
+          api.isBuildingBlock = false
+          return rawBlock
+        }else{
+          return { error:'ERROR: Mempool is empty' }
+        }
       }else{
         
         // console.log({ error:{
@@ -1705,7 +1703,9 @@ class Node {
         //   reason:{
         //     isDownloading:this.isDownloading,
         //     isBusy:this.chain.isBusy,
-        //     isBuildingBlock:api.isBuildingBlock
+        //     isBuildingBlock:api.isBuildingBlock,
+        //     isValidating:api.isValidatingBlock,
+        //     isMining:api.isMining
         //   }
         // },  })
 
@@ -1728,7 +1728,6 @@ class Node {
 
     api.on('miningOver', ()=>{
       api.isMining = false
-      api.isBuildingBlock = false
     })
 
     api.on('miningCancelled', async (block)=>{
@@ -1765,17 +1764,19 @@ class Node {
           api.hasSentBlock = false
           
           this.chain.isBusy = true
+          api.isValidatingBlock = true
 
           let isValid = await this.chain.validateBlock(block)
           if(isValid){
             if(isValid.error) console.log('Is not valid mined block', isValid.error)
+            
             let added = await this.chain.addBlockToChain(block)
             if(added.error) logger('MinerBlock Error:',added.error)
             else{
               this.sendPeerMessage('newBlockFound', block);
               api.emit('latestBlock', this.chain.getLatestBlock())
             }
-
+            api.isBuildingBlock = false
             this.chain.isBusy = false
             
           }else{
@@ -1784,7 +1785,7 @@ class Node {
             this.chain.isBusy = false
           }
          
-  
+          api.isValidatingBlock = false
         }else if(block.failed){
           logger('Miner was interrupted')
           api.emit('latestBlock', this.chain.getLatestBlock())
@@ -1803,6 +1804,11 @@ class Node {
       }else{
         api.emit('error', {error: 'Chain is not ready'})
       }
+    })
+
+    api.on('disconnect', ()=>{
+      this.mempool.events.removeAllListeners('newAction')
+      this.mempool.events.removeAllListeners('newTransaction')
     })
 
     api.emit('latestBlock', this.chain.getLatestBlock())

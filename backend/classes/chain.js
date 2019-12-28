@@ -96,6 +96,8 @@ class Blockchain{
       genesisBlock.difficulty = '0x100000';//'0x2A353F';
       genesisBlock.totalDifficulty = genesisBlock.difficulty
       genesisBlock.challenge = setNewChallenge(genesisBlock)
+      genesisBlock.blockTime = 20
+      genesisBlock.consensus = "Proof of Work" //Possible values : Proof of Work, Permissioned, Proof of Stake, Proof of Importance
       genesisBlock.maxCoinSupply = Math.pow(10, 10);
       genesisBlock.signatures = {}
       genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesis.signatures )
@@ -214,33 +216,39 @@ class Blockchain{
       }else if(!isNextBlock){
         resolve({error:'ERROR: BlockNumber of new block does not follow this chain'})
       }else{
+        let errors = {}
 
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
         if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
+
         var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(newBlock)
         if(!doesNotContainDoubleSpend) resolve({error:'ERROR: Block may not contain a transaction that is already spent'})
         
-        let errors = {}
+        let actions = newBlock.actions || {}
+        let allActionsExecuted = await this.executeActionBlock(actions)
+        if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
+        
+        let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
+        if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
+        
+        let callsExecuted = await this.runTransactionCalls(newBlock);
+        if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+        
         let newHeader = this.extractHeader(newBlock)
-  
+        
         let executed = await this.balance.runBlock(newBlock)
+        
         if(executed.error) errors['Balance error'] = executed.error
         else{
-  
+          
           let saved = await this.balance.saveBalances(newBlock)
           if(saved.error) resolve({error:saved.error})
   
-          let actions = newBlock.actions || {}
-          let allActionsExecuted = await this.executeActionBlock(actions)
-          if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
           
-          let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
-          if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
           
-          let callsExecuted = await this.runTransactionCalls(newBlock);
-          if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
           
           let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+          
           if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
           
           
@@ -1908,6 +1916,27 @@ class Blockchain{
     })
   }
 
+  validateTransactionsOfBlock(block){
+    return new Promise(async (resolve, reject)=>{
+      let txHashes = Object.keys(block.transactions);
+        let errors = {}
+        for await (let hash of txHashes){
+          let transaction = block.transactions[hash];
+          let valid = await this.validateTransaction(transaction);
+          if(valid.error){
+            errors[hash] = valid.error
+            //If contains invalid tx, need to reject block alltogether
+            // delete block.transactions[hash];
+          }
+        }
+        if(Object.keys(errors).length > 0) resolve({error:errors})
+        else resolve(block);
+      
+    })
+  }
+
+
+
   coinbaseIsAttachedToBlock(transaction, block){
     if(block.coinbaseTransactionHash === transaction.hash){
       return true
@@ -2108,7 +2137,7 @@ class Blockchain{
         try{
 
             let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
-            if(!fromAccount) resolve({error:'REJECTED: Sending account is unknown'});
+            if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
 
               let isSignatureValid = await this.validateActionSignature(transaction, fromAccount.ownerKey)
@@ -2122,7 +2151,7 @@ class Blockchain{
               var balanceOfSendingAddr = await this.checkBalance(fromAccount.ownerKey) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
               let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
 
-              if(!toAccount) resolve({error:'REJECTED: Receiving account is unknown'});
+              if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
               if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
               //By enabling this, coins are burnt. 
               //By disabling, something bugs down the line

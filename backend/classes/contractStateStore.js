@@ -13,7 +13,7 @@ class ContractStateStore{
     }
 
     async update(state){
-        if(state){
+        if(state && !state.error){
             
             this.state = state;
             return true
@@ -30,8 +30,10 @@ class ContractStateStore{
             let previousState = {}
             if(previousBlock){
                 previousState = await this.getState(previousBlock.hash)
-                if(Object.keys(this.state).length == 0 && Object.keys(previousState).length > 0){
-                    this.state = previousState
+                if(previousState && !previousState.error){
+                    if(Object.keys(this.state).length == 0 && Object.keys(previousState).length > 0){
+                        this.state = previousState
+                    }
                 }
             }
             let added = await this.database.put({
@@ -76,7 +78,7 @@ class ContractStateStore{
 
                 return state
             }else{
-                return { error:`ERROR: Could not find current state of contract ${this.name} at block ${blockHash}` }
+                return { error:`ERROR: Could not find state of contract ${this.name} at block ${blockHash}` }
             }
         }catch(e){
             return {error:e}

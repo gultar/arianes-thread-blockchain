@@ -459,6 +459,20 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
           }
           socket.emit('rollback', args[0])
           break;
+        case 'stop':
+            if(!isConnected){
+              connectError(cmd);
+              break;
+            }
+            socket.emit('stopMining', args[0])
+            break;
+        case 'collection':
+            if(!isConnected){
+              connectError(cmd);
+              break;
+            }
+            socket.emit('tryStoreCount', args[0])
+            break;
         default:
           if (cmd) {
             output(cmd + ': command not found');
