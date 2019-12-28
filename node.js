@@ -271,6 +271,11 @@ class Node {
           let peer = this.connectionsToPeers[peerAddress];
           if(peer){
             let updated = await this.receiveBlockchainStatus(peer, peerStatus)
+            
+            if(updated){
+              if(updated.error) socket.emit('blockchainStatus', false)
+              
+            }
           }else{
             this.connectToPeer(peerAddress)
             logger('ERROR: Could not find peer socket to download blockchain')
@@ -848,15 +853,15 @@ class Node {
               if(isValidHeader){
 
                 let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
-                    if(downloaded.error){
-                      logger('Could not download blockchain')
-                      console.log(downloaded.error)
-                      resolve(false)
-                    }else{
-                      this.updated = true
-                      peer.send('getBlockchainStatus')
-                      resolve(true)
-                    }
+                if(downloaded.error){
+                  logger('Could not download blockchain')
+                  console.log(downloaded.error)
+                  resolve(false)
+                }else{
+                  this.updated = true
+                  peer.send('getBlockchainStatus')
+                  resolve(true)
+                }
                
               }else{
                 console.log(bestBlockHeader)
@@ -1968,7 +1973,7 @@ class Node {
   handleNewBlockFound(data, fromPeer){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
-        if(!this.isDownloading && this.updated){
+        if(!this.isDownloading){
           try{
 
             let block = JSON.parse(data);
