@@ -1902,14 +1902,14 @@ class Node {
                     logger(chalk.red('REJECTED BLOCK:'), added.error)
                   }
 
-                  let blocks = this.blocksToValidate
+                  // let blocks = this.blocksToValidate
 
-                  for await(let block of blocks){
-                    let added = await this.handleNewBlockFound(data, originAddress);
-                    if(added.error){
-                      logger(chalk.red('REJECTED BLOCK TO VALIDATE:'), added.error)
-                    }
-                  }
+                  // for await(let block of blocks){
+                  //   let added = await this.handleNewBlockFound(data, originAddress);
+                  //   if(added.error){
+                  //     logger(chalk.red('REJECTED BLOCK TO VALIDATE:'), added.error)
+                  //   }
+                  // }
                 }
               }
               break;
