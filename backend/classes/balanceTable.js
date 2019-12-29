@@ -325,42 +325,7 @@ class BalanceTable{
         
     }
 
-    // loadAllStates(){
-    //     return new Promise(async (resolve, reject)=>{
-            
-    //      try{
-    //          fs.exists('./data/balances.json', async (exists)=>{
-    //              if(exists){
-    //                 let balancesFile = await readFile('./data/balances.json');
-    //                 if(balancesFile){
-    //                     let balances = JSON.parse(balancesFile);
-    //                     if(balances){
-                            
-    //                         resolve(balances)
-    //                     }else{
-    //                         resolve(false)
-    //                     }
-    //                 }else{
-    //                     resolve(false)
-    //                 }
-    //              }else{
-    //                 let savedBalances = await this.saveStates();
-    //                 if(savedBalances){
-    //                     resolve(savedBalances)
-    //                 }else{
-    //                     resolve(false)
-    //                 }
-    //              }
-                
-    //          })
-
-             
-    //      }catch(e){
-    //          console.log(e)
-    //          resolve(false)
-    //      }
-    //     })
-    //    }
+   
 
        saveBalances(block){
            return new Promise(async (resolve)=>{
@@ -401,20 +366,20 @@ class BalanceTable{
            })
        }
 
-      saveStates(){
-          return new Promise((resolve, reject)=>{
-            try{
-                let saved = writeToFile({states:this.states, history:this.history}, './data/balances.json');
-                if(saved){
-                    logger('Saved balance states table');
-                    resolve(saved)
-                }
-            }catch(e){
-                reject(e)
-            }
-          })
+    //   saveStates(){
+    //       return new Promise((resolve, reject)=>{
+    //         try{
+    //             let saved = writeToFile({states:this.states, history:this.history}, './data/balances.json');
+    //             if(saved){
+    //                 logger('Saved balance states table');
+    //                 resolve(saved)
+    //             }
+    //         }catch(e){
+    //             reject(e)
+    //         }
+    //       })
         
-      }
+    //   }
 
 }
 

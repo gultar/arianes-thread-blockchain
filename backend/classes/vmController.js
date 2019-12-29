@@ -3,7 +3,7 @@ const vmBootstrap = require('../contracts/vmEngine/vmBootstrap')
 const ContractConnector = require('../contracts/build/contractConnector')
 
 class VMController{
-    constructor({ contractTable, accountTable }){
+    constructor({ contractTable, accountTable, buildCode }){
         this.vmMaster = vmMaster;
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
@@ -11,7 +11,8 @@ class VMController{
         
         this.vmBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
-            accountTable:accountTable
+            accountTable:accountTable,
+            buildCode:buildCode
         });
 
         this.vmChannel = this.vmBootstrap.startVM()
@@ -23,96 +24,112 @@ class VMController{
             let results = {}
             let errors = {}
             let states = {}
-            
+            this.vmChannel.emit('runCode', calls)
             this.vmChannel.on('results', async (results)=>{
-                if(results.error) resolve({error:results.error})
-                else{
-                    for await(let hash of Object.keys(results)){
-                        let result = results[hash]
+                
+                
+                if(!results || Object.keys(results).length == 0){
+                    resolve({error:'ERROR: Did not return results'})
+                }else{  
+                    if(results.error) resolve({error:results.error})
+                    else{
                         
-                        if(results.error) errors[hash] = result
-                        else{
-                            if(result.state && Object.keys(result.state).length > 0){
-                                states[result.contractName] = result.state
-                                results[hash] = result
-                            }else{
-                                errors[hash] = result
+                        for await(let hash of Object.keys(results)){
+                            let result = results[hash]
+                            if(result.error) errors[hash] = result
+                            else{
+                                if(result.state && Object.keys(result.state).length > 0){
+                                    states[result.contractName] = result.state
+                                    results[hash] = result
+                                }else{
+                                    errors[hash] = result
+                                }
+                                
                             }
+                        }
+        
+                        if(Object.keys(errors).length > 0){
+                            resolve({error:errors})
+                        }else{
+                            
+                            for await(let contractName of Object.keys(states)){
+                                let state = states[contractName]
+                                if(state && Object.keys(state).length > 0){
+                                    let updated = await this.contractConnector.updateState({
+                                        name:contractName,
+                                        newState:state,
+                                    })
+                                    if(updated.error) console.log('STATE ERROR:', updated.error)
+                                    
+                                }else{
+                                    console.log('STATE ERROR: Did not update state because state provided by VM was empty')
+                                }
+                            }
+                            resolve({ results:results, states:states })
                             
                         }
                     }
-    
-                    if(Object.keys(errors).length > 0){
-                        resolve({error:errors})
-                    }else{
-                        for await(let contractName of Object.keys(states)){
-                            let state = states[contractName]
-                            if(state && Object.keys(state).length > 0){
-                                let updated = await this.contractConnector.updateState({
-                                    name:contractName,
-                                    newState:state,
-                                })
-                                if(updated.error) console.log('STATE ERROR:', updated.error)
-                                
-                            }else{
-                                console.log('STATE ERROR: Did not update state because state provided by VM was empty')
-                            }
-                        }
-                        resolve({ results:results, states:states })
-                        
-                    }
                 }
+
                 
                 
             })
     
-            this.vmChannel.on('finished', async ()=>{
-                for await(let contractName of Object.keys(states)){
-                    if(states[contractName]){
-                        let state = states[contractName]
-                        if(state && Object.keys(state).length > 0){
-                            let updated = await this.contractConnector.updateState({
-                                name:contractName,
-                                newState:state,
-                            })
-                            if(updated.error) console.log('STATE ERROR:', updated.error)
-                        }else{
-                            console.log('STATE ERROR: Did not update state because state provided by VM was empty')
-                        }
-                    }
+            // this.vmChannel.on('finished', async ()=>{
+            //     for await(let contractName of Object.keys(states)){
+            //         if(states[contractName]){
+            //             let state = states[contractName]
+            //             if(state && Object.keys(state).length > 0){
+            //                 let updated = await this.contractConnector.updateState({
+            //                     name:contractName,
+            //                     newState:state,
+            //                 })
+            //                 if(updated.error) console.log('STATE ERROR:', updated.error)
+            //             }else{
+            //                 console.log('STATE ERROR: Did not update state because state provided by VM was empty')
+            //             }
+            //         }
                     
                     
-                }
-                if(Object.keys(errors).length > 0){
-                    console.log('CALL ERRORS: ', errors)
-                    resolve({error:errors})
-                }else{
-                    resolve({ results:results, states:states })
-                }
-            })
+            //     }
+            //     if(Object.keys(errors).length > 0){
+            //         console.log('CALL ERRORS: ', errors)
+            //         resolve({error:errors})
+            //     }else{
+            //         resolve({ results:results, states:states })
+            //     }
+            // })
 
-            this.vmChannel.emit('runCode', calls)
-            for await(let hash of Object.keys(calls)){
-                let call = calls[hash]
-                this.vmChannel.on(call.hash, async (result)=>{
-
-                    if(result.error){
-                        errors[hash] = result
-                    }else if(result.timeout){
-                        errors[hash] = result
-                    }else{
+            // const receiveResult = async (result)=>{
+            //     console.log('Result', result)
+            //         if(result.error){
+            //             errors[hash] = result
+            //         }else if(result.timeout){
+            //             errors[hash] = result
+            //         }else{
                         
-                        if(result.state && Object.keys(result.state).length > 0){
-                            states[result.contractName] = result.state
-                            results[hash] = result
-                        }else{
-                            errors[hash] = result
-                        }
-                    }
-                    this.vmChannel.removeAllListeners(call.hash)
-                })
+            //             if(result.state && Object.keys(result.state).length > 0){
+            //                 states[result.contractName] = result.state
+            //                 console.log('State', states)
+            //                 results[hash] = result
+            //             }else{
+            //                 errors[hash] = result
+            //             }
+            //         }
+            //         this.vmChannel.removeAllListeners(call.hash)
+            // }
+            
+            // for await(let hash of Object.keys(calls)){
                 
-            }
+            //     let call = calls[hash]
+            //     this.vmChannel.emit('run', call)
+            //     this.vmChannel.on(call.hash, receiveResult)
+                
+            // }
+
+            
+
+            
             
         })
         
@@ -177,10 +194,8 @@ class VMController{
 
                     this.vmChannel.on(code.hash, async (result)=>{
                         
-                        if(result && !result.timeout){
+                        if(result && !result.error && result.value){
                             resolve(result)
-                        }else if(result.timeout){
-                            resolve({ error:result.timeout })
                         }else if(result.error){
                             resolve({error:result.error})
                         }

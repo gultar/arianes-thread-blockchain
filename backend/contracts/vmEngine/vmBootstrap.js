@@ -1,15 +1,17 @@
 const EventEmitter = require('events')
-
+const { isValidContractCall } = require('../../tools/jsonvalidator')
 
 
 class VMBootstrap{
-    constructor({ contractConnector, accountTable }){
+    constructor({ contractConnector, accountTable, buildCode }){
         this.contractConnector = contractConnector
         this.accountTable = accountTable
+        this.buildCode = buildCode
         this.child = null;
         this.events = new EventEmitter()
         this.ping = null;
-        this.pingLimit = 25
+        this.pingLimit = 10
+        this.calls = {}
     }
 
     async addContract(contractName){
@@ -31,34 +33,43 @@ class VMBootstrap{
         }
     }
 
+    async buildContractCallCode(call){
+        if(isValidContractCall(call)){
+            let code = await this.buildCode(call)
+            return code
+        }else{
+            return false
+        }
+    }
+
     startVM(){
         
         this.child = require('child_process').fork(`./backend/contracts/vmEngine/workerVM.js`,{
             execArgv: [`--max-old-space-size=1024`],
             //silent:true
         })
+
         let unansweredPings = 0
         this.ping = setInterval(()=>{
             if(unansweredPings >= this.pingLimit){
                 console.log('VM is unresponsive. Restarting.')
+                this.events.emit('results', {error:'VM is unresponsive. Restarting.'})
                 this.restartVM()
             }else{
                 this.child.send({ping:true})
                 unansweredPings++
             }
-            
         }, 200)
 
         this.events.on('run', (code)=>{
-            
             this.child.send({run:code, hash:code.hash, contractName:code.contractName})
-            
         })
 
         this.events.on('runCode', async (codes)=>{
-            
+            for await(let hash of Object.keys(codes)){
+                this.calls[hash] = codes[hash]
+            }
             this.child.send({runCode:codes})
-            
         })
 
         this.child.on('message', async (message)=>{
@@ -69,22 +80,32 @@ class VMBootstrap{
                     contractName:message.contractName
                 })
                 
-                
-
             }else if(message.results){
-                
+                let hashes = Object.keys(message.results)
+                for await(let hash of hashes){
+                    delete this.calls[hash]
+                }
                 this.events.emit('results', message.results)
                 
-                
             }else if(message.singleResult){
-
-                let result = message.singleResult
-                this.events.emit(result.hash, {
-                    value:result.value,
-                    contractName:result.contractName,
-                    state:result.state,
-                    hash:result.hash
-                })
+                
+                if(message.singleResult.error){
+                    //VM Returned an error
+                    let result = message.singleResult
+                    this.events.emit(result.hash, {
+                        error:result.error,
+                        contractName:result.contractName,
+                        hash:result.hash
+                    })
+                }else{
+                    let result = message.singleResult
+                    this.events.emit(result.hash, {
+                        value:result.value,
+                        contractName:result.contractName,
+                        state:result.state,
+                        hash:result.hash
+                    })
+                }
                 
             }else if(message.getState){
                 console.log('VM Request state because its loaded state is empty')

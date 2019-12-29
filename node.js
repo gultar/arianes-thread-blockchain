@@ -1383,10 +1383,10 @@ class Node {
             if(transactionEmitted.value){
               delete transactionEmitted.value.state
               let result = { result:transactionEmitted.value, receipt:transaction }
-              socket.emit('transactionEmitted',JSON.stringify(result, null, 2));
+              socket.emit('transactionEmitted',result);
             }else{
               let receipt = JSON.stringify(transaction, null, 2)
-              socket.emit('transactionEmitted',receipt);
+              socket.emit('transactionEmitted',transaction);
             }
           }else{
             socket.emit('transactionEmitted', { error:'ERROR: Invalid transaction format' })
@@ -1546,11 +1546,18 @@ class Node {
         console.log(history)
       })
 
-     socket.on('tryStoreCount', async ()=>{
-       let store = this.chain.contractTable.stateStorage['Tokens']
-       console.log(store)
-       let collection = await store.database.database.get('TokensStorage','*')
-       console.log(collection)
+     socket.on('tryPing', async ()=>{
+       let action = {
+         fromAccount:'tuor',
+         data:{
+           contractName:'Ping',
+           method:'send',
+           cpuTime: 1000,
+           params:{}
+         }
+       }
+
+       let added = await this.mempool.addAction(action)
      })
 
 

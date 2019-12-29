@@ -56,6 +56,12 @@ const workerVM = () =>{
 
             let results = await vm.runManyCalls(message.runCode)
             process.send(results)
+            // for await(let call of message.runCode){
+            //   let result = await vm.run(call)
+            //   console.log('VM Result', result)
+            //   process.send({singleResult:result})
+            // }
+            // process.send({singleResult:{ finished }})
 
           }catch(e){
             process.send({error:e, hash:message.hash, contractName:message.contractName})

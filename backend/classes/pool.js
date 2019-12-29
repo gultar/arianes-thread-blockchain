@@ -247,8 +247,6 @@ class Mempool{
                         
                         let used = await this.useTransaction(hash)
                         if(used && !used.error) transactions[transaction.hash] = transaction
-                    }else{
-                        console.log('Could not get tx ', hash)
                     }
                     
                 }else{

@@ -13,6 +13,7 @@ const makeExternal = require('../toolbox/makeExternal')
 const getFunctionArguments = require('get-function-arguments')
 const fs = require('fs')
 const EventEmitter = require('events')
+const { isValidActionJSON } = require('../../tools/jsonvalidator')
 
 //Kind of useless
 class Signals extends EventEmitter{
@@ -32,6 +33,8 @@ class ContractVM{
         this.contractClasses = {}
         this.compiled = ''
         this.timers = {}
+        this.contractCallThreads = {}
+        this.contractCallDepthLimit = 10
         this.sandbox = {
             stateStorage:{},
             contractStates:{},
@@ -62,24 +65,40 @@ class ContractVM{
                                 this.signals.emit('getAccount', name)
                             })
                         },
-                        "getContract":(contractName)=>{
+                        "getContract":({ contractName, hash })=>{
+                            //Possibility of infinite loop
+                            //Maybe just send action to contract and execute in another context
                             return new Promise(async (resolve)=>{
-                                if(this.contractClasses[contractName]){
-                                    let contractClass = this.sandbox.context.require.mock[contractName]
-                                    resolve(contractClass)
-                                }else{
-                                    this.signals.once('contract', async (contract)=>{
-                                        if(contract && Object.keys(contract).length > 0){
-                                            let isSet = await this.setContractClass(contractName, contract)
-                                            let exported = await this.exportContractToSandbox(contractName)
-                                            if(exported.error)  resolve(false)
+                                if(!contractName) resolve({error:'ERROR: Contract name is undefined'})
+                                if(!hash) resolve({error:'ERROR: Call hash is undefined'})
+
+                                let thread = this.contractCallThreads[hash]
+                                if(thread){
+                                    let isDepthBelowLimit = thread.depth < this.contractCallDepthLimit
+                                    if(isDepthBelowLimit){
+                                        this.contractCallThreads[hash].depth++
+                                        if(this.contractClasses[contractName]){
                                             let contractClass = this.sandbox.context.require.mock[contractName]
-                                            resolve(contractClass) 
+                                            resolve(contractClass)
                                         }else{
-                                           resolve(false)
+                                            this.signals.once('contract', async (contract)=>{
+                                                if(contract && Object.keys(contract).length > 0){
+                                                    let isSet = await this.setContractClass(contractName, contract)
+                                                    let exported = await this.exportContractToSandbox(contractName)
+                                                    if(exported.error)  resolve(false)
+                                                    let contractClass = this.sandbox.context.require.mock[contractName]
+                                                    resolve(contractClass) 
+                                                }else{
+                                                    resolve(false)
+                                                }
+                                            })
+                                            this.signals.emit('getContract', contractName)
                                         }
-                                    })
-                                    this.signals.emit('getContract', contractName)
+                                    }else{
+                                        resolve({error:'ERROR: Call thread depth is above limit'})
+                                    }
+                                }else{
+                                    resolve({error:'ERROR: Must have active call thread to call contract'})
                                 }
                             })
                         },
@@ -255,7 +274,6 @@ class ContractVM{
                 let call = calls[hash]
 
                 let result = await this.run(call)
-                
                 if(result.error) errors[hash] = result
                 else results[hash] = result
             }
@@ -309,29 +327,51 @@ class ContractVM{
 
                 let code = this.wrapCode( codeToWrap, call.hash )
                 this.timers[call.hash] = createTimer(call.cpuTime, resolve)
+                this.contractCallThreads[call.hash] = {
+                    contractName:contractName,
+                    method:methodToRun,
+                    depth:0
+                }
                 let execute = this.vm.run(importHeader + code)
                 
                 execute(async (result, state)=>{
-                    clearTimeout(this.timers[call.hash])
-                    if(state && Object.keys(state).length > 0){
-                        this.sandbox.contractStates[call.contractName] = state
-                    }
                     
-                    if(result.error){
-                        resolve({
-                            error:result.error,
-                            hash:call.hash,
-                            contractName:call.contractName
-                        })
+                    
+                    
+                    
+                    // 
+
+                    if(result){
+                        if(state && Object.keys(state).length > 0){
+                            this.sandbox.contractStates[call.contractName] = state
+                        }
+
+                        clearTimeout(this.timers[call.hash])
+                        delete this.contractCallThreads[call.hash]
+                        if(result.error){
+                            resolve({
+                                error:result.error,
+                                hash:call.hash,
+                                contractName:call.contractName
+                            })
+                        }else{
+                            
+                            resolve({
+                                value:result,
+                                hash:call.hash,
+                                state:state, //this.sandbox.contractStates[call.contractName]
+                                contractName:contractName
+                            })
+                        }
                     }else{
                         
                         resolve({
-                            value:result,
+                            error:'ERROR: Call did not return anything',
                             hash:call.hash,
-                            state:state, //this.sandbox.contractStates[call.contractName]
-                            contractName:contractName
+                            contractName:call.contractName
                         })
                     }
+
                     
                 })
                 

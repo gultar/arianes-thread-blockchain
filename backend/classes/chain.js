@@ -18,7 +18,7 @@ const Transaction = require('./transaction');
 const BalanceTable = require('./balanceTable');
 const AccountTable = require('./accountTable');
 const ContractTable = require('./contractTable');
-const Stack = require('../contracts/build/callStack')
+const Factory = require('../contracts/build/callFactory')
 const VMController = require('./vmController')
 
 /*************Smart Contract VM************** */
@@ -54,7 +54,7 @@ class Blockchain{
         return this.chain[number]
       }
     })
-    this.stack = new Stack({
+    this.factory = new Factory({
       accountTable:this.accountTable,
       contractTable:this.contractTable,
       getBlockNumber:()=>{
@@ -63,7 +63,8 @@ class Blockchain{
     })
     this.vmController = new VMController({
       contractTable:this.contractTable,
-      accountTable:this.accountTable
+      accountTable:this.accountTable,
+      buildCode:this.factory.createSingleCode
     })
     this.spentTransactionHashes = []
     this.spentActionHashes = []
@@ -105,6 +106,7 @@ class Blockchain{
       genesisBlock.states = {
         //Other public addresses can be added to initiate their balance in the genesisBlock
         //Make sure at least one of the them has some funds, otherwise no transactions will be possible
+        "coinbase":{ balance:1000 * 1000 * 1000 * 1000 },
         "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{ balance:10000 },
         "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{ balance:10000 },
         "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{ balance:10000 },
@@ -2560,10 +2562,10 @@ class Blockchain{
   async executeManyCalls(calls){
     for await(let hash of Object.keys(calls)){
       let call = calls[hash]
-      this.stack.addCall(call, call.data.contractName)
+      this.factory.addCall(call, call.data.contractName)
     }
 
-    let codes = await this.stack.buildCode()
+    let codes = await this.factory.buildCode()
     if(codes.error) return {error:codes.error}
     
     let results = await this.vmController.executeCalls(codes)
@@ -2580,13 +2582,18 @@ class Blockchain{
 
   executeSingleCall(call){
     return new Promise(async (resolve)=>{
-        this.stack.addCall(call, call.data.contractName)
-        let code = await this.stack.buildCode()
+        this.factory.addCall(call, call.data.contractName)
+        let code = await this.factory.buildCode()
         if(code.error) resolve({error:code.error})
 
         let result = await this.vmController.executeCalls(code)
-        if(result.error) resolve({error:result.error})
-        else resolve(result)
+        if(result){
+          if(result.error) resolve({error:result.error})
+          else resolve(result)
+        }else{
+          resolve({ error:'ERROR: VM did not result any results' })
+        }
+        
          
     })
   }
@@ -2595,7 +2602,7 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       
       let start = Date.now()
-      let code = await this.stack.createSingleCode(call)
+      let code = await this.factory.createSingleCode(call)
       if(code.error) resolve({error:code.error})
 
       let result = await this.vmController.test(code)
