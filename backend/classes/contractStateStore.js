@@ -47,6 +47,7 @@ class ContractStateStore{
             if(added.error) return { error:added.error }
             else return added
         }catch(e){
+            
             return { error:e.message }
         }
     }

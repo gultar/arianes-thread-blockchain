@@ -2,18 +2,29 @@ const store = require('rocket-store')
 
 
 class Database{
-    constructor(dbName){
+    constructor(dbName, options){
         this.database = store;
         this.name = dbName;
         this.configSet = null;
+        this.options = options
     }
 
     async init(){
         try{
-            await this.database.options({
-                data_storage_area :"./databases/",
-                data_format       : this.database._FORMAT_JSON,
-            });
+            if(!this.options){
+                await this.database.options({
+                    data_storage_area :"./databases/",
+                    data_format       : this.database._FORMAT_JSON,
+                });
+            }else{
+                let defaultOptions = {
+                    data_storage_area :"./databases/",
+                    data_format       : this.database._FORMAT_JSON,
+                }
+                let options = { ...defaultOptions, ...options }
+                await this.database.options(options);
+            }
+            
             return true
         }catch(e){
             return { error:e }

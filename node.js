@@ -1379,11 +1379,12 @@ class Node {
         try{
           if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
             let transactionEmitted = await this.broadcastTransaction(transaction, true)
-            
             if(transactionEmitted.value){
               delete transactionEmitted.value.state
               let result = { result:transactionEmitted.value, receipt:transaction }
               socket.emit('transactionEmitted',result);
+            }else if(transactionEmitted.error){
+              socket.emit('transactionEmitted',{ error:transactionEmitted.error });
             }else{
               let receipt = JSON.stringify(transaction, null, 2)
               socket.emit('transactionEmitted',transaction);

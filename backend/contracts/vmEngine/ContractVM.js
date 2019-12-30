@@ -52,8 +52,9 @@ class ContractVM{
                         "createContractInterface":createContractInterface,
                         "makeExternal":makeExternal,
                         "getFunctionArguments":getFunctionArguments,
-                        "getAccount":(name)=>{
+                        "getAccount":({ name, hash })=>{
                             return new Promise((resolve)=>{
+                                let contractName = this.contractCallThreads[hash].contractName
                                 this.signals.once('account', (account)=>{
                                     console.log('Received account', account)
                                     if(account && Object.keys(account).length > 0){
@@ -62,7 +63,7 @@ class ContractVM{
                                         resolve(false)
                                     }
                                 })
-                                this.signals.emit('getAccount', name)
+                                this.signals.emit('getAccount', { name:name, contractName:contractName })
                             })
                         },
                         "getContract":({ contractName, hash })=>{
@@ -125,6 +126,7 @@ class ContractVM{
                         "deploy":function(contractInterface){
                             signals.emit('deployed', contractInterface)
                         },
+                        //Deprecated
                         "save":(state)=>{
                             if(state){
                                 this.sandbox.stateStorage = state
@@ -132,6 +134,7 @@ class ContractVM{
                             signals.emit('saved', state)
                             
                         },
+                        // Deprecated
                         "commit":function(result){
                             signals.emit('commited', result)
                         },
@@ -205,7 +208,6 @@ class ContractVM{
         
         let functionWrapper = 
         `
-            const save = require('save')
             const fail = require('fail')
             const getState = require('getState')
             const callHash = '${hash}'
@@ -215,10 +217,9 @@ class ContractVM{
                 
                 try{
                     ${code}
-                    //save(instance.state)
-                    // result.state = instance.state
                     callback(result, instance.state)
                 }catch(err){
+                    
                     let error = { error:err.message, hash:callHash }
                     fail(error)
                 }
@@ -321,9 +322,7 @@ class ContractVM{
                 ${instruction}
                 ${stateHeaderInstruction}
                 ${methodToRun}
-
                 `
-                // console.log('State before run', this.sandbox.contractStates[call.contractName])
 
                 let code = this.wrapCode( codeToWrap, call.hash )
                 this.timers[call.hash] = createTimer(call.cpuTime, resolve)
@@ -332,15 +331,11 @@ class ContractVM{
                     method:methodToRun,
                     depth:0
                 }
+                
                 let execute = this.vm.run(importHeader + code)
                 
                 execute(async (result, state)=>{
                     
-                    
-                    
-                    
-                    // 
-
                     if(result){
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
@@ -395,7 +390,7 @@ class ContractVM{
             let execute = this.vm.run(code)
             return execute
         }catch(e){
-            return {error:e}
+            return {error:e.message}
         }
     }
 

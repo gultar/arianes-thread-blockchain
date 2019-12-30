@@ -50,11 +50,20 @@ class VMBootstrap{
         })
 
         let unansweredPings = 0
-        this.ping = setInterval(()=>{
+        this.ping = setInterval(async ()=>{
             if(unansweredPings >= this.pingLimit){
                 console.log('VM is unresponsive. Restarting.')
-                this.events.emit('results', {error:'VM is unresponsive. Restarting.'})
-                this.restartVM()
+                for await(let hash of Object.keys(this.calls)){
+                    
+                    let call = this.calls[hash]
+                    this.events.emit(hash, {
+                        error:"VM Restarted",
+                        contractName:call.contractName,
+                        hash:call.hash
+                    })
+                    delete this.calls[hash]
+                }
+                await this.restartVM()
             }else{
                 this.child.send({ping:true})
                 unansweredPings++
@@ -63,13 +72,12 @@ class VMBootstrap{
 
         this.events.on('run', (code)=>{
             this.child.send({run:code, hash:code.hash, contractName:code.contractName})
+            this.calls[code.hash] = code
         })
 
         this.events.on('runCode', async (codes)=>{
-            for await(let hash of Object.keys(codes)){
-                this.calls[hash] = codes[hash]
-            }
             this.child.send({runCode:codes})
+            this.calls = { ...codes }
         })
 
         this.child.on('message', async (message)=>{
@@ -89,16 +97,18 @@ class VMBootstrap{
                 
             }else if(message.singleResult){
                 
-                if(message.singleResult.error){
+                let result = message.singleResult
+                delete this.calls[result.hash]
+                if(result.error){
                     //VM Returned an error
-                    let result = message.singleResult
+                    
                     this.events.emit(result.hash, {
                         error:result.error,
                         contractName:result.contractName,
                         hash:result.hash
                     })
                 }else{
-                    let result = message.singleResult
+                    
                     this.events.emit(result.hash, {
                         value:result.value,
                         contractName:result.contractName,
@@ -151,7 +161,7 @@ class VMBootstrap{
                     })
                 }else{
                     
-                    this.restartVM()
+                    await this.restartVM()
                 }
             }else if(message.pong){
                 unansweredPings = 0
@@ -171,7 +181,8 @@ class VMBootstrap{
         return this.events
     }
 
-    restartVM(){
+    async restartVM(){
+        
         this.child.kill()
         clearInterval(this.ping)
         this.events.removeAllListeners()

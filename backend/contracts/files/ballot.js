@@ -32,7 +32,7 @@ class Ballot{
     }
     
     async createBallot(params, account){
-        let { ballotId, name, description, voteLimit, authorizedVoters } = params
+        let { ballotId, name, description, voteLimit, authorizedVoters, callingAction } = params
 
         if(typeof ballotId != 'string') throw new Error('Ballot Id parameter must be a string')
         if(typeof name != 'string') throw new Error('Name parameter must be a string')
@@ -45,7 +45,10 @@ class Ballot{
             if(authorizedVoters && Array.isArray(authorizedVoters)){
                 voters = {}
                for await(let voterName of authorizedVoters){
-                    let account = await getAccount(voterName)
+                    let account = await getAccount({
+                        name:voterName,
+                        hash:callingAction.hash
+                    })
                     if(account){
                         voters[account.ownerKey] = account
                     }

@@ -15,7 +15,7 @@ class Mempool{
         this.actionReceipts = {}
         this.usedTxReceipts = {}
         this.usedActionReceipts = {}
-        this.maxBatchSize = 1000 * 10000;
+        this.maxBatchSize = 10000 * 10000;
         this.busyGathering = false
         this.events = new EventEmitter()
     }

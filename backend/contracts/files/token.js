@@ -1,12 +1,6 @@
-const Wallet = require('Wallet')
-const Account = require('Account')
-const Action = require('Action')
-const ContractAction = require('ContractAction')
+
 const Permissions = require('Permissions')
 const makeExternal = require('makeExternal')
-const deploy = require('deploy')
-const save = require('save')
-const commit = require('commit')
 
 class Tokens{
     constructor(init){
@@ -210,6 +204,11 @@ class Tokens{
                 type:'get',
                 args:['account','symbol'],
                 description:`Get an account's balance of a given token`
+            },
+            getSupply:{
+                type:'get',
+                args:['symbol'],
+                description:`Get the current supply of a given token`
             }
         })
         

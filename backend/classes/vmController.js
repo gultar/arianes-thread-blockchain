@@ -1,5 +1,6 @@
 const vmMaster = require('../contracts/vmEngine/vmMaster')
-const vmBootstrap = require('../contracts/vmEngine/vmBootstrap')
+// const vmBootstrap = require('../contracts/vmEngine/vmBootstrap')
+const vmBootstrap = require('../contracts/vmEngine/bootstrap')
 const ContractConnector = require('../contracts/build/contractConnector')
 
 class VMController{
@@ -21,6 +22,7 @@ class VMController{
 
     pushCallsToVM(calls){
         return new Promise(async(resolve)=>{
+            
             let results = {}
             let errors = {}
             let states = {}
@@ -33,7 +35,7 @@ class VMController{
                 }else{  
                     if(results.error) resolve({error:results.error})
                     else{
-                        
+
                         for await(let hash of Object.keys(results)){
                             let result = results[hash]
                             if(result.error) errors[hash] = result
@@ -74,63 +76,7 @@ class VMController{
                 
                 
             })
-    
-            // this.vmChannel.on('finished', async ()=>{
-            //     for await(let contractName of Object.keys(states)){
-            //         if(states[contractName]){
-            //             let state = states[contractName]
-            //             if(state && Object.keys(state).length > 0){
-            //                 let updated = await this.contractConnector.updateState({
-            //                     name:contractName,
-            //                     newState:state,
-            //                 })
-            //                 if(updated.error) console.log('STATE ERROR:', updated.error)
-            //             }else{
-            //                 console.log('STATE ERROR: Did not update state because state provided by VM was empty')
-            //             }
-            //         }
-                    
-                    
-            //     }
-            //     if(Object.keys(errors).length > 0){
-            //         console.log('CALL ERRORS: ', errors)
-            //         resolve({error:errors})
-            //     }else{
-            //         resolve({ results:results, states:states })
-            //     }
-            // })
-
-            // const receiveResult = async (result)=>{
-            //     console.log('Result', result)
-            //         if(result.error){
-            //             errors[hash] = result
-            //         }else if(result.timeout){
-            //             errors[hash] = result
-            //         }else{
-                        
-            //             if(result.state && Object.keys(result.state).length > 0){
-            //                 states[result.contractName] = result.state
-            //                 console.log('State', states)
-            //                 results[hash] = result
-            //             }else{
-            //                 errors[hash] = result
-            //             }
-            //         }
-            //         this.vmChannel.removeAllListeners(call.hash)
-            // }
-            
-            // for await(let hash of Object.keys(calls)){
-                
-            //     let call = calls[hash]
-            //     this.vmChannel.emit('run', call)
-            //     this.vmChannel.on(call.hash, receiveResult)
-                
-            // }
-
-            
-
-            
-            
+   
         })
         
 
@@ -170,13 +116,82 @@ class VMController{
             }
         }
         
-        let result = await this.pushCallsToVM(calls)
+        let start = process.hrtime() /**  Checking execution time */
+ 
+        let result = await this.sendCallsToVM(calls)
+                   
+        let hrend = process.hrtime(start)
+
+        console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000)
         if(result.error) return { error:result.error }
         else{
             let { results, state } = result;
             return { results:results, state:state }
         }
 
+    }
+
+    sendCallsToVM(calls){
+        return new Promise(async (resolve)=>{
+            let callsPending = { ...calls }
+            let results = {}
+            let errors = {}
+            let states = {}
+            const updateStates = async (states)=>{
+                for await(let contractName of Object.keys(states)){
+                    let state = states[contractName]
+                    if(state && Object.keys(state).length > 0){
+                        let updated = await this.contractConnector.updateState({
+                            name:contractName,
+                            newState:state,
+                        })
+
+                        let terminated = await this.vmBootstrap.terminateVM(contractName)
+
+                        if(updated.error) return { error:updated.error}
+                        return updated
+                    }else{
+                        return { error:'ERROR: Did not update state. New state has not been returned by any call' }
+                    }
+                }
+                return { results:results, states:states }
+            }
+
+            
+            
+            for await(let hash of Object.keys(calls)){
+                
+                let call = calls[hash]
+                this.vmChannel.emit('run', call)
+                this.vmChannel.on(call.hash, async (result)=>{
+                    
+                        if(result.error){
+                            errors[hash] = result
+                        }else if(result.timeout){
+                            errors[hash] = result
+                        }else{
+                            
+                            if(result.state && Object.keys(result.state).length > 0){
+                                states[result.contractName] = result.state
+                                results[hash] = result
+                            }else{
+                                errors[hash] = result
+                            }
+                        }
+    
+                        delete callsPending[hash]
+                        if(Object.keys(callsPending).length == 0){
+                            let updated = await updateStates(states)
+                            resolve(updated)
+                        }
+    
+                        this.vmChannel.removeAllListeners(hash)
+                })
+                
+            }
+
+            
+        })
     }
 
     test(code){
