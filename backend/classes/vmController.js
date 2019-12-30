@@ -122,7 +122,7 @@ class VMController{
                    
         let hrend = process.hrtime(start)
 
-        console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000)
+        // console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000)
         if(result.error) return { error:result.error }
         else{
             let { results, state } = result;
