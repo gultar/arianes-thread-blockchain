@@ -97,6 +97,9 @@ class StateStorage{
                 let closestState = await this.getState(this.getCurrentBlock().blockNumber)
                 if(closestState){
                     if(closestState.error) return { error:closestState.error }
+                    this.state = closestState;
+                    let saved = await this.save()
+                    if(saved.error) return { error:saved.error }
                     
                     return closestState
                 }else{
