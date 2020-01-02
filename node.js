@@ -1481,6 +1481,17 @@ class Node {
         }
       })
 
+      socket.on('getLatestKeyContractState', async (contractName)=>{
+        
+        let storage = await this.chain.contractTable.stateStorage[contractName]
+        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
+        else if(storage.error) socket.emit('contractState', { error:storage.error })
+        else{
+          let key = await storage.getLatestKey()
+          console.log('Key',key)
+        }
+      })
+
       socket.on('getContractAPI', async (name)=>{
           let contract = await this.chain.contractTable.getContract(name)
           if(contract){

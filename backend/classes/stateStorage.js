@@ -141,6 +141,8 @@ class StateStorage{
 
             let latestKey = await this.getLatestKey();
             latestKey = parseInt(latestKey)
+            console.log('Block', blockNumber)
+            console.log('Latest',latestKey)
             if(blockNumber > latestKey){
                 return true
             }else{
@@ -191,6 +193,12 @@ class StateStorage{
                                     //success
                                 }
                                 
+                            }else{
+                                if(parseInt(key) < parseInt(blockNumber)){
+                                    closestState = await this.getLatestState()
+
+                                    return closestState
+                                }
                             }
                             
                             previousKey = key
@@ -215,9 +223,11 @@ class StateStorage{
                 if(keys){
                     
                     let latestState = false
+                    let currentState = keys.pop()
+                    
                     let latestKey = keys[keys.length - 1]
                     latestState = await this.getState(latestKey)
-
+                    
                     return latestState
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
@@ -234,8 +244,12 @@ class StateStorage{
             let keys = await this.database.getAllKeys();
                 if(keys){
                     
-                    let latestState = false
-                    return keys[keys.length - 1]
+                    //Risky
+                    let currentState = keys.pop()
+                    let latestKey = keys[keys.length - 1]
+                    keys.push(currentState)
+
+                    return latestKey
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }
