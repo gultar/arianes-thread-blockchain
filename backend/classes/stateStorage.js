@@ -139,25 +139,17 @@ class StateStorage{
     async rollback(blockNumber){
         try{
 
-            let latestKey = await this.getLatestKey();
-            latestKey = parseInt(latestKey)
-            console.log('Block', blockNumber)
-            console.log('Latest',latestKey)
-            if(blockNumber > latestKey){
-                return true
+            let state = await this.getState(blockNumber)
+            if(state){
+                if(state.error) return { error:state.error }
+                this.state = state
+                let saved = await this.save()
+                
+                if(saved.error) return { error:saved.error }
+                else return saved
             }else{
-                let state = await this.getState(blockNumber)
-                if(state){
-                    if(state.error) return { error:state.error }
-                    this.state = state
-                    let saved = await this.save()
-                    
-                    if(saved.error) return { error:saved.error }
-                    else return saved
-                }else{
-                    return { error:'ERROR Could not find state at block' }
-                    //means state does not exist beyond this blocknumber
-                }
+                return { error:'ERROR Could not find state at block' }
+                //means state does not exist beyond this blocknumber
             }
             
             
@@ -168,39 +160,54 @@ class StateStorage{
     }
     
     //Mainly used when rolling back changes
-    async getClosestState(blockNumber){
+    async getClosestState(blockNumberString){
         try{
+            let blockNumber = parseInt(blockNumberString)
             let keys = await this.database.getAllKeys();
                 if(keys){
-                    //  10 13 14 17 19 20 21 22  get 18
-                    let previousKey = ''
-                    let closestState = false
-                    for await(let key of keys){
-                        if(key !== 'currentState'){
-                            if(previousKey){
-                                //Trying to get the state before a given blockNumber. Since states file are created when modified by transactions
-                                //at given blocks, we need to find them by approximation
-                                // console.log(`parseInt(${key}) > parseInt(${blockNumber}) && parseInt(${previousKey}) <= parseInt(${blockNumber})`)  // 
-                                if(parseInt(key) > parseInt(blockNumber) && parseInt(previousKey) <= parseInt(blockNumber)){ // 
-                                    let { state, blockNumber } = await this.database.get(previousKey)
-                                    // console.log('Closest state',await this.database.get(previousKey))
-                                    if(state && Object.keys(state).length > 0){
-                                        if(state.error) return { error:state.error }
-    
-                                        return state
-                                    }
-                                    
-                                    //success
-                                }
-                                
-                            }
+                    let blockNumbers = await this.parseBlockNumbers(keys); //Desceding
+                    let previousNumber = 0
+                    let latestBlockNumber = blockNumbers[0]
+                    if(blockNumber < latestBlockNumber){
+                        //Tries to find the block number of the closest state to the requested blockNumber
+                        for await(let number of blockNumbers){
                             
-                            previousKey = key
+                            if(number < blockNumber && previousNumber >= blockNumber){
+                                let { state } = await this.database.get(number.toString())
+                                        // console.log('Closest state',await this.database.get(previousKey))
+                                if(state && Object.keys(state).length > 0){
+                                    if(state.error) return { error:state.error }
+    
+                                    return state
+                                }else{
+                                    return { error:`ERROR: Closest state to ${blockNumber} is empty` }
+                                }
+                            }
+                            previousNumber = number
                         }
-                        
-                    }
+                    }else{
+                        //Returns the latest state registered
+                        let { state } = await this.database.get(latestBlockNumber.toString())
+                                        // console.log('Closest state',await this.database.get(previousKey))
+                        if(state && Object.keys(state).length > 0){
+                            if(state.error) return { error:state.error }
 
-                    return closestState
+                            return state
+                        }else{
+                            return { error:`ERROR: Closest state to ${blockNumber} is empty` }
+                        }
+                    }
+                    
+                    //Returns the first ever state registered
+                    let { state } = await this.database.get(previousNumber.toString())
+                    // console.log('Closest state',await this.database.get(previousKey))
+                    if(state && Object.keys(state).length > 0){
+                        if(state.error) return { error:state.error }
+
+                        return state
+                    }else{
+                        return { error:`ERROR: Closest state to ${blockNumber} is empty` }
+                    }
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }
@@ -210,19 +217,23 @@ class StateStorage{
         }
         
     }
+
+    
 
     async getLatestState(){
         try{
             let keys = await this.database.getAllKeys();
                 if(keys){
                     
-                    let latestState = false
-                    let currentState = keys.pop()
-                    
-                    let latestKey = keys[keys.length - 1]
-                    latestState = await this.getState(latestKey)
-                    
+                    let sortedBlockNumbers = await this.parseBlockNumbers(keys)
+                    let latestBlockNumber = sortedBlockNumbers[0]
+                    let latestState = await this.getState(latestBlockNumber.toString())
                     return latestState
+                    // let latestState = false
+                    // let currentState = keys.pop()
+                    
+                    // let latestKey = keys[keys.length - 1]
+                    // 
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }
@@ -233,17 +244,29 @@ class StateStorage{
         
     }
 
+    async parseBlockNumbers(keys){
+        try{
+            let blockNumbers = []
+
+            for await(let number of keys){
+                if(number !== 'currentState'){
+                    blockNumbers.push(parseInt(number))
+                }
+            }
+
+            let sortedBlockNumbers = blockNumbers.sort((a,b)=>b-a)
+            return sortedBlockNumbers
+        }catch(e){
+            return { error:e.message }
+        }
+    }
+
     async getLatestKey(){
         try{
             let keys = await this.database.getAllKeys();
                 if(keys){
-                    
-                    //Risky
-                    let currentState = keys.pop()
-                    let latestKey = keys[keys.length - 1]
-                    keys.push(currentState)
-
-                    return latestKey
+                    let sortedBlockNumbers = await this.parseBlockNumbers(keys)
+                    return sortedBlockNumbers[0]
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }

@@ -1487,8 +1487,8 @@ class Node {
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          let key = await storage.getLatestKey()
-          console.log('Key',key)
+          let key = await storage.database.database.get('TokensStorage','*', require('rocket-store')._ORDER_DESC)
+          console.log('Key',JSON.stringify({key:key}, null, 2))
         }
       })
 
