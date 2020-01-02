@@ -1,19 +1,23 @@
-const vmMaster = require('../contracts/vmEngine/vmMaster')
+const vmMaster = require('../contracts/vmEngine/__deprecated_vmMaster')
 // const vmBootstrap = require('../contracts/vmEngine/vmBootstrap')
 const vmBootstrap = require('../contracts/vmEngine/bootstrap')
 const ContractConnector = require('../contracts/build/contractConnector')
 
 class VMController{
-    constructor({ contractTable, accountTable, buildCode }){
+    constructor({ contractTable, accountTable, buildCode, deferContractAction, getCurrentBlock }){
         this.vmMaster = vmMaster;
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
         });
-        
+
+        this.deferContractAction = deferContractAction
+        this.getCurrentBlock = getCurrentBlock
         this.vmBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
             accountTable:accountTable,
-            buildCode:buildCode
+            buildCode:buildCode,
+            deferContractAction:this.deferContractAction,
+            getCurrentBlock:this.getCurrentBlock
         });
 
         this.vmChannel = this.vmBootstrap.startVM()
@@ -197,7 +201,7 @@ class VMController{
     test(code){
         return new Promise(async (resolve)=>{
             let contractName = code.contractName
-            
+            let timer = {}
             if(contractName){
                 let contractSent = await this.vmBootstrap.addContract(contractName)
                 if(contractSent.error) resolve({ error:`ERROR: Contract ${code.contractName} does not exist` })
@@ -206,13 +210,18 @@ class VMController{
                 if(state){
                     let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
                     if(stateAdded.error) resolve({ error:stateAdded.error })
-
+                    timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
                     this.vmChannel.on(code.hash, async (result)=>{
                         
                         if(result && !result.error && result.value){
+                            clearTimeout(timer)
                             resolve(result)
                         }else if(result.error){
+                            clearTimeout(timer)
                             resolve({error:result.error})
+                        }else{
+                            console.log('Returned something else', result)
+                            // resolve(result)
                         }
                         
                         this.vmChannel.removeAllListeners(code.hash)

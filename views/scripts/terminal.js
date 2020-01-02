@@ -473,6 +473,28 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             }
             socket.emit('tryStoreCount', args[0])
             break;
+        case 'current':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('getCurrentContractState', args[0])
+          socket.on('contractState', (state)=>{
+            output("<pre>"+JSON.stringify(state, null, 2)+"</pre>")
+            socket.removeAllListeners('contractState')
+          })
+          break;
+        case 'closest':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
+          socket.emit('getClosestContractState', args[0], args[1])
+          socket.on('contractState', (state)=>{
+            output("<pre>"+JSON.stringify(state, null, 2)+"</pre>")
+            socket.removeAllListeners('contractState')
+          })
+          break;
         default:
           if (cmd) {
             output(cmd + ': command not found');

@@ -28,6 +28,14 @@ vm.signals.on('getAccount', (reference)=>{
     parentPort.postMessage({ getAccount:reference.name, contractName:reference.contractName })
 })
 
+vm.signals.on('getCurrentBlock', ()=>{
+    parentPort.postMessage({ getCurrentBlock:true })
+})
+
+vm.signals.on('defer', (contractAction)=>{
+    parentPort.postMessage({ defer:JSON.stringify(contractAction) })
+})
+
 parentPort.on('message', async (message)=>{
         if(message.run){
 
@@ -76,10 +84,14 @@ parentPort.on('message', async (message)=>{
 
         }else if(message.state){
             vm.signals.emit('state', message.state)
+        }else if(message.currentBlock){
+            vm.signals.emit('currentBlock', message.currentBlock)
         }else if(message.contract){
             vm.signals.emit('contract', message.contract)
         }else if(message.account){
             vm.signals.emit('account', message.account)
+        }else if(message.deferred){
+            vm.signals.emit('deferred', message.deferred)
         }else if(message.ping){
             parentPort.postMessage({pong:true})
         }

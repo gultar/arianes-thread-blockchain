@@ -1,12 +1,13 @@
 // const Database = require('./database')
 const Database = require('./db')
 const sha256 = require('../tools/sha256')
-const ContractStateStore = require('./contractStateStore')
+const StateStorage = require('./stateStorage')
 
 class ContractTable{
-    constructor({ getCurrentBlock, getBlock }){
+    constructor({ getCurrentBlock, getBlock, getBlockFromHash }){
         this.getCurrentBlock = getCurrentBlock;
         this.getBlock = getBlock
+        this.getBlockFromHash = getBlockFromHash
         this.contractDB = new Database('contracts')
         this.contractStateDB = new Database('states')
         this.stateStorage = {}
@@ -17,13 +18,16 @@ class ContractTable{
 
         for await(let name of contractNames){
             
-            this.stateStorage[name] = new ContractStateStore({
+            this.stateStorage[name] = new StateStorage({
                 name:name,
                 getCurrentBlock:()=>{
                     return this.getCurrentBlock()
                 },
                 getBlock:(number)=>{
                     return this.getBlock(number)
+                },
+                getBlockFromHash:(hash)=>{
+                    return this.getBlockFromHash(hash)
                 }
             })
         }
@@ -50,14 +54,18 @@ class ContractTable{
                 if(added){
                     if(added.error) resolve({error:added.error})
                     else{
-                        this.stateStorage[name] = new ContractStateStore({
+                        this.stateStorage[name] = new StateStorage({
                             name:name,
                             getCurrentBlock:()=>{
                                 return this.getCurrentBlock()
                             },
                             getBlock:(number)=>{
                                 return this.getBlock(number)
+                            },
+                            getBlockFromHash:(hash)=>{
+                                return this.getBlockFromHash(hash)
                             }
+                            
                         })
                         this.stateStorage[name].state = state;
                         let updated = await this.stateStorage[name].update(state)
@@ -97,13 +105,16 @@ class ContractTable{
                 let contractExists = await this.contractDB.get(contractName)
                 if(contractExists.error) resolve({error:contractExists.error})
 
-                this.stateStorage[contractName] = new ContractStateStore({
+                this.stateStorage[contractName] = new StateStorage({
                     name:contractName,
                     getCurrentBlock:()=>{
                         return this.getCurrentBlock()
                     },
                     getBlock:(number)=>{
                         return this.getBlock(number)
+                    },
+                    getBlockFromHash:(hash)=>{
+                        return this.getBlockFromHash(hash)
                     }
                 })
             }else{
@@ -211,51 +222,49 @@ class ContractTable{
             })
     }
 
-    removeState(name){
-        return new Promise(async (resolve)=>{
-            if(!name) resolve({error:'Could not remove contract state. Name of contract undefined '})
-
-            let state = await this.contractStateDB.get(name);
-            if(state){
-                if(state.error) resolve({error:state.error})
-                let stateDeleted = await this.contractStateDB.delete(state)
-                if(stateDeleted.error) resolve({error:stateDeleted.error})
-                else resolve(stateDeleted)
-            }else{
-                resolve({error:'State to delete does not exist'})
-            }
-            
-        })
-    }
-
-    rollbackActionBlock(actions){
-        return new Promise(async (resolve)=>{
-            if(actions){
-                let actionHashes = Object.keys(actions)
-                let errors = {}
-                for await (var hash of actionHashes){
-                    let action = actions[hash]
-                    let contractName = action.data.contractName
-                    let rolledBack = await this.rollbackState(contractName, action)
-                    if(rolledBack.error){ errors[hash] = rolledBack.error }
-                }
-
-                if(Object.keys(errors).length > 0) resolve({error:errors})
-                else resolve(true)
+    async removeState(contractName){
+        if(!contractName) return {error:'Could not remove contract state. Name of contract undefined '}
+            let storage = this.stateStorage[contractName]
+            if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
+            else{
                 
-            }else{
-                resolve({error:'Block of actions to rollback is undefined'})
+                let removedState = await storage.destroyStorage()
+                if(removedState.error) return { error:removedState.error }
+                return removedState
             }
-        })
     }
 
-    async rollback(blockHash){
-        if(blockHash){
+    // rollbackActionBlock(actions){
+    //     return new Promise(async (resolve)=>{
+    //         if(actions){
+    //             let actionHashes = Object.keys(actions)
+    //             let errors = {}
+    //             for await (var hash of actionHashes){
+    //                 let action = actions[hash]
+    //                 let contractName = action.data.contractName
+    //                 let rolledBack = await this.rollbackState(contractName, action)
+    //                 if(rolledBack.error){ errors[hash] = rolledBack.error }
+    //             }
+
+    //             if(Object.keys(errors).length > 0) resolve({error:errors})
+    //             else resolve(true)
+                
+    //         }else{
+    //             resolve({error:'Block of actions to rollback is undefined'})
+    //         }
+    //     })
+    // }
+
+    async rollback(blockNumber){
+        if(blockNumber){
             for await(let contractName of Object.keys(this.stateStorage)){
                 let storage = this.stateStorage[contractName]
                 if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
-                let rolledBack = await storage.rollback(blockHash)
-                if(rolledBack.error) return { error:rolledBack.error }
+                else{
+                    
+                    let rolledBack = await storage.rollback(blockNumber)
+                    if(rolledBack.error) return { error:rolledBack.error }
+                }
             }
             return true
         }else{

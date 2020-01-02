@@ -9,6 +9,8 @@ class Mempool{
     constructor(){
         this.transactions = new Database('transactionsPool')
         this.actions = new Database('actionsPool')
+        this.transactions = new Database('deferredTransactionsPool')
+        this.actions = new Database('deferredActionsPool')
         this.txReceipts = {}
         this.delayedTransactions = {}
         this.delayedActions = {}
@@ -20,7 +22,7 @@ class Mempool{
         this.events = new EventEmitter()
     }
 
-    async manageDelayedTransactions(latestBlock){
+    async manageDeferredTransactions(latestBlock){
         if(latestBlock && latestBlock.blockNumber){
             let numTransactionAdded = 0
             for await(let hash of Object.keys(this.delayedTransactions)){
@@ -41,7 +43,7 @@ class Mempool{
         
     }
 
-    async manageDelayedActions(latestBlock){
+    async manageDeferredActions(latestBlock){
         if(latestBlock && latestBlock.blockNumber){
             let numActionAdded = 0
             for await(let hash of Object.keys(this.delayedActions)){
@@ -62,10 +64,10 @@ class Mempool{
         
     }
 
-    delayTransaction(transaction){
+    deferTransaction(transaction){
         if(transaction && transaction.delayToBlock){
 
-            this.delayedActions[hash] = transaction
+            this.delayedActions[transaction.hash] = transaction
 
             return true
         }else{
@@ -73,10 +75,21 @@ class Mempool{
         }
     }
 
-    delayAction(action){
+    deferAction(action){
         if(action && action.delayToBlock){
 
-            this.delayedActions[hash] = action
+            this.delayedActions[action.hash] = action
+
+            return true
+        }else{
+            return false
+        }
+    }
+
+    deferContractAction(action){
+        if(action && action.delayToBlock){
+            //Add extra validation
+            this.delayedActions[action.hash] = action
 
             return true
         }else{

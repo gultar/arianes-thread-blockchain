@@ -2,12 +2,13 @@ const store = require('rocket-store')
 const Database = require('./db')
 
 class ContractStateStore{
-    constructor({ name, getCurrentBlock, getBlock }){
+    constructor({ name, getCurrentBlock, getBlock, getBlockFromHash }){
         this.name = name+'Storage'
         this.database = new Database(this.name)
         this.state = {};
         this.getCurrentBlock = getCurrentBlock
         this.getBlock = getBlock
+        this.getBlockFromHash = getBlockFromHash
         this.history = {}
         this.configSet = null;
     }
@@ -51,6 +52,8 @@ class ContractStateStore{
             return { error:e.message }
         }
     }
+
+
 
     async getCurrentState(){
         try{
@@ -116,6 +119,7 @@ class ContractStateStore{
             return {error:e}
         }
     }
+
 }
 
 module.exports = ContractStateStore

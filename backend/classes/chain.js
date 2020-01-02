@@ -22,7 +22,7 @@ const Factory = require('../contracts/build/callFactory')
 const VMController = require('./vmController')
 
 /*************Smart Contract VM************** */
-const vmMaster = require('../contracts/vmEngine/vmMaster')
+const vmMaster = require('../contracts/vmEngine/__deprecated_vmMaster')
 /******************************************** */
 
 const Block = require('./block');
@@ -44,6 +44,7 @@ class Blockchain{
   constructor(chain=[], mempool){
     this.chain = chain
     this.chainDB = new Database('blockchain');
+    this.mempool = mempool
     this.accountTable = new AccountTable();
     this.balance = new BalanceTable(this.accountTable)
     this.contractTable = new ContractTable({
@@ -52,6 +53,9 @@ class Blockchain{
       },
       getBlock:(number)=>{
         return this.chain[number]
+      },
+      getBlockFromHash:(hash)=>{
+          return this.getBlockFromHash(hash)
       }
     })
     this.factory = new Factory({
@@ -64,12 +68,22 @@ class Blockchain{
     this.vmController = new VMController({
       contractTable:this.contractTable,
       accountTable:this.accountTable,
-      buildCode:this.factory.createSingleCode
+      buildCode:this.factory.createSingleCode,
+      deferContractAction:async(contractAction)=>{
+        let deferred = await this.mempool.deferContractAction(contractAction)
+        if(deferred){
+          return deferred
+        }else{
+          return false
+        }
+      },
+      getCurrentBlock:async ()=>{
+        return this.getLatestBlock()
+      }
     })
     this.spentTransactionHashes = []
     this.spentActionHashes = []
     this.difficulty = new Difficulty(genesis)
-    this.mempool = mempool
     this.blockForks = {}
     this.isSyncingBlocks = false
     this.branches = {}
@@ -245,15 +259,9 @@ class Blockchain{
           
           let saved = await this.balance.saveBalances(newBlock)
           if(saved.error) resolve({error:saved.error})
-  
-          
-          
           
           let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-          
           if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
-          
-          
           
           //Verify is already exists
           if(Object.keys(errors).length > 0){
@@ -356,8 +364,6 @@ class Blockchain{
   
           }
         }
-
-
         
       }else{
         resolve({error:'ERROR: New block undefined'})
@@ -563,99 +569,7 @@ class Blockchain{
     }
   }
 
-  // async createChainBranch(newBlock){
-
-  //   const attemptToMergeBranch = async (branch) =>{
-  //     let blockNumberOfSplit = branch[0].blockNumber
-      
-  //     if(blockNumberOfSplit > this.getLatestBlock().blockNumber){
-  //       return { outOfSync:true }
-  //     }else{
-  //       let latestBlockHash = this.getLatestBlock().hash
-  //       let removedBranchFromTrunk = this.chain.slice(blockNumberOfSplit - 1,  newBlock.blockNumber)
-  //       if(removedBranchFromTrunk && !Array.isArray(removedBranchFromTrunk)) removedBranchFromTrunk = [ removedBranchFromTrunk ]
-  //       this.branches[latestBlockHash] = removedBranchFromTrunk
-        
-  //       let rolledBack = await this.rollbackToBlock(blockNumberOfSplit - 1)
-  //       if(rolledBack.error) return { error:rolledBack.error }
-
-  //       let isBranchConnectedToChain = this.getBlockFromHash(branch[0].previousHash)
-
-  //       if(isBranchConnectedToChain){
-  //         for await(let block of branch){
-  //           let alreadyExists = await this.getBlockFromHash(block.hash)
-  //           if(!alreadyExists){
-  //             let added = await this.addBlockToChain(block)
-  //             if(added.error) return { error:added.error }
-  //           }
-            
-  //         }
-  //         return { synced:true }
-  //       }else{
-  //         //Weirdest case here
-  //         return { outOfSync:true }
-  //       }
-  //     }
-  
-  //   }
-
-  //   if(newBlock){
-  //     let isPartOfOtherBranch = this.branches[newBlock.previousHash]
-  //     if(isPartOfOtherBranch){
-
-  //       let branch = this.branches[newBlock.previousHash]
-  //       for await(let block of branch){
-  //         if(block.blockNumber == newBlock.blockNumber){
-  //           return { error:'ERROR: Could not add block to branch. Already contains block of that height' }
-  //         }
-  //       }
-  //       branch.push(newBlock)
-
-  //       let blockNumberOfSplit = branch[0].blockNumber
-  //       let branchingBlock = this.chain[blockNumberOfSplit - 1]
-        
-  //       if(branchingBlock){
-          
-  //         let totalDifficultyAtBranch = branchingBlock.totalDifficulty
-  //         let recalculatedTotalDifficulty = await this.calculateTotalDifficulty([ ...branch, newBlock ])
-  //         let sumOfDifficulties = (BigInt(parseInt(totalDifficultyAtBranch, 16)) + BigInt(parseInt(recalculatedTotalDifficulty, 16))).toString(16) 
-  //         let isValidTotalDifficulty = true //sumOfDifficulties === newBlock.totalDifficulty
-  //         if(isValidTotalDifficulty){
-  
-  //           let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
-  //           let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
-  
-  //           this.branches[newBlock.hash] = [ ...branch, newBlock ]
-  //           // delete this.branches[newBlock.previousHash]
-
-  //           if(forkTotalDifficulty > currentTotalDifficulty && branch.length >= 3){
-              
-  //             let mergedBranch = await attemptToMergeBranch(this.branches[newBlock.hash])
-  //             if(mergedBranch.error) return { error:mergedBranch.error }
-  //             else if(mergedBranch.outOfSync){
-  //               return { outOfSync:true }
-  //             }else{
-  //               return { synced:true }
-  //             }
-              
-  //           }else{
-  //             return { staying:true }
-  //           }
-  //         }else{
-  //           return { error:'ERROR: Recalculated total difficulty does not match new block total difficulty' }
-  //         }
-  //       }else{
-  //         return { outOfSync:true }
-  //       }
-
-  //     }else{
-  //       this.branches[newBlock.hash] = [ newBlock ]
-  //       return { branched:true }
-  //     }
-  //   }else{
-  //     return { error:'ERROR: New block to branch is undefined' }
-  //   }
-  // }
+ 
 
   putHeaderToDB(block){
     return new Promise(async (resolve)=>{
@@ -1846,7 +1760,7 @@ class Blockchain{
       this.spentTransactionHashes = this.spentTransactionHashes.filter(hash => !txHashes.includes(hash));
       this.spentActionHashes = this.spentActionHashes.filter(hash => !actionHashes.includes(hash));
       
-      let stateRolledBack = await this.contractTable.rollback(newLastBlock.hash)
+      let stateRolledBack = await this.contractTable.rollback(newLastBlock.blockNumber)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
 
       if(actionHashes.length > 0){
@@ -2348,9 +2262,6 @@ class Blockchain{
               if(executed.error){
                 resolve({error:executed.error})
               }else{
-                let state = executed[hash].state;
-                let updated = await this.contractTable.updateContractState(action.data.contractName, executed.state, {hash:action.hash}, this.getLatestBlock())
-                if(updated.error) resolve({error:updated.error})
                 resolve(executed)
               }
             }else{
@@ -2369,6 +2280,21 @@ class Blockchain{
             
           }
           resolve({error:'ERROR: Unknown contract task'})
+          break;
+        case 'contract action':
+          if(action.task == 'call'){
+            let executed = await this.executeSingleCall(action)
+            if(executed){
+              if(executed.error){
+                resolve({error:executed.error})
+              }else{
+                resolve(executed)
+              }
+            }else{
+              resolve({error:'Function has returned nothing'})
+            }
+            
+          }
           break;
         default:
           console.log(action)
@@ -2610,7 +2536,7 @@ class Blockchain{
         if(result.error) resolve({error:result.error})
         else resolve(result)
       }else{
-        console.log(result)
+        console.log('No result',result)
         resolve({ error:'ERROR: VM did not result any results' })
       }
           

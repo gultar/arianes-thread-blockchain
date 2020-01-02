@@ -1433,14 +1433,39 @@ class Node {
           console.log(contract)
       })
 
-      socket.on('getContractState', async (hash, contractName)=>{
+      socket.on('getContractState', async (blockNumber, contractName)=>{
         console.log('Got something')
         let storage = await this.chain.contractTable.stateStorage[contractName]
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          let state = await storage.getState(hash)
+          let state = await storage.getState(blockNumber)
           socket.emit('contractState', state)
+        }
+      })
+
+      socket.on('getCurrentContractState', async (contractName)=>{
+        
+        let storage = await this.chain.contractTable.stateStorage[contractName]
+        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
+        else if(storage.error) socket.emit('contractState', { error:storage.error })
+        else{
+          console.log('Got storage', storage)
+          let state = await storage.getCurrentState()
+          socket.emit('contractState', state)
+          console.log(JSON.stringify(state, null, 2))
+        }
+      })
+
+      socket.on('getClosestContractState', async (blockNumber, contractName)=>{
+        
+        let storage = await this.chain.contractTable.stateStorage[contractName]
+        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
+        else if(storage.error) socket.emit('contractState', { error:storage.error })
+        else{
+          let state = await storage.getClosestState(blockNumber)
+          socket.emit('contractState', state)
+          console.log(JSON.stringify(state, null, 2))
         }
       })
 
@@ -1694,9 +1719,16 @@ class Node {
       if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
         if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
           api.isBuildingBlock = true
-        
+          
+          let deferredTxManaged = await this.mempool.manageDeferredTransactions(this.chain.getLatestBlock())
+          if(deferredTxManaged.error) console.log('DEFERRED TX ERROR: ', deferredTxManaged.error)
+
           let transactions = await this.mempool.gatherTransactionsForBlock()
           if(transactions.error) console.log('Mempool error: ',transactions.error)
+
+          let deferredActionsManaged = await this.mempool.manageDeferredActions(this.chain.getLatestBlock())
+          if(deferredActionsManaged.error) console.log('DEFERRED ACTIONS ERROR: ', deferredActionsManaged.error)
+
           let actions = await this.mempool.gatherActionsForBlock()
           if(actions.error) console.log('Mempool error:',actions.error)
           if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }

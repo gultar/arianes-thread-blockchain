@@ -501,6 +501,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                             let API = await instance.getInterface()
                             callback(API, instance.state)
                         }catch(e){
+                            console.log(e)
                             callback({error:e.message})
                         }
                     }

@@ -13,7 +13,7 @@ const makeExternal = require('../toolbox/makeExternal')
 const getFunctionArguments = require('get-function-arguments')
 const fs = require('fs')
 const EventEmitter = require('events')
-const { isValidActionJSON } = require('../../tools/jsonvalidator')
+const { isValidActionJSON, isValidAccountJSON } = require('../../tools/jsonvalidator')
 
 //Kind of useless
 class Signals extends EventEmitter{
@@ -52,6 +52,8 @@ class ContractVM{
                         "createContractInterface":createContractInterface,
                         "makeExternal":makeExternal,
                         "getFunctionArguments":getFunctionArguments,
+                        "isValidActionJSON":isValidActionJSON,
+                        "isValidAccountJSON":isValidAccountJSON, 
                         "getAccount":({ name, hash })=>{
                             return new Promise((resolve)=>{
                                 let contractName = this.contractCallThreads[hash].contractName
@@ -122,6 +124,24 @@ class ContractVM{
                                 
                             })
                             
+                        },
+                        "getCurrentBlock":()=>{
+                            return new Promise((resolve)=>{
+                                this.signals.emit('getCurrentBlock')
+                                this.signals.once('currentBlock', block => resolve(block))
+                            })
+                        },
+                        "deferExecution":(contractAction)=>{
+                            return new Promise((resolve)=>{
+                                if(contractAction){ //&& isValidContractActionJSON(contractAction)
+                                    this.signals.emit('defer', contractAction)
+                                    this.signals.once('deferred', (isDeferred)=>{
+                                        resolve(isDeferred)
+                                    })
+                                }else{
+                                    resolve({ error:'ERROR: Contract action received is invalid' })
+                                }
+                            })
                         },
                         "deploy":function(contractInterface){
                             signals.emit('deployed', contractInterface)

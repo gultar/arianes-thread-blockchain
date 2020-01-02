@@ -1,7 +1,7 @@
 const { isValidAccountJSON } = require('../../tools/jsonvalidator')
 const Account = require('../../classes/account')
 class Permissions{
-    constructor(owner, presetAccounts){
+    constructor(owner){
         //Owner - Account can do anything from modifying contract state directly to deleting it
         //Modify - Account can read/write and add new permissions
         //Write - Account can modify contract state with actions
@@ -10,42 +10,38 @@ class Permissions{
         this.level = {
             'owner':4,'modify':3, 'write':2, 'read':1,
         }
-        if(!presetAccounts){
-            this.accounts = {
-                [owner.name]:{
-                    account:owner,
-                    category:'owner',
-                    level:this.level['owner']
-                }
+        this.accounts = {
+            [owner.name]:{
+                account:owner.name,
+                category:'owner',
+                level:this.level['owner']
             }
-        }else{
-            this.accounts = presetAccounts
         }
     }
 
     defineMultipleAccounts(accountPermissionPairs){
-        return new Promise((resolve)=>{
+        return new Promise(async (resolve)=>{
             if(accountPermissionPairs && Array.isArray(accountPermissionPairs)){
-                accountPermissionPairs.forEach( pair=>{
+                for await (let pair of accountPermissionPairs){
+                    
                     let category = pair.category
                     let account = pair.account
                     if(category && account){
-                        let permissionSet = this.define(account, category)
+                        let permissionSet = await this.define(account, category)
                         if(permissionSet.error) {
-                            return { 
+                            resolve({ 
                                 error: {
                                     message:permissionSet.error,
                                     account:account, 
                                     category:category
                                 }  
-                            }
+                            })
                         }
 
                     }else{
-                        resolve({ error: 'PERMISSIONS ERROR: Invalid account/permission pair' }) 
+                        resolve({ error: 'ERROR: provide an account/permission pair like so : {"account":"category"}' }) 
                     }
-                    
-                })
+                }
     
                 resolve(true)
             }else{

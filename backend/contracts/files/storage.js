@@ -5,6 +5,7 @@ const createContractInterface = require('createContractInterface')
 class Storage{
     constructor(initParams){
         this.contractAccount = initParams.contractAccount
+        this.permissions = new Permissions(this.contractAccount)
         this.state = {
             [initParams.contractAccount]:{}
         }
@@ -74,7 +75,7 @@ class Storage{
         if(!data) throw new Error('Data of entry to set is undefined')
 
         if(this.state[id]){
-            let isAllowed = this.hasPermissions(id, account.name)   //Need to only pass account name since function param is a full object
+            let isAllowed = this.hasPermissions(id, account.name || account)   //Need to only pass account name since function param is a full object
             if(!isAllowed) return { error: 'Calling account does not have permission to modify data storage' }
             else{
                 this.state[id].data = data;
@@ -109,12 +110,12 @@ class Storage{
         let external = makeExternal({
             set:{
                 type:'set',
-                args:[`'entry':{"id":'string',"data":"object"}`,"account"],
+                args:["id","data","account"],
                 description:'save or modify data field'
             },
             changePermissions:{
                 type:'set',
-                args:['id','account','category'],
+                args:['id','account','level'],
                 description:'change permissioned accounts on data field'
             },
             get:{

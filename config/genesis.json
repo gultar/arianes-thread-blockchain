@@ -16,7 +16,7 @@
   "actions": {},
   "previousHash": "",
   "consensus":"Proof of Work", 
-  "blockTime":20,
+  "blockTime":10,
   "totalDifficulty": "0x4096",
   "difficulty": "0x1024",
   "hash": "09899ef0175512358bcee24d5a1c3db63f816ee5eec03bc977df3dd0cb06f7d0",

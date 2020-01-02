@@ -1,17 +1,31 @@
 const Action = require('./action')
-const { isValidActionJSON } = require('../tools/jsonvalidator')
+const sha256 = require('../tools/sha256');
+
+const { isValidCallPayloadJSON } = require('../tools/jsonvalidator')
 
 class ContractAction extends Action{
-    constructor({ fromAccount, toAccount, task, actionReference }){
+    constructor({ fromAccount, data, task, actionReference, delayToBlock }){
+        // if(!isValidCallPayloadJSON(actionReference)) throw new Error('Invalid action reference structure')
         super(fromAccount)
-        this.toAccount = toAccount
+        this.fromAccount = fromAccount
+        this.data = {
+            contractName:data.contractName,
+            method:data.method,
+            params:data.params,
+            cpuTime:data.cpuTime
+        }
         this.fee = 0
-        this.signature = fromAccount.signature
-        this.type = "Contract Action"
-        this.actionReference = actionReference || {}
+        this.signature = actionReference.signature
+        this.type = "contract action"
+        this.actionReference = { [actionReference.hash]:actionReference } || {}
         this.task = task
-        this.delayToBlock = 0  //Either to blockNumber or to timestamp
+        this.delayToBlock = delayToBlock || 0  //Either to blockNumber or to timestamp
+        this.hash = this.calculateActionHash();
     }
+
+    calculateActionHash(){
+        return sha256(this.fromAccount + this.type + this.task + this.data + this.fee + this.timestamp)
+     }
 
     // setReference(action){
     //     if(isValidActionJSON(action)){

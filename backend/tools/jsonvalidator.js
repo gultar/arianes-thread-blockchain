@@ -99,6 +99,7 @@ const isValidCallPayloadJSON = (callPayload, returnErrors)=>{
         if(valid.errors.length == 0){
             return true
         }else{
+            console.log(valid.errors)
             if(returnErrors) return valid.errors
             else return false;
         }
@@ -133,6 +134,7 @@ const isValidActionJSON = (action)=>{
         if(valid.errors.length == 0){
             return true
         }else{
+            console.log(valid.errors)
             return false;
         }
         

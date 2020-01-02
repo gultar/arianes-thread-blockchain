@@ -119,6 +119,30 @@ class Database{
 
     }
 
+    async getAllKeys(){
+        try{
+            if(!this.configSet){
+                this.configSet = await this.init()
+                if(this.configSet.error) return {error:this.configSet.error}
+            }
+            
+            let entry = await this.database.get(this.name, '*');
+            let container = {}
+            let results = entry.key
+    
+           
+            if(Array.isArray(results) && results.length > 0){
+                return results
+            }else{
+                return []
+            }
+        }catch(e){
+            return {error:e.message}
+        }
+        
+
+    }
+
     async delete(entry){
         try{
             if(!this.configSet){
@@ -128,6 +152,20 @@ class Database{
             if(!entry) return {error:"Cannot read to Database: entry is undefined"}
     
             let deleted = await this.database.delete(this.name, entry._id)
+            return deleted
+        }catch(e){
+            return {error:e.message}
+        }
+    }
+
+    async destroy(){
+        try{
+            if(!this.configSet){
+                this.configSet = await this.init()
+                if(this.configSet.error) return {error:this.configSet.error}
+            }
+    
+            let deleted = await this.database.delete(this.name)
             return deleted
         }catch(e){
             return {error:e.message}

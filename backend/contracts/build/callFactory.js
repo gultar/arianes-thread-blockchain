@@ -132,16 +132,16 @@ class Factory{
                    
                  
                }else{
-                 //Method does not exist
-                 console.log('Method does not exist')
+                 return { error:`Method ${call.data.method} does not exist` }
                }
              }else{
-               console.log('Sending account could not be found')
+              return { error:`ERROR: Sending account ${call.fromAccount} could not be found` }
+               console.log('')
              }
              
            }
          }else{
-           return { error:`No calls to process in stack` }
+           return { error:`No calls to process in queue` }
          }
 
          }else if(contract.error){
