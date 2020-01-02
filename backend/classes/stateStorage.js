@@ -94,7 +94,15 @@ class StateStorage{
 
                 return state
             }else{
-                return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
+                let closestState = await this.getState(this.getCurrentBlock().blockNumber)
+                if(closestState){
+                    if(closestState.error) return { error:closestState.error }
+                    
+                    return closestState
+                }else{
+                    return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
+                }
+                
             }
         }catch(e){
             return {error:e.message}
