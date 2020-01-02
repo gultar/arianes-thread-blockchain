@@ -121,6 +121,7 @@ class StateStorage{
 
                 return state
             }else{
+                
                 state = await this.getClosestState(number)
                 if(state){
                     if(state.error) return { error:state.error }
@@ -138,18 +139,25 @@ class StateStorage{
     async rollback(blockNumber){
         try{
 
-            let state = await this.getState(blockNumber)
-            if(state){
-                if(state.error) return { error:state.error }
-                this.state = state
-                let saved = await this.save()
-                
-                if(saved.error) return { error:saved.error }
-                else return saved
+            let latestKey = await this.getLatestKey();
+            latestKey = parseInt(latestKey)
+            if(blockNumber > latestKey){
+                return true
             }else{
-                return { error:'ERROR Could not find state at block' }
-                //means state does not exist beyond this blocknumber
+                let state = await this.getState(blockNumber)
+                if(state){
+                    if(state.error) return { error:state.error }
+                    this.state = state
+                    let saved = await this.save()
+                    
+                    if(saved.error) return { error:saved.error }
+                    else return saved
+                }else{
+                    return { error:'ERROR Could not find state at block' }
+                    //means state does not exist beyond this blocknumber
+                }
             }
+            
             
         }catch(e){
             return { error:e.message }
@@ -211,6 +219,23 @@ class StateStorage{
                     latestState = await this.getState(latestKey)
 
                     return latestState
+                }else{
+                    return { error:'ERROR: State storage does not have keys yet' }
+                }
+
+        }catch(e){
+            return { error:e.message }
+        }
+        
+    }
+
+    async getLatestKey(){
+        try{
+            let keys = await this.database.getAllKeys();
+                if(keys){
+                    
+                    let latestState = false
+                    return keys[keys.length - 1]
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }
