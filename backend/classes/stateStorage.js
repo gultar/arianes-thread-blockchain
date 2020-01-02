@@ -193,12 +193,6 @@ class StateStorage{
                                     //success
                                 }
                                 
-                            }else{
-                                // if(parseInt(key) < parseInt(blockNumber)){
-                                //     closestState = await this.getLatestState()
-
-                                //     return closestState
-                                // }
                             }
                             
                             previousKey = key
