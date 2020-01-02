@@ -194,11 +194,11 @@ class StateStorage{
                                 }
                                 
                             }else{
-                                if(parseInt(key) < parseInt(blockNumber)){
-                                    closestState = await this.getLatestState()
+                                // if(parseInt(key) < parseInt(blockNumber)){
+                                //     closestState = await this.getLatestState()
 
-                                    return closestState
-                                }
+                                //     return closestState
+                                // }
                             }
                             
                             previousKey = key
