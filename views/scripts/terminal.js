@@ -478,6 +478,17 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
+          socket.emit('getLatestContractState', args[0])
+          socket.on('contractState', (state)=>{
+            output("<pre>"+JSON.stringify(state, null, 2)+"</pre>")
+            socket.removeAllListeners('contractState')
+          })
+          break;
+        case 'latest':
+          if(!isConnected){
+            connectError(cmd);
+            break;
+          }
           socket.emit('getCurrentContractState', args[0])
           socket.on('contractState', (state)=>{
             output("<pre>"+JSON.stringify(state, null, 2)+"</pre>")

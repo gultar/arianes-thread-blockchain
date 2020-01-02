@@ -94,13 +94,13 @@ class StateStorage{
 
                 return state
             }else{
-                let closestState = await this.getState(this.getCurrentBlock().blockNumber)
+                let closestState = await this.getLatestState()
                 if(closestState){
                     if(closestState.error) return { error:closestState.error }
                     this.state = closestState;
                     let saved = await this.save()
                     if(saved.error) return { error:saved.error }
-                    
+
                     return closestState
                 }else{
                     return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
@@ -191,6 +191,26 @@ class StateStorage{
                     }
 
                     return closestState
+                }else{
+                    return { error:'ERROR: State storage does not have keys yet' }
+                }
+
+        }catch(e){
+            return { error:e.message }
+        }
+        
+    }
+
+    async getLatestState(){
+        try{
+            let keys = await this.database.getAllKeys();
+                if(keys){
+                    
+                    let latestState = false
+                    let latestKey = keys[keys.length - 1]
+                    latestState = await this.getState(latestKey)
+
+                    return latestState
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }

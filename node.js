@@ -1469,6 +1469,18 @@ class Node {
         }
       })
 
+      socket.on('getLatestContractState', async (contractName)=>{
+        
+        let storage = await this.chain.contractTable.stateStorage[contractName]
+        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
+        else if(storage.error) socket.emit('contractState', { error:storage.error })
+        else{
+          let state = await storage.getLatestState()
+          socket.emit('contractState', state)
+          console.log(JSON.stringify(state, null, 2))
+        }
+      })
+
       socket.on('getContractAPI', async (name)=>{
           let contract = await this.chain.contractTable.getContract(name)
           if(contract){
@@ -1719,7 +1731,7 @@ class Node {
       if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
         if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
           api.isBuildingBlock = true
-          
+
           let deferredTxManaged = await this.mempool.manageDeferredTransactions(this.chain.getLatestBlock())
           if(deferredTxManaged.error) console.log('DEFERRED TX ERROR: ', deferredTxManaged.error)
 
