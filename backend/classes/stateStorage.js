@@ -45,11 +45,11 @@ class StateStorage{
         
     }
 
-    async save(){
+    async save(state = undefined){
         try{
             
-            // let currentBlock = this.getCurrentBlock()
-            // let timestamp = currentBlock.timestamp
+            let currentBlock = this.getCurrentBlock()
+            let timestamp = currentBlock.timestamp
 
             // // if(!this.state || Object.keys(this.state).length == 0){
             // //     console.log('No state found. Getting previous current state')
@@ -71,17 +71,17 @@ class StateStorage{
                 
             // // }
             
-            // let currentStateChanged = await this.database.put({
-            //     key:'currentState',
-            //     value:{
-            //         state:this.state,
-            //         timestamp:timestamp,
-            //         blockNumber:currentBlock.blockNumber
-            //     }
-            // })
-            // if(currentStateChanged.error) return { error:currentStateChanged }
-            // else if(currentStateChanged) return currentStateChanged
-            return true
+            let currentStateChanged = await this.database.put({
+                key:'currentState',
+                value:{
+                    state:state || this.state,
+                    timestamp:timestamp,
+                    blockNumber:currentBlock.blockNumber
+                }
+            })
+            if(currentStateChanged.error) return { error:currentStateChanged }
+            else if(currentStateChanged) return currentStateChanged
+            // return true
         }catch(e){
             
             return { error:e.message }
@@ -163,7 +163,7 @@ class StateStorage{
             if(state){
                 if(state.error) return { error:state.error }
                 this.state = state
-                let saved = await this.update(state)
+                let saved = await this.save(state)
                 
                 if(saved.error) return { error:saved.error }
                 else return saved
