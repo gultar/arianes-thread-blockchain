@@ -41,7 +41,7 @@ class Database{
             // console.log(id)
             // console.log(key)
             // console.log(value)
-            if(!id) return {error:"Cannot put to Database: Id is undefined"}
+            // if(!id) return {error:"Cannot put to Database: Id is undefined"}
             if(!key) return {error:"Cannot put to Database: key is undefined"}
             if(!value) return {error:"Cannot put to Database: value is undefined"}
     

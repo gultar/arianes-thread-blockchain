@@ -14,24 +14,25 @@ class StateStorage{
 
     async update(state){
         if(state && Object.keys(state).length > 0 && !state.error){
-            let blockNumber = this.getCurrentBlock().blockNumber
+            let currentBlock = this.getCurrentBlock();
+            let timestamp = currentBlock.timestamp
             
             this.state = state;
             
             let added = await this.database.put({
-                id:blockNumber,
-                key:blockNumber,
+                key:timestamp,
                 value:{
                     state:this.state,
-                    blockNumber:blockNumber,
+                    timestamp:timestamp,                        //Because the newest block is still being merged. 
+                    blockNumber:currentBlock.blockNumber    //Current block is pointing towards the previousblock                                                                
                 }
             })
             let currentStateChanged = await this.database.put({
-                id:'currentState',
                 key:'currentState',
                 value:{
                     state:this.state,
-                    blockNumber:blockNumber,
+                    timestamp:timestamp,
+                    blockNumber:currentBlock.blockNumber
                 }
             })
             if(currentStateChanged.error) return { error:currentStateChanged }
@@ -47,37 +48,40 @@ class StateStorage{
     async save(){
         try{
             
-            let blockNumber = this.getCurrentBlock().blockNumber
-            if(!this.state || Object.keys(this.state).length == 0){
-                console.log('No state found. Getting previous current state')
-                let currentState = await this.getCurrentState()
-                if(currentState && Object.keys(currentState).length > 0){
-                    if(currentState.error) return { error:currentState.error } 
-                    console.log(`Previous current state at block ${blockNumber}: ${currentState}`)
-                    this.state = currentState
-                }else{
-                    let closestState = await this.getClosestState(blockNumber)
-                    if(closestState && Object.keys(closestState).length > 0){
-                        if(closestState.error) return { error:closestState.error }
-                        console.log('About to save the latest state', closestState)
-                        this.state = closestState
-                    }else{
-                        return { error:'ERROR: Could not save state. State and closest state are empty' }
-                    }
-                }
+            // let currentBlock = this.getCurrentBlock()
+            // let timestamp = currentBlock.timestamp
+
+            // // if(!this.state || Object.keys(this.state).length == 0){
+            // //     console.log('No state found. Getting previous current state')
+            // //     let currentState = await this.getCurrentState()
+            // //     if(currentState && Object.keys(currentState).length > 0){
+            // //         if(currentState.error) return { error:currentState.error } 
+            // //         console.log(`Previous current state at block ${currentBlock.blockNumber}: ${currentState}`)
+            // //         this.state = currentState
+            // //     }else{
+            // //         let closestState = await this.getClosestState(timestamp)
+            // //         if(closestState && Object.keys(closestState).length > 0){
+            // //             if(closestState.error) return { error:closestState.error }
+            // //             console.log('About to save the latest state', closestState)
+            // //             this.state = closestState
+            // //         }else{
+            // //             return { error:'ERROR: Could not save state. State and closest state are empty' }
+            // //         }
+            // //     }
                 
-            }
+            // // }
             
-            let currentStateChanged = await this.database.put({
-                id:'currentState',
-                key:'currentState',
-                value:{
-                    state:this.state,
-                    blockNumber:blockNumber,
-                }
-            })
-            if(currentStateChanged.error) return { error:currentStateChanged }
-            else if(currentStateChanged) return currentStateChanged
+            // let currentStateChanged = await this.database.put({
+            //     key:'currentState',
+            //     value:{
+            //         state:this.state,
+            //         timestamp:timestamp,
+            //         blockNumber:currentBlock.blockNumber
+            //     }
+            // })
+            // if(currentStateChanged.error) return { error:currentStateChanged }
+            // else if(currentStateChanged) return currentStateChanged
+            return true
         }catch(e){
             
             return { error:e.message }
@@ -94,15 +98,16 @@ class StateStorage{
             // }else{
             //     return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
             // }
-            let { state, blockNumber } = await this.database.get('currentState');
-            
+            let { state } = await this.database.get('currentState');
+            let closestState = await this.getLatestState()
+
+        
             if(state){
                 if(state.error) return { error:state.error }
 
                 return state
             }else{
                 
-                let closestState = await this.getLatestState()
                 if(closestState){
                     if(closestState.error) return { error:closestState.error }
                     console.log('Getting latest state', closestState)
@@ -117,41 +122,48 @@ class StateStorage{
         }
     }
 
-    async getState(number){
-        try{
-            if(typeof number == 'number'){
-                number = number.toString()
-            }
-            console.log('Getting state of ', number)
-            let { state, blockNumber } = await this.database.get(number);
-            if(state){
-                if(state.error) return { error:state.error }
-                console.log('Has state:', state)
-                return state
-            }else{
-                console.log('Getting closestState')
-                state = await this.getClosestState(number)
-                if(state){
-                    if(state.error) return { error:state.error }
-                    return state
-                }else{
-                    return { error:`ERROR: Could not find state of contract ${this.name} at block number ${number}` }
-                }
+    // async getState(timestamp){
+    //     try{
+    //         if(typeof number == 'number'){
+    //             number = number.toString()
+    //         }
+    //         console.log('Getting state of ', number)
+    //         let { state, blockNumber } = await this.database.get(number);
+    //         if(state){
+    //             if(state.error) return { error:state.error }
+    //             console.log('Has state:', state)
+    //             return state
+    //         }else{
+    //             console.log('Getting closestState')
+    //             state = await this.getClosestState(number)
+    //             if(state){
+    //                 if(state.error) return { error:state.error }
+    //                 return state
+    //             }else{
+    //                 return { error:`ERROR: Could not find state of contract ${this.name} at block number ${number}` }
+    //             }
                 
-            }
-        }catch(e){
-            return {error:e.message}
-        }
-    }
+    //         }
+    //     }catch(e){
+    //         return {error:e.message}
+    //     }
+    // }
 
     async rollback(blockNumber){
         try{
-            console.log('Rolling back to state', blockNumber)
-            let state = await this.getClosestState(blockNumber)
+            let current = await this.getCurrentState()
+            console.log('Current state', JSON.stringify(current, null, 1))
+            console.log('Rolling back '+this.name+' to state', blockNumber)
+            let block = await this.getBlock(blockNumber)
+            console.log('Block number', blockNumber)
+            let timestamp = block.timestamp;
+            console.log('Past timestamp', timestamp)
+            let state = await this.getClosestState(timestamp)
+            console.log('Past state', JSON.stringify(state, null, 1))
             if(state){
                 if(state.error) return { error:state.error }
                 this.state = state
-                let saved = await this.save()
+                let saved = await this.update(state)
                 
                 if(saved.error) return { error:saved.error }
                 else return saved
@@ -168,58 +180,48 @@ class StateStorage{
     }
     
     //Mainly used when rolling back changes
-    async getClosestState(blockNumberString){
+    async getClosestState(requestedTimestamp){
         try{
-            let blockNumber = parseInt(blockNumberString)
+
+            var findClosest = async (value, array)=>{
+                let previous = 0
+                for await(let item of array){
+                  if(item > value && previous <= value){
+                    return previous
+                  }
+  
+                  previous = item
+                }
+  
+                return previous
+            }
+            
             let keys = await this.database.getAllKeys();
                 if(keys){
-                    let blockNumbers = await this.parseBlockNumbers(keys); //Desceding
-                    let previousNumber = 0
-                    let latestBlockNumber = blockNumbers[0]
-                    console.log('Blocknumber:', blockNumber)
-                    console.log('Latest', latestBlockNumber)
-                    if(blockNumber < latestBlockNumber){
-                        console.log('Is lower than latest')
-                        //Tries to find the block number of the closest state to the requested blockNumber
-                        for await(let number of blockNumbers){
-                            
-                            if(number < blockNumber && previousNumber >= blockNumber){
-                                let { state } = await this.database.get(number.toString())
-                                        // console.log('Closest state',await this.database.get(previousKey))
-                                if(state && Object.keys(state).length > 0){
-                                    if(state.error) return { error:state.error }
-    
-                                    return state
-                                }else{
-                                    return { error:`ERROR: Closest state to ${blockNumber} is empty` }
-                                }
-                            }
-                            previousNumber = number
-                        }
-                        //Returns the first ever state registered
-                        let { state } = await this.database.get(previousNumber.toString())
-                        // console.log('Closest state',await this.database.get(previousKey))
-                        if(state && Object.keys(state).length > 0){
-                            if(state.error) return { error:state.error }
 
-                            return state
-                        }else{
-                            return { error:`ERROR: Closest state to ${blockNumber} is empty` }
-                        }
+                    let latestTimestamp = await this.getLatestTimestamp()
+                    latestTimestamp = parseInt(latestTimestamp)
+                    requestedTimestamp = parseInt(requestedTimestamp)
+                    let timestamps = await this.parseTimestamps(keys)
+
+                    if(requestedTimestamp >= latestTimestamp){
+                        let { state } = await this.database.get(latestTimestamp.toString())
+                        if(state.error) return { error:state.error }
+
+                        return state
                     }else{
-                        console.log('Is higher than latest')
-                        //Returns the latest state registered
-                        let { state } = await this.database.get(latestBlockNumber.toString())
-                                        // console.log('Closest state',await this.database.get(previousKey))
-                        if(state && Object.keys(state).length > 0){
-                            if(state.error) return { error:state.error }
 
+                        let closestTimestamp = await findClosest(requestedTimestamp, timestamps)
+                        if(closestTimestamp){
+                            let { state, blockNumber } = await this.database.get(closestTimestamp.toString())
+                            if(state.error) return { error:state.error }
+                            console.log('Found closest state to blockNumber', blockNumber)
                             return state
                         }else{
-                            return { error:`ERROR: Closest state to ${blockNumber} is empty` }
+                            return { error:'ERROR: Could not find closest to '+requestedTimestamp }
                         }
                     }
-                    
+
                     
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
@@ -238,15 +240,10 @@ class StateStorage{
             let keys = await this.database.getAllKeys();
                 if(keys){
                     
-                    let sortedBlockNumbers = await this.parseBlockNumbers(keys)
-                    let latestBlockNumber = sortedBlockNumbers[0]
-                    let latestState = await this.getClosestState(latestBlockNumber.toString())
+                    let latestTimestamp = await this.getLatestTimestamp()
+                    let latestState = await this.getClosestState(latestTimestamp.toString())
                     return latestState
-                    // let latestState = false
-                    // let currentState = keys.pop()
                     
-                    // let latestKey = keys[keys.length - 1]
-                    // 
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }
@@ -257,18 +254,39 @@ class StateStorage{
         
     }
 
-    async parseBlockNumbers(keys){
+    async getLatestTimestamp(){
         try{
-            let blockNumbers = []
+            let keys = await this.database.getAllKeys();
+                if(keys){
+                    let highestTimestamp = 0
+                    for await(let timestamp of keys){
+                        if(timestamp !== 'currentState'){
+                            if(parseInt(highestTimestamp) < parseInt(timestamp)){
+                                highestTimestamp = timestamp
+                            }
+                        }
+                    }
 
-            for await(let number of keys){
-                if(number !== 'currentState'){
-                    blockNumbers.push(parseInt(number))
+                    return highestTimestamp
+                }else{
+                    return { error:'ERROR: State storage does not have keys yet' }
+                }
+            
+        }catch(e){
+            return{error:e.message}
+        }
+    }
+
+    async parseTimestamps(keys){
+        try{
+            let timestamps = []
+            for await(let timestamp of keys){
+                if(timestamp !== 'currentState'){
+                    timestamps.push(parseInt(timestamp))
                 }
             }
 
-            let sortedBlockNumbers = blockNumbers.sort((a,b)=>b-a)
-            return sortedBlockNumbers
+            return timestamps
         }catch(e){
             return { error:e.message }
         }
@@ -278,8 +296,8 @@ class StateStorage{
         try{
             let keys = await this.database.getAllKeys();
                 if(keys){
-                    let sortedBlockNumbers = await this.parseBlockNumbers(keys)
-                    return sortedBlockNumbers[0]
+                    let sortedBlockNumbers = await this.parseTimestamps(keys)
+                    return sortedBlockNumbers[sortedBlockNumbers.length - 1]
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }
