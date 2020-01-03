@@ -12,7 +12,7 @@ class StateStorage{
     }
 
     async update(state){
-        if(state && !state.error){
+        if(state && Object.keys(state).length > 0 && !state.error){
             let blockNumber = this.getCurrentBlock().blockNumber
             let previousBlock = this.getBlock(this.getCurrentBlock().blockNumber - 1)
             let previousState = {}
@@ -49,6 +49,7 @@ class StateStorage{
             if(added.error) return { error:added.error }
             else return added
         }else{
+            console.log('State provided:', state)
             return { error:`ERROR: Cannot update state of ${this.name} with empty entry` }
         }
         
@@ -179,6 +180,8 @@ class StateStorage{
                     let blockNumbers = await this.parseBlockNumbers(keys); //Desceding
                     let previousNumber = 0
                     let latestBlockNumber = blockNumbers[0]
+                    console.log('Blocknumber:', blockNumber)
+                    console.log('Latest', latestBlockNumber)
                     if(blockNumber < latestBlockNumber){
                         console.log('Is lower than latest')
                         //Tries to find the block number of the closest state to the requested blockNumber
