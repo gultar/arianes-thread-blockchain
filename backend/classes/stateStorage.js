@@ -56,7 +56,7 @@ class StateStorage{
 
                     this.state = currentState
                 }else{
-                    let closestState = await this.getClosestState(blockNumber)
+                    let closestState = await this.getLatestState(blockNumber)
                     if(closestState && Object.keys(closestState).length > 0){
                         if(closestState.error) return { error:closestState.error }
 
@@ -233,7 +233,7 @@ class StateStorage{
                     
                     let sortedBlockNumbers = await this.parseBlockNumbers(keys)
                     let latestBlockNumber = sortedBlockNumbers[0]
-                    let latestState = await this.getState(latestBlockNumber.toString())
+                    let latestState = await this.getClosestState(latestBlockNumber.toString())
                     return latestState
                     // let latestState = false
                     // let currentState = keys.pop()
