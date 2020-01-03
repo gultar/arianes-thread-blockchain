@@ -466,13 +466,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             }
             socket.emit('stopMining', args[0])
             break;
-        case 'collection':
-            if(!isConnected){
-              connectError(cmd);
-              break;
-            }
-            socket.emit('tryStoreCount', args[0])
-            break;
+            
         case 'current':
           if(!isConnected){
             connectError(cmd);

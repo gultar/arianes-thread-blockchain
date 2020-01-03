@@ -117,6 +117,7 @@ class StateStorage{
             if(typeof number == 'number'){
                 number = number.toString()
             }
+            console.log('Getting state of ', number)
             let { state, blockNumber } = await this.database.get(number);
             if(state){
                 if(state.error) return { error:state.error }
@@ -141,7 +142,7 @@ class StateStorage{
     async rollback(blockNumber){
         try{
             console.log('Rolling back to state', blockNumber)
-            let state = await this.getState(blockNumber)
+            let state = await this.getClosestState(blockNumber)
             if(state){
                 if(state.error) return { error:state.error }
                 this.state = state
