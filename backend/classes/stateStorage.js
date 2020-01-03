@@ -114,14 +114,16 @@ class StateStorage{
 
     async getState(number){
         try{
-           
+            if(typeof number == 'number'){
+                number = number.toString()
+            }
             let { state, blockNumber } = await this.database.get(number);
             if(state){
                 if(state.error) return { error:state.error }
-
+                console.log('Has state:', state)
                 return state
             }else{
-                
+                console.log('Getting closestState')
                 state = await this.getClosestState(number)
                 if(state){
                     if(state.error) return { error:state.error }
@@ -138,7 +140,7 @@ class StateStorage{
 
     async rollback(blockNumber){
         try{
-
+            console.log('Rolling back to state', blockNumber)
             let state = await this.getState(blockNumber)
             if(state){
                 if(state.error) return { error:state.error }
@@ -169,6 +171,7 @@ class StateStorage{
                     let previousNumber = 0
                     let latestBlockNumber = blockNumbers[0]
                     if(blockNumber < latestBlockNumber){
+                        console.log('Is lower than latest')
                         //Tries to find the block number of the closest state to the requested blockNumber
                         for await(let number of blockNumbers){
                             
@@ -185,7 +188,18 @@ class StateStorage{
                             }
                             previousNumber = number
                         }
+                        //Returns the first ever state registered
+                        let { state } = await this.database.get(previousNumber.toString())
+                        // console.log('Closest state',await this.database.get(previousKey))
+                        if(state && Object.keys(state).length > 0){
+                            if(state.error) return { error:state.error }
+
+                            return state
+                        }else{
+                            return { error:`ERROR: Closest state to ${blockNumber} is empty` }
+                        }
                     }else{
+                        console.log('Is higher than latest')
                         //Returns the latest state registered
                         let { state } = await this.database.get(latestBlockNumber.toString())
                                         // console.log('Closest state',await this.database.get(previousKey))
@@ -198,16 +212,7 @@ class StateStorage{
                         }
                     }
                     
-                    //Returns the first ever state registered
-                    let { state } = await this.database.get(previousNumber.toString())
-                    // console.log('Closest state',await this.database.get(previousKey))
-                    if(state && Object.keys(state).length > 0){
-                        if(state.error) return { error:state.error }
-
-                        return state
-                    }else{
-                        return { error:`ERROR: Closest state to ${blockNumber} is empty` }
-                    }
+                    
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }
                 }
