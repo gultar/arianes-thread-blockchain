@@ -5,6 +5,7 @@ class StateStorage{
         this.name = name+'Storage'
         this.database = new Database(this.name)
         this.state = {};
+        this.latestState = {}
         this.getCurrentBlock = getCurrentBlock
         this.getBlock = getBlock
         this.blockToStateMap = {}
@@ -14,20 +15,8 @@ class StateStorage{
     async update(state){
         if(state && Object.keys(state).length > 0 && !state.error){
             let blockNumber = this.getCurrentBlock().blockNumber
-            let previousBlock = this.getBlock(this.getCurrentBlock().blockNumber - 1)
-            let previousState = {}
+            
             this.state = state;
-            if(Object.keys(this.state).length == 0 && Object.keys(previousState).length > 0){
-                if(previousBlock){
-                    previousState = await this.getClosestState(previousBlock.blockNumber)
-                    
-                    if(previousState){
-                        if(previousState.error) return { error:previousState.error }
-                        this.state = previousState
-                    }
-                }
-                
-            }
             
             let added = await this.database.put({
                 id:blockNumber,
@@ -97,7 +86,14 @@ class StateStorage{
 
     async getCurrentState(){
         try{
-           
+            // let closestState = await this.getLatestState()
+            // if(closestState){
+            //     if(closestState.error) return { error:closestState.error }
+            //     console.log('Getting latest state', closestState)
+            //     return closestState
+            // }else{
+            //     return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
+            // }
             let { state, blockNumber } = await this.database.get('currentState');
             
             if(state){
