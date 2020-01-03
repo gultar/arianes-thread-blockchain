@@ -233,6 +233,8 @@ class Blockchain{
         resolve({error:'ERROR: BlockNumber of new block does not follow this chain'})
       }else{
         let errors = {}
+        let newHeader = this.extractHeader(newBlock)
+        this.chain.push(newHeader);
 
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
         if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
@@ -250,7 +252,7 @@ class Blockchain{
         let callsExecuted = await this.runTransactionCalls(newBlock);
         if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
         
-        let newHeader = this.extractHeader(newBlock)
+        
         
         let executed = await this.balance.runBlock(newBlock)
         
@@ -265,11 +267,12 @@ class Blockchain{
           
           //Verify is already exists
           if(Object.keys(errors).length > 0){
+            let removedNewHeader = this.chain.pop()
             resolve({error: errors})
           }else{
             
             this.spentTransactionHashes.push(...newHeader.txHashes)
-            this.chain.push(newHeader);
+            
             let added = await this.addBlockToDB(newBlock)
             if(added){
               if(added.error) resolve({error:added.error})

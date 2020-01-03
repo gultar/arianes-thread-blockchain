@@ -1475,7 +1475,10 @@ class Node {
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          let state = await storage.rollback(blockNumber)
+          let block = this.chain.chain[blockNumber]
+          console.log('Block is', block.blockNumber)
+          let timestamp = block.timestamp
+          let state = await storage.getClosestState(timestamp)
           
           console.log(JSON.stringify({closest:state}, null, 2))
           socket.emit('contractState', state)

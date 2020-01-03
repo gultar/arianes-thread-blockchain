@@ -151,9 +151,9 @@ class StateStorage{
 
     async rollback(blockNumber){
         try{
-            let current = await this.getCurrentState()
-            console.log('Current state', JSON.stringify(current, null, 1))
-            console.log('Rolling back '+this.name+' to state', blockNumber)
+            // let current = await this.getCurrentState()
+            // console.log('Current state', JSON.stringify(current, null, 1))
+            // console.log('Rolling back '+this.name+' to state', blockNumber)
             let block = await this.getBlock(blockNumber)
             console.log('Block number', blockNumber)
             let timestamp = block.timestamp;
