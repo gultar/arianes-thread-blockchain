@@ -56,10 +56,10 @@ class StateStorage{
 
                     this.state = currentState
                 }else{
-                    let closestState = await this.getLatestState(blockNumber)
+                    let closestState = await this.getClosestState(blockNumber)
                     if(closestState && Object.keys(closestState).length > 0){
                         if(closestState.error) return { error:closestState.error }
-
+                        console.log('About to save the latest state', closestState)
                         this.state = closestState
                     }else{
                         return { error:'ERROR: Could not save state. State and closest state are empty' }
@@ -94,13 +94,11 @@ class StateStorage{
 
                 return state
             }else{
+                
                 let closestState = await this.getLatestState()
                 if(closestState){
                     if(closestState.error) return { error:closestState.error }
-                    this.state = closestState;
-                    let saved = await this.save()
-                    if(saved.error) return { error:saved.error }
-
+                    console.log('Getting latest state', closestState)
                     return closestState
                 }else{
                     return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }

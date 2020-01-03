@@ -88,7 +88,7 @@
   },
   "scripts": {
     "test": "node test.js",
-    "push": "git add * && git commit -m '$MSG' && git push origin master",
+    "push": "git add * && git commit -m && git push origin master",
     "pull": "git stash && git pull & git rebase"
   },
   "repository": {
