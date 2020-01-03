@@ -37,6 +37,15 @@ class StateStorage{
                     blockNumber:blockNumber,
                 }
             })
+            let currentStateChanged = await this.database.put({
+                id:'currentState',
+                key:'currentState',
+                value:{
+                    state:this.state,
+                    blockNumber:blockNumber,
+                }
+            })
+            if(currentStateChanged.error) return { error:currentStateChanged }
             if(added.error) return { error:added.error }
             else return added
         }else{
@@ -50,10 +59,11 @@ class StateStorage{
             
             let blockNumber = this.getCurrentBlock().blockNumber
             if(!this.state || Object.keys(this.state).length == 0){
+                console.log('No state found. Getting previous current state')
                 let currentState = await this.getCurrentState()
                 if(currentState && Object.keys(currentState).length > 0){
                     if(currentState.error) return { error:currentState.error } 
-
+                    console.log(`Previous current state at block ${blockNumber}: ${currentState}`)
                     this.state = currentState
                 }else{
                     let closestState = await this.getClosestState(blockNumber)
