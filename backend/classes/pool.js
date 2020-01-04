@@ -309,7 +309,7 @@ class Mempool{
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
                         
-                        let used = await this.removeTransaction(hash)
+                        let used = await this.useTransaction(hash)
                         if(used && !used.error) transactions[transaction.hash] = transaction
                     }
                     
@@ -333,7 +333,7 @@ class Mempool{
                 let transaction = block.transactions[hash]
                 
                 if(transaction.fromAddress !== 'coinbase'){
-                    let putback = await this.readdTransaction(transaction)
+                    let putback = await this.unuseTransaction(transaction)
                     if(putback.error) errors[hash] = putback.error
                 }
                 
@@ -358,7 +358,7 @@ class Mempool{
                     if(action){
                         if(action.error) errors[hash] = action.error
                         
-                        let used = await this.removeAction(hash)
+                        let used = await this.useAction(hash)
                         if(used){
                             if(used.error) errors[hash] = used.error
                             actions[action.hash] = action
@@ -384,7 +384,7 @@ class Mempool{
             let errors = {}
             for await(let hash of actionHashes){
                 let action = block.actions[hash]
-                let putback = await this.readdAction(action)
+                let putback = await this.unuseAction(action)
                 if(putback.error) errors[hash] = putback.error
             }
 
