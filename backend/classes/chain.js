@@ -1449,7 +1449,7 @@ class Blockchain{
   */
   async validateBlock(block){
     return new Promise(async (resolve)=>{
-      console.log(block)
+      // console.log(block)
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = await this.validateBlockTimestamp(block)
