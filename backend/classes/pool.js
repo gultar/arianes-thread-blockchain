@@ -308,8 +308,8 @@ class Mempool{
                     
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
-                        
-                        let used = await this.useTransaction(hash)
+                        this.usedTxReceipts[hash] = this.createTransactionReceipt(transaction)
+                        let used = await this.removeTransaction(hash)
                         if(used && !used.error) transactions[transaction.hash] = transaction
                     }
                     
@@ -330,12 +330,15 @@ class Mempool{
             let txHashes = Object.keys(block.transactions);
             let errors = {}
             for await(let hash of txHashes){
-                let transaction = block.transactions[hash]
+                if(!this.usedTxReceipts[hash]){
+                    let transaction = block.transactions[hash]
                 
-                if(transaction.fromAddress !== 'coinbase'){
-                    let putback = await this.unuseTransaction(transaction)
-                    if(putback.error) errors[hash] = putback.error
+                    if(transaction.fromAddress !== 'coinbase'){
+                        let putback = await this.readdTransaction(transaction)
+                        if(putback.error) errors[hash] = putback.error
+                    }
                 }
+               
                 
             }
 
@@ -357,8 +360,8 @@ class Mempool{
                     let action = await this.getAction(hash)
                     if(action){
                         if(action.error) errors[hash] = action.error
-                        
-                        let used = await this.useAction(hash)
+                        this.usedActionReceipts[hash] = this.createActionReceipt(action)
+                        let used = await this.removeAction(hash)
                         if(used){
                             if(used.error) errors[hash] = used.error
                             actions[action.hash] = action
@@ -383,9 +386,11 @@ class Mempool{
             let actionHashes = Object.keys(block.actions);
             let errors = {}
             for await(let hash of actionHashes){
-                let action = block.actions[hash]
-                let putback = await this.unuseAction(action)
-                if(putback.error) errors[hash] = putback.error
+                if(!this.usedActionReceipts[hash]){
+                    let action = block.actions[hash]
+                    let putback = await this.readdAction(action)
+                    if(putback.error) errors[hash] = putback.error
+                }
             }
 
             if(Object.keys(errors).length > 0) resolve({error:errors})
@@ -402,7 +407,7 @@ class Mempool{
                 if(entry){
                     if(entry.error) errors[hash] = entry.error
 
-                    delete this.usedTxReceipts[hash]
+                    // delete this.usedTxReceipts[hash]
                     delete this.txReceipts[hash]
                     let deleted = await this.transactions.delete(entry)
                     if(deleted){
@@ -430,7 +435,6 @@ class Mempool{
             let errors = {}
 
             for(var hash of hashes){
-                delete this.usedTxReceipts[hash]
                 delete this.txReceipts[hash]
                 let deleted = await this.transactions.delete({_id:hash})
                 if(deleted){
@@ -459,6 +463,7 @@ class Mempool{
                 if(entry){
                     if(entry.error) resolve({error:entry.error})
 
+                    // delete this.usedActionReceipts[hash]
                     delete this.actionReceipts[hash]
                     let deleted = await this.actions.delete(entry)
                     if(deleted){
@@ -484,7 +489,6 @@ class Mempool{
             let errors = {}
 
             for(var hash of hashes){
-                delete this.usedActionReceipts[hash]
                 delete this.actionReceipts[hash]
                 let deleted = await this.actions.delete({_id:hash})
                 if(deleted){
