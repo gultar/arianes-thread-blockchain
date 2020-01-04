@@ -1749,7 +1749,7 @@ class Node {
     
     const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
       
-      if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock && !this.isValidatingPeerBlock){
+      if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
         if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
           api.isBuildingBlock = true
 
@@ -2070,14 +2070,14 @@ class Node {
                 this.isValidatingPeerBlock = true
 
                 if(minerOn){
-                  this.localServer.socket.emit('stopMining')
+                  this.localServer.socket.emit('stopMining', block)
                   this.localServer.socket.isBuildingBlock = false
-                  // let putback = await this.mempool.putbackTransactions(block)
-                  // if(putback.error) resolve({error:putback.error})
-                  // if(block.actions){
-                  //   let actionsPutback = await this.mempool.putbackActions(block)
-                  //   if(actionsPutback.error) resolve({error:actionsPutback.error})
-                  // }
+                  let putback = await this.mempool.deleteTransactionsOfBlock(block.transactions)
+                  if(putback.error) resolve({error:putback.error})
+                  if(block.actions){
+                    let actionsPutback = await this.mempool.deleteActionsOfBlock(block.actions)
+                    if(actionsPutback.error) resolve({error:actionsPutback.error})
+                  }
                 }
 
                 
