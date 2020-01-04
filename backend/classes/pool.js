@@ -9,8 +9,8 @@ class Mempool{
     constructor(){
         this.transactions = new Database('transactionsPool')
         this.actions = new Database('actionsPool')
-        this.transactions = new Database('deferredTransactionsPool')
-        this.actions = new Database('deferredActionsPool')
+        this.deferredTransactions = new Database('deferredTransactionsPool')
+        this.deferredActions = new Database('deferredActionsPool')
         this.txReceipts = {}
         this.delayedTransactions = {}
         this.delayedActions = {}
@@ -202,6 +202,21 @@ class Mempool{
         })
     }
 
+    removeTransaction(hash){
+        return new Promise(async(resolve)=>{
+            
+            let deleted = await this.transactions.delete({_id:hash})
+            resolve(deleted)
+        })
+    }
+
+    removeAction(hash){
+        return new Promise(async (resolve)=>{
+            let deleted = await this.actions.delete({_id:hash})
+            resolve(deleted)
+        })
+    }
+
     unuseTransaction(hash){
         return new Promise((resolve)=>{
             let receipt = this.usedTxReceipts[hash]
@@ -258,7 +273,7 @@ class Mempool{
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
                         
-                        let used = await this.useTransaction(hash)
+                        let used = await this.removeTransaction(hash)
                         if(used && !used.error) transactions[transaction.hash] = transaction
                     }
                     
@@ -279,10 +294,9 @@ class Mempool{
             let txHashes = Object.keys(block.transactions);
             let errors = {}
             for await(let hash of txHashes){
-                if(this.usedTxReceipts[hash]){
-                    let unused = await this.unuseTransaction(hash);
-                    if(unused.error) errors[hash] = unused.error
-                }
+                let transaction = block.transactions[hash]
+                let putback = await this.addTransaction(transaction)
+                if(putback.error) errors[hash] = putback.error
             }
 
             if(Object.keys(errors).length > 0) resolve({error:errors})
@@ -304,7 +318,7 @@ class Mempool{
                     if(action){
                         if(action.error) errors[hash] = action.error
                         
-                        let used = await this.useAction(hash)
+                        let used = await this.removeAction(hash)
                         if(used){
                             if(used.error) errors[hash] = used.error
                             actions[action.hash] = action
@@ -329,10 +343,9 @@ class Mempool{
             let actionHashes = Object.keys(block.actions);
             let errors = {}
             for await(let hash of actionHashes){
-                if(this.usedActionReceipts[hash]){
-                    let unused = await this.unuseAction(hash);
-                    if(unused.error) errors[hash] = unused.error
-                }
+                let action = block.actions[hash]
+                let putback = await this.addAction(action)
+                if(putback.error) errors[hash] = putback.error
             }
 
             if(Object.keys(errors).length > 0) resolve({error:errors})
