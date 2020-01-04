@@ -1854,15 +1854,17 @@ class Node {
           let isValid = await this.chain.validateBlock(block)
           if(isValid){
             if(isValid.error) console.log('Is not valid mined block', isValid.error)
-            
-            let added = await this.chain.addBlockToChain(block)
-            if(added.error) logger('MinerBlock Error:',added.error)
             else{
-              this.sendPeerMessage('newBlockFound', block);
-              api.emit('latestBlock', this.chain.getLatestBlock())
+              let added = await this.chain.addBlockToChain(block)
+              if(added.error) logger('MinerBlock Error:',added.error)
+              else{
+                this.sendPeerMessage('newBlockFound', block);
+                api.emit('latestBlock', this.chain.getLatestBlock())
+              }
+              api.isBuildingBlock = false
+              this.chain.isBusy = false
             }
-            api.isBuildingBlock = false
-            this.chain.isBusy = false
+            
             
           }else{
             console.log('ERROR: Mined Block is not valid!')
