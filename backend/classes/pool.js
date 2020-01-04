@@ -377,7 +377,8 @@ class Mempool{
             let errors = {}
 
             for(var hash of hashes){
-
+                delete this.usedTxReceipts[hash]
+                delete this.txReceipts[hash]
                 let deleted = await this.transactions.delete({_id:hash})
                 if(deleted){
                     if(deleted.error) errors[hash] = deleted.error 
@@ -421,6 +422,30 @@ class Mempool{
             }else{
                 resolve(true)
             }
+        })
+    }
+
+    deleteActionsOfBlock(actions){
+        return new Promise(async (resolve)=>{
+            let hashes = Object.keys(actions)
+            let errors = {}
+
+            for(var hash of hashes){
+                delete this.usedActionReceipts[hash]
+                delete this.actionReceipts[hash]
+                let deleted = await this.actions.delete({_id:hash})
+                if(deleted){
+                    if(deleted.error) errors[hash] = deleted.error 
+                }
+                
+            }
+
+            if(Object.keys(errors) > 0){
+                resolve({error:errors})
+            }else{
+                resolve(true)
+            }
+
         })
     }
     sizeOfPool(){

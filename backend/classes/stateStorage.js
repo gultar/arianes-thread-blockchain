@@ -178,6 +178,32 @@ class StateStorage{
         }
         
     }
+
+    async testRollback(blockNumber){
+        try{
+            // let current = await this.getCurrentState()
+            // console.log('Current state', JSON.stringify(current, null, 1))
+            // console.log('Rolling back '+this.name+' to state', blockNumber)
+            let block = await this.getBlock(blockNumber)
+            console.log('Block number', blockNumber)
+            let timestamp = block.timestamp;
+            console.log('Past timestamp', timestamp)
+            let state = await this.getClosestState(timestamp)
+            console.log('Past state', JSON.stringify(state, null, 1))
+            if(state){
+                if(state.error) return { error:state.error }
+                else return state
+            }else{
+                return { error:'ERROR Could not find state at block' }
+                //means state does not exist beyond this blocknumber
+            }
+            
+            
+        }catch(e){
+            return { error:e.message }
+        }
+        
+    }
     
     //Mainly used when rolling back changes
     async getClosestState(requestedTimestamp){

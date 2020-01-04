@@ -489,12 +489,12 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             socket.removeAllListeners('contractState')
           })
           break;
-        case 'latestkey':
+        case 'test':
           if(!isConnected){
             connectError(cmd);
             break;
           }
-          socket.emit('getLatestKeyContractState', args[0])
+          socket.emit('testRollback', args[0], args[1])
           break;
         case 'closest':
           if(!isConnected){

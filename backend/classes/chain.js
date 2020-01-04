@@ -1760,8 +1760,20 @@ class Blockchain{
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
       
-      this.spentTransactionHashes = this.spentTransactionHashes.filter(hash => !txHashes.includes(hash));
-      this.spentActionHashes = this.spentActionHashes.filter(hash => !actionHashes.includes(hash));
+      for await(let hash of txHashes){
+        if(this.spentTransactionHashes[hash]){
+          delete this.spentTransactionHashes[hash]
+        }
+      }
+
+      for await(let hash of actionHashes){
+        if(this.spentActionHashes[hash]){
+          delete this.spentActionHashes[hash]
+        }
+      }
+
+      // this.spentTransactionHashes = this.spentTransactionHashes.filter(hash => !txHashes.includes(hash));
+      // this.spentActionHashes = this.spentActionHashes.filter(hash => !actionHashes.includes(hash));
       
       let stateRolledBack = await this.contractTable.rollback(newLastBlock.blockNumber)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
@@ -1852,6 +1864,54 @@ class Blockchain{
         else resolve(block);
       
     })
+  }
+
+  async validateTransactionsBeforeMining(transactions){
+    let rejectedTransactions = {}
+    let acceptedTransactions = {}
+
+    for await(let hash of Object.keys(transactions)){
+      let transaction = transactions[hash]
+
+      let isValid = await this.validateTransaction(transaction);
+      if(isValid && !isValid.error){
+        acceptedTransactions[hash] = transaction
+      }else{
+        rejectedTransactions[hash] = transaction
+      }
+      
+    }
+
+    if(Object.keys(rejectedTransactions).length >0){
+      let deleted = await this.mempool.deleteTransactionsOfBlock(rejectedTransactions);
+      if(deleted.error) return { error:deleted.error }
+    }
+
+    return acceptedTransactions
+  }
+
+  async validateActionsBeforeMining(actions){
+    let rejectedActions = {}
+    let acceptedActions = {}
+
+    for await(let hash of Object.keys(actions)){
+      let actions = actions[hash]
+
+      let isValid = await this.validateTransaction(actions);
+      if(isValid && !isValid.error){
+        acceptedActions[hash] = actions
+      }else{
+        rejectedActions[hash] = actions
+      }
+      
+    }
+
+    if(Object.keys(rejectedActions).length > 0){
+      let deleted = await this.mempool.deleteActionsOfBlock(actions)
+      if(deleted.error) return { error:deleted.error }
+    }
+
+    return acceptedActions
   }
 
 

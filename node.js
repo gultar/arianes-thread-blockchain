@@ -1497,6 +1497,19 @@ class Node {
         }
       })
 
+      socket.on('testRollback', async (contractName, blockNumber)=>{
+        
+        let storage = await this.chain.contractTable.stateStorage[contractName]
+        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
+        else if(storage.error) socket.emit('contractState', { error:storage.error })
+        else{
+          // let rolledback = await storage.testRollback(blockNumber)
+          // console.log(JSON.stringify(rolledback, null, 2))
+          let closest = await storage.getClosestState(1578103408175)
+          console.log(JSON.stringify(closest, null, 2))
+        }
+      })
+
       socket.on('getContractAPI', async (name)=>{
           let contract = await this.chain.contractTable.getContract(name)
           if(contract){
@@ -1753,12 +1766,14 @@ class Node {
 
           let transactions = await this.mempool.gatherTransactionsForBlock()
           if(transactions.error) console.log('Mempool error: ',transactions.error)
+          transactions = await this.chain.validateTransactionsBeforeMining(transactions)
 
           let deferredActionsManaged = await this.mempool.manageDeferredActions(this.chain.getLatestBlock())
           if(deferredActionsManaged.error) console.log('DEFERRED ACTIONS ERROR: ', deferredActionsManaged.error)
 
           let actions = await this.mempool.gatherActionsForBlock()
           if(actions.error) console.log('Mempool error:',actions.error)
+          actions = await this.chain.validateActionsBeforeMining(actions)
           if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }
           
           let rawBlock = {
