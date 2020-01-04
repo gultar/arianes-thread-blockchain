@@ -24,6 +24,7 @@ class Miner{
         this.minerStarted = false;
         this.miningReward = 50;
         this.requeryTime = 1000 // 1 second
+        this.preparingBlock = false
         this.blockNumbersMined = {}
         this.pool = {
           pendingTransactions:{},
@@ -208,7 +209,8 @@ class Miner{
 
     async prepareBlockForMining(rawBlock){
         
-        if(rawBlock && rawBlock.blockNumber > this.previousBlock.blockNumber){
+        if(rawBlock && rawBlock.blockNumber > this.previousBlock.blockNumber && !this.preparingBlock){
+          this.preparingBlock = true
           let coinbase = await this.createCoinbase()
           rawBlock.transactions[coinbase.hash] = coinbase
           let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, rawBlock.previousHash, rawBlock.blockNumber)
@@ -220,6 +222,7 @@ class Miner{
           block.challenge = difficulty.setNewChallenge(block)
           block.totalDifficulty = this.calculateTotalDifficulty(block)
           block.minedBy = this.wallet.publicKey;
+          this.preparingBlock = false
           return block
         }else{
           return false

@@ -1401,10 +1401,10 @@ class Blockchain{
   }
 
   validateUniqueCoinbaseTx(block){
-    return new Promise((resolve)=>{
+    return new Promise(async (resolve)=>{
       let transactionHashes = Object.keys(block.transactions);
       let coinbase = false
-      for(var hash of transactionHashes){
+      for await(var hash of transactionHashes){
         let tx = block.transactions[hash]
         if(tx.fromAddress == 'coinbase'){
           if(!coinbase){
@@ -1449,7 +1449,7 @@ class Blockchain{
   */
   async validateBlock(block){
     return new Promise(async (resolve)=>{
-      // console.log(block)
+      console.log(block)
       var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = await this.validateBlockTimestamp(block)
@@ -1463,7 +1463,7 @@ class Blockchain{
 
       if(!difficultyIsAboveMinimum) resolve({error:'ERROR: Difficulty level must be above minimum set in genesis block'})
       // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
-      if(!coinbaseIsAttachedToBlock) resolve({error:'ERROR: Coinbase transaction is not attached to block '+block.blockNummber})
+      if(!coinbaseIsAttachedToBlock) resolve({error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber})
       if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
       if(!singleCoinbase) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
       
