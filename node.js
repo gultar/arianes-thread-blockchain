@@ -2069,12 +2069,12 @@ class Node {
                 if(minerOn){
                   this.localServer.socket.emit('stopMining')
                   this.localServer.socket.isBuildingBlock = false
-                  let putback = await this.mempool.putbackTransactions(block)
-                  if(putback.error) resolve({error:putback.error})
-                  if(block.actions){
-                    let actionsPutback = await this.mempool.putbackActions(block)
-                    if(actionsPutback.error) resolve({error:actionsPutback.error})
-                  }
+                  // let putback = await this.mempool.putbackTransactions(block)
+                  // if(putback.error) resolve({error:putback.error})
+                  // if(block.actions){
+                  //   let actionsPutback = await this.mempool.putbackActions(block)
+                  //   if(actionsPutback.error) resolve({error:actionsPutback.error})
+                  // }
                 }
 
                 

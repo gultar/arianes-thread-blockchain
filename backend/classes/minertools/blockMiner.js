@@ -161,7 +161,7 @@ class Miner{
 
     pause(abort=false){
       this.log('Mining interrupted')
-        
+        console.log(process.ACTIVE_MINER)
       if(process.ACTIVE_MINER){
         process.ACTIVE_MINER.kill()
         process.ACTIVE_MINER = false;

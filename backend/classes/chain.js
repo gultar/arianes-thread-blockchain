@@ -1884,7 +1884,7 @@ class Blockchain{
       let transaction = transactions[hash]
 
       let isValid = await this.validateTransaction(transaction);
-      if(isValid && !isValid.error){
+      if(isValid && !isValid.error){  
         let alreadyExistsInBlockchain = this.spentTransactionHashes[hash]
         if(!alreadyExistsInBlockchain){
           acceptedTransactions[hash] = transaction
