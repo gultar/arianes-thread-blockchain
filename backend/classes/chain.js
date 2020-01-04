@@ -1885,7 +1885,12 @@ class Blockchain{
 
       let isValid = await this.validateTransaction(transaction);
       if(isValid && !isValid.error){
-        acceptedTransactions[hash] = transaction
+        let alreadyExistsInBlockchain = this.spentTransactionHashes[hash]
+        if(!alreadyExistsInBlockchain){
+          acceptedTransactions[hash] = transaction
+        }else{
+          rejectedTransactions[hash] = transaction
+        }
       }else{
         rejectedTransactions[hash] = transaction
       }
@@ -1909,9 +1914,15 @@ class Blockchain{
 
       let isValid = await this.validateAction(action);
       if(isValid && !isValid.error){
-        acceptedActions[hash] = actions
+        let alreadyExistsInBlockchain = this.spentActionHashes[hash]
+        if(!alreadyExistsInBlockchain){
+          acceptedActions[hash] = action
+        }else{
+          rejectedActions[hash] = action
+        }
+        acceptedActions[hash] = action
       }else{
-        rejectedActions[hash] = actions
+        rejectedActions[hash] = action
       }
       
     }

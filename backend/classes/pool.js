@@ -295,6 +295,7 @@ class Mempool{
             let errors = {}
             for await(let hash of txHashes){
                 let transaction = block.transactions[hash]
+                
                 if(transaction.fromAddress !== 'coinbase'){
                     let putback = await this.addTransaction(transaction)
                     if(putback.error) errors[hash] = putback.error
