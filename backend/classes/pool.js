@@ -204,7 +204,7 @@ class Mempool{
 
     removeTransaction(hash){
         return new Promise(async(resolve)=>{
-            
+            delete this.txReceipts[hash]
             let deleted = await this.transactions.delete({_id:hash})
             resolve(deleted)
         })
@@ -212,6 +212,7 @@ class Mempool{
 
     removeAction(hash){
         return new Promise(async (resolve)=>{
+            delete this.actionReceipts[hash]
             let deleted = await this.actions.delete({_id:hash})
             resolve(deleted)
         })
