@@ -115,6 +115,24 @@ class Mempool{
             
         })
     }
+
+    readdTransaction(transaction){
+        return new Promise( async (resolve)=>{
+            let added = await this.transactions.add({
+                _id:transaction.hash,
+                [transaction.hash]:transaction
+            })
+            if(added.error) resolve({error:added.error})
+            else if(added){
+                let receipt = await this.createTransactionReceipt(transaction)
+                if(receipt.error) resolve({error:receipt.error})
+                this.txReceipts[transaction.hash] = receipt
+                resolve({added:true, receipt:receipt})
+            }
+
+            
+        })
+    }
     addAction(action){
         return new Promise( async (resolve)=>{
             let added = await this.actions.add({
@@ -128,6 +146,23 @@ class Mempool{
 
                 this.actionReceipts[action.hash] = receipt
                 this.events.emit('newAction', action)
+                resolve({added:true, receipt:receipt})
+            }
+        })
+    }
+
+    readdAction(action){
+        return new Promise( async (resolve)=>{
+            let added = await this.actions.add({
+                _id:action.hash,
+                [action.hash]:action
+            })
+            if(added.error) resolve({error:added.error})
+            else if(added){
+                let receipt = await this.createActionReceipt(action)
+                if(receipt.error) resolve({error:receipt.error})
+
+                this.actionReceipts[action.hash] = receipt
                 resolve({added:true, receipt:receipt})
             }
         })
@@ -298,7 +333,7 @@ class Mempool{
                 let transaction = block.transactions[hash]
                 
                 if(transaction.fromAddress !== 'coinbase'){
-                    let putback = await this.addTransaction(transaction)
+                    let putback = await this.readdTransaction(transaction)
                     if(putback.error) errors[hash] = putback.error
                 }
                 
@@ -349,7 +384,7 @@ class Mempool{
             let errors = {}
             for await(let hash of actionHashes){
                 let action = block.actions[hash]
-                let putback = await this.addAction(action)
+                let putback = await this.readdAction(action)
                 if(putback.error) errors[hash] = putback.error
             }
 
