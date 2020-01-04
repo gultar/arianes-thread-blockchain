@@ -1905,9 +1905,9 @@ class Blockchain{
     let acceptedActions = {}
 
     for await(let hash of Object.keys(actions)){
-      let actions = actions[hash]
+      let action = actions[hash]
 
-      let isValid = await this.validateTransaction(actions);
+      let isValid = await this.validateAction(action);
       if(isValid && !isValid.error){
         acceptedActions[hash] = actions
       }else{
