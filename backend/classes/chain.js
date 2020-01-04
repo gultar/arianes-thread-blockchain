@@ -81,8 +81,8 @@ class Blockchain{
         return this.getLatestBlock()
       }
     })
-    this.spentTransactionHashes = []
-    this.spentActionHashes = []
+    this.spentTransactionHashes = {}
+    this.spentActionHashes = {}
     this.difficulty = new Difficulty(genesis)
     this.blockForks = {}
     this.isSyncingBlocks = false
@@ -270,8 +270,16 @@ class Blockchain{
             let removedNewHeader = this.chain.pop()
             resolve({error: errors})
           }else{
-            
-            this.spentTransactionHashes.push(...newHeader.txHashes)
+            for await(let hash of newHeader.txHashes){
+              this.spentTransactionHashes[hash] = { spent:newHeader.blockNumber }
+            }
+
+            if(newHeader.actionsHashes){
+              for await(let hash of newHeader.actionHashes){
+                this.spentActionHashes[hash] = { spent:newHeader.blockNumber }
+              }
+            }
+            //.push(...newHeader.txHashes)
             
             let added = await this.addBlockToDB(newBlock)
             if(added){
@@ -1595,12 +1603,12 @@ class Blockchain{
     let actionHashes = Object.keys(block.actions);
 
     for await(let hash of txHashes){
-      let exists = this.spentTransactionHashes.includes(hash)
+      let exists = this.spentTransactionHashes[hash]
       if(exists) return false
     }
 
     for await(let hash of actionHashes){
-      let exists = this.spentActionHashes.includes(hash)
+      let exists = this.spentActionHashes[hash]
       if(exists) return false
     }
 
@@ -1761,7 +1769,9 @@ class Blockchain{
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
       
       for await(let hash of txHashes){
+        console.log('Hash', hash)
         if(this.spentTransactionHashes[hash]){
+          console.log('Deleting ', hash)
           delete this.spentTransactionHashes[hash]
         }
       }
@@ -1999,7 +2009,7 @@ class Blockchain{
         var isStake = transaction.type == 'stake'
         var isResourceAllocation = transaction.type == 'allocation'
 
-        let alreadyExistsInBlockchain = this.spentTransactionHashes.includes(transaction.hash)
+        let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
         if(alreadyExistsInBlockchain) resolve({error:'Transaction already exists in blockchain'})
 
         // let alreadyExistsInMempool = await this.mempool.getTransaction(transaction.hash)
@@ -3003,8 +3013,12 @@ class Blockchain{
                   //Could plug in balance loading from DB here
                   let txHashes = Object.keys(block.transactions)
                   let actionHashes = Object.keys(block.actions)
-                  this.spentTransactionHashes = [...this.spentTransactionHashes, ...txHashes]
-                  this.spentActionHashes = [ ...this.spentActionHashes, ...actionHashes ]
+                  for await(let hash of txHashes){
+                    this.spentTransactionHashes[hash] = { spent:block.blockNumber }
+                  }
+                  for await(let hash of actionHashes){
+                    this.spentActionHashes[hash] = { spent:block.blockNumber }
+                  }
                   this.chain.push(this.extractHeader(block))
                   if(blockNumber == lastBlock.blockNumber){
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 

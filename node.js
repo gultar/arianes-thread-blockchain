@@ -1614,17 +1614,9 @@ class Node {
       })
 
      socket.on('tryPing', async ()=>{
-       let action = {
-         fromAccount:'tuor',
-         data:{
-           contractName:'Ping',
-           method:'send',
-           cpuTime: 1000,
-           params:{}
-         }
-       }
-
-       let added = await this.mempool.addAction(action)
+       console.log(JSON.stringify(Object.keys(this.chain.spentTransactionHashes)))
+       console.log('Has 7edcbe8969fd351b6b0ff8c12664a3298f15da5ba71b10674a23551c7783d776')
+       console.log(this.chain.spentTransactionHashes['7edcbe8969fd351b6b0ff8c12664a3298f15da5ba71b10674a23551c7783d776'])
      })
 
 
