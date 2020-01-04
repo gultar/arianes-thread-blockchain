@@ -237,17 +237,10 @@ class Blockchain{
         this.chain.push(newHeader);
 
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
-        if(areTransactionsValid.error) resolve({error:areTransactionsValid.error})
+        if(areTransactionsValid.error) errors['Transaction validation error'] = areTransactionsValid.error
 
         var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(newBlock)
-        if(!doesNotContainDoubleSpend) resolve({error:'ERROR: Block may not contain a transaction that is already spent'})
-        
-        let actions = newBlock.actions || {}
-        let allActionsExecuted = await this.executeActionBlock(actions)
-        if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
-        
-        let callsExecuted = await this.runTransactionCalls(newBlock);
-        if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+        if(!doesNotContainDoubleSpend) errors['Double spend error'] = 'ERROR: Block may not contain a transaction that is already spent'
         
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else{
@@ -258,6 +251,13 @@ class Blockchain{
             
             let saved = await this.balance.saveBalances(newBlock)
             if(saved.error) resolve({error:saved.error})
+
+            let actions = newBlock.actions || {}
+            let allActionsExecuted = await this.executeActionBlock(actions)
+            if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
+            
+            let callsExecuted = await this.runTransactionCalls(newBlock);
+            if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
             
             let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
             if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
