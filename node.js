@@ -1749,7 +1749,7 @@ class Node {
     
     const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
       
-      if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
+      if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock && !this.isValidatingPeerBlock){
         if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
           api.isBuildingBlock = true
 
@@ -2052,6 +2052,7 @@ class Node {
       if(this.chain instanceof Blockchain && data){
         if(!this.isDownloading){
           try{
+            
 
             let block = JSON.parse(data);
             let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
@@ -2066,6 +2067,8 @@ class Node {
 
                 let minerOn = this.localServer && this.localServer.socket
                 
+                this.isValidatingPeerBlock = true
+
                 if(minerOn){
                   this.localServer.socket.emit('stopMining')
                   this.localServer.socket.isBuildingBlock = false
@@ -2079,9 +2082,14 @@ class Node {
 
                 
                 let added = await this.chain.pushBlock(block);
-                if(added.error) resolve({error:added.error})
+                if(added.error){
+                  this.isValidatingPeerBlock = false
+                  resolve({error:added.error})
+                }
                 else{
                   let currentLength = this.chain.length;
+
+                  this.isValidatingPeerBlock = false
                   //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                   if(added.findMissing){
                     
