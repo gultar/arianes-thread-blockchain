@@ -237,14 +237,20 @@ class StateStorage{
                         return state
                     }else{
 
-                        let closestTimestamp = await findClosest(requestedTimestamp, timestamps)
-                        if(closestTimestamp){
-                            let { state, blockNumber } = await this.database.get(closestTimestamp.toString())
-                            if(state.error) return { error:state.error }
-                            console.log('Found closest state to blockNumber', blockNumber)
+                        let { state } = await this.database.get(requestedTimestamp);
+                        if(state && Object.keys(state).length && !state.error){
+                            console.log('Found exact timestamp', requestedTimestamp)
                             return state
                         }else{
-                            return { error:'ERROR: Could not find closest to '+requestedTimestamp }
+                            let closestTimestamp = await findClosest(requestedTimestamp, timestamps)
+                            if(closestTimestamp){
+                                let { state, blockNumber } = await this.database.get(closestTimestamp.toString())
+                                if(state.error) return { error:state.error }
+                                console.log('Found closest state to blockNumber', blockNumber)
+                                return state
+                            }else{
+                                return { error:'ERROR: Could not find closest to '+requestedTimestamp }
+                            }
                         }
                     }
 
