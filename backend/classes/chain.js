@@ -1769,9 +1769,7 @@ class Blockchain{
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
       
       for await(let hash of txHashes){
-        console.log('Hash', hash)
         if(this.spentTransactionHashes[hash]){
-          console.log('Deleting ', hash)
           delete this.spentTransactionHashes[hash]
         }
       }
