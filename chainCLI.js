@@ -160,6 +160,23 @@ program
 })
 
 program
+.command('validate')
+.description('Validates the enter blockchain. Returns the conflicting block if there is one')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('isChainValid');
+                setTimeout(()=>{
+                    socket.close()
+                }, 1000)
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('getstate <blockNumber> <contractName>')
 .description('Get state of contract at a given block hash')
 .action((blockNumber, contractName)=>{
