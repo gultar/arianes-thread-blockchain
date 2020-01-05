@@ -160,12 +160,12 @@ program
 })
 
 program
-.command('getstate <blockHash> <contractName>')
+.command('getstate <blockNumber> <contractName>')
 .description('Get state of contract at a given block hash')
-.action((blockHash, contractName)=>{
+.action((blockNumber, contractName)=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-                socket.emit('getContractState', blockHash, contractName);
+                socket.emit('getContractState', blockNumber, contractName);
                 socket.on('contractState', (state)=>{
                     console.log(JSON.stringify(state, null, 2))
                     socket.close()
