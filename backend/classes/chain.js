@@ -20,9 +20,6 @@ const AccountTable = require('./accountTable');
 const ContractTable = require('./contractTable');
 const Factory = require('../contracts/build/callFactory')
 const VMController = require('./vmController')
-
-/*************Smart Contract VM************** */
-const vmMaster = require('../contracts/vmEngine/__deprecated_vmMaster')
 /******************************************** */
 
 const Block = require('./block');
@@ -2757,6 +2754,52 @@ class Blockchain{
     
   }
 
+  validateActionReference(actionReference, contractAction){
+    return new Promise(async (resolve)=>{
+      let contractName = actionReference.data.contractName
+      let referenceExists = false
+      for await(let block of this.chain){
+        referenceExists = block.txHashes[hash]
+        if(!referenceExists){
+          referenceExists = block.actionHashes[hash]
+        }
+      }
+      let contract = await this.contractTable.getContract(contractName)
+      resolve({error:`ERROR: Contract ${contractName} does exist`})
+      
+      let contractAPI = contract.contractAPI;
+      resolve({error:`ERROR: Contract ${contractName} does not have an API`})
+
+      let contractMethod = contractAPI[actionReference.data.method];
+      resolve({error:`ERROR: Contract method ${actionReference.data.method} does not exist`})
+
+      let pointsToCorrectMethod = contractMethod.returns == 'contract action';
+      resolve({error:`ERROR: Action reference does not point to method returning a contract action`})
+
+       
+      /**
+       * Todo:
+       * add a returns field to contractAPIs
+       * 
+       * Logic:
+       * ---> send action calling method that returns contract action
+       * <--- sends contract action, linking action as reference
+       *      for all references:
+       *        - validate if original action is linked to contract action
+       *        - validate action content
+       *  Mine contract action and execute
+       * ***********************************
+       * If block contains contract action:
+       * - check action reference to see if exists
+       * - check if already used before
+       * - check if reference points to valid method
+       * 
+       *
+       * 
+       */
+    })
+  }
+
   validateContractAction(action, account){
     return new Promise(async (resolve, reject)=>{
       if(action){
@@ -2766,8 +2809,10 @@ class Blockchain{
           let hasMiningFee = action.fee > 0; //check if amount is correct
           let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
           let balanceOfSendingAddr = await this.checkBalance(action.fromAccount.ownerKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.ownerKey);
-          let isLinkedToWallet = validatePublicKey(action.fromAccount.ownerKey);
-          let isLinkedToContract = this.isLinkedToContract()
+          let sendingAcccount = await this.accountTable.getAccount(action.fromAccount)
+          let isLinkedToWallet = await validatePublicKey(sendingAcccount.ownerKey);
+          let references = action.actionReference;
+          
           
 
         if(balanceOfSendingAddr < action.fee){

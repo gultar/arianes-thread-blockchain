@@ -73,7 +73,8 @@ const txgen = (program) =>{
             }, 1000)
             socket.on('transactionEmitted', (result)=>{
                 if(result.error) console.log(result)//clearInterval(generator)
-                else console.log(result.result)
+                else if(result.result) console.log(result.result)
+                else console.log(result)
             })
             socket.on('disconnect', ()=>{
                 console.log('Stopping txgen')

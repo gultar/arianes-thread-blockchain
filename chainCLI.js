@@ -177,9 +177,9 @@ program
 })
 
 program
-.command('getstate <blockNumber> <contractName>')
+.command('getstate <contractName> [blockNumber]')
 .description('Get state of contract at a given block hash')
-.action((blockNumber, contractName)=>{
+.action((contractName, blockNumber=0)=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
                 socket.emit('getContractState', blockNumber, contractName);

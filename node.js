@@ -1438,6 +1438,7 @@ class Node {
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
+          if(!blockNumber) blockNumber = this.chain.getLatestBlock().blockNumber;
           let block = this.chain.chain[blockNumber]
           let timestamp = block.timestamp
           let state = await storage.getClosestState(timestamp)
@@ -1917,16 +1918,16 @@ class Node {
       try{
         if(typeof data == 'object')
           data = JSON.stringify(data);
-        var shaInput = (Math.random() * Date.now()).toString()
-        var messageId = sha256(shaInput);
-        this.messageBuffer[messageId] = messageId;
-        this.broadcast('peerMessage', { 
-          'type':type, 
-          'messageId':messageId, 
-          'originAddress':this.address, 
-          'data':data,
-          'relayPeer':this.address
-         });
+          var shaInput = (Math.random() * Date.now()).toString()
+          var messageId = sha256(shaInput);
+          this.messageBuffer[messageId] = messageId;
+          this.broadcast('peerMessage', { 
+            'type':type, 
+            'messageId':messageId, 
+            'originAddress':this.address, 
+            'data':data,
+            'relayPeer':this.address
+          });
 
       }catch(e){
         console.log(chalk.red(e));
@@ -1973,14 +1974,6 @@ class Node {
                     logger(chalk.red('REJECTED BLOCK:'), added.error)
                   }
 
-                  // let blocks = this.blocksToValidate
-
-                  // for await(let block of blocks){
-                  //   let added = await this.handleNewBlockFound(data, originAddress);
-                  //   if(added.error){
-                  //     logger(chalk.red('REJECTED BLOCK TO VALIDATE:'), added.error)
-                  //   }
-                  // }
                 }
               }
               break;
@@ -2053,7 +2046,6 @@ class Node {
       if(this.chain instanceof Blockchain && data){
         if(!this.isDownloading){
           try{
-            
 
             let block = JSON.parse(data);
             let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
@@ -2132,14 +2124,10 @@ class Node {
               resolve({error:'ERROR: Block already received, is either in chain or in an active branch'})
             }
           }catch(e){
-            console.log(e);
-            resolve({error:e})
+            resolve({error:e.message})
           }
         }else{
-          console.log('Node is busy, putting block in blocks to validate')
-          //Need to store while downloading. Then, when done, validate them one by one
-          this.blocksToValidate.push(data);
-          resolve({error:'ERROR: Node is busy, putting block in blocks to validate'})
+          resolve({error:'ERROR: Node is busy, could not add block'})
         }
       }else{
         resolve({error:'ERROR: Missing parameters'})
@@ -2252,121 +2240,132 @@ class Node {
     })
   }
 
+  convertTransactionCallToAction(transaction){
+    return {
+      fromAccount: transaction.fromAddress,
+      data:{
+        contractName: transaction.toAddress,
+        method: transaction.data.method,
+        params: transaction.data.params,
+        memory: transaction.data.memory,
+        cpuTime: transaction.data.cpuTime
+      },
+      hash:transaction.hash,
+      transaction:transaction
+    }
+  }
+
   handleTransactionType(transaction, test){
     return new Promise(async (resolve)=>{
         if(transaction.type == 'call'){
-          let call = {
-            fromAccount: transaction.fromAddress,
-            data:{
-              contractName: transaction.toAddress,
-              method: transaction.data.method,
-              params: transaction.data.params,
-              memory: transaction.data.memory,
-              cpuTime: transaction.data.cpuTime
-            },
-            hash:transaction.hash
-
-            
-          }
+          let call = this.convertTransactionCallToAction(transaction)
           
-        if(!isValidCallPayloadJSON(call.data)) resolve({error:'ERROR: Must provide valid call structure'})
-        let contract = await this.chain.contractTable.getContract(call.data.contractName)
-        //Checking if the method invoked is open to external execution
-        let contractAPI = contract.contractAPI
-        if(!contractAPI) resolve({ error:'ERROR: Contract does not have an API' })
-        
-        let contractMethod = contractAPI[call.data.method];
-        
-        if(!contractMethod) resolve({error:'ERROR Unknown contract method'})
-        else{
-          if(contractMethod.type == 'get'){
-            //'Get' methods dont modify contract state, obviously
-            let result = await this.chain.testCall(call)
-            if(result.error) resolve({error:result.error})
-            else if(result){
-              resolve({ isReadOnly:result , call:call} )
-            }
-  
-          }else if(contractMethod.type == 'set'){
-            //'Set' method may modify state.
-            //Could implement a way to protect contract state from arbitrary
-            //modifications while still allowing authorized accounts to modifiy it
-            //legitimately.
-            if(test){
+          if(!isValidCallPayloadJSON(call.data)) resolve({error:'ERROR: Must provide valid call structure'})
+          let contract = await this.chain.contractTable.getContract(call.data.contractName)
+          //Checking if the method invoked is open to external execution
+          let contractAPI = contract.contractAPI
+          if(!contractAPI) resolve({ error:'ERROR: Contract does not have an API' })
+          
+          let contractMethod = contractAPI[call.data.method];
+          
+          if(!contractMethod) resolve({error:'ERROR Unknown contract method'})
+          else{
+            if(contractMethod.type == 'get'){
+              //'Get' methods dont modify contract state, obviously
               let result = await this.chain.testCall(call)
-            
               if(result.error) resolve({error:result.error})
-              else{
-                //Transactions added to pool for confirmation by peers blocks or by this
-                //node's miner's blocks. 
-                let added = await this.mempool.addTransaction(transaction);
-                if(added.error){
-                  resolve({error:added.error})
-                }else{
-                  if(result.executed && result.executed.value){
-                    resolve(result.executed.value)
+              else if(result){
+                resolve({ isReadOnly:result , call:call} )
+              }
+    
+            }else if(contractMethod.type == 'set'){
+              //'Set' method may modify state.
+              //Could implement a way to protect contract state from arbitrary
+              //modifications while still allowing authorized accounts to modifiy it
+              //legitimately.
+              if(test){
+                let result = await this.chain.testCall(call)
+              
+                if(result.error) resolve({error:result.error})
+                else{
+                  //Transactions added to pool for confirmation by peers blocks or by this
+                  //node's miner's blocks. 
+                  let added = await this.mempool.addTransaction(transaction);
+                  if(added.error){
+                    resolve({error:added.error})
                   }else{
-                    resolve(result)
+                    if(result.executed && result.executed.value){
+                      resolve(result.executed.value)
+                    }else{
+                      resolve(result)
+                    }
                   }
                 }
+              }else{
+                let added = await this.mempool.addTransaction(transaction);
+                  if(added.error){
+                    resolve({error:added.error})
+                  }else{
+                    resolve(added)
+                  }
               }
+    
+            }else if(contractMethod.type == 'internal'){
+              resolve({error:`An internal method may not be called from outside a contract`})
             }else{
-              let added = await this.mempool.addTransaction(transaction);
-                if(added.error){
-                  resolve({error:added.error})
-                }else{
-                  resolve(added)
-                }
+              resolve({error:`Invalid contract method type on api of contract ${contract.name}`})
             }
-  
-          }else{
-            resolve({error:`Invalid contract method type on api of contract ${contract.name}`})
           }
-        }
-        
-      }else if(transaction.type == 'allocation'){
-        //Validate stake and broadcast or reject
-      }else if(transaction.type == 'stake'){
-        //Validate stake and broadcast or reject
-      }else{
-        //Simple transaction
-        let added = await this.mempool.addTransaction(transaction);
-          if(added.error){
-            resolve({error:added.error})
-          }else{
           
-            resolve(transaction)
-          }
-      }
+        }else if(transaction.type == 'allocation'){
+          //Validate stake and broadcast or reject
+        }else if(transaction.type == 'stake'){
+          //Validate stake and broadcast or reject
+        }else if(transaction.type == 'Contract Action'){
+          resolve({error:'ERROR: Contract actions may only be created from within a contract'})
+        }else{
+          //Simple transaction
+          let added = await this.mempool.addTransaction(transaction);
+            if(added.error){
+              resolve({error:added.error})
+            }else{
+            
+              resolve(transaction)
+            }
+        }
     })
   }
 
   broadcastAction(action){
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
-
-      let isValid = await this.chain.validateAction(action)
-      if(!isValid || isValid.error){
-        if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
-        resolve({error:isValid.error})
-      }else{
-
-        let success = await this.chain.testHandleAction(action)
-        if(success.error) resolve({error:success.error})
-        else if(!success.error){
-          if(success.isReadOnly){
-            resolve({isReadOnly:true, action:action, success:success.isReadOnly})
-          }else{
-            this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
-            //Action will be added to this.mempool only is valid and if corresponds with contract call
-            if(this.verbose) logger(chalk.blue('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-            let added = await  this.mempool.addAction(action)
-            resolve({action:action, success:success})
+      let isContractAction = action.type == 'contract action'
+      if(isContractAction) resolve({error:'ERROR: Contract actions may only be created from within a contract'})
+      else{
+        let isValid = await this.chain.validateAction(action)
+        if(!isValid || isValid.error){
+          if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
+          resolve({error:isValid.error})
+        }else{
+  
+          let success = await this.chain.testHandleAction(action)
+          if(success.error) resolve({error:success.error})
+          else if(!success.error){
+            if(success.isReadOnly){
+              resolve({isReadOnly:true, action:action, success:success.isReadOnly})
+            }else{
+              this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
+              //Action will be added to this.mempool only is valid and if corresponds with contract call
+              if(this.verbose) logger(chalk.blue('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
+              let added = await  this.mempool.addAction(action)
+              resolve({action:action, success:success})
+            }
+            
           }
           
         }
-        
       }
+
         
     })
   }

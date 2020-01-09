@@ -30,7 +30,7 @@ const isValidTransactionJSON = (transaction)=>{
             "type":{"type":"string"},
             "signature":{"type":"string"}
         },
-        "required": ["fromAddress", "toAddress", "amount", "timestamp", "hash"]
+        "required": ["fromAddress", "toAddress", "amount", "timestamp", "hash", "signature"]
     };
 
     if(transaction){
@@ -69,6 +69,40 @@ const isValidTransactionCallJSON = (transaction)=>{
     if(transaction){
         v.addSchema(schema, "/transaction")
         let valid = v.validate(transaction, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
+const isValidContractActionJSON = (contractAction)=>{
+    var v = new Validator();
+    
+    var schema = {
+        "id":"/contractAction",
+        "type": "object",
+        "properties": {
+            "fromAccount": {"type": "string"},
+            "type": {"type": "string"},
+            "task": {"type": "string"},
+            "data": {"type": [
+                "string","object"
+            ]},
+            "fee":{"type":"number"},
+            "timestamp":{"type":"number"},
+            "hash":{"type":"string"},
+            "signature":{"type":"string"},
+            "actionReference":{"type":"object"}
+        },
+        "required": ["fromAccount", "type", "task", "fee", "timestamp", "hash", "actionReference"]
+    };
+
+    if(contractAction){
+        v.addSchema(schema, "/contractAction")
+        let valid = v.validate(contractAction, schema);
         if(valid.errors.length == 0){
             return true
         }else{
@@ -482,4 +516,5 @@ module.exports = {
     isValidAccountJSON,
     isValidBlockJSON,
     isValidGenesisBlockJSON,
+    isValidContractActionJSON,
  };

@@ -1,11 +1,9 @@
-const vmMaster = require('../contracts/vmEngine/__deprecated_vmMaster')
 // const vmBootstrap = require('../contracts/vmEngine/vmBootstrap')
 const vmBootstrap = require('../contracts/vmEngine/bootstrap')
 const ContractConnector = require('../contracts/build/contractConnector')
 
 class VMController{
     constructor({ contractTable, accountTable, buildCode, deferContractAction, getCurrentBlock }){
-        this.vmMaster = vmMaster;
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
         });

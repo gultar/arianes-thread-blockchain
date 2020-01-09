@@ -44,20 +44,6 @@ class Account{
         
     }
 
-    emitContract(pathToFile){
-        if(pathToFile){
-            //create transaction and send to node
-        }
-    }
-
-    async emitAction(type, task, onContract){
-        let accountRef = {
-            name:this.name,
-            publicKey:this.ownerKey
-        }
-        let action = new Action(accountRef, type, task, onContract);
-        return action;
-    }
 
 }
 

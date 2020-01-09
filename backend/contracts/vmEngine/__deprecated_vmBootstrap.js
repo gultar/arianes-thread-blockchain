@@ -129,7 +129,6 @@ class VMBootstrap{
                     this.child.send({error:'Could not find state of '+message.getState})
                 }
             }else if(message.getContract){
-                console.log('Requested a contract', message.getContract)
                 let contract = await this.contractConnector.getContractCode(message.getContract);
                 if(contract && Object.keys(contract).length > 0){
                     if(contract.error) this.child.send({error:contract.error})

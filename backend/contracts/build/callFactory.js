@@ -190,7 +190,6 @@ class Factory{
                 contractName:call.data.contractName,
                 memory:call.data.memory,
                 cpuTime:call.data.cpuTime,
-                hash:call.hash,
               } 
 
               return code

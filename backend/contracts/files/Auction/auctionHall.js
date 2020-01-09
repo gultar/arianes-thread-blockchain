@@ -165,7 +165,8 @@ class AuctionHall {
                     "startingPrice: number",
                     "timeLimit: Date"
                 ],
-                description: 'Create a new auction'
+                description: 'Create a new auction',
+                returns: 'contract action'
             },
             closeAuction:{
                 type:'set',

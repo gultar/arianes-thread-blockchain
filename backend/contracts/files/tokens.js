@@ -188,22 +188,26 @@ class Tokens{
             createToken:{
                 type:'set',
                 args:["symbol", "name", "maxSupply"],
-                description:'Creates a token that is exchangeable through actions'
+                description:'Creates a token that is exchangeable through actions',
+                returns: 'confirmation'
             },
             issue:{
                 type:'set',
                 args:["symbol", "amount", "receiver"],
-                description:'Creator of token may issue tokens to another account'
+                description:'Creator of token may issue tokens to another account',
+                returns: 'confirmation'
             },
             transfer:{
                 type:'set',
                 args:["symbol", "amount", "receiver"],
-                description:'An account holding tokens may transfer to another account'
+                description:'An account holding tokens may transfer to another account',
+                returns: 'confirmation'
             },
             getBalanceOfAccount:{
                 type:'get',
                 args:['account','symbol'],
-                description:`Get an account's balance of a given token`
+                description:`Get an account's balance of a given token`,
+                returns: ''
             },
             getSupply:{
                 type:'get',
@@ -215,7 +219,7 @@ class Tokens{
         return external
     }
 
-    getSupply(symbol){
+    getSupply({symbol}){
         let token = this.state.tokens[symbol];
         if(token){
             return token.supply;

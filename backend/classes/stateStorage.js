@@ -98,56 +98,29 @@ class StateStorage{
             // }else{
             //     return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
             // }
-            let { state } = await this.database.get('currentState');
+            // let { state } = await this.database.get('currentState');
             let closestState = await this.getLatestState()
-
-        
-            if(state){
-                if(state.error) return { error:state.error }
-
-                return state
+            if(closestState){
+                if(closestState.error) return { error:closestState.error }
+                // console.log('Getting latest state', JSON.stringify(closestState, null, 2))
+                return closestState
             }else{
-                
-                if(closestState){
-                    if(closestState.error) return { error:closestState.error }
-                    console.log('Getting latest state', closestState)
-                    return closestState
-                }else{
-                    return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
-                }
-                
+                return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
             }
+        
+            // if(state){
+            //     if(state.error) return { error:state.error }
+
+            //     return state
+            // }else{
+                
+                
+                
+            // }
         }catch(e){
             return {error:e.message}
         }
     }
-
-    // async getState(timestamp){
-    //     try{
-    //         if(typeof number == 'number'){
-    //             number = number.toString()
-    //         }
-    //         console.log('Getting state of ', number)
-    //         let { state, blockNumber } = await this.database.get(number);
-    //         if(state){
-    //             if(state.error) return { error:state.error }
-    //             console.log('Has state:', state)
-    //             return state
-    //         }else{
-    //             console.log('Getting closestState')
-    //             state = await this.getClosestState(number)
-    //             if(state){
-    //                 if(state.error) return { error:state.error }
-    //                 return state
-    //             }else{
-    //                 return { error:`ERROR: Could not find state of contract ${this.name} at block number ${number}` }
-    //             }
-                
-    //         }
-    //     }catch(e){
-    //         return {error:e.message}
-    //     }
-    // }
 
     async rollback(blockNumber){
         try{
@@ -155,11 +128,11 @@ class StateStorage{
             // console.log('Current state', JSON.stringify(current, null, 1))
             // console.log('Rolling back '+this.name+' to state', blockNumber)
             let block = await this.getBlock(blockNumber)
-            console.log('Block number', blockNumber)
+            // console.log('Block number', blockNumber)
             let timestamp = block.timestamp;
-            console.log('Past timestamp', timestamp)
+            // console.log('Past timestamp', timestamp)
             let state = await this.getClosestState(timestamp)
-            console.log('Past state', JSON.stringify(state, null, 1))
+            // console.log('Past state', JSON.stringify(state, null, 1))
             if(state){
                 if(state.error) return { error:state.error }
                 this.state = state
@@ -239,14 +212,14 @@ class StateStorage{
 
                         let { state } = await this.database.get(requestedTimestamp);
                         if(state && Object.keys(state).length && !state.error){
-                            console.log('Found exact timestamp', requestedTimestamp)
+                            // console.log('Found exact timestamp', requestedTimestamp)
                             return state
                         }else{
                             let closestTimestamp = await findClosest(requestedTimestamp, timestamps)
                             if(closestTimestamp){
                                 let { state, blockNumber } = await this.database.get(closestTimestamp.toString())
                                 if(state.error) return { error:state.error }
-                                console.log('Found closest state to blockNumber', blockNumber)
+                                // console.log('Found closest state to blockNumber', blockNumber)
                                 return state
                             }else{
                                 return { error:'ERROR: Could not find closest to '+requestedTimestamp }

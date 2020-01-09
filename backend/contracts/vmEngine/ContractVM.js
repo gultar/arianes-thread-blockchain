@@ -13,7 +13,7 @@ const makeExternal = require('../toolbox/makeExternal')
 const getFunctionArguments = require('get-function-arguments')
 const fs = require('fs')
 const EventEmitter = require('events')
-const { isValidActionJSON, isValidAccountJSON } = require('../../tools/jsonvalidator')
+const { isValidActionJSON, isValidAccountJSON, isValidContractActionJSON, isValidCallPayloadJSON } = require('../../tools/jsonvalidator')
 
 //Kind of useless
 class Signals extends EventEmitter{
@@ -39,10 +39,31 @@ class ContractVM{
             stateStorage:{},
             contractStates:{},
             context:{
+                root: "./", 
                 require:{
-                    external: true, 
-                    builtin: [], 
-                    root: "./", 
+                    external:{
+                        modules:[
+                            'Wallet',
+                            'Account',
+                            'Action',
+                            'ContractAction',
+                            'Permissions',
+                            'createContractInterface',
+                            'makeExternal',
+                            'getFunctionArguments',
+                            'isValidActionJSON',
+                            'isValidAccountJSON',
+                            'getAccount',
+                            'getContract',
+                            'getState',
+                            'getCurrentBlock',
+                            'deferExecution',
+                            'deploy',
+                            'save',
+                            'commit',
+                            'fail'
+                        ],
+                    },
                     mock: {
                         "Wallet":Wallet,
                         "Account":Account,
@@ -143,6 +164,23 @@ class ContractVM{
                                 }
                             })
                         },
+                        "broadcastContractAction":(contractAction)=>{
+                            return new Promise((resolve)=>{
+                                if(isValidContractActionJSON(contractAction)){
+                                    if(isValidActionloadJSON(contractAction.actionReference) || isValidTransactionCallJSON(contractAction)){
+                                        this.signals.emit('broadcastContractAction', contractAction)
+                                        this.signals.once('emittedContractAction', (broadcasted)=>{
+                                            if(broadcasted.error) resolve({error:broadcasted.error})
+                                            else resolve(broadcasted)
+                                        })
+                                    }else{
+                                        resolve({error:'ERROR: Invalid action reference structure'})
+                                    }
+                                }else{
+                                    resolve({error:'ERROR: Invalid contract action structure'})
+                                }
+                            })
+                        },
                         "deploy":function(contractInterface){
                             signals.emit('deployed', contractInterface)
                         },
@@ -176,6 +214,9 @@ class ContractVM{
     }
 
     async exportContractToSandbox(contractName){
+        if(!this.sandbox.context.require.external.modules.includes(contractName)){
+            this.sandbox.context.require.external.modules.push(contractName)
+        }
         if(this.contractClasses[contractName]){
             let contractCode = this.contractClasses[contractName]
             let exportString = `module.exports = ${contractName}`
@@ -239,7 +280,6 @@ class ContractVM{
                     ${code}
                     callback(result, instance.state)
                 }catch(err){
-                    
                     let error = { error:err.message, hash:callHash }
                     fail(error)
                 }
@@ -306,7 +346,7 @@ class ContractVM{
     run(call){
         return new Promise((resolve)=>{
             try{
-                let timer
+                
                 const createTimer = (time, resolve) =>{
                     return setTimeout(()=>{
                         console.log('TIMED OUT', call.hash)
@@ -334,16 +374,36 @@ class ContractVM{
                 await instance.setState(state);
                 `
 
+                let isWhileListed = true
+                let getContractHeader = ``
+
                 let importHeader = `
                 const ${contractName} = require('${contractName}')
                 `
-                
                 let codeToWrap = `
                 ${instruction}
                 ${stateHeaderInstruction}
                 ${methodToRun}
                 `
 
+                if(!this.sandbox.context.require.mock[contractName]){
+                        isWhileListed = false
+                        getContractHeader =  `
+                        const getContract = require('getContract')
+                        const ${contractName} = await getContract({
+                             contractName:'${contractName}', 
+                             hash:'${call.hash}'
+                        })`
+
+                        codeToWrap = `
+                        ${getContractHeader}
+                        ${instruction}
+                        ${stateHeaderInstruction}
+                        ${methodToRun}`
+                    
+                }
+                
+                
                 let code = this.wrapCode( codeToWrap, call.hash )
                 this.timers[call.hash] = createTimer(call.cpuTime, resolve)
                 this.contractCallThreads[call.hash] = {
@@ -352,10 +412,9 @@ class ContractVM{
                     depth:0
                 }
                 
-                let execute = this.vm.run(importHeader + code)
+                let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
                 execute(async (result, state)=>{
-                    
                     if(result){
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
@@ -392,6 +451,7 @@ class ContractVM{
                 
     
             }catch(e){
+                console.log(e)
                 resolve({
                     error:e.message,
                     hash:call.hash,
