@@ -74,6 +74,17 @@ class Blockchain{
           return false
         }
       },
+      emitcastContractAction:async(contractAction)=>{
+        let isValidContractAction = await this.validateContractAction(contractAction)
+        if(isValidContractAction.error) return { error:isValidContractAction.error }
+        else{
+          let added = await this.mempool.addAction(contractAction)
+          if(added.error) return { error:added.error }
+          else{
+            return added
+          }
+        }
+      },
       getCurrentBlock:async ()=>{
         return this.getLatestBlock()
       }

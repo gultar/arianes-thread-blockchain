@@ -3,11 +3,11 @@ const vmBootstrap = require('../contracts/vmEngine/bootstrap')
 const ContractConnector = require('../contracts/build/contractConnector')
 
 class VMController{
-    constructor({ contractTable, accountTable, buildCode, deferContractAction, getCurrentBlock }){
+    constructor({ contractTable, accountTable, buildCode, deferContractAction, emitContractAction, getCurrentBlock }){
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
         });
-
+        this.emitContractAction = emitContractAction
         this.deferContractAction = deferContractAction
         this.getCurrentBlock = getCurrentBlock
         this.vmBootstrap = new vmBootstrap({
@@ -15,7 +15,8 @@ class VMController{
             accountTable:accountTable,
             buildCode:buildCode,
             deferContractAction:this.deferContractAction,
-            getCurrentBlock:this.getCurrentBlock
+            getCurrentBlock:this.getCurrentBlock,
+            emitContractAction: this.emitContractAction
         });
 
         this.vmChannel = this.vmBootstrap.startVM()

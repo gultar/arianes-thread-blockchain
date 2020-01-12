@@ -164,11 +164,11 @@ class ContractVM{
                                 }
                             })
                         },
-                        "broadcastContractAction":(contractAction)=>{
+                        "emitContractAction":(contractAction)=>{
                             return new Promise((resolve)=>{
                                 if(isValidContractActionJSON(contractAction)){
                                     if(isValidActionloadJSON(contractAction.actionReference) || isValidTransactionCallJSON(contractAction)){
-                                        this.signals.emit('broadcastContractAction', contractAction)
+                                        this.signals.emit('emitContractAction', contractAction)
                                         this.signals.once('emittedContractAction', (broadcasted)=>{
                                             if(broadcasted.error) resolve({error:broadcasted.error})
                                             else resolve(broadcasted)

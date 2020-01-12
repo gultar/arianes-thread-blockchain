@@ -36,6 +36,10 @@ vm.signals.on('defer', (contractAction)=>{
     parentPort.postMessage({ defer:JSON.stringify(contractAction) })
 })
 
+vm.signals.on('emitContractAction', (contractAction)=>{
+    parentPort.postMessage({ emitContractAction:JSON.stringify(contractAction) })
+})
+
 parentPort.on('message', async (message)=>{
         if(message.run){
 
@@ -92,6 +96,8 @@ parentPort.on('message', async (message)=>{
             vm.signals.emit('account', message.account)
         }else if(message.deferred){
             vm.signals.emit('deferred', message.deferred)
+        }else if(message.emittedContractAction){
+            vm.signals.emit('emittedContractAction', message.emittedContractAction)
         }else if(message.ping){
             parentPort.postMessage({pong:true})
         }

@@ -1,11 +1,12 @@
 const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
 class Bootstrap{
-    constructor({ contractConnector, accountTable, buildCode, deferContractAction, getCurrentBlock }){
+    constructor({ contractConnector, accountTable, buildCode, deferContractAction, emitContractAction, getCurrentBlock }){
         this.contractConnector = contractConnector
         this.accountTable = accountTable
         this.buildCode = buildCode
         this.deferContractAction = deferContractAction
+        this.emitContractAction = emitContractAction
         this.getCurrentBlock = getCurrentBlock
         this.events = new EventEmitter()
         this.workers = {}
@@ -186,6 +187,24 @@ class Bootstrap{
                             if(deferred.error) worker.postMessage({error:deferred.error})
                             else{
                                 worker.postMessage({ deferred:deferred })
+                            }
+                        }else{
+                            worker.postMessage(false)
+                        }
+                    }
+                    // let account = await this.accountTable.getAccount(name);
+
+                    
+
+                }else if(message.emitContractAction){
+                    
+                    let contractAction = JSON.parse(message.emitContractAction)
+                    if(contractAction){
+                        let emitted = await this.emitContractAction(contractAction);
+                        if(emitted){
+                            if(emitted.error) worker.postMessage({error:emitted.error})
+                            else{
+                                worker.postMessage({ emittedContractAction:emitted })
                             }
                         }else{
                             worker.postMessage(false)
