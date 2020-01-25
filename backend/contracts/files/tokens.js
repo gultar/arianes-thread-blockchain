@@ -1,5 +1,5 @@
 
-const Permissions = require('Permissions')
+
 const makeExternal = require('makeExternal')
 
 class Tokens{
@@ -31,7 +31,7 @@ class Tokens{
 
         if(this.state.tokens){
             if(!this.state.tokens[symbol]){
-
+                const Permissions = require('Permissions')
                 this.state.tokens[symbol] = {
                     symbol:symbol,
                     name:name,

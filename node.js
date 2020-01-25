@@ -1721,7 +1721,7 @@ class Node {
 
     const sendNextBlock = async (minerPreviousBlock) =>{
       if(!this.isDownloading && !api.hasSentBlock && !api.isMining){
-        let nextBlock = this.chain.getLatestBlock()
+        let nextBlock = await getLatestBlock()
         let newRawBlock = await createRawBlock(nextBlock)
         if(!newRawBlock.error) {
             api.hasSentBlock = true
@@ -1733,6 +1733,16 @@ class Node {
       }else{
         return { error:'Node is busy' }
       }
+    }
+
+    const getLatestBlock = async () =>{
+      let latestHeader = this.chain.getLatestBlock()
+      let block = await this.chain.getBlockFromDB(latestHeader.blockNumber)
+      if(!block || block.error){
+        block = await this.chain.getBlockFromDB(latestHeader.blockNumber - 1)
+      }
+
+      return block
     }
 
     const unwrapBlock = async (block) =>{
@@ -1753,16 +1763,18 @@ class Node {
       
       if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
         if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
+          let latest = await getLatestBlock()
+
           api.isBuildingBlock = true
 
-          let deferredTxManaged = await this.mempool.manageDeferredTransactions(this.chain.getLatestBlock())
+          let deferredTxManaged = await this.mempool.manageDeferredTransactions(latest)
           if(deferredTxManaged.error) console.log('DEFERRED TX ERROR: ', deferredTxManaged.error)
 
           let transactions = await this.mempool.gatherTransactionsForBlock()
           if(transactions.error) console.log('Mempool error: ',transactions.error)
           transactions = await this.chain.validateTransactionsBeforeMining(transactions)
 
-          let deferredActionsManaged = await this.mempool.manageDeferredActions(this.chain.getLatestBlock())
+          let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
           if(deferredActionsManaged.error) console.log('DEFERRED ACTIONS ERROR: ', deferredActionsManaged.error)
 
           let actions = await this.mempool.gatherActionsForBlock()
@@ -1844,7 +1856,14 @@ class Node {
     
 
     api.on('newBlock', async (block)=>{
-      if(this.isDownloading || this.chain.isBusy) api.emit('stopMining')
+      if(this.isDownloading || this.chain.isBusy){
+        api.emit('stopMining')
+        // console.log('Stopped mining')
+        // console.log('Chain busy:', this.chain.isBusy)
+        // console.log('Has sent block:', api.hasSentBlock)
+        // console.log('Is building block', api.isBuildingBlock)
+        // console.log('Is validating', api.isValidatingBlock)
+      }
       else{
         if(block){
           api.emit('stopMining')
@@ -1861,7 +1880,8 @@ class Node {
               if(added.error) logger('MinerBlock Error:',added.error)
               else{
                 this.sendPeerMessage('newBlockFound', block);
-                api.emit('latestBlock', this.chain.getLatestBlock())
+                let latest = await getLatestBlock()
+                api.emit('latestBlock', latest)
               }
               api.isBuildingBlock = false
               this.chain.isBusy = false
@@ -1886,10 +1906,11 @@ class Node {
       
     })
 
-    api.on('getLatestBlock', (minersPreviousBlock)=>{
+    api.on('getLatestBlock', async (minersPreviousBlock)=>{
       
       if(this.chain instanceof Blockchain){
-        api.emit('latestBlock', this.chain.getLatestBlock())
+        let latest = await getLatestBlock()
+        api.emit('latestBlock', latest)
       }else{
         api.emit('error', {error: 'Chain is not ready'})
       }
@@ -1899,8 +1920,8 @@ class Node {
       this.mempool.events.removeAllListeners('newAction')
       this.mempool.events.removeAllListeners('newTransaction')
     })
-
-    api.emit('latestBlock', this.chain.getLatestBlock())
+    let latest = await getLatestBlock()
+    api.emit('latestBlock', latest)
     
   
     this.localServer.socket = api

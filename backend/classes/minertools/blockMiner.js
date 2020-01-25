@@ -256,6 +256,8 @@ class Miner{
         console.log(chalk.cyan("* Total Difficulty : "), BigInt(parseInt(block.totalDifficulty, 16)))
         console.log(chalk.cyan('* Number of transactions in block : '), Object.keys(block.transactions).length)
         console.log(chalk.cyan('* Number of actions in block : '), Object.keys(block.actions).length)
+        console.log(chalk.cyan('* TxHashes : '), Object.keys(block.transactions))
+        console.log(chalk.cyan('* ActionHashes : '), Object.keys(block.actions))
         console.log(chalk.cyan('********************************************************************\n'))
       }
       

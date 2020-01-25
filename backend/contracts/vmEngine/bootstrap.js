@@ -56,10 +56,16 @@ class Bootstrap{
     stop(){}
 
     async terminateVM(contractName){
-        let worker = await this.getWorker(contractName)
-        worker.terminate()
-        this.stopVMTimer(contractName)
-        delete this.workers[contractName]
+        try{
+            let worker = await this.getWorker(contractName)
+            worker.terminate()
+            this.stopVMTimer(contractName)
+            delete this.workers[contractName]
+
+            return true
+        }catch(e){
+            return {error:e.message}
+        }
     }
 
     restartVM(){}
@@ -116,12 +122,13 @@ class Bootstrap{
                 }
            }
 
-           worker.on('error', err => console.log('Bootstrap',err))
+           worker.on('error', err => console.log('Bootstrap Error',err))
            worker.on('exit', ()=>{ })
            worker.on('message', async (message)=>{
                 // let rewinded = await this.rewindVMTimer(contractName)
                 
                 if(message.singleResult){
+                    
                     
                     let result = JSON.parse(message.singleResult)
                     

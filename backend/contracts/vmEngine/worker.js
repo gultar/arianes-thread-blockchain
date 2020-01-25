@@ -44,10 +44,12 @@ parentPort.on('message', async (message)=>{
         if(message.run){
 
             try{
-            
-            let result = await vm.run(message.run)
-            let resultString = JSON.stringify(result)
-            parentPort.postMessage({singleResult:resultString})
+                
+                let result = await vm.run(message.run)
+                
+
+                let resultString = JSON.stringify(result)
+                parentPort.postMessage({singleResult:resultString})
             
             }catch(e){
             console.log('Caught in workerVM', e)

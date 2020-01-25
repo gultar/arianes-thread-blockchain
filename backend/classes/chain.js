@@ -232,6 +232,7 @@ class Blockchain{
   addBlockToChain(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       //Push block header to chain
+      
       var isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
       let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
@@ -243,7 +244,7 @@ class Blockchain{
         let errors = {}
         let newHeader = this.extractHeader(newBlock)
         this.chain.push(newHeader);
-
+        
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
         if(areTransactionsValid.error) errors['Transaction validation error'] = areTransactionsValid.error
 
@@ -262,8 +263,8 @@ class Blockchain{
 
             let actions = newBlock.actions || {}
             let allActionsExecuted = await this.executeActionBlock(actions)
-            if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error
-            
+            if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error;
+
             let callsExecuted = await this.runTransactionCalls(newBlock);
             if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
             
@@ -2228,6 +2229,31 @@ class Blockchain{
 
   }
 
+  convertTransactionToCall(transaction){
+    return new Promise(async (resolve)=>{
+      let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+      if(fromAccount.error) resolve({error:fromAccount.error})
+      let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+      if(toAccount.error) resolve({error:toAccount})
+
+      let payload = transaction.data
+
+      let call = {
+        fromAccount: fromAccount.name,
+        data:{
+          contractName: toAccount.name,
+          method: payload.method,
+          params: payload.params,
+          memory:payload.memory,
+          cpuTime:payload.cpuTime
+        },
+        hash:transaction.hash
+      }
+
+      resolve(call)
+    })
+  }
+
   runTransactionCalls(block){
     return new Promise(async (resolve)=>{
       let transactions = block.transactions;
@@ -2238,25 +2264,9 @@ class Blockchain{
         let transaction = transactions[hash];
         
         if(transaction.type == 'call'){
-          let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
-          let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
-
-          let payload = transaction.data
-
-          let call = {
-            fromAccount: fromAccount.name,
-            data:{
-              contractName: toAccount.name,
-              method: payload.method,
-              params: payload.params,
-              memory:payload.memory,
-              cpuTime:payload.cpuTime
-            },
-            hash:transaction.hash
-          }
-
-         calls[call.hash] = call
-          
+          let call = await this.convertTransactionToCall(transaction)
+          if(call.error) resolve({error:call.error})
+          else calls[call.hash] = call
         }
 
         
@@ -2281,10 +2291,10 @@ class Blockchain{
               resolve(results)
                 
             }else{
-              console.log('Returned empty results')
+              resolve({error:'ERROR: Call execution returned an empty result object'})
             }
           }else{
-            console.log('Ça chie icite')
+            resolve({error:'ERROR: Call execution did not return any result'})
           }
         }
  
@@ -2595,13 +2605,6 @@ class Blockchain{
     let results = await this.vmController.executeCalls(codes)
     if(results.error) return { error:results.error }
     else return results
-    // if(Object.keys(errors).length > 0 && Object.keys(results).length > 0){
-    //   return results
-    // }else if(Object.keys(errors).length > 0 && Object.keys(results).length ==0){
-    //   return { error:errors }
-    // }else{
-    //   return results
-    // }
   }
 
   executeSingleCall(call){
@@ -2611,6 +2614,7 @@ class Blockchain{
         if(code.error) resolve({error:code.error})
 
         let result = await this.vmController.executeCalls(code)
+        
         if(result){
           if(result.error) resolve({error:result.error})
           else resolve(result)

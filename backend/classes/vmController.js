@@ -120,9 +120,7 @@ class VMController{
         }
         
         let start = process.hrtime() /**  Checking execution time */
- 
         let result = await this.sendCallsToVM(calls)
-                   
         let hrend = process.hrtime(start)
 
         // console.info('Execution time (hr): %ds %dms', hrend[0], hrend[1] / 1000000)
@@ -148,10 +146,11 @@ class VMController{
                             name:contractName,
                             newState:state,
                         })
+                        if(updated.error) return { error:updated.error}
 
                         let terminated = await this.vmBootstrap.terminateVM(contractName)
-
-                        if(updated.error) return { error:updated.error}
+                        if(terminated.error) return { error:terminated.error }
+                        
                         return updated
                     }else{
                         return { error:'ERROR: Did not update state. New state has not been returned by any call' }
@@ -173,7 +172,6 @@ class VMController{
                         }else if(result.timeout){
                             errors[hash] = result
                         }else{
-                            
                             if(result.state && Object.keys(result.state).length > 0){
                                 states[result.contractName] = result.state
                                 results[hash] = result
@@ -185,7 +183,8 @@ class VMController{
                         delete callsPending[hash]
                         if(Object.keys(callsPending).length == 0){
                             let updated = await updateStates(states)
-                            resolve(updated)
+                            if(updated.error) resolve({error:updated.error})
+                            else resolve({ results:results, state:states, updated:updated })
                         }
     
                         this.vmChannel.removeAllListeners(hash)
@@ -212,7 +211,8 @@ class VMController{
                     timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
                     this.vmChannel.on(code.hash, async (result)=>{
                         
-                        let terminated = await this.vmBootstrap.terminateVM(contractName)
+                        // let terminated = await this.vmBootstrap.terminateVM(contractName)
+                        // if(terminated.error) resolve({ error:terminated.error })
 
                         if(result && !result.error && result.value){
                             clearTimeout(timer)

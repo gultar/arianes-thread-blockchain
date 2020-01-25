@@ -333,8 +333,9 @@ class ContractVM{
             let errors = {}
             for await(let hash of Object.keys(calls)){
                 let call = calls[hash]
-
+                
                 let result = await this.run(call)
+                
                 if(result.error) errors[hash] = result
                 else results[hash] = result
             }
@@ -414,6 +415,7 @@ class ContractVM{
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
                 execute(async (result, state)=>{
+                    
                     if(result){
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
