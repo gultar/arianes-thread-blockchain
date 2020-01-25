@@ -18,7 +18,6 @@ class Bootstrap{
 
     startVM(){
         this.events.on('run', async (code)=>{
-            console.log('Total workers: ', Object.keys(this.workers).length)
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
             this.calls[code.hash] = code
