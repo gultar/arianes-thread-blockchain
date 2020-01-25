@@ -10,6 +10,7 @@ class Bootstrap{
         this.getCurrentBlock = getCurrentBlock
         this.events = new EventEmitter()
         this.workers = {}
+        this.workerMemory = {}
         this.calls = {}
         this.timers = {}
         this.workerLifetime = 1000
@@ -17,12 +18,11 @@ class Bootstrap{
 
     startVM(){
         this.events.on('run', async (code)=>{
+            console.log('Total workers: ', Object.keys(this.workers).length)
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
-            
             this.calls[code.hash] = code
         })
-
         return this.events
     }
 
@@ -71,6 +71,13 @@ class Bootstrap{
             
             let worker = await this.getWorker(contractName)
             worker.postMessage({contractName:contractName, contractCode:contractCode})
+            
+            this.workerMemory[contractName] = {
+                contract:contractCode,
+                state: {}
+            }
+            
+
             return { sent: true }
         }else{
             return { error:'ERROR: Could not get contract code of '+contractName }
@@ -81,6 +88,10 @@ class Bootstrap{
         if(contractName && state){
             let worker = await this.getWorker(contractName)
             worker.postMessage({setState:state, contractName:contractName})
+
+            let memory = this.workerMemory[contractName]
+            memory.state = state
+
             return true
         }else{
             return { error:'ERROR: Must provide valid contract name and state to setup vm statestorage'}
@@ -96,8 +107,16 @@ class Bootstrap{
                     maxOldGenerationSizeMb:128
                 }
            })
-        //    let timerStarted = this.createVMTimer(contractName)
+           
            this.workers[contractName] = worker
+
+           if(this.workerMemory[contractName] && Object.keys(this.workerMemory[contractName]).length > 0){
+                worker.postMessage({ contractName:contractName, contractCode:this.workerMemory[contractName].contract })
+                if(this.workerMemory[contractName].state && Object.keys(this.workerMemory[contractName].state) > 0) {
+                    worker.postMessage({ contractName:contractName, setState:this.workerMemory[contractName].state })
+                }
+           }
+
            worker.on('error', err => console.log('Bootstrap',err))
            worker.on('exit', ()=>{ })
            worker.on('message', async (message)=>{
@@ -145,7 +164,6 @@ class Bootstrap{
 
                 }else if(message.getContract){
 
-                    console.log('Requested a contract', message.getContract)
                     let contract = await this.contractConnector.getContractCode(message.getContract);
                     // let contractName = message.getContract
                     // let worker = await this.getWorker(contractName)
@@ -234,7 +252,7 @@ class Bootstrap{
         if(this.workers[contractName]){
             return this.workers[contractName]
         }else{
-            this.workers[contractName] = await this.buildVM({ contractName:contractName, workerData:{} })
+            this.workers[contractName] = await this.buildVM({ contractName:contractName, workerData:this.workerMemory[contractName] || {} })
             return this.workers[contractName];
         }
     }

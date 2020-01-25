@@ -349,7 +349,6 @@ class ContractVM{
                 
                 const createTimer = (time, resolve) =>{
                     return setTimeout(()=>{
-                        console.log('TIMED OUT', call.hash)
                         this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
                         resolve({
                             error:"ERROR: VM timed out",

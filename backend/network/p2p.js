@@ -1,7 +1,7 @@
 
 const SocketServer = require('socket.io')
 const PeerConnection = require('socket.io-client')
-const { logger, writeToFile, readFile } = require('../../tools/utils')
+const { logger, writeToFile, readFile } = require('../tools/utils')
 const { RateLimiterMemory } = require('rate-limiter-flexible');
 const sha1 = require('sha1')
 const fs = require('fs')

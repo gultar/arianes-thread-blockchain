@@ -148,6 +148,7 @@ class NetworkConnector{
             if(!this.connectionToPeers[peerAddress]){
                 let connectionAttempts = 0;
                 logger('Attempting to connect to ', peerAddress)
+                
                 let config = {
                     'transport': ['websocket'],
                     'reconnection limit' : 1000,

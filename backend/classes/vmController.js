@@ -23,67 +23,67 @@ class VMController{
         this.vmChannel.setMaxListeners(500)
     }
 
-    pushCallsToVM(calls){
-        return new Promise(async(resolve)=>{
+    // pushCallsToVM(calls){
+    //     return new Promise(async(resolve)=>{
             
-            let results = {}
-            let errors = {}
-            let states = {}
-            this.vmChannel.emit('runCode', calls)
-            this.vmChannel.on('results', async (results)=>{
+    //         let results = {}
+    //         let errors = {}
+    //         let states = {}
+    //         this.vmChannel.emit('runCode', calls)
+    //         this.vmChannel.on('results', async (results)=>{
                 
                 
-                if(!results || Object.keys(results).length == 0){
-                    resolve({error:'ERROR: Did not return results'})
-                }else{  
-                    if(results.error) resolve({error:results.error})
-                    else{
+    //             if(!results || Object.keys(results).length == 0){
+    //                 resolve({error:'ERROR: Did not return results'})
+    //             }else{  
+    //                 if(results.error) resolve({error:results.error})
+    //                 else{
 
-                        for await(let hash of Object.keys(results)){
-                            let result = results[hash]
-                            if(result.error) errors[hash] = result
-                            else{
-                                if(result.state && Object.keys(result.state).length > 0){
-                                    states[result.contractName] = result.state
-                                    results[hash] = result
-                                }else{
-                                    errors[hash] = result
-                                }
+    //                     for await(let hash of Object.keys(results)){
+    //                         let result = results[hash]
+    //                         if(result.error) errors[hash] = result
+    //                         else{
+    //                             if(result.state && Object.keys(result.state).length > 0){
+    //                                 states[result.contractName] = result.state
+    //                                 results[hash] = result
+    //                             }else{
+    //                                 errors[hash] = result
+    //                             }
                                 
-                            }
-                        }
+    //                         }
+    //                     }
         
-                        if(Object.keys(errors).length > 0){
-                            resolve({error:errors})
-                        }else{
+    //                     if(Object.keys(errors).length > 0){
+    //                         resolve({error:errors})
+    //                     }else{
                             
-                            for await(let contractName of Object.keys(states)){
-                                let state = states[contractName]
-                                if(state && Object.keys(state).length > 0){
-                                    let updated = await this.contractConnector.updateState({
-                                        name:contractName,
-                                        newState:state,
-                                    })
-                                    if(updated.error) console.log('STATE ERROR:', updated.error)
+    //                         for await(let contractName of Object.keys(states)){
+    //                             let state = states[contractName]
+    //                             if(state && Object.keys(state).length > 0){
+    //                                 let updated = await this.contractConnector.updateState({
+    //                                     name:contractName,
+    //                                     newState:state,
+    //                                 })
+    //                                 if(updated.error) console.log('STATE ERROR:', updated.error)
                                     
-                                }else{
-                                    console.log('STATE ERROR: Did not update state because state provided by VM was empty')
-                                }
-                            }
-                            resolve({ results:results, states:states })
+    //                             }else{
+    //                                 console.log('STATE ERROR: Did not update state because state provided by VM was empty')
+    //                             }
+    //                         }
+    //                         resolve({ results:results, states:states })
                             
-                        }
-                    }
-                }
+    //                     }
+    //                 }
+    //             }
 
                 
                 
-            })
+    //         })
    
-        })
+    //     })
         
 
-    }
+    // }
 
     async executeCalls(codes){
 
@@ -212,6 +212,8 @@ class VMController{
                     timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
                     this.vmChannel.on(code.hash, async (result)=>{
                         
+                        let terminated = await this.vmBootstrap.terminateVM(contractName)
+
                         if(result && !result.error && result.value){
                             clearTimeout(timer)
                             resolve(result)

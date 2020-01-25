@@ -654,9 +654,15 @@ class Blockchain{
 
   saveLastKnownBlockToDB(){
     return new Promise(async (resolve)=>{
+        let latestBlock = await this.getBlockFromDB( this.getLatestBlock().blockNumber)
+        let fallBack = await this.getBlockFromDB( this.getLatestBlock().blockNumber - 1)
+        let blockToSet = latestBlock
+        if(!latestBlock || latestBlock.error){
+          blockToSet = fallBack
+        }
         let saved = await this.chainDB.add({
           _id:'lastBlock',
-          'lastBlock':this.getLatestBlock()
+          'lastBlock':blockToSet
         })
         if(saved.error) resolve({error:saved})
         else resolve(saved)
