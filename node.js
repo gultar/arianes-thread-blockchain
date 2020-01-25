@@ -983,6 +983,8 @@ class Node {
             if(isValidCandidate){
               let switched = await this.chain.switchToBranch(branch);
               if(switched.error) resolve({error:switched.error})
+
+              this.broadcast('getBlockchainStatus')
               resolve({switched:switched})
             }else{
               resolve({fixed:true})
@@ -1990,7 +1992,7 @@ class Node {
             case 'newBlockFound':
               if(!this.chain.isBusy){
                 this.chain.isBusy = true
-                let added = await this.handleNewBlockFound(data, originAddress);
+                let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
                 this.chain.isBusy = false;
                 if(added){
                   if(added.error){
@@ -2064,7 +2066,7 @@ class Node {
     return info
   }
 
-  handleNewBlockFound(data, fromPeer){
+  handleNewBlockFound(data, fromPeer, peerMessage){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
         if(!this.isDownloading){
@@ -2078,6 +2080,8 @@ class Node {
               //Need to validate more before stopping miner
 
               if(this.chain.validateBlockHeader(block)){
+
+                this.broadcast('peerMessage', peerMessage)
 
                 this.peersLatestBlocks[fromPeer] = block
 
@@ -2144,7 +2148,7 @@ class Node {
                 resolve({error:'ERROR:New block header is invalid'})
               }
             }else{
-              resolve({error:'ERROR: Block already received, is either in chain or in an active branch'})
+              resolve({error:'ERROR: Block already receivedin chain or in branch'})
             }
           }catch(e){
             resolve({error:e.message})
