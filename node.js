@@ -898,12 +898,14 @@ class Node {
           let peer = this.connectionsToPeers[address]
 
           let peerLatestBlock = this.peersLatestBlocks[address]
-
-          let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
-          if(totalDifficulty > BigInt(parseInt(heightestTotalDifficulty, 16))){
-            heightestTotalDifficulty = peerLatestBlock.totalDifficulty
-            mostUpdateToDatePeer = peer
+          if(peerLatestBlock){
+            let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
+            if(totalDifficulty > BigInt(parseInt(heightestTotalDifficulty, 16))){
+              heightestTotalDifficulty = peerLatestBlock.totalDifficulty
+              mostUpdateToDatePeer = peer
+            }
           }
+          
           
         }
 
