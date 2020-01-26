@@ -648,7 +648,7 @@ class Node {
           })
 
           peer.on('blockchainStatus', async (status)=>{
-            logger(`Received blockchain status from peer ${address}`);
+            // logger(`Received blockchain status from peer ${address}`);
             if(!this.isDownloading){
               let updated = await this.receiveBlockchainStatus(peer, status)
               this.isDownloading = false
@@ -1881,7 +1881,9 @@ class Node {
             if(isValid.error) console.log('Is not valid mined block', isValid.error)
             else{
               let added = await this.chain.addBlockToChain(block)
-              if(added.error) logger('MinerBlock Error:',added.error)
+              if(added.error){
+                // logger('MinerBlock Error:',added.error)
+              }
               else{
                 this.sendPeerMessage('newBlockFound', block);
                 let latest = await getLatestBlock()
@@ -2148,7 +2150,7 @@ class Node {
                 resolve({error:'ERROR:New block header is invalid'})
               }
             }else{
-              resolve({error:'ERROR: Block already receivedin chain or in branch'})
+              resolve({error:'ERROR: Block already received in chain or in branch'})
             }
           }catch(e){
             resolve({error:e.message})
@@ -2489,7 +2491,7 @@ DHT_PORT=${this.peerDiscoveryPort}
     setInterval(async ()=>{
       that.messageBuffer = {};
       this.chain.save()
-      this.sendPeerMessage('getBlockchainStatus')
+      
       let backUp = await this.chain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
