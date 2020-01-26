@@ -859,7 +859,6 @@ class Node {
                   resolve(false)
                 }else{
                   this.updated = true
-                  peer.emit('getBlockchainStatus')
                   resolve(true)
                 }
                
