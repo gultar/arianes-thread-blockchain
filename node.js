@@ -2150,7 +2150,7 @@ class Node {
                 resolve({error:'ERROR:New block header is invalid'})
               }
             }else{
-              resolve({error:'ERROR: Block already received in chain or in branch'})
+              resolve({error:'ERROR: Block already received'})
             }
           }catch(e){
             resolve({error:e.message})
