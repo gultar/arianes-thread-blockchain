@@ -859,7 +859,7 @@ class Node {
                   resolve(false)
                 }else{
                   this.updated = true
-                  peer.send('getBlockchainStatus')
+                  peer.emit('getBlockchainStatus')
                   resolve(true)
                 }
                
