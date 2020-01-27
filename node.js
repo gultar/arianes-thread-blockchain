@@ -2057,6 +2057,8 @@ class Node {
         resolve({error:isValid.error})
       }else{
         //Action will be added to this.mempool only is valid and if corresponds with contract call
+        this.UILog('«-'+' Received valid action : '+ action.hash.substr(0, 15)+"...")
+        if(this.verbose) logger(chalk.cyan('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
         let added = await this.mempool.addAction(action)
         resolve({action:action})
       }
