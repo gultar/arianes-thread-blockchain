@@ -91,6 +91,7 @@ class Node {
     this.peersLatestBlocks = {}
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
+    this.peerMessageExpiration = 30 * 1000
     this.blocksToValidate = []
     this.updated = false;
     this.isDownloading = false;
