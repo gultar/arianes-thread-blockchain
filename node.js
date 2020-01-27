@@ -1987,8 +1987,7 @@ class Node {
             switch(type){
               case 'transaction':
                 var transaction = JSON.parse(data);
-                let received = await this.receiveTransaction(transaction);
-                if(received.error && this.verbose) logger(chalk.red('TRANSACTION ERROR'), received.error)
+                this.receiveTransaction(transaction);
                 this.broadcast('peerMessage', peerMessage)
                 break;
               case 'action':
