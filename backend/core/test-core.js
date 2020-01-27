@@ -1,6 +1,6 @@
 const NodeCore = require('./core')
 
-const test = async () =>{
+const testPeerMessage = async () =>{
     let node1 = new NodeCore({
         host:'127.0.0.1',
         port:8000,
@@ -36,4 +36,4 @@ const test = async () =>{
    }, 1000)
 }
 
-test()
+testPeerMessage()

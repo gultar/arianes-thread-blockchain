@@ -22,10 +22,10 @@ const transactionHandler = async ({ transaction, transactionValidation, verbose,
 const actionHandler = async ({ action, actionValidation, verbose, apiLog, addAction })=>{
     if(isValidActionJSON(action)){
   
-        let isValid = await actionValidation(transaction)
+        let isValid = await actionValidation(action)
         if(!isValid.error){
-            let added = await addAction(transaction);
-            apiLog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+            let added = await addAction(action);
+            apiLog('«-'+' Received valid action : '+ action.hash.substr(0, 15)+"...")
             if(verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
         }else{
             apiLog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
@@ -35,6 +35,6 @@ const actionHandler = async ({ action, actionValidation, verbose, apiLog, addAct
         
 
     }
-  }
+}
 
 module.exports = { transactionHandler, actionHandler }

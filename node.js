@@ -1987,16 +1987,20 @@ class Node {
             switch(type){
               case 'transaction':
                 var transaction = JSON.parse(data);
-                this.receiveTransaction(transaction);
+                let received = await this.receiveTransaction(transaction);
+                if(received.error && this.verbose) logger(chalk.red('TRANSACTION ERROR'), executed.error)
+                this.broadcast('peerMessage', peerMessage)
                 break;
               case 'action':
                 let action = JSON.parse(data);
                 let executed = await this.receiveAction(action);
-                if(executed.error) console.log(executed.error)
+                if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
+                this.broadcast('peerMessage', peerMessage)
                 break
               case 'newBlockFound':
                 if(!this.chain.isBusy){
                   this.chain.isBusy = true
+                  this.broadcast('peerMessage', peerMessage)
                   let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
                   this.chain.isBusy = false;
                   if(added){
@@ -2010,7 +2014,7 @@ class Node {
               
             }
             
-            this.broadcast('peerMessage', peerMessage)
+            
         }else{
           logger(`Peer ${originAddress} sent an outdated peer message`)
         }

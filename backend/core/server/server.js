@@ -5,9 +5,10 @@ const { RateLimiterMemory } = require('rate-limiter-flexible');
 const sha1 = require('sha1')
 const fs = require('fs')
 const Peer = require('../peers/peer')
-
-class CoreServer{
+const EventEmitter = require('events')
+class CoreServer extends EventEmitter{
     constructor(config){
+        super()
         let { host, port, httpsEnabled, bootstrapNodes, ...opts  } = config;
         this.config = config
         this.address = '';
@@ -163,37 +164,43 @@ class CoreServer{
         }
 
         inboundChannels(socket, extend){
-    
-            let address = socket.request.connection.remoteAddress;
-            if(!this.peersConnected[address]){
-                this.peersConnected[address] = socket;
-                socket.on('message', (message)=>{
-                    logger(`Peer: ${message}`)
-                })
-                if(extend) extend(socket)
-                socket.on('connectionInfo', async(info)=>{
-                    let { address, publicKey } = info
-                    logger(`Establishing peer connection to node ${address}`);
+            try{
+                let token = JSON.parse(socket.handshake.query.token)
+                let address = token.address;
+                
+                if(!this.peersConnected[address]){
+                    this.peersConnected[address] = socket;
+                    socket.on('message', (message)=>{
+                        logger(`Peer: ${message}`)
+                    })
                     
-                    this.connectToPeer(address)
-                })
-        
-                socket.on('getPeers', ()=>{
-                    socket.emit('peers', this.knownPeers)
-                })
-        
-                socket.on('error', async(err)=>{
-                    logger(`Socket Error: ${err}`);
-                })
-                
-                socket.on('disconnect', async()=>{ 
-                    logger(`Peer ${address} has disconnected from this node`)
-                    delete this.peersConnected[address];
-                })
-                
-                
-            }else{
-                //Cannot recreate same connection
+                    socket.on('connectionInfo', async(info)=>{
+                        let { address, publicKey } = info
+                        logger(`Establishing peer connection to node ${address}`);
+                        
+                        this.connectToPeer(address)
+                    })
+            
+                    socket.on('getPeers', ()=>{
+                        socket.emit('peers', this.knownPeers)
+                    })
+            
+                    socket.on('error', async(err)=>{
+                        logger(`Socket Error: ${err}`);
+                    })
+                    
+                    socket.on('disconnect', async()=>{ 
+                        logger(`Peer ${address} has disconnected from this node`)
+                        delete this.peersConnected[address];
+                    })
+                    
+                    if(extend) extend(socket)
+                    
+                }else{
+                    //Cannot recreate same connection
+                }
+            }catch(e){
+                console.log(e)
             }
         }
 
