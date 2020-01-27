@@ -1952,8 +1952,9 @@ class Node {
             }
             let messageId = sha1(JSON.stringify(message));
             message.messageId = messageId
-            this.broadcast('peerMessage', message);
+            console.log(message)
             this.messageBuffer[messageId] = messageId;
+            this.broadcast('peerMessage', message);
 
         }catch(e){
             console.log(e);
