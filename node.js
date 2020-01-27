@@ -1952,7 +1952,6 @@ class Node {
             }
             let messageId = sha1(JSON.stringify(message));
             message.messageId = messageId
-            console.log(message)
             this.messageBuffer[messageId] = messageId;
             this.broadcast('peerMessage', message);
 
@@ -1982,9 +1981,7 @@ class Node {
           'expiration':expiration
         }
 
-        console.log('Received', peerMessage)
-        
-        if(peerMessage.expiration < Date.now()){
+        if(peerMessage.expiration < Date.now() + this.peerMessageExpiration){
           this.messageBuffer[messageId] = peerMessage;
           acknowledge({received:messageId})
             switch(type){
