@@ -33,6 +33,7 @@ program
 .option('-u, --url <nodeURL>', "URL of running node to send transaction to")
 .option('-m, --memory', 'Amount of memory used to execute transaction call')
 .option('-c, --cpuTime', 'Amount of cpu time to reserve for the execution of transaction call')
+.option('-o, --offline', 'Print out a transaction without sending it')
 .description('Sends a transaction to another wallet')
 .action(async ()=>{
     console.log('Sending to ', nodeAddress)
@@ -62,13 +63,17 @@ program
                                 let signature = await wallet.sign(transaction.hash);
                                 if(signature){
                                     transaction.signature = signature;
-                                    // console.log(JSON.stringify(transaction, null, 2))
-                                    axios.post(`${nodeAddress}/transaction`, transaction)
-                                    .then( success => {
-                                        if(success.data.result) console.log(JSON.stringify(success.data.result, null, 2))
-                                        else console.log(JSON.stringify(success.data, null, 2))
-                                    })
-                                    .catch( e => console.log(e))
+                                    
+                                    if(!program.offline){
+                                        axios.post(`${nodeAddress}/transaction`, transaction)
+                                        .then( success => {
+                                            if(success.data.result) console.log(JSON.stringify(success.data.result, null, 2))
+                                            else console.log(JSON.stringify(success.data, null, 2))
+                                        })
+                                        .catch( e => console.log(e))
+                                    }else{
+                                        console.log(JSON.stringify(transaction, null, 2))
+                                    }
                                 }else{
                                     console.log('ERROR: Could not sign transaction')
                                 }

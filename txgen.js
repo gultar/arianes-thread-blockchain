@@ -70,10 +70,10 @@ const txgen = (program) =>{
                     console.log('ERROR: Could not find wallet')
                 }
                 
-            }, 1000)
+            }, 500)
             socket.on('transactionEmitted', (result)=>{
                 if(result.error) console.log(result)//clearInterval(generator)
-                else if(result.result) console.log(result.result)
+                // else if(result.result) console.log(result.result)
                 else console.log(result)
             })
             socket.on('disconnect', ()=>{
