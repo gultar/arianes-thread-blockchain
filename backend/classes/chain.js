@@ -2629,11 +2629,15 @@ class Blockchain{
   testCall(call){
     return new Promise(async (resolve)=>{
       
-      let start = Date.now()
+      
       let code = await this.factory.createSingleCode(call)
       if(code.error) resolve({error:code.error})
-
+      let start = process.hrtime()
       let result = await this.vmController.test(code)
+      
+      let hrend = process.hrtime(start)
+
+      // console.info('Execution time : %ds %dms', hrend[0], hrend[1] / 1000000)
       if(result){
         if(result.error) resolve({error:result.error})
         else resolve(result)
