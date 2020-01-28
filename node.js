@@ -2013,46 +2013,48 @@ class Node {
           'expiration':expiration
         }
         let isValidHash = messageId === sha1(JSON.stringify(peerMessage))
-        if(isValidHash){
-          peerMessage.messageId = messageId
-          if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
-            this.messageBuffer[messageId] = peerMessage;
-            acknowledge({received:messageId})
-              switch(type){
-                case 'transaction':
-                  var transaction = JSON.parse(data);
-                  this.receiveTransaction(transaction);
+        peerMessage.messageId = messageId
+
+        if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
+          this.messageBuffer[messageId] = peerMessage;
+          acknowledge({received:messageId})
+            switch(type){
+              case 'transaction':
+                var transaction = JSON.parse(data);
+                this.receiveTransaction(transaction);
+                this.broadcast('peerMessage', peerMessage)
+                break;
+              case 'action':
+                let action = JSON.parse(data);
+                let executed = await this.receiveAction(action);
+                if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
+                this.broadcast('peerMessage', peerMessage)
+                break
+              case 'newBlockFound':
+                if(!this.chain.isBusy){
+                  this.chain.isBusy = true
                   this.broadcast('peerMessage', peerMessage)
-                  break;
-                case 'action':
-                  let action = JSON.parse(data);
-                  let executed = await this.receiveAction(action);
-                  if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
-                  this.broadcast('peerMessage', peerMessage)
-                  break
-                case 'newBlockFound':
-                  if(!this.chain.isBusy){
-                    this.chain.isBusy = true
-                    this.broadcast('peerMessage', peerMessage)
-                    let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
-                    this.chain.isBusy = false;
-                    if(added){
-                      if(added.error){
-                        logger(chalk.red('REJECTED BLOCK:'), added.error)
-                      }
-  
+                  let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
+                  this.chain.isBusy = false;
+                  if(added){
+                    if(added.error){
+                      logger(chalk.red('REJECTED BLOCK:'), added.error)
                     }
+
                   }
-                  break;
-                
-              }
+                }
+                break;
               
-              
-          }else{
-            console.log('Now:', Date.now())
-            console.log(peerMessage)
-            logger(`Peer ${originAddress} sent an outdated peer message`)
-          }
+            }
+            
+            
+        }else{
+          console.log('Now:', Date.now())
+          console.log(peerMessage)
+          logger(`Peer ${originAddress} sent an outdated peer message`)
+        }
+        if(isValidHash){
+          
         }else{
           console.log('ID:', peerMessage.messageId)
           console.log('Hash', sha1(JSON.stringify(peerMessage)))
