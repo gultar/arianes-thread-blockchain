@@ -2131,7 +2131,7 @@ class Node {
                 
                 this.isValidatingPeerBlock = true
                 this.minerChannel.emit('nodeEvent','stopMining')
-
+                
                 if(minerOn){
                   this.localServer.socket.emit('stopMining', block)
                   this.localServer.socket.isBuildingBlock = false
@@ -2143,8 +2143,9 @@ class Node {
                   }
                 }
 
-                
+                this.minerChannel.emit('nodeEvent','isBusy')
                 let added = await this.chain.pushBlock(block);
+                this.minerChannel.emit('nodeEvent','isAvailable')
                 if(added.error){
                   this.isValidatingPeerBlock = false
                   resolve({error:added.error})
