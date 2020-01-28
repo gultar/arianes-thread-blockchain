@@ -2565,8 +2565,8 @@ DHT_PORT=${this.peerDiscoveryPort}
     setInterval(async ()=>{
       that.messageBuffer = {};
       this.chain.save()
-      let status = await this.buildBlockchainStatus()
-      this.serverBroadcast('blockchainStatus', status)
+      // let status = await this.buildBlockchainStatus()
+      // this.serverBroadcast('blockchainStatus', status)
       let backUp = await this.chain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
