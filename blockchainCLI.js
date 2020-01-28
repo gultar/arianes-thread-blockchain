@@ -71,6 +71,7 @@ program
   .option('-t, --peerDiscoveryPort <port>', 'Enable peer discovery using various methods')
   .option('-l, --dhtDisconnectDelay <delay>', 'Length of time after which the node disconnects from dht network')
   .option('-m, --mine', 'Start a block miner child process alongside the node')
+  .option('-c, --clusterMiner [numbers]', 'Launch a cluster of miners. Default: 1 workers')
   .option('-w, --walletName <walletName>', 'Name of the miner wallet')
   .option('-k, --password <password>', 'Password needed to unlock wallet')
 
@@ -122,9 +123,20 @@ program
             break;
         }
       }
-
-      
-
+      if(program.clusterMiner){
+        let walletName = program.walletName;
+        let walletPassword = program.password;
+        if(!walletName || !walletPassword){
+          console.log('ERROR: Could not start miner process: missing walletName or password')
+        }else{
+          program.keychain = {
+            name:program.walletName,
+            password:program.password
+          }
+          
+          
+        }
+      }
       node = new Node({
         host:program.hostname ? program.hostname : configs.host,
         port:program.port ? program.port : configs.port,
@@ -135,7 +147,10 @@ program
         peerDiscoveryPort:parseInt(configs.port) - 2000,
         networkChannel:'blockchain-mainnet',
         noLocalhost:true,
-        genesis:genesis
+        genesis:genesis,
+        minerWorker:false,
+        clusterMiner:program.clusterMiner,
+        keychain:program.keychain
       })
 
      node.startServer()
@@ -145,6 +160,8 @@ program
       if(program.join){
         node.joinPeers();
       }
+
+      
 
       if(program.mine){
         let walletName = program.walletName;

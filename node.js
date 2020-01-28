@@ -11,7 +11,7 @@ const https = require('https')
 const bodyParser = require('body-parser');
 const RateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-
+const EventEmitter = require('events')
 //*********** Websocket connection**************/
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
@@ -25,7 +25,7 @@ const PeerDiscovery = require('./backend/network/peerDiscovery');
 const SSLHandler = require('./backend/network/sslHandler')
 /**************Live instances******************/
 const Mempool = require('./backend/classes/pool'); //Instance not class
-
+const MinerAPI = require('./backend/classes/minertools/minerAPI')
 
 /****************Tools*************************/
 const { 
@@ -66,6 +66,11 @@ class Node {
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
     this.address = `${this.httpPrefix}://${this.host}:${this.port}`;
     this.minerPort = options.minerPort || parseInt(this.port) + 2000
+    //MinerWorker
+    this.minerAPI = {}
+    this.minerChannel = new EventEmitter()
+    this.clusterMiner = options.clusterMiner
+    this.keychain = options.keychain
     this.id = options.id || sha1(Math.random() * Date.now());
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -144,6 +149,7 @@ class Node {
             else logger('WARNING: Could not save port to .env file')
             this.heartbeat();
             this.localAPI();
+            if(this.clusterMiner) this.initMinerAPI();
             
             if(this.enableLocalPeerDiscovery){
               this.findPeersThroughDNSSD()
@@ -1728,6 +1734,23 @@ class Node {
    
   }
 
+  async initMinerAPI(){
+    
+    this.minerAPI = new MinerAPI({
+      chain:this.chain,
+      mempool:this.mempool,
+      channel: this.minerChannel,
+      sendPeerMessage:(type, data)=>{
+        this.sendPeerMessage(type, data)
+      },
+      keychain:this.keychain,
+      clusterMiner:this.clusterMiner,
+      verbose:true,
+    })
+
+    this.minerAPI.init()
+  }
+
   async minerConnector(api){
     logger('Miner connected!');
     api.hasSentBlock = false
@@ -2101,6 +2124,7 @@ class Node {
                 let minerOn = this.localServer && this.localServer.socket
                 
                 this.isValidatingPeerBlock = true
+                this.minerChannel.emit('nodeEvent','stopMining')
 
                 if(minerOn){
                   this.localServer.socket.emit('stopMining', block)

@@ -212,7 +212,14 @@ class Miner{
           this.preparingBlock = true
           let coinbase = await this.createCoinbase()
           rawBlock.transactions[coinbase.hash] = coinbase
-          let block = new Block(Date.now(), rawBlock.transactions, rawBlock.actions, rawBlock.previousHash, rawBlock.blockNumber)
+          //Date.now(), rawBlock.transactions, rawBlock.actions, rawBlock.previousHash, rawBlock.blockNumber
+          let block = new Block({
+            blockNumber:rawBlock.blockNumber,
+            timestamp:Date.now(),
+            transactions:rawBlock.transactions,
+            actions:rawBlock.actions,
+            previousHash:rawBlock.previousHash
+          })
           block.startMineTime = Date.now()
           block.coinbaseTransactionHash = coinbase.hash
           //Set difficulty level

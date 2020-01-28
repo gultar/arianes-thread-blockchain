@@ -103,19 +103,35 @@ class Blockchain{
   }
 
   async createGenesisBlock(){
-    let genesisBlock = new Block(1554987342039,
-      { 
-        'maxCurrency':new Transaction
-        ({
-          fromAddress:'coinbase',
-          toAddress:'coinbase',
-          amount:1000 * 1000 * 1000 * 1000,
-          data:'Maximum allowed currency in circulation',
-          type:'coinbaseReserve',
-          hash:false,
-          miningFee:0
-        }),
-      }, {});
+    // let genesisBlock = new Block(1554987342039,
+    //   { 
+    //     'maxCurrency':new Transaction
+    //     ({
+    //       fromAddress:'coinbase',
+    //       toAddress:'coinbase',
+    //       amount:1000 * 1000 * 1000 * 1000,
+    //       data:'Maximum allowed currency in circulation',
+    //       type:'coinbaseReserve',
+    //       hash:false,
+    //       miningFee:0
+    //     }),
+    //   }, {});
+      let genesisBlock = new Block({
+        timestamp:1554987342039,
+        transactions:{ 
+              'maxCurrency':new Transaction
+              ({
+                fromAddress:'coinbase',
+                toAddress:'coinbase',
+                amount:1000 * 1000 * 1000 * 1000,
+                data:'Maximum allowed currency in circulation',
+                type:'coinbaseReserve',
+                hash:false,
+                miningFee:0
+              }),
+            },
+        actions:{}
+      })
       genesisBlock.difficulty = '0x100000';//'0x2A353F';
       genesisBlock.totalDifficulty = genesisBlock.difficulty
       genesisBlock.challenge = setNewChallenge(genesisBlock)
