@@ -853,13 +853,15 @@ class Node {
       if(this.chain instanceof Blockchain && peer && status){
         if(!this.isDownloading){
           let { totalDifficultyHex, bestBlockHeader, length } = status;
+          
+
           if(totalDifficultyHex && bestBlockHeader && length){
+            
             this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
             let thisTotalDifficultyHex = await this.chain.getTotalDifficulty();
             // Possible major bug, will not sync if chain is longer but has different block at a given height
             let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
             let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
-
             if(thisTotalDifficulty < totalDifficulty){
               logger('Attempting to download blocks from peer')
               
@@ -882,7 +884,6 @@ class Node {
                 resolve(false)
               }
             }else{
-              // logger('Blockchain is up to date with peer')
               resolve(true)
             }
   
