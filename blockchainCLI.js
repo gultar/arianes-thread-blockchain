@@ -5,6 +5,7 @@ const program = require('commander');
 const { logger, readFile } = require('./backend/tools/utils');
 const fs = require('fs')
 const genesis = require('./backend/tools/getGenesis')
+const publicIP = require('public-ip')
 
 
 let node;
@@ -80,6 +81,7 @@ program
   .action(async ()=>{
     
     if(!program.hostname){
+      
       let ip = await getIP()
       if(ip.error){
         console.log('IP ERROR: ', ip.error)
@@ -87,13 +89,18 @@ program
       }else{
         program.hostname = ip
       }
+
+      if(program.peerDiscovery == 'dht'){
+        program.hostname = await publicIP.v4()
+      }
     }
 
-    let configs = await loadNodeConfig();
+      let configs = await loadNodeConfig();
       if(program.verbose){
         configs.verbose = true;
       }
-    let discovery = {}
+    
+      let discovery = {}
       if(program.peerDiscovery){
         
         switch(program.peerDiscovery){
@@ -115,6 +122,8 @@ program
             break;
         }
       }
+
+      
 
       node = new Node({
         host:program.hostname ? program.hostname : configs.host,
