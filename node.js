@@ -2010,7 +2010,7 @@ class Node {
           'expiration':expiration
         }
 
-        if(peerMessage.expiration < Date.now() + this.peerMessageExpiration){
+        if(peerMessage.expiration <= Date.now() + this.peerMessageExpiration){
           this.messageBuffer[messageId] = peerMessage;
           acknowledge({received:messageId})
             switch(type){
