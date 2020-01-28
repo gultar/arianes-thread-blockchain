@@ -77,12 +77,11 @@ class MinerAPI{
         if(isValid){
           if(isValid.error) logger('INVALID BLOCK', isValid.error)
           else{
+            this.sendPeerMessage('newBlockFound', block);
             let added = await this.chain.addBlockToChain(block)
             if(added.error)logger('MINEDBLOCK ERROR:',added.error)
-            else{
-              this.sendPeerMessage('newBlockFound', block);
-            }
-            return block
+            else return block
+            
           }
           
           
