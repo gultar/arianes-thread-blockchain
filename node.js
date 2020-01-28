@@ -2162,8 +2162,9 @@ class Node {
 
                 this.minerChannel.emit('nodeEvent','isBusy')
                 let added = await this.chain.pushBlock(block);
-                this.minerChannel.emit('nodeEvent','isAvailable')
+                
                 if(added.error){
+                  this.minerChannel.emit('nodeEvent','isAvailable')
                   this.isValidatingPeerBlock = false
                   resolve({error:added.error})
                 }
@@ -2172,28 +2173,30 @@ class Node {
 
                   this.isValidatingPeerBlock = false
                   //If not linked, stop mining after pushing the block, to allow more time for mining on this node
+                  let result = {}
                   if(added.findMissing){
                     
                     let fixed = await this.fixUnlinkedBranch(added.findMissing);
-                    if(fixed.error) resolve({error:fixed.error})
-                    else resolve(fixed)
+                    if(fixed.error) result = {error:fixed.error}
+                    else result = fixed
 
                   }else if(added.switched && added.switched.outOfSync){
                     
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
-                    resolve(rolledback)
+                    result = rolledback
+
                   }else if(added.unlinked){
                     
                     let fixed = await this.fixUnlinkedBranch(added.unlinked);
-                    if(fixed.error) resolve({error:fixed.error})
-                    else resolve(fixed)
+                    if(fixed.error) result = {error:fixed.error}
+                    else result = fixed
 
                   }else if(added.unlinkedExtended){
                     
                     let fixed = await this.fixUnlinkedBranch(added.unlinkedExtended);
-                    if(fixed.error) resolve({error:fixed.error})
-                    else resolve(fixed)
+                    if(fixed.error) result = {error:fixed.error}
+                    else result = fixed
                     
                   }else{
                     if(minerOn){
@@ -2201,8 +2204,10 @@ class Node {
                       this.localServer.socket.hasSentBlock = false
                     }
                     
-                    resolve(added)
+                    result = added
                   }
+                  this.minerChannel.emit('nodeEvent','isAvailable')
+                  resolve(result)
                 }
   
               }else{
