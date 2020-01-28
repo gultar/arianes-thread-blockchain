@@ -1741,7 +1741,7 @@ class Node {
   }
 
   async initMinerAPI(){
-    
+    logger('Starting miner cluster API')
     this.minerAPI = new MinerAPI({
       chain:this.chain,
       mempool:this.mempool,
@@ -2044,6 +2044,8 @@ class Node {
             
             
         }else{
+          console.log('Now:', Date.now())
+          console.log(peerMessage)
           logger(`Peer ${originAddress} sent an outdated peer message`)
         }
         
