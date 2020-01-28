@@ -1999,11 +1999,9 @@ class Node {
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
   async handlePeerMessage(peerMessage, acknowledge){
-      
+    let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
     if(data){
       try{
-        
-        let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
 
         var originalMessage = { 
             'type':type, 
