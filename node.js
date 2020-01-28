@@ -1998,23 +1998,25 @@ class Node {
     @param {String} $originAddress - IP Address of sender
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
-  async handlePeerMessage({ type, originAddress, messageId, data, relayPeer, timestamp, expiration }, acknowledge){
+  async handlePeerMessage(peerMessage, acknowledge){
       
     if(data){
       try{
         
-        let peerMessage = { 
-          'type':type, 
-          'originAddress':originAddress, 
-          'messageId':'', 
-          'data':data,
-          'relayPeer':relayPeer,
-          'timestamp':timestamp,
-          'expiration':expiration
-        }
-        let isValidHash = messageId === sha1(JSON.stringify(peerMessage))
-        peerMessage.messageId = messageId
+        let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
 
+        var originalMessage = { 
+            'type':type, 
+            'messageId':'', 
+            'originAddress':originAddress, 
+            'data':data,
+            'relayPeer':originAddress,
+            'timestamp':timestamp,
+            'expiration':expiration// 30 seconds
+        }
+
+        let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
+        
         if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
           this.messageBuffer[messageId] = peerMessage;
           acknowledge({received:messageId})
@@ -2050,9 +2052,11 @@ class Node {
             
         }else{
           console.log('Now:', Date.now())
-          console.log(peerMessage)
+          console.log(originalMessage.messageId)
+          console.log(sha1(JSON.stringify(originalMessage)))
           logger(`Peer ${originAddress} sent an outdated peer message`)
         }
+
         if(isValidHash){
           
         }else{
