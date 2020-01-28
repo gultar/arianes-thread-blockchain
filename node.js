@@ -989,21 +989,27 @@ class Node {
             // console.log('First missing block', firstBlock)
             let unlinkedBranch = this.chain.unlinkedBranches[lastBlock.hash]
             
-            unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
-            // console.log('Unlinked chain new length', unlinkedBranch.length)
-            let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
-            // console.log('Last branched block num', latestBranchedBlock.blockNumber)
-            this.chain.branches[latestBranchedBlock.hash] = unlinkedBranch
-            let branch = this.chain.branches[latestBranchedBlock.hash]
-            let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
-            if(isValidCandidate){
-              let switched = await this.chain.switchToBranch(branch);
-              if(switched.error) resolve({error:switched.error})
+            if(unlinkedBranch){
+              unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
+              // console.log('Unlinked chain new length', unlinkedBranch.length)
+              let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
+              // console.log('Last branched block num', latestBranchedBlock.blockNumber)
+              this.chain.branches[latestBranchedBlock.hash] = unlinkedBranch
+              let branch = this.chain.branches[latestBranchedBlock.hash]
+              let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
+              if(isValidCandidate){
+                let switched = await this.chain.switchToBranch(branch);
+                if(switched.error) resolve({error:switched.error})
 
-              this.broadcast('getBlockchainStatus')
-              resolve({switched:switched})
+                this.broadcast('getBlockchainStatus')
+                resolve({switched:switched})
+              }else{
+                resolve({fixed:true})
+              }
             }else{
-              resolve({fixed:true})
+              console.log('Unlinked branch', unlinkedBranch)
+              console.log('Unlinked branch on standby')
+              resolve({ standby:true })
             }
           }
           
