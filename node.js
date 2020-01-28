@@ -2002,17 +2002,19 @@ class Node {
       
     if(data){
       try{
+        
         let peerMessage = { 
           'type':type, 
           'originAddress':originAddress, 
-          'messageId':messageId, 
+          'messageId':'', 
           'data':data,
           'relayPeer':relayPeer,
           'timestamp':timestamp,
           'expiration':expiration
         }
-        let isValidHash = peerMessage.messageId === sha1(JSON.stringify(peerMessage))
-        if(isValidHash){ 
+        let isValidHash = messageId === sha1(JSON.stringify(peerMessage))
+        if(isValidHash){
+          peerMessage.messageId = messageId
           if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
             this.messageBuffer[messageId] = peerMessage;
             acknowledge({received:messageId})
