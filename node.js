@@ -1977,6 +1977,7 @@ class Node {
                 'originAddress':this.address, 
                 'data':data,
                 'relayPeer':this.address,
+                'timestamp':Date.now(),
                 'expiration':Date.now() + this.peerMessageExpiration// 30 seconds
             }
             let messageId = sha1(JSON.stringify(message));
@@ -1997,7 +1998,7 @@ class Node {
     @param {String} $originAddress - IP Address of sender
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
-  async handlePeerMessage({ type, originAddress, messageId, data, relayPeer, expiration }, acknowledge){
+  async handlePeerMessage({ type, originAddress, messageId, data, relayPeer, timestamp, expiration }, acknowledge){
       
     if(data){
       try{
@@ -2007,47 +2008,55 @@ class Node {
           'messageId':messageId, 
           'data':data,
           'relayPeer':relayPeer,
+          'timestamp':timestamp,
           'expiration':expiration
         }
-
-        if(peerMessage.expiration <= Date.now() + this.peerMessageExpiration){
-          this.messageBuffer[messageId] = peerMessage;
-          acknowledge({received:messageId})
-            switch(type){
-              case 'transaction':
-                var transaction = JSON.parse(data);
-                this.receiveTransaction(transaction);
-                this.broadcast('peerMessage', peerMessage)
-                break;
-              case 'action':
-                let action = JSON.parse(data);
-                let executed = await this.receiveAction(action);
-                if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
-                this.broadcast('peerMessage', peerMessage)
-                break
-              case 'newBlockFound':
-                if(!this.chain.isBusy){
-                  this.chain.isBusy = true
+        let isValidHash = peerMessage.messageId === sha1(JSON.stringify(peerMessage))
+        if(isValidHash){ 
+          if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
+            this.messageBuffer[messageId] = peerMessage;
+            acknowledge({received:messageId})
+              switch(type){
+                case 'transaction':
+                  var transaction = JSON.parse(data);
+                  this.receiveTransaction(transaction);
                   this.broadcast('peerMessage', peerMessage)
-                  let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
-                  this.chain.isBusy = false;
-                  if(added){
-                    if(added.error){
-                      logger(chalk.red('REJECTED BLOCK:'), added.error)
+                  break;
+                case 'action':
+                  let action = JSON.parse(data);
+                  let executed = await this.receiveAction(action);
+                  if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
+                  this.broadcast('peerMessage', peerMessage)
+                  break
+                case 'newBlockFound':
+                  if(!this.chain.isBusy){
+                    this.chain.isBusy = true
+                    this.broadcast('peerMessage', peerMessage)
+                    let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
+                    this.chain.isBusy = false;
+                    if(added){
+                      if(added.error){
+                        logger(chalk.red('REJECTED BLOCK:'), added.error)
+                      }
+  
                     }
-
                   }
-                }
-                break;
+                  break;
+                
+              }
               
-            }
-            
-            
+              
+          }else{
+            console.log('Now:', Date.now())
+            console.log(peerMessage)
+            logger(`Peer ${originAddress} sent an outdated peer message`)
+          }
         }else{
-          console.log('Now:', Date.now())
-          console.log(peerMessage)
-          logger(`Peer ${originAddress} sent an outdated peer message`)
+          console.log('ID:', peerMessage.messageId)
+          console.log('Hash', sha1(JSON.stringify(peerMessage)))
+          logger(`Peer message hash is invalid`)
         }
+
         
       }catch(e){
         console.log(e)
