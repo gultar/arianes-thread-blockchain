@@ -2222,10 +2222,10 @@ class Node {
                     else result = fixed
                     
                   }else{
-                    if(minerOn){
-                      this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                      this.localServer.socket.hasSentBlock = false
-                    }
+                    // if(minerOn){
+                    //   this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
+                    //   this.localServer.socket.hasSentBlock = false
+                    // }
                     
                     result = added
                   }
