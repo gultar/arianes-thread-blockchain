@@ -24,15 +24,18 @@ class Mempool{
 
     async manageDeferredTransactions(latestBlock){
         if(latestBlock && latestBlock.blockNumber){
+            
             let numTransactionAdded = 0
-            for await(let hash of Object.keys(this.delayedTransactions)){
-                let transaction = this.delayedTransactions[hash]
-                if(transaction.delayToBlock <= latestBlock.blockNumber){
-                    delete transaction.delayToBlock
-                    let added = await this.addTransaction(transaction)
-                    if(added.error) return { error: { delayedTransactionError:added.error } }
-
-                    numTransactionAdded++
+            if(latestBlock.blockNumber >= 1){
+                for await(let hash of Object.keys(this.delayedTransactions)){
+                    let transaction = this.delayedTransactions[hash]
+                    if(transaction.delayToBlock <= latestBlock.blockNumber){
+                        delete transaction.delayToBlock
+                        let added = await this.addTransaction(transaction)
+                        if(added.error) return { error: { delayedTransactionError:added.error } }
+    
+                        numTransactionAdded++
+                    }
                 }
             }
 
@@ -46,16 +49,19 @@ class Mempool{
     async manageDeferredActions(latestBlock){
         if(latestBlock && latestBlock.blockNumber){
             let numActionAdded = 0
-            for await(let hash of Object.keys(this.delayedActions)){
-                let action = this.delayedActions[hash]
-                if(action.delayToBlock <= latestBlock.blockNumber){
-                    delete action.delayToBlock
-                    let added = await this.addAction(action)
-                    if(added.error) return { error: { delayedActionError:added.error } }
-
-                    numActionAdded++
+            if(latestBlock.blockNumber >= 1){
+                for await(let hash of Object.keys(this.delayedActions)){
+                    let action = this.delayedActions[hash]
+                    if(action.delayToBlock <= latestBlock.blockNumber){
+                        delete action.delayToBlock
+                        let added = await this.addAction(action)
+                        if(added.error) return { error: { delayedActionError:added.error } }
+    
+                        numActionAdded++
+                    }
                 }
             }
+            
 
             return { delayedTransactionsAdded:numActionAdded };
         }else{

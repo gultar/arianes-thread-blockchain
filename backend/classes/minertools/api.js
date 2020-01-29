@@ -86,7 +86,7 @@ class MinerAPI{
         
         let latest = await this.getLatestFullBlock()
         let deferredTxManaged = await this.mempool.manageDeferredTransactions(latest)
-        if(deferredTxManaged.error) return { error:deferredTxManaged.error }
+        if(deferredTxManaged.error) console.log({ error:deferredTxManaged.error })
 
         let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions.error) return { error:transactions.error }
@@ -94,7 +94,7 @@ class MinerAPI{
         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
 
         let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
-        if(deferredActionsManaged.error) return { error:deferredActionsManaged.error }
+        if(deferredActionsManaged.error) console.log({ error:deferredActionsManaged.error })
 
         let actions = await this.mempool.gatherActionsForBlock()
         if(actions.error) return { error:actions.error }
@@ -124,10 +124,17 @@ class MinerAPI{
 
     async getLatestFullBlock(){
         let latestHeader = this.chain.getLatestBlock()
-        let block = await this.chain.getBlockFromDB(latestHeader.blockNumber)
-        if(!block || block.error){
-          block = await this.chain.getBlockFromDB(latestHeader.blockNumber - 1)
+        if(latestHeader.blockNumber >= 1){
+            let block = await this.chain.getBlockFromDB(latestHeader.blockNumber)
+            if(!block || block.error){
+            block = await this.chain.getBlockFromDB(latestHeader.blockNumber - 1)
+            }
+        }else{
+            block = latestHeader
         }
+        
+
+        
     
         return block
     }
