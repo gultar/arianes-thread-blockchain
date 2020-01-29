@@ -3,7 +3,7 @@ const activePort = require('dotenv').config({ path: './config/.env' })
 if (activePort.error) throw activePort.error
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
-const Miner = require('./backend/classes/minertools/blockMiner')
+const Miner = require('./backend/classes/minertools/miner')
 const program = require('commander');
 
 program

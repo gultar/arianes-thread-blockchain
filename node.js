@@ -25,7 +25,8 @@ const PeerDiscovery = require('./backend/network/peerDiscovery');
 const SSLHandler = require('./backend/network/sslHandler')
 /**************Live instances******************/
 const Mempool = require('./backend/classes/pool'); //Instance not class
-const MinerAPI = require('./backend/classes/minertools/minerAPI')
+const MinerAPI = require('./backend/classes/minertools/api')
+// const MinerAPI = require('./backend/classes/minertools/minerAPI')
 
 /****************Tools*************************/
 const { 
@@ -69,8 +70,8 @@ class Node {
     //MinerWorker
     this.minerAPI = {}
     this.minerChannel = new EventEmitter()
-    this.clusterMiner = options.clusterMiner
-    this.keychain = options.keychain
+    // this.clusterMiner = options.clusterMiner
+    // this.keychain = options.keychain
     this.id = options.id || sha1(Math.random() * Date.now());
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -149,7 +150,8 @@ class Node {
             else logger('WARNING: Could not save port to .env file')
             this.heartbeat();
             this.localAPI();
-            if(this.clusterMiner) this.initMinerAPI();
+            // if(this.clusterMiner) this.initMinerAPI();
+            
             
             if(this.enableLocalPeerDiscovery){
               this.findPeersThroughDNSSD()
@@ -1732,7 +1734,8 @@ class Node {
       let token = socket.handshake.query.token;
 
       if(token && token == 'InitMiner'){
-        this.minerConnector(socket)
+        // this.minerConnector(socket)
+        this.startMinerAPI(socket)
       }else{
         socket.emit('message', 'Connected to local node');
         this.externalEventHandlers(socket)
@@ -1741,8 +1744,26 @@ class Node {
    
   }
 
-  async initMinerAPI(){
+  // async initMinerAPI(){
+  //   logger('Starting miner cluster API')
+  //   this.minerAPI = new MinerAPI({
+  //     chain:this.chain,
+  //     mempool:this.mempool,
+  //     channel: this.minerChannel,
+  //     sendPeerMessage:(type, data)=>{
+  //       this.sendPeerMessage(type, data)
+  //     },
+  //     keychain:this.keychain,
+  //     clusterMiner:this.clusterMiner,
+  //     verbose:true,
+  //   })
+
+  //   this.minerAPI.init()
+  // }
+
+  async startMinerAPI(socket){
     logger('Starting miner cluster API')
+    
     this.minerAPI = new MinerAPI({
       chain:this.chain,
       mempool:this.mempool,
@@ -1753,6 +1774,7 @@ class Node {
       keychain:this.keychain,
       clusterMiner:this.clusterMiner,
       verbose:true,
+      socket:socket
     })
 
     this.minerAPI.init()
@@ -2145,21 +2167,21 @@ class Node {
 
                 this.peersLatestBlocks[fromPeer] = block
 
-                let minerOn = this.localServer && this.localServer.socket
+                // let minerOn = this.localServer && this.localServer.socket
                 
                 this.isValidatingPeerBlock = true
                 this.minerChannel.emit('nodeEvent','stopMining')
                 
-                if(minerOn){
-                  this.localServer.socket.emit('stopMining', block)
-                  this.localServer.socket.isBuildingBlock = false
-                  let putback = await this.mempool.deleteTransactionsOfBlock(block.transactions)
-                  if(putback.error) resolve({error:putback.error})
-                  if(block.actions){
-                    let actionsPutback = await this.mempool.deleteActionsOfBlock(block.actions)
-                    if(actionsPutback.error) resolve({error:actionsPutback.error})
-                  }
-                }
+                // if(minerOn){
+                //   this.localServer.socket.emit('stopMining', block)
+                //   this.localServer.socket.isBuildingBlock = false
+                //   let putback = await this.mempool.deleteTransactionsOfBlock(block.transactions)
+                //   if(putback.error) resolve({error:putback.error})
+                //   if(block.actions){
+                //     let actionsPutback = await this.mempool.deleteActionsOfBlock(block.actions)
+                //     if(actionsPutback.error) resolve({error:actionsPutback.error})
+                //   }
+                // }
 
                 this.minerChannel.emit('nodeEvent','isBusy')
                 let added = await this.chain.pushBlock(block);

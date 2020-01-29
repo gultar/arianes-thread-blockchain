@@ -1,48 +1,27 @@
+const http = require('http')
+const socketIo = require('socket.io')
 const { logger } = require('../../tools/utils')
-const EventEmitter = require('events')
-const { Worker } = require('worker_threads')
 
 class MinerAPI{
-    constructor({ chain, mempool, channel, sendPeerMessage, keychain, clusterMiner }){
+    constructor({ chain, mempool, channel, sendPeerMessage, socket }){
         this.chain = chain
         this.mempool = mempool
         this.channel = channel
         this.sendPeerMessage = sendPeerMessage
-        this.keychain = keychain
-        this.clusterMiner = clusterMiner
-        this.worker = {}
-        this.isWorkerBusy = false;
+        this.isMinerBusy = false;
         this.isAPIBusy = false;
+        this.socket = socket
     }
 
     init(){
-        this.worker = new Worker('./backend/classes/minertools/minerWorker.js', {
-            workerData:{
-                keychain:this.keychain,
-                clusterMiner:this.clusterMiner,
-                verbose:this.verbose
-            },
-            ressourceLimits:{
-                maxOldGenerationSizeMb:256
-            }
+        this.socket.on('success', async(block) => {
+            this.isAPIBusy = true
+            await this.addMinedBlock(block)
+            this.isAPIBusy = false
         })
-        
-        this.worker.on('error', err => console.log('Bootstrap Error',err))
-        this.worker.on('exit', ()=>{ })
-        this.worker.on('message', async (message)=>{
-
-            if(message.isMining) this.isWorkerBusy = true
-            else if(message.isPreparing) this.isWorkerBusy = true
-            else if(message.isStopped) this.isWorkerBusy = false
-            else if(message.success){
-                this.isAPIBusy = true
-                let added = await this.addMinedBlock(message.success)
-                this.isAPIBusy = false
-            }
-            else if(message.failed){
-                console.log('Mining failed')
-            }
-        })
+        this.socket.on('isStopped', ()=>{ this.isMinerBusy = false })
+        this.socket.on('isMining', ()=>{ this.isMinerBusy = true })
+        this.socket.on('isPreparing', ()=>{ this.isMinerBusy = true })
         this.channel.on('nodeEvent', (event)=>{
             switch(event){
                 case 'isBusy':
@@ -52,24 +31,22 @@ class MinerAPI{
                     this.isAPIBusy = false
                     break;
                 case 'stopMining':
-                    this.worker.postMessage({ stop:true })
+                    //Stop miner
+                    this.socket.emit('stopMining')
                     break;
             }
         })
         
         this.mempool.events.on('newAction', async (action)=>{
-            if(!this.isAPIBusy && !this.isWorkerBusy){
+            if(!this.isAPIBusy && !this.isMinerBusy){
                 await this.sendNewBlock()
             }
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
-             if(!this.isAPIBusy && !this.isWorkerBusy){
+             if(!this.isAPIBusy && !this.isMinerBusy){
                 await this.sendNewBlock()
             }
         })
-
-        
-
     }
 
     async addMinedBlock(block){
@@ -81,9 +58,7 @@ class MinerAPI{
             let added = await this.chain.addBlockToChain(block)
             if(added.error)logger('MINEDBLOCK ERROR:',added.error)
             else return block
-            
           }
-          
           
         }else{
           logger('ERROR: Mined Block is not valid!')
@@ -95,8 +70,8 @@ class MinerAPI{
         let latestBlock = await this.getLatestFullBlock()
         let newRawBlock = await this.createRawBlock(latestBlock)
         if(!newRawBlock.error) {
-            this.worker.postMessage({ previousBlock:latestBlock })
-            this.worker.postMessage({ mine:newRawBlock })
+            this.socket.emit('previousBlock', latestBlock)
+            this.socket.emit('rawBlock', newRawBlock)
         }else{
             logger('RAW BLOCK ERROR:', newRawBlock)
         }
@@ -110,6 +85,7 @@ class MinerAPI{
 
         let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions.error) return { error:transactions.error }
+
         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
 
         let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
@@ -117,8 +93,12 @@ class MinerAPI{
 
         let actions = await this.mempool.gatherActionsForBlock()
         if(actions.error) return { error:actions.error }
+
         actions = await this.chain.validateActionsBeforeMining(actions)
-        if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'ERROR: Could not create block without transactions or actions' }
+
+        if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0){
+            return { error:'ERROR: Could not create block without transactions or actions' }
+        } 
         
         let rawBlock = {
             timestamp:Date.now(),
@@ -160,8 +140,6 @@ class MinerAPI{
           return false
         }
     }
-
-    
 }
 
 module.exports = MinerAPI
