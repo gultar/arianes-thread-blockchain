@@ -67,7 +67,7 @@ class Miner{
         if(!this.wallet) throw new Error(`ERROR: Could not load wallet ${this.keychain.name}`)
     }
 
-    async stop(){
+    async stop(abort=false){
         this.log('Mining interrupted')
         if(process.ACTIVE_MINER){
             process.ACTIVE_MINER.kill()
@@ -93,9 +93,8 @@ class Miner{
 
             let success = false
             
-            // if(this.clusterMiner) success = await block.powerMine(block.difficulty)
-            // else 
-             success = await block.mine(block.difficulty);
+            if(this.clusterMiner) success = await block.powerMine(block.difficulty)
+            else  success = await block.mine(block.difficulty);
             if(success){
                 this.successMessage(success)
                 this.stop()
