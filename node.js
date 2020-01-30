@@ -633,7 +633,7 @@ class Node {
               setTimeout(()=>{
                 peer.emit('getBlockchainStatus', status);
                 peer.emit('getPeers')
-              },5000);
+              },2000);
               
               
             }else{}

@@ -124,6 +124,7 @@ class MinerAPI{
 
     async getLatestFullBlock(){
         let latestHeader = this.chain.getLatestBlock()
+        let block = latestHeader
         if(latestHeader.blockNumber >= 1){
             let block = await this.chain.getBlockFromDB(latestHeader.blockNumber)
             if(!block || block.error){
