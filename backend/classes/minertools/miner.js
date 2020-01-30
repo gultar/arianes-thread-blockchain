@@ -52,6 +52,10 @@ class Miner{
         this.socket.on('stopMining', async ()=>{
             await this.stop()
         })
+        this.socket.on('disconnect', async ()=>{
+          this.socket.close()
+          process.exit()
+      })
 
           
     }
