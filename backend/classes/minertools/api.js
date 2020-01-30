@@ -90,7 +90,7 @@ class MinerAPI{
 
         let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions.error) return { error:transactions.error }
-
+        
         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
 
         let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)

@@ -6,6 +6,7 @@ class NodeList{
         this.addresses = addresses;
         this.contacts = contacts
         this.blackListed = blackListed;
+        this.filename = './databases/nodelist.json'
     }
 
     addNewAddress(address){
@@ -38,7 +39,7 @@ class NodeList{
             try{
                 fs.exists('./data/nodelist.json', async (exists)=>{
                     if(exists){
-                        let listFile = await readFile('./data/nodelist.json');
+                        let listFile = await readFile(this.filename);
                         let list = JSON.parse(listFile)
                         if(list){
                             list.addresses.forEach((addr)=>{
@@ -54,7 +55,7 @@ class NodeList{
                         }
                     }else{
                         
-                        let saved = writeToFile(this, './data/nodelist.json');
+                        let saved = writeToFile(this, this.filename);
                         if(saved){
                             logger('Created new list of known nodes')
                             resolve(true)
@@ -78,7 +79,7 @@ class NodeList{
     saveNodeList(){
         return new Promise(async (resolve, reject)=>{
             try{
-                let saved = await writeToFile(this, './databases/nodelist.json');
+                let saved = await writeToFile(this, this.filename);
                 if(saved){
                     logger('Saved list of known nodes');
                     resolve(true)
