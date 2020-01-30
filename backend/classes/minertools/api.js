@@ -44,6 +44,7 @@ class MinerAPI{
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
              if(!this.isAPIBusy && !this.isMinerBusy){
+                 
                 await this.sendNewBlock()
             }
         })
@@ -72,6 +73,7 @@ class MinerAPI{
     }
 
     async sendNewBlock(){
+        this.isAPIBusy = true
         let latestBlock = await this.getLatestFullBlock()
         let newRawBlock = await this.createRawBlock(latestBlock)
         if(!newRawBlock.error) {
@@ -80,6 +82,7 @@ class MinerAPI{
         }else{
             logger('RAW BLOCK ERROR:', newRawBlock)
         }
+        this.isAPIBusy = false
     }
 
     async createRawBlock(nextBlock){
