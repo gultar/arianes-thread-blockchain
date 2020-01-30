@@ -37,7 +37,7 @@ class NodeList{
     async loadNodeList(){
         return new Promise((resolve, reject)=>{
             try{
-                fs.exists('./data/nodelist.json', async (exists)=>{
+                fs.exists(this.filename, async (exists)=>{
                     if(exists){
                         let listFile = await readFile(this.filename);
                         let list = JSON.parse(listFile)

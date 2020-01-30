@@ -3,7 +3,6 @@ const Database = require('./db')
 const { isValidTransactionJSON, isValidActionJSON } = require('../tools/jsonvalidator');
 const { readFile, writeToFile, logger } = require('../tools/utils');
 const fs = require('fs')
-const PouchDB = require('pouchdb')
 
 class BalanceTable{
     constructor(accountTable){

@@ -12,20 +12,19 @@ class Block{
     this.transactions = transactions;
     this.actions = actions;
     this.previousHash = previousHash;
-    this.blockFork = {}
     this.totalDifficulty = '0x1'
     this.difficulty = 1;
     this.merkleRoot = this.createMerkleRoot(this.transactions);
     this.actionMerkleRoot = this.createMerkleRoot(this.actions);
     this.nonce = 0;
     this.hash = this.calculateHash();
-    this.valid = true;
+    // this.valid = true;
     this.minedBy = '';
     this.challenge = 1;
     this.startMineTime = Date.now();
     this.endMineTime = 0;
-    this.totalSumTransited = 0;
     this.coinbaseTransactionHash = '';
+    this.signatures = {}  //{ publicKey : signature }
   }
   /**
     Will be called on every iteration of the mining method

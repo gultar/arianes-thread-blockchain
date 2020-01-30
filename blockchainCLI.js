@@ -80,6 +80,8 @@ program
   .usage('node blockchainCLI.js start --option [value]')
   .description('Starts blockchain node')
   .action(async ()=>{
+
+
     
     if(!program.hostname){
       
@@ -171,7 +173,7 @@ program
         }else{
           const { Worker } = require('worker_threads');
           let worker = new Worker(`
-          let Miner = require(__dirname+'/backend/classes/minerTools/blockMiner')
+          let Miner = require(__dirname+'/backend/classes/minerTools/miner')
           let miner = new Miner({
               publicKey:'',
               verbose:false,
@@ -189,9 +191,13 @@ program
       }
   
       if(program.seeds){
-        let seeds = program.seeds.split(';')
-        for(let seed of seeds){
-          node.connectToPeer(seed);
+        if(program.seeds.includes(';')){
+          let seeds = program.seeds.split(';')
+          for(let seed of seeds){
+            node.connectToPeer(seed);
+          }
+        }else{
+          node.connectToPeer(program.seeds)
         }
       }
      })

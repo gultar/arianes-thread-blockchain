@@ -29,7 +29,6 @@ const ECDSA = require('ecdsa-secp256r1');
 const fs = require('fs');
 let _ = require('private-parts').createKey();
 const genesis = require('../tools/getGenesis')
-const PouchDB = require('pouchdb');
 const Database = require('./db')
 /**
   * @desc Basic blockchain class.
