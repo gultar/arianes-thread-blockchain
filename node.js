@@ -1780,205 +1780,205 @@ class Node {
     this.minerAPI.init()
   }
 
-  async minerConnector(api){
-    logger('Miner connected!');
-    api.hasSentBlock = false
-    api.isBuildingBlock = false
+  // async minerConnector(api){
+  //   logger('Miner connected!');
+  //   api.hasSentBlock = false
+  //   api.isBuildingBlock = false
 
-    const sendNextBlock = async (minerPreviousBlock) =>{
-      if(!this.isDownloading && !api.hasSentBlock && !api.isMining){
-        let nextBlock = await this.getLatestFullBlock()
-        let newRawBlock = await createRawBlock(nextBlock)
-        if(!newRawBlock.error) {
-            api.hasSentBlock = true
-            api.emit('startMining', newRawBlock)
-        }else{
-          api.emit('wait')
-          // console.log(newRawBlock.error)
-        }
-      }else{
-        return { error:'Node is busy' }
-      }
-    }
+  //   const sendNextBlock = async (minerPreviousBlock) =>{
+  //     if(!this.isDownloading && !api.hasSentBlock && !api.isMining){
+  //       let nextBlock = await this.getLatestFullBlock()
+  //       let newRawBlock = await createRawBlock(nextBlock)
+  //       if(!newRawBlock.error) {
+  //           api.hasSentBlock = true
+  //           api.emit('startMining', newRawBlock)
+  //       }else{
+  //         api.emit('wait')
+  //         // console.log(newRawBlock.error)
+  //       }
+  //     }else{
+  //       return { error:'Node is busy' }
+  //     }
+  //   }
 
-    const unwrapBlock = async (block) =>{
-      if(block){
-        let putback = await this.mempool.putbackTransactions(block)
-        if(putback.error) return {error:putback.error}
-        if(block.actions){
-          let actionsPutback = await this.mempool.putbackActions(block)
-          if(actionsPutback.error) return {error:actionsPutback.error}
-        }
-        return { transactions:putback, actions:putback }
-      }else{
-        return false
-      }
-    }
+  //   const unwrapBlock = async (block) =>{
+  //     if(block){
+  //       let putback = await this.mempool.putbackTransactions(block)
+  //       if(putback.error) return {error:putback.error}
+  //       if(block.actions){
+  //         let actionsPutback = await this.mempool.putbackActions(block)
+  //         if(actionsPutback.error) return {error:actionsPutback.error}
+  //       }
+  //       return { transactions:putback, actions:putback }
+  //     }else{
+  //       return false
+  //     }
+  //   }
     
-    const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
+  //   const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
       
-      if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
-        if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
-          let latest = await this.getLatestFullBlock()
+  //     if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
+  //       if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
+  //         let latest = await this.getLatestFullBlock()
 
-          api.isBuildingBlock = true
+  //         api.isBuildingBlock = true
 
-          let deferredTxManaged = await this.mempool.manageDeferredTransactions(latest)
-          if(deferredTxManaged.error) console.log('DEFERRED TX ERROR: ', deferredTxManaged.error)
+  //         let deferredTxManaged = await this.mempool.manageDeferredTransactions(latest)
+  //         if(deferredTxManaged.error) console.log('DEFERRED TX ERROR: ', deferredTxManaged.error)
 
-          let transactions = await this.mempool.gatherTransactionsForBlock()
-          if(transactions.error) console.log('Mempool error: ',transactions.error)
-          transactions = await this.chain.validateTransactionsBeforeMining(transactions)
+  //         let transactions = await this.mempool.gatherTransactionsForBlock()
+  //         if(transactions.error) console.log('Mempool error: ',transactions.error)
+  //         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
 
-          let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
-          if(deferredActionsManaged.error) console.log('DEFERRED ACTIONS ERROR: ', deferredActionsManaged.error)
+  //         let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
+  //         if(deferredActionsManaged.error) console.log('DEFERRED ACTIONS ERROR: ', deferredActionsManaged.error)
 
-          let actions = await this.mempool.gatherActionsForBlock()
-          if(actions.error) console.log('Mempool error:',actions.error)
-          actions = await this.chain.validateActionsBeforeMining(actions)
-          if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }
+  //         let actions = await this.mempool.gatherActionsForBlock()
+  //         if(actions.error) console.log('Mempool error:',actions.error)
+  //         actions = await this.chain.validateActionsBeforeMining(actions)
+  //         if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }
           
-          let rawBlock = {
-            timestamp:Date.now(),
-            transactions:transactions,
-            actions:actions,
-            previousHash:nextBlock.hash,
-            blockNumber:nextBlock.blockNumber + 1
-          } 
+  //         let rawBlock = {
+  //           timestamp:Date.now(),
+  //           transactions:transactions,
+  //           actions:actions,
+  //           previousHash:nextBlock.hash,
+  //           blockNumber:nextBlock.blockNumber + 1
+  //         } 
   
-          api.isBuildingBlock = false
-          return rawBlock
-        }else{
-          return { error:'ERROR: Mempool is empty' }
-        }
-      }else{
+  //         api.isBuildingBlock = false
+  //         return rawBlock
+  //       }else{
+  //         return { error:'ERROR: Mempool is empty' }
+  //       }
+  //     }else{
         
-        // console.log({ error:{
-        //   message:'ERROR: Node is unable to create new block',
-        //   reason:{
-        //     isDownloading:this.isDownloading,
-        //     isBusy:this.chain.isBusy,
-        //     isBuildingBlock:api.isBuildingBlock,
-        //     isValidating:api.isValidatingBlock,
-        //     isMining:api.isMining
-        //   }
-        // },  })
+  //       // console.log({ error:{
+  //       //   message:'ERROR: Node is unable to create new block',
+  //       //   reason:{
+  //       //     isDownloading:this.isDownloading,
+  //       //     isBusy:this.chain.isBusy,
+  //       //     isBuildingBlock:api.isBuildingBlock,
+  //       //     isValidating:api.isValidatingBlock,
+  //       //     isMining:api.isMining
+  //       //   }
+  //       // },  })
 
-        return { error:{
-          message:'ERROR: Node is unable to create new block',
-          reason:{
-            isDownloading:this.isDownloading,
-            isBusy:this.chain.isBusy,
-            isBuildingBlock:api.isBuildingBlock
-          }
-        },  }
-      }
-    }
+  //       return { error:{
+  //         message:'ERROR: Node is unable to create new block',
+  //         reason:{
+  //           isDownloading:this.isDownloading,
+  //           isBusy:this.chain.isBusy,
+  //           isBuildingBlock:api.isBuildingBlock
+  //         }
+  //       },  }
+  //     }
+  //   }
 
     
 
-    api.on('mining', (block)=>{
-      api.isMining = true
-    })
+  //   api.on('mining', (block)=>{
+  //     api.isMining = true
+  //   })
 
-    api.on('miningOver', ()=>{
-      api.isMining = false
-    })
+  //   api.on('miningOver', ()=>{
+  //     api.isMining = false
+  //   })
 
-    api.on('miningCancelled', async (block)=>{
-      let blockUnwrapped = await unwrapBlock(block)
-      if(blockUnwrapped.error) console.log(`UNWRAP ERROR: ${blockUnwrapped.error}`)
+  //   api.on('miningCancelled', async (block)=>{
+  //     let blockUnwrapped = await unwrapBlock(block)
+  //     if(blockUnwrapped.error) console.log(`UNWRAP ERROR: ${blockUnwrapped.error}`)
       
-      api.isBuildingBlock = false
-    })
+  //     api.isBuildingBlock = false
+  //   })
 
-    api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-      let sent = await sendNextBlock(minerPreviousBlock)
+  //   api.on('isNewBlockReady', async (minerPreviousBlock)=>{
+  //     let sent = await sendNextBlock(minerPreviousBlock)
       
-    })
+  //   })
 
-    api.on('getNewBlock', async ()=>{
-      api.hasSentBlock = false
-      await sendNextBlock()
-    })
+  //   api.on('getNewBlock', async ()=>{
+  //     api.hasSentBlock = false
+  //     await sendNextBlock()
+  //   })
   
-    this.mempool.events.on('newAction', (action)=>{
-      api.emit('actionSent')
-    })
-    this.mempool.events.on('newTransaction', async (transaction)=>{
-      api.emit('transactionSent')
-    })
+  //   this.mempool.events.on('newAction', (action)=>{
+  //     api.emit('actionSent')
+  //   })
+  //   this.mempool.events.on('newTransaction', async (transaction)=>{
+  //     api.emit('transactionSent')
+  //   })
 
     
 
-    api.on('newBlock', async (block)=>{
-      if(this.isDownloading || this.chain.isBusy){
-        api.emit('stopMining')
-      }
-      else{
-        if(block){
-          api.emit('stopMining')
-          api.hasSentBlock = false
+  //   api.on('newBlock', async (block)=>{
+  //     if(this.isDownloading || this.chain.isBusy){
+  //       api.emit('stopMining')
+  //     }
+  //     else{
+  //       if(block){
+  //         api.emit('stopMining')
+  //         api.hasSentBlock = false
           
-          this.chain.isBusy = true
-          api.isValidatingBlock = true
+  //         this.chain.isBusy = true
+  //         api.isValidatingBlock = true
 
-          let isValid = await this.chain.validateBlock(block)
-          if(isValid){
-            if(isValid.error) console.log('Is not valid mined block', isValid.error)
-            else{
-              let added = await this.chain.addBlockToChain(block)
-              if(added.error){
-                // logger('MinerBlock Error:',added.error)
-              }
-              else{
-                this.sendPeerMessage('newBlockFound', block);
-                let latest = await this.getLatestFullBlock()
-                api.emit('latestBlock', latest)
-              }
-              api.isBuildingBlock = false
-              this.chain.isBusy = false
-            }
+  //         let isValid = await this.chain.validateBlock(block)
+  //         if(isValid){
+  //           if(isValid.error) console.log('Is not valid mined block', isValid.error)
+  //           else{
+  //             let added = await this.chain.addBlockToChain(block)
+  //             if(added.error){
+  //               // logger('MinerBlock Error:',added.error)
+  //             }
+  //             else{
+  //               this.sendPeerMessage('newBlockFound', block);
+  //               let latest = await this.getLatestFullBlock()
+  //               api.emit('latestBlock', latest)
+  //             }
+  //             api.isBuildingBlock = false
+  //             this.chain.isBusy = false
+  //           }
             
             
-          }else{
-            console.log('ERROR: Mined Block is not valid!')
-            api.hasSentBlock = false
-            this.chain.isBusy = false
-          }
+  //         }else{
+  //           console.log('ERROR: Mined Block is not valid!')
+  //           api.hasSentBlock = false
+  //           this.chain.isBusy = false
+  //         }
          
-          api.isValidatingBlock = false
-        }else if(block.failed){
-          logger('Miner was interrupted')
-          api.emit('latestBlock', this.chain.getLatestBlock())
-          api.hasSentBlock = false
-        }else{
-          logger('ERROR: New mined block is undefined')
-        }
-      }
+  //         api.isValidatingBlock = false
+  //       }else if(block.failed){
+  //         logger('Miner was interrupted')
+  //         api.emit('latestBlock', this.chain.getLatestBlock())
+  //         api.hasSentBlock = false
+  //       }else{
+  //         logger('ERROR: New mined block is undefined')
+  //       }
+  //     }
       
-    })
+  //   })
 
-    api.on('getLatestBlock', async (minersPreviousBlock)=>{
+  //   api.on('getLatestBlock', async (minersPreviousBlock)=>{
       
-      if(this.chain instanceof Blockchain){
-        let latest = await this.getLatestFullBlock()
-        api.emit('latestBlock', latest)
-      }else{
-        api.emit('error', {error: 'Chain is not ready'})
-      }
-    })
+  //     if(this.chain instanceof Blockchain){
+  //       let latest = await this.getLatestFullBlock()
+  //       api.emit('latestBlock', latest)
+  //     }else{
+  //       api.emit('error', {error: 'Chain is not ready'})
+  //     }
+  //   })
 
-    api.on('disconnect', ()=>{
-      this.mempool.events.removeAllListeners('newAction')
-      this.mempool.events.removeAllListeners('newTransaction')
-    })
-    let latest = await this.getLatestFullBlock()
-    api.emit('latestBlock', latest)
+  //   api.on('disconnect', ()=>{
+  //     this.mempool.events.removeAllListeners('newAction')
+  //     this.mempool.events.removeAllListeners('newTransaction')
+  //   })
+  //   let latest = await this.getLatestFullBlock()
+  //   api.emit('latestBlock', latest)
     
   
-    this.localServer.socket = api
-  }
+  //   this.localServer.socket = api
+  // }
 
 
   /**
@@ -2037,54 +2037,55 @@ class Node {
         }
 
         let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
-        
-        if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
-          this.messageBuffer[messageId] = peerMessage;
-          acknowledge({received:messageId})
-            switch(type){
-              case 'transaction':
-                var transaction = JSON.parse(data);
-                this.receiveTransaction(transaction);
-                this.broadcast('peerMessage', peerMessage)
-                break;
-              case 'action':
-                let action = JSON.parse(data);
-                let executed = await this.receiveAction(action);
-                if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
-                this.broadcast('peerMessage', peerMessage)
-                break
-              case 'newBlockFound':
-                if(!this.chain.isBusy){
-                  this.chain.isBusy = true
-                  this.broadcast('peerMessage', peerMessage)
-                  let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
-                  this.chain.isBusy = false;
-                  if(added){
-                    if(added.error){
-                      logger(chalk.red('REJECTED BLOCK:'), added.error)
-                    }
-
-                  }
-                }
-                break;
-              
-            }
-            
-            
-        }else{
-          console.log('Now:', Date.now())
-          console.log(originalMessage.messageId)
-          console.log(sha1(JSON.stringify(originalMessage)))
-          logger(`Peer ${originAddress} sent an outdated peer message`)
-        }
-
         if(isValidHash){
-          
+          if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
+            this.messageBuffer[messageId] = peerMessage;
+            acknowledge({received:messageId})
+              switch(type){
+                case 'transaction':
+                  var transaction = JSON.parse(data);
+                  this.receiveTransaction(transaction);
+                  this.broadcast('peerMessage', peerMessage)
+                  break;
+                case 'action':
+                  let action = JSON.parse(data);
+                  let executed = await this.receiveAction(action);
+                  if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
+                  this.broadcast('peerMessage', peerMessage)
+                  break
+                case 'newBlockFound':
+                  if(!this.chain.isBusy){
+                    this.chain.isBusy = true
+                    this.broadcast('peerMessage', peerMessage)
+                    let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
+                    this.chain.isBusy = false;
+                    if(added){
+                      if(added.error){
+                        logger(chalk.red('REJECTED BLOCK:'), added.error)
+                      }
+  
+                    }
+                  }
+                  break;
+                
+              }
+              
+              
+          }else{
+            console.log('Now:', Date.now())
+            console.log(originalMessage.messageId)
+            console.log(sha1(JSON.stringify(originalMessage)))
+            logger(`Peer ${originAddress} sent an outdated peer message`)
+          }
         }else{
           console.log('ID:', peerMessage.messageId)
           console.log('Hash', sha1(JSON.stringify(peerMessage)))
           logger(`Peer message hash is invalid`)
         }
+        
+
+
+
 
         
       }catch(e){
@@ -2167,25 +2168,12 @@ class Node {
 
                 this.peersLatestBlocks[fromPeer] = block
 
-                // let minerOn = this.localServer && this.localServer.socket
-                
                 this.isValidatingPeerBlock = true
-                this.minerChannel.emit('nodeEvent','stopMining')
-                
-                // if(minerOn){
-                //   this.localServer.socket.emit('stopMining', block)
-                //   this.localServer.socket.isBuildingBlock = false
-                //   let putback = await this.mempool.deleteTransactionsOfBlock(block.transactions)
-                //   if(putback.error) resolve({error:putback.error})
-                //   if(block.actions){
-                //     let actionsPutback = await this.mempool.deleteActionsOfBlock(block.actions)
-                //     if(actionsPutback.error) resolve({error:actionsPutback.error})
-                //   }
-                // }
 
+                this.minerChannel.emit('nodeEvent','stopMining')
                 this.minerChannel.emit('nodeEvent','isBusy')
+
                 let added = await this.chain.pushBlock(block);
-                
                 if(added.error){
                   this.minerChannel.emit('nodeEvent','isAvailable')
                   this.isValidatingPeerBlock = false
@@ -2222,11 +2210,6 @@ class Node {
                     else result = fixed
                     
                   }else{
-                    // if(minerOn){
-                    //   this.localServer.socket.emit('latestBlock', this.chain.getLatestBlock())
-                    //   this.localServer.socket.hasSentBlock = false
-                    // }
-                    
                     result = added
                   }
                   this.minerChannel.emit('nodeEvent','isAvailable')
