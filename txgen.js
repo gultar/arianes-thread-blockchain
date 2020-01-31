@@ -2,8 +2,8 @@
 
 const program = require('commander');
 const axios = require('axios')
-const Transaction = require('./backend/classes/transaction')
-const WalletManager = require('./backend/classes/walletManager')
+const Transaction = require('./modules/classes/transactions/transaction')
+const WalletManager = require('./modules/classes/wallets/walletManager')
 const ioClient = require('socket.io-client');
 const manager = new WalletManager()
 const activePort = require('dotenv').config({ path: './config/.env' })

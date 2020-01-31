@@ -2,12 +2,12 @@
 const ECDSA = require('ecdsa-secp256r1');
 const program = require('commander');
 const fs = require('fs');
-const WalletQueryTool = require('./backend/classes/walletQueryTool');
-const WalletManager = require('./backend/classes/walletManager');
+const WalletQueryTool = require('./modules/classes/wallets/walletQueryTool');
+const WalletManager = require('./modules/classes/wallets/walletManager');
 const walletManager = new WalletManager()
 const sha1 = require('sha1')
-const Transaction = require('./backend/classes/transaction');
-const { readFile, validatePublicKey } = require('./backend/tools/utils');
+const Transaction = require('./modules/classes/transaction');
+const { readFile, validatePublicKey } = require('./modules/tools/utils');
 let api = new WalletQueryTool();
 const activePort = require('dotenv').config({ path: './config/.env' })
 

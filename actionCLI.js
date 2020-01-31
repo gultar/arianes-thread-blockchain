@@ -3,11 +3,11 @@
 const program = require('commander');
 const ioClient = require('socket.io-client');
 const axios = require('axios');
-const AccountCreator = require('./backend/classes/accountCreator');
-const WalletManager = require('./backend/classes/walletManager');
-const AccountTable = require('./backend/classes/accountTable');
-const Action = require('./backend/classes/action');
-const ContractVM = require('./backend/contracts/vmEngine/ContractVM.js')
+const AccountCreator = require('./modules/classes/accounts/accountCreator');
+const WalletManager = require('./modules/classes/wallets/walletManager');
+const AccountTable = require('./modules/classes/tables/accountTable');
+const Action = require('./modules/classes/actions/action');
+const ContractVM = require('./modules/classes/contracts/vmEngine/ContractVM.js')
 const sha1 = require('sha1');
 const fs = require('fs');
 const activePort = require('dotenv').config({ path: './config/.env' })

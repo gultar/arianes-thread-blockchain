@@ -16,18 +16,18 @@ const EventEmitter = require('events')
 const socketIo = require('socket.io')
 const ioClient = require('socket.io-client');
 //************Blockchain classes****************/
-const Blockchain = require('./backend/classes/chain');
-const Block = require('./backend/classes/block')
-const NodeList = require('./backend/classes/nodelist');
-const WalletManager = require('./backend/classes/walletManager');
-const AccountCreator = require('./backend/classes/accountCreator');
-const PeerDiscovery = require('./backend/network/peerDiscovery');
-const SSLHandler = require('./backend/network/sslHandler')
-/**************Live instances******************/
-const Mempool = require('./backend/classes/pool'); //Instance not class
-const MinerAPI = require('./backend/classes/minertools/api')
-// const MinerAPI = require('./backend/classes/minertools/minerAPI')
-
+const Blockchain = require('./modules/classes/blockchain/chain');
+const Block = require('./modules/classes/blockchain/block')
+const NodeList = require('./modules/classes/tables/nodelist');
+const WalletManager = require('./modules/classes/wallets/walletManager');
+const AccountCreator = require('./modules/classes/accounts/accountCreator');
+const PeerDiscovery = require('./modules/network/peerDiscovery');
+const SSLHandler = require('./modules/network/sslHandler')
+const Mempool = require('./modules/classes/mempool/pool');
+const PeerManager = require('./modules/network/peerManager')
+/****************** APIs ********************* */
+const MinerAPI = require('./modules/api/minerApi')
+const HttpAPI = require('./modules/api/httpApi')
 /****************Tools*************************/
 const { 
   displayTime, 
@@ -36,7 +36,7 @@ const {
   writeToFile, 
   readFile, 
   isHashPartOfMerkleTree, 
-  createDirectoryIfNotExisting } = require('./backend/tools/utils');
+  createDirectoryIfNotExisting } = require('./modules/tools/utils');
 
 const {
   isValidTransactionJSON,
@@ -45,8 +45,8 @@ const {
   isValidWalletBalanceJSON,
   isValidActionJSON,
   isValidBlockJSON
-} = require('./backend/tools/jsonvalidator');
-const sha256 = require('./backend/tools/sha256');
+} = require('./modules/tools/jsonvalidator');
+const sha256 = require('./modules/tools/sha256');
 const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
@@ -60,6 +60,8 @@ const { RateLimiterMemory } = require('rate-limiter-flexible');
 
 class Node {
   constructor(options){
+    //Genesis Configs
+    this.genesis = options.genesis
     //Basic node configs
     this.host = options.host || 'localhost',
     this.port = options.port || '8000'
@@ -70,8 +72,7 @@ class Node {
     //MinerWorker
     this.minerAPI = {}
     this.minerChannel = new EventEmitter()
-    // this.clusterMiner = options.clusterMiner
-    // this.keychain = options.keychain
+    
     this.id = options.id || sha1(Math.random() * Date.now());
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -80,15 +81,16 @@ class Node {
     this.peerDiscoveryPort = options.peerDiscoveryPort || '6000';
     this.dhtLookupTime = options.dhtLookupTime || 5 * 60 * 1000;
     this.noLocalhost = options.noLocalhost || false;
-    //Genesis Configs
-    this.genesis = options.genesis
+    
     //Parts of Node
     this.mempool = new Mempool()
     this.nodeList = new NodeList();
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
-    this.ssl = new SSLHandler()
     this.chain = new Blockchain([], this.mempool);
+    //Network tools
+    this.ssl = new SSLHandler()
+    
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -102,6 +104,40 @@ class Node {
     this.updated = false;
     this.isDownloading = false;
     this.minerStarted = false;
+    this.peerManager = new PeerManager({
+      address:this.address,
+      connectionsToPeers:this.connectionsToPeers,
+      nodeList:this.nodeList,
+      noLocalhost:this.noLocalhost,
+      receiveBlockchainStatus:(peer, status)=>{
+        return this.receiveBlockchainStatus(peer, status)
+      },
+      UILog:(...args)=>{
+        return this.UILog(...args)
+      },
+      buildBlockchainStatus:async ()=>{
+        return await this.buildBlockchainStatus()
+      }
+    })
+    //APIs
+    this.httpAPI = new HttpAPI({
+      chain:this.chain,
+      mempool:this.mempool,
+      channel:this.minerChannel,
+      nodeList:this.nodeList,
+      broadcastAction:async (action)=>{
+        return await this.broadcastAction(action)
+      },
+      broadcastTransaction:async (transaction, test)=>{
+        return await this.broadcastTransaction(transaction, test)
+      },
+      testAction:async (action)=>{
+        return await this.testAction(action)
+      },
+      getChainInfo:()=>{
+        return this.getChainInfo()
+      }
+    })
   }
 
 
@@ -176,7 +212,8 @@ class Node {
                       let peerAddress = token.address
                       
                       if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
-                        if(!this.peersConnected[socket.handshake.headers.host]){
+                        
+                        if(!this.peersConnected[peerAddress]){
 
                           this.peersConnected[peerAddress] = socket;
                           this.nodeList.addNewAddress(peerAddress);
@@ -240,7 +277,7 @@ class Node {
 
     socket.on('connectionRequest', async(address)=>{
       await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
-      this.connectToPeer(address);
+      this.peerManager.connectToPeer(address);
     });
 
     socket.on('peerMessage', async(peerMessage, acknowledge)=>{
@@ -286,7 +323,7 @@ class Node {
               
             }
           }else{
-            this.connectToPeer(peerAddress)
+            this.peerManager.connectToPeer(peerAddress)
             logger('ERROR: Could not find peer socket to download blockchain')
           }
           
@@ -445,17 +482,17 @@ class Node {
       }
     })
 
-    
-
     }
   }
 
-  
+  /**
+   * @desc Connects to all known peer addresses
+   */  
   joinPeers(){
     try{
       if(this.nodeList.addresses){
         this.nodeList.addresses.forEach((peer)=>{
-          this.connectToPeer(peer);
+          this.peerManager.connectToPeer(peer);
         })
       }
     }catch(e){
@@ -499,7 +536,7 @@ class Node {
         emitter.on('peerDiscovered', (peer)=> {
           let { host, port, address } = peer
           logger('Found new peer', chalk.green(address))
-          this.connectToPeer(address)
+          this.peerManager.connectToPeer(address)
         })
       })
       
@@ -539,7 +576,7 @@ class Node {
             if(!this.connectionsToPeers[peer.address] && !isSameIp){
               let { host, port, address } = peer
               logger('Found new peer', chalk.green(address))
-              this.connectToPeer(address)
+              this.peerManager.connectToPeer(address)
             }
           })
 
@@ -565,123 +602,124 @@ class Node {
   }
 
 
-  /**
-    Basis for P2P connection
-  */
-  connectToPeer(address, callback){
+  // /**
+  //   Basis for P2P connection
+  // */
+  // connectToPeer(address, callback){
     
-    if(address && this.address != address){
-      if(!this.connectionsToPeers[address]){
+  //   if(address && this.address != address){
+  //     if(!this.connectionsToPeers[address]){
         
-        let connectionAttempts = 0;
-        let peer;
-        try{
+  //       let connectionAttempts = 0;
+  //       let peer;
+  //       try{
           
-          let config = {
-            'reconnection limit' : 1000,
-            'max reconnection attempts' : 3,
-            'pingInterval': 200, 
-            'pingTimeout': 10000,
-            'secure':true,
-            'rejectUnauthorized':false,
-            'query':
-            {
-              token: JSON.stringify({ 'address':this.address }),
-            }
-          }
+  //         let config = {
+  //           'reconnection limit' : 1000,
+  //           'max reconnection attempts' : 3,
+  //           'pingInterval': 200, 
+  //           'pingTimeout': 10000,
+  //           'secure':true,
+  //           'rejectUnauthorized':false,
+  //           'query':
+  //           {
+  //             token: JSON.stringify({ 'address':this.address }),
+  //           }
+  //         }
 
-          if(this.noLocalhost && (address.includes('localhost') || address.includes('127.0.0.1') || address.includes('0.0.0.0'))){
-            logger('Connections to localhost not allowed')
-            return null;
-          }
+  //         if(this.noLocalhost && (address.includes('localhost') || address.includes('127.0.0.1') || address.includes('0.0.0.0'))){
+  //           logger('Connections to localhost not allowed')
+  //           return null;
+  //         }
           
-          peer = ioClient(address, config);
-          peer.heartbeatTimeout = 120000;
+  //         peer = ioClient(address, config);
+  //         peer.heartbeatTimeout = 120000;
 
-          if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
-          this.UILog('Requesting connection to '+ address+ ' ...');
+  //         if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
+  //         this.UILog('Requesting connection to '+ address+ ' ...');
 
-          peer.on('connect_timeout', (timeout)=>{
-            if(connectionAttempts >= 3) { 
-              peer.destroy()
-            }else{
-              connectionAttempts++;
-            }
+  //         peer.on('connect_timeout', (timeout)=>{
+  //           if(connectionAttempts >= 3) { 
+  //             peer.destroy()
+  //           }else{
+  //             connectionAttempts++;
+  //           }
               
-          })
+  //         })
 
-          peer.on('error', (error)=>{
-            console.log(error)
-          })
+  //         peer.on('error', (error)=>{
+  //           console.log(error)
+  //         })
 
 
-          peer.on('connect', () =>{
-            if(!this.connectionsToPeers[address]){
+  //         peer.on('connect', async () =>{
+  //           if(!this.connectionsToPeers[address]){
 
-              this.connectionsToPeers[address] = peer;
-              logger(chalk.green('Connected to ', address))
-              this.UILog('Connected to ', address+' at : '+ displayTime())
-              peer.emit('message', 'Connection established by '+ this.address);
-              let status = {
-                totalDifficultyHex: this.chain.getTotalDifficulty(),
-                bestBlockHeader: this.chain.getLatestBlock(),
-                length: this.chain.chain.length
-              }
-              peer.emit('connectionRequest', this.address);
-              this.nodeList.addNewAddress(address)  
+  //             this.connectionsToPeers[address] = peer;
+  //             logger(chalk.green('Connected to ', address))
+  //             this.UILog('Connected to ', address+' at : '+ displayTime())
+  //             peer.emit('message', 'Connection established by '+ this.address);
+  //             let status = await this.buildBlockchainStatus()
+  //             // let status = {
+  //             //   totalDifficultyHex: this.chain.getTotalDifficulty(),
+  //             //   bestBlockHeader: this.chain.getLatestBlock(),
+  //             //   length: this.chain.chain.length
+  //             // }
+  //             peer.emit('connectionRequest', this.address);
+  //             this.nodeList.addNewAddress(address)  
 
-              setTimeout(()=>{
-                peer.emit('getBlockchainStatus', status);
-                peer.emit('getPeers')
-              },2000);
+  //             setTimeout(()=>{
+  //               peer.emit('getBlockchainStatus', status);
+  //               peer.emit('getPeers')
+  //             },2000);
               
               
-            }else{}
-          })
+  //           }else{}
+  //         })
 
-          peer.on('newPeers', (peers)=> {
-            if(peers && typeof peers == Array){
-              peers.forEach(addr =>{
-                //Validate if ip address
-                logger('Peer sent a list of potential peers')
-                if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
-                  this.nodeList.addNewAddress(addr)
-                }
-              })
-            }
-          })
+  //         peer.on('newPeers', (peers)=> {
+  //           if(peers && typeof peers == Array){
+  //             peers.forEach(addr =>{
+  //               //Validate if ip address
+  //               logger('Peer sent a list of potential peers')
+  //               if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
+  //                 this.nodeList.addNewAddress(addr)
+  //               }
+  //             })
+  //           }
+  //         })
 
-          peer.on('blockchainStatus', async (status)=>{
-            // logger(`Received blockchain status from peer ${address}`);
-            if(!this.isDownloading){
-              let updated = await this.receiveBlockchainStatus(peer, status)
-              this.isDownloading = false
-            }
-          })
+  //         peer.on('blockchainStatus', async (status)=>{
+  //           // logger(`Received blockchain status from peer ${address}`);
+  //           if(!this.isDownloading){
+  //             let updated = await this.receiveBlockchainStatus(peer, status)
+  //             this.isDownloading = false
+  //           }
+  //         })
 
-          peer.on('disconnect', () =>{
-            logger(`connection with peer ${address} dropped`);
-            delete this.connectionsToPeers[address];
-            this.connectToPeer(address)
-            peer.destroy()
-          })
+  //         peer.on('disconnect', () =>{
+  //           logger(`connection with peer ${address} dropped`);
+  //           delete this.connectionsToPeers[address];
+  //           this.peerManager.connectToPeer(address)
+  //           peer.destroy()
+  //         })
 
-          if(callback){
-            callback(peer)
-          }
+  //         if(callback){
+  //           callback(peer)
+  //         }
 
 
 
-        }catch(err){
-          console.log(err)
-        }
+  //       }catch(err){
+  //         console.log(err)
+  //       }
 
-      }else{
-        // logger('Already initiated peer connection')
-      }
+  //     }else{
+  //       // logger('Already initiated peer connection')
+  //     }
 
-    }
-  }
+  //   }
+  // }
 
 
   // downloadBlockFromHash(peer, hash){
@@ -716,26 +754,26 @@ class Node {
   //   })
   // }
 
-  requestChainInfo(peer){
-    return new Promise( async(resolve)=>{
-      if(peer){
-        if(this.chain instanceof Blockchain){
-          peer.emit('getInfo');
+  // requestChainInfo(peer){
+  //   return new Promise( async(resolve)=>{
+  //     if(peer){
+  //       if(this.chain instanceof Blockchain){
+  //         peer.emit('getInfo');
   
-          peer.on('chainInfo', (info)=>{
-            if(info){
-              peer.off('chainInfo')
-              resolve(info)
-            }else{
-              peer.off('chainInfo')
-              resolve({error:'ERROR: Could not fetch chain info'})
-            }
-          })
-        }
-      }
-    })
+  //         peer.on('chainInfo', (info)=>{
+  //           if(info){
+  //             peer.off('chainInfo')
+  //             resolve(info)
+  //           }else{
+  //             peer.off('chainInfo')
+  //             resolve({error:'ERROR: Could not fetch chain info'})
+  //           }
+  //         })
+  //       }
+  //     }
+  //   })
     
-  }
+  // }
 
   downloadGenesisBlock(peer){
     return new Promise((resolve)=>{
@@ -870,7 +908,9 @@ class Node {
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
 
+                this.isDownloading = true
                 let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                this.isDownloading = false
                 if(downloaded.error){
                   logger('Could not download blockchain')
                   console.log(downloaded.error)
@@ -905,6 +945,9 @@ class Node {
     
   }
 
+  /**
+   * @desc Checks for the peer that has the highest difficulty containing header
+   */
   getMostUpToDatePeer(){
     return new Promise(async (resolve)=>{
       if(Object.keys(this.connectionsToPeers).length > 0){
@@ -921,7 +964,6 @@ class Node {
               mostUpdateToDatePeer = peer
             }
           }
-          
           
         }
 
@@ -948,6 +990,8 @@ class Node {
         if(missingBlocks.error) resolve({error:missingBlocks.error})
         else if(missingBlocks.isBranch){
           if(!Array.isArray(missingBlocks.isBranch) && typeof missingBlocks.isBranch == 'object'){
+            //If branch is composed of single block, add it to an array for further
+            //handling of the branch
             missingBlocks.isBranch = [ missingBlocks.isBranch ]
           }
           
@@ -1049,14 +1093,12 @@ class Node {
               
               
               let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
-              
-              missingBlocks = [ block, ... missingBlocks ]
+              missingBlocks = [ block, ...missingBlocks ]
+
               if(isLinkedToChain){
                 peer.off('previousBlock')
-                // "Unshifted" manually since we're looking backyards, not forwards
                 clearTimeout(timeout)
                 resolve({ isLinked:missingBlocks })
-                
               }
               
               else{
@@ -1091,7 +1133,7 @@ class Node {
     @param {Object} $moreData - Optional: any kind of data also
     @description - Broadcasts socket events. This is how peer messages are sent
   */
-  broadcast(eventType, data){
+  broadcast(eventType, data, retry=false){
     try{
       if(this.connectionsToPeers){
           Object.keys(this.connectionsToPeers).forEach((peerAddress)=>{
@@ -1101,11 +1143,13 @@ class Node {
                 //and close connection if the score is too low
               }else if(eventType == 'peerMessage' && !acknowledge){
                 logger(`Peer ${peerAddress} did not acknowledge peerMessage`)
-                setTimeout(()=> {
-                  //Possibly dangerous
-                  logger(`Retrying to send peerMessage`)
-                  this.broadcast(eventType, data)
-                }, 5000)
+                if(!retry){
+                  setTimeout(()=> {
+                    //Possibly dangerous
+                    logger(`Retrying to send peerMessage`)
+                    this.broadcast(eventType, data, true)
+                  }, 5000)
+                }
               }
             });
           })
@@ -1154,241 +1198,7 @@ class Node {
     }
   }
 
-  /**
-    Send an node event to peer
-    @param {string} $eventType - Event type/name
-    @param {Object} $data - May be an object or any kind of data
-    @param {string} $address - peer address
-    @description - RESTful API to query about blockchain and wallet states
-  */
-  initChainInfoAPI(app){
-    app.get('/getWalletBalance', async(req, res)=>{
-        let publicKey = req.query.publicKey;
-        if(publicKey){
-          let isAccount = await this.chain.accountTable.getAccount(publicKey);
-          if(isAccount) publicKey = isAccount.ownerKey
-
-          let state = await this.chain.balance.getBalance(publicKey);
-          res.json(state).end()
-        }else{
-          res.json({error:'ERROR: must provide publicKey'}).end()
-        }
-      
-    })
-
-    app.get('/getWalletHistory', async(req, res)=>{
-      if(isValidWalletBalanceJSON(req.query)){
-        let publicKey = req.query.publicKey;
-        if(publicKey){
-          let history = await this.chain.getTransactionHistory(publicKey)
-            res.json({ history:history }).end()
-        }else{
-          res.json({error:'ERROR: must provide publicKey'}).end()
-        }
-      }else{
-        res.json({error:'ERROR: Invalid JSON request parameters'}).end()
-      }
-    })
-
-
-    app.get('/getAddress', (req, res)=>{
-      res.json({ nodes: this.nodeList.addresses }).end();
-    })
-
-    app.get('/getInfo', (req, res)=>{
-      res.json(this.getChainInfo()).end()
-    })
-
-    app.get('/getBlock', (req, res)=>{
-      let blockNumber = req.query.blockNumber;
-      if(this.chain instanceof Blockchain && blockNumber && typeof blockNumber == number){
-        let block = this.chain.chain[blockNumber]
-        if(block){
-          res.json(block).end()
-        }else{
-          res.json({error:'block not found'}).end()
-        }
-        
-      }
-    })
-
-    app.get('/getBlockHeader', (req, res)=>{
-      let blockNumber = req.query.blockNumber;
-      if(this.chain instanceof Blockchain && blockNumber && typeof blockNumber == number){
-        let header = this.chain.getBlockHeader(blockNumber)
-        if(header){
-          res.json(header).end()
-        }else{
-          res.json({error:'block header not found'}).end()
-        }
-        
-      }
-    })
-  }
-
-
-  /**
-    Internode API that can be used by UIs to get data from blockchain and send transactions
-    @param {Object} $app - Express App
-    @description - REST API to broadcast actions and transactions as well as querying for
-                   information about them
-  */
-  initHTTPAPI(app){
-    try{
-      let rateLimiter = new RateLimit({
-        windowMs: 1000, //1 minute window 
-        max: 100, // start blocking after 100 requests 
-        message: "Too many requests per second"
-      });
-
-      app.use(rateLimiter);
-      app.use(bodyParser.json());
-      app.use(function (error, req, res, next) {
-        if (error instanceof SyntaxError &&
-          error.status >= 400 && error.status < 500 &&
-          error.message.indexOf('JSON')) {
-          res.send("ERROR: Invalid JSON format");
-        } else {
-          next();
-        }
-      });
-      
-      app.set('json spaces', 2)
-      
-      app.get('/transaction', async (req, res)=>{
-        let tx = {};
-        let pendingTx = {};
-        let hash = req.query.hash;
-        
-        if(hash){
-          tx = await this.chain.getTransactionFromDB(hash);
-          if(tx){
-            res.json(tx).end()
-          }else{
-
-            pendingTx = await this.mempool.getTransaction(hash);
-            
-            if(pendingTx){
-              res.json(pendingTx).end()
-            }else{
-              res.json({ error:'no transaction found'}).end()
-            }
-            
-          }
-        }else{
-          res.json({ error:'invalid transaction hash'}).end()
-        }
-
-      })
-  
-      app.post('/transaction', (req, res) => {
-        
-        try{
-          if(isValidTransactionJSON(req.body) || isValidTransactionCallJSON(req.body)){
-            let transaction = req.body
-            
-            this.broadcastTransaction(transaction, true)
-            .then((transactionEmitted)=>{
-              
-              if(transactionEmitted.error){
-                res.send(transactionEmitted.error)
-              }else{
-                if(transactionEmitted.value){
-                  if(transactionEmitted.value) delete transactionEmitted.value.state
-                  
-                  let result = { result:transactionEmitted.value, receipt:transaction }
-                  res.send(JSON.stringify(result, null, 2));
-                }else if(transactionEmitted.isReadOnly){
-                  let result = { isReadOnly:true, result:transactionEmitted.isReadOnly, receipt:transaction }
-                  res.send(JSON.stringify(result, null, 2));
-                }else{
-                  let receipt = JSON.stringify(transaction, null, 2)
-                  res.send(receipt);
-                }
-                
-              }
-            })
-            .catch((e)=>{
-              console.log(chalk.red(e));
-            })
-          }else{
-            res.send('ERROR: Invalid transaction format')
-          }
-          
-        }catch(e){
-          console.log(chalk.red(e))
-        }
-        
-      });
-
-      app.post('/action', (req, res) => {
-        
-        try{
-          if(isValidActionJSON(req.body)){
-            let action = req.body
-            
-            this.broadcastAction(action)
-            .then((actionEmitted)=>{
-              if(!actionEmitted.error){
-                res.send(JSON.stringify(actionEmitted, null, 2));
-              }else{
-                res.send({error:actionEmitted.error})
-              }
-            })
-
-          }else{
-            res.send('ERROR: Invalid transaction format')
-          }
-          
-        }catch(e){
-          console.log(chalk.red(e))
-          res.send("ERROR: An Error occurred")
-        }
-        
-      });
-
-      app.post('/testAction', (req, res) => {
-        
-        try{
-          if(isValidActionJSON(req.body)){
-            let action = req.body
-            
-            this.testAction(action)
-            .then((actionEmitted)=>{
-              if(!actionEmitted.error){
-                res.send(JSON.stringify(actionEmitted, null, 2));
-              }else{
-                res.send({error:actionEmitted.error})
-              }
-            })
-          }else{
-            res.send('ERROR: Invalid transaction format')
-          }
-          
-        }catch(e){
-          console.log(chalk.red(e))
-          res.send("ERROR: An Error occurred")
-        }
-        
-      })
-
-      app.get('/getBlockHeader',(req, res)=>{
-        var blockNumber = req.query.hash;
-        if(blockNumber){
-          res.json(this.chain.getBlockHeader(blockNumber)).end()
-        }
-      })
-
-    }catch(e){
-      logger(e)
-    }
-    
-  }
-
-
-  
-
-
+ 
   /**
     Socket listeners only usable by external UIs and APIs
     @param {object} $socket - Client socket connection to this node's server
@@ -1401,7 +1211,7 @@ class Node {
       socket.on('error', (err)=> logger(chalk.red(err)))
 
       socket.on('connectionRequest', (address)=>{
-        this.connectToPeer(address, (peer)=>{});
+        this.peerManager.connectToPeer(address, (peer)=>{});
       });
 
       socket.on('transaction',async (transaction)=>{
@@ -1424,10 +1234,6 @@ class Node {
         }catch(e){
           console.log('ERROR:',e)
         }
-      })
-
-      socket.on('getBlockchain', ()=>{
-        console.log(this.chain.chain)
       })
 
       socket.on('getAddress', (address)=>{
@@ -1507,37 +1313,12 @@ class Node {
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
           let block = this.chain.chain[blockNumber]
-          console.log('Block is', block.blockNumber)
-          let timestamp = block.timestamp
-          let state = await storage.getClosestState(timestamp)
-          
-          console.log(JSON.stringify({closest:state}, null, 2))
-          socket.emit('contractState', state)
-          // console.log(JSON.stringify(state, null, 2))
-        }
-      })
-
-      socket.on('getLatestKeyContractState', async (contractName)=>{
-        
-        let storage = await this.chain.contractTable.stateStorage[contractName]
-        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
-        else if(storage.error) socket.emit('contractState', { error:storage.error })
-        else{
-          let key = await storage.database.database.get('TokensStorage','*', require('rocket-store')._ORDER_DESC)
-          console.log('Key',JSON.stringify({key:key}, null, 2))
-        }
-      })
-
-      socket.on('testRollback', async (contractName, blockNumber)=>{
-        
-        let storage = await this.chain.contractTable.stateStorage[contractName]
-        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
-        else if(storage.error) socket.emit('contractState', { error:storage.error })
-        else{
-          // let rolledback = await storage.testRollback(blockNumber)
-          // console.log(JSON.stringify(rolledback, null, 2))
-          let closest = await storage.getClosestState(1578103408175)
-          console.log(JSON.stringify(closest, null, 2))
+          if(!block) socket.emit('contractState', { error:`Block ${blockNumber} not found` })
+          else{
+            let timestamp = block.timestamp
+            let state = await storage.getClosestState(timestamp)
+            socket.emit('contractState', state)
+          }
         }
       })
 
@@ -1554,18 +1335,16 @@ class Node {
 
       socket.on('getAccount', async (name)=>{
         try{
-          let result = await this.chain.accountTable.accountsDB.get(name)
+          let result = await this.chain.accountTable.getAccount(name)
+          socket.emit('account', result)
           console.log(result)
         }catch(e){
-          console.log(e)
+          socket.emit('account', { error:e.message })
         }
-          
-          
       })
 
       socket.on('getAllAccounts', async (ownerKey)=>{
         try{
-          // let result = await this.chain.accountTable.getAccountsOfKey(ownerKey)
           let allAccounts = await this.chain.accountTable.getAccountsOfKey(ownerKey)
           if(allAccounts){
             socket.emit('accounts', allAccounts)
@@ -1574,7 +1353,7 @@ class Node {
           }
           
         }catch(e){
-          console.log(e)
+          socket.emit('accounts', { error:e.message })
         }
           
           
@@ -1584,24 +1363,9 @@ class Node {
         console.log(this.chain.chain)
       })
 
-      socket.on('getState', async (contractName)=>{
-          let state = await this.chain.contractTable.getState(contractName)
-          console.log(JSON.stringify(state,null,2))
-      })
-
-      socket.on('getStateEntry', async (contractName)=>{
-        let state = await this.chain.contractTable.getStateEntry(contractName)
-        console.log(JSON.stringify(state,null,2))
-      })
-
       socket.on('getBlockHeader', (blockNumber)=>{
         let block = this.chain.chain[blockNumber];
         socket.emit('header', { header:block })
-      })
-
-      socket.on('getStateOfAction', async (name, hash)=>{
-        let state = await this.chain.contractTable.getStateOfAction(name, hash)
-        console.log(JSON.stringify(state, null, 2))
       })
 
       socket.on('getBlock', async(blockNumber)=>{
@@ -1616,15 +1380,6 @@ class Node {
         if(isValidChain){
           logger('Blockchain is valid')
         }
-      })
-
-      socket.on('showBalances', ()=>{
-        console.log(JSON.stringify(this.chain.balance.states, null, 2))
-      })
-
-      socket.on('showBlockState', async (number)=>{
-        let state = await this.chain.balance.stateDB.get(number.toString())
-        console.log(JSON.stringify(state, null, 1))
       })
 
       socket.on('getBlockSize', async (blockNumber)=>{
@@ -1644,21 +1399,16 @@ class Node {
         console.log(history)
       })
 
-     socket.on('tryPing', async ()=>{
-       console.log(JSON.stringify(Object.keys(this.chain.spentTransactionHashes)))
-       console.log('Has 7edcbe8969fd351b6b0ff8c12664a3298f15da5ba71b10674a23551c7783d776')
-       console.log(this.chain.spentTransactionHashes['7edcbe8969fd351b6b0ff8c12664a3298f15da5ba71b10674a23551c7783d776'])
-     })
-
-
       socket.on('verbose', ()=>{
         
         if(this.verbose){
           this.UILog('Verbose set to OFF');
+          logger('Verbose set to OFF');
           this.verbose = false;
           
         }else{
           this.UILog('Verbose set to ON');
+          logger('Verbose set to ON');
           this.verbose = true;
         }
         
@@ -1680,8 +1430,8 @@ class Node {
       })
 
       socket.on('stopMining', ()=>{
-        console.log('Stopping miner')
-        this.localServer.socket.emit('stopMining')
+        logger('Stopping miner')
+        this.minerChannel.emit('stopMining')
       })
 
       socket.on('requestPeers', ()=>{
@@ -1696,12 +1446,12 @@ class Node {
 
       socket.on('getTransactionFromDB', async (hash)=>{
         let transaction = await this.chain.getTransactionFromDB(hash)
-        console.log(transaction)
+        socket.emit('transactionFromDB', transaction)
       })
 
       socket.on('getActionFromDB', async (hash)=>{
         let action = await this.chain.getActionFromDB(hash)
-        console.log(action)
+        socket.emit('actionFromDB', action)
       })
 
       socket.on('disconnect', ()=>{
@@ -1721,8 +1471,10 @@ class Node {
     express.json({ limit: '300kb' })
     app.use(helmet())
 
-    this.initChainInfoAPI(app);
-    this.initHTTPAPI(app);
+    // this.initChainInfoAPI(app);
+    this.httpAPI.initServiceAPI(app)
+    this.httpAPI.initChainInfoAPI(app)
+    // this.initHTTPAPI(app);
 
     const server = http.createServer(app)
     server.listen(this.minerPort, 'localhost');
@@ -1744,23 +1496,6 @@ class Node {
    
   }
 
-  // async initMinerAPI(){
-  //   logger('Starting miner cluster API')
-  //   this.minerAPI = new MinerAPI({
-  //     chain:this.chain,
-  //     mempool:this.mempool,
-  //     channel: this.minerChannel,
-  //     sendPeerMessage:(type, data)=>{
-  //       this.sendPeerMessage(type, data)
-  //     },
-  //     keychain:this.keychain,
-  //     clusterMiner:this.clusterMiner,
-  //     verbose:true,
-  //   })
-
-  //   this.minerAPI.init()
-  // }
-
   async startMinerAPI(socket){
     logger('Starting miner cluster API')
     
@@ -1779,206 +1514,6 @@ class Node {
 
     this.minerAPI.init()
   }
-
-  // async minerConnector(api){
-  //   logger('Miner connected!');
-  //   api.hasSentBlock = false
-  //   api.isBuildingBlock = false
-
-  //   const sendNextBlock = async (minerPreviousBlock) =>{
-  //     if(!this.isDownloading && !api.hasSentBlock && !api.isMining){
-  //       let nextBlock = await this.getLatestFullBlock()
-  //       let newRawBlock = await createRawBlock(nextBlock)
-  //       if(!newRawBlock.error) {
-  //           api.hasSentBlock = true
-  //           api.emit('startMining', newRawBlock)
-  //       }else{
-  //         api.emit('wait')
-  //         // console.log(newRawBlock.error)
-  //       }
-  //     }else{
-  //       return { error:'Node is busy' }
-  //     }
-  //   }
-
-  //   const unwrapBlock = async (block) =>{
-  //     if(block){
-  //       let putback = await this.mempool.putbackTransactions(block)
-  //       if(putback.error) return {error:putback.error}
-  //       if(block.actions){
-  //         let actionsPutback = await this.mempool.putbackActions(block)
-  //         if(actionsPutback.error) return {error:actionsPutback.error}
-  //       }
-  //       return { transactions:putback, actions:putback }
-  //     }else{
-  //       return false
-  //     }
-  //   }
-    
-  //   const createRawBlock = async (nextBlock=this.chain.getLatestBlock()) =>{
-      
-  //     if(!this.isDownloading && !api.isBuildingBlock && !api.isMining && !api.isValidatingBlock){
-  //       if(this.mempool.sizeOfPool() > 0 || this.mempool.sizeOfActionPool() > 0){
-  //         let latest = await this.getLatestFullBlock()
-
-  //         api.isBuildingBlock = true
-
-  //         let deferredTxManaged = await this.mempool.manageDeferredTransactions(latest)
-  //         if(deferredTxManaged.error) console.log('DEFERRED TX ERROR: ', deferredTxManaged.error)
-
-  //         let transactions = await this.mempool.gatherTransactionsForBlock()
-  //         if(transactions.error) console.log('Mempool error: ',transactions.error)
-  //         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
-
-  //         let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
-  //         if(deferredActionsManaged.error) console.log('DEFERRED ACTIONS ERROR: ', deferredActionsManaged.error)
-
-  //         let actions = await this.mempool.gatherActionsForBlock()
-  //         if(actions.error) console.log('Mempool error:',actions.error)
-  //         actions = await this.chain.validateActionsBeforeMining(actions)
-  //         if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0) return { error:'Could not create block without transactions or actions' }
-          
-  //         let rawBlock = {
-  //           timestamp:Date.now(),
-  //           transactions:transactions,
-  //           actions:actions,
-  //           previousHash:nextBlock.hash,
-  //           blockNumber:nextBlock.blockNumber + 1
-  //         } 
-  
-  //         api.isBuildingBlock = false
-  //         return rawBlock
-  //       }else{
-  //         return { error:'ERROR: Mempool is empty' }
-  //       }
-  //     }else{
-        
-  //       // console.log({ error:{
-  //       //   message:'ERROR: Node is unable to create new block',
-  //       //   reason:{
-  //       //     isDownloading:this.isDownloading,
-  //       //     isBusy:this.chain.isBusy,
-  //       //     isBuildingBlock:api.isBuildingBlock,
-  //       //     isValidating:api.isValidatingBlock,
-  //       //     isMining:api.isMining
-  //       //   }
-  //       // },  })
-
-  //       return { error:{
-  //         message:'ERROR: Node is unable to create new block',
-  //         reason:{
-  //           isDownloading:this.isDownloading,
-  //           isBusy:this.chain.isBusy,
-  //           isBuildingBlock:api.isBuildingBlock
-  //         }
-  //       },  }
-  //     }
-  //   }
-
-    
-
-  //   api.on('mining', (block)=>{
-  //     api.isMining = true
-  //   })
-
-  //   api.on('miningOver', ()=>{
-  //     api.isMining = false
-  //   })
-
-  //   api.on('miningCancelled', async (block)=>{
-  //     let blockUnwrapped = await unwrapBlock(block)
-  //     if(blockUnwrapped.error) console.log(`UNWRAP ERROR: ${blockUnwrapped.error}`)
-      
-  //     api.isBuildingBlock = false
-  //   })
-
-  //   api.on('isNewBlockReady', async (minerPreviousBlock)=>{
-  //     let sent = await sendNextBlock(minerPreviousBlock)
-      
-  //   })
-
-  //   api.on('getNewBlock', async ()=>{
-  //     api.hasSentBlock = false
-  //     await sendNextBlock()
-  //   })
-  
-  //   this.mempool.events.on('newAction', (action)=>{
-  //     api.emit('actionSent')
-  //   })
-  //   this.mempool.events.on('newTransaction', async (transaction)=>{
-  //     api.emit('transactionSent')
-  //   })
-
-    
-
-  //   api.on('newBlock', async (block)=>{
-  //     if(this.isDownloading || this.chain.isBusy){
-  //       api.emit('stopMining')
-  //     }
-  //     else{
-  //       if(block){
-  //         api.emit('stopMining')
-  //         api.hasSentBlock = false
-          
-  //         this.chain.isBusy = true
-  //         api.isValidatingBlock = true
-
-  //         let isValid = await this.chain.validateBlock(block)
-  //         if(isValid){
-  //           if(isValid.error) console.log('Is not valid mined block', isValid.error)
-  //           else{
-  //             let added = await this.chain.addBlockToChain(block)
-  //             if(added.error){
-  //               // logger('MinerBlock Error:',added.error)
-  //             }
-  //             else{
-  //               this.sendPeerMessage('newBlockFound', block);
-  //               let latest = await this.getLatestFullBlock()
-  //               api.emit('latestBlock', latest)
-  //             }
-  //             api.isBuildingBlock = false
-  //             this.chain.isBusy = false
-  //           }
-            
-            
-  //         }else{
-  //           console.log('ERROR: Mined Block is not valid!')
-  //           api.hasSentBlock = false
-  //           this.chain.isBusy = false
-  //         }
-         
-  //         api.isValidatingBlock = false
-  //       }else if(block.failed){
-  //         logger('Miner was interrupted')
-  //         api.emit('latestBlock', this.chain.getLatestBlock())
-  //         api.hasSentBlock = false
-  //       }else{
-  //         logger('ERROR: New mined block is undefined')
-  //       }
-  //     }
-      
-  //   })
-
-  //   api.on('getLatestBlock', async (minersPreviousBlock)=>{
-      
-  //     if(this.chain instanceof Blockchain){
-  //       let latest = await this.getLatestFullBlock()
-  //       api.emit('latestBlock', latest)
-  //     }else{
-  //       api.emit('error', {error: 'Chain is not ready'})
-  //     }
-  //   })
-
-  //   api.on('disconnect', ()=>{
-  //     this.mempool.events.removeAllListeners('newAction')
-  //     this.mempool.events.removeAllListeners('newTransaction')
-  //   })
-  //   let latest = await this.getLatestFullBlock()
-  //   api.emit('latestBlock', latest)
-    
-  
-  //   this.localServer.socket = api
-  // }
 
 
   /**
@@ -2040,6 +1575,7 @@ class Node {
         if(isValidHash){
           if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
             this.messageBuffer[messageId] = peerMessage;
+
             acknowledge({received:messageId})
               switch(type){
                 case 'transaction':
@@ -2070,23 +1606,12 @@ class Node {
                 
               }
               
-              
           }else{
-            console.log('Now:', Date.now())
-            console.log(originalMessage.messageId)
-            console.log(sha1(JSON.stringify(originalMessage)))
             logger(`Peer ${originAddress} sent an outdated peer message`)
           }
         }else{
-          console.log('ID:', peerMessage.messageId)
-          console.log('Hash', sha1(JSON.stringify(peerMessage)))
-          logger(`Peer message hash is invalid`)
+          logger(`Peer message from ${originAddress} has an invalid hash`)
         }
-        
-
-
-
-
         
       }catch(e){
         console.log(e)
@@ -2094,6 +1619,7 @@ class Node {
     }
     
   }
+
   /**
     @param {Object} $transaction - New transaction emitted on the network
   */
@@ -2118,7 +1644,9 @@ class Node {
       }
     }
   }
-
+  /**
+    @param {Object} $action - New action emitted on the network
+  */
   receiveAction(action){
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
@@ -2137,6 +1665,9 @@ class Node {
     })
   }
 
+  /**
+    @desc Retrieves basic information about the current blockchain
+  */
   getChainInfo(){
     let info = {
       chainLength:this.chain.chain.length,
@@ -2149,6 +1680,13 @@ class Node {
     return info
   }
 
+  /**
+   * Validates than adds peers' new blocks to current blockchain
+   * If mining, stops miner upon reception and confirmation of validity
+   * @param {Object} data 
+   * @param {String} fromPeer 
+   * @param {Object} peerMessage 
+   */
   handleNewBlockFound(data, fromPeer, peerMessage){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
@@ -2160,55 +1698,46 @@ class Node {
             let alreadyIsInActiveBranch = this.chain.branches[block.hash];
   
             if(!alreadyReceived && !alreadyIsInActiveBranch){
-              //Need to validate more before stopping miner
-
               if(this.chain.validateBlockHeader(block)){
 
+                //Retransmit block
                 this.broadcast('peerMessage', peerMessage)
-
+                //Become peer's most recent block
                 this.peersLatestBlocks[fromPeer] = block
 
-                this.isValidatingPeerBlock = true
-
+                //Tells the miner to stop mining and stand by
+                //While node is push next block
                 this.minerChannel.emit('nodeEvent','stopMining')
                 this.minerChannel.emit('nodeEvent','isBusy')
 
+                //Validates than runs the block
                 let added = await this.chain.pushBlock(block);
                 if(added.error){
+                  //Something failed, miner can carry on
                   this.minerChannel.emit('nodeEvent','isAvailable')
-                  this.isValidatingPeerBlock = false
                   resolve({error:added.error})
                 }
                 else{
                   let currentLength = this.chain.length;
-
-                  this.isValidatingPeerBlock = false
                   //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                   let result = {}
-                  if(added.findMissing){
-                    
-                    let fixed = await this.fixUnlinkedBranch(added.findMissing);
+
+                  if(added.findMissing || added.unlinked || added.unlinkedExtended){
+                    //Received some block but it wasn't linked to any other block
+                    //in this chain. So, node tries to find the block to which it is linked
+                    //in order to swap branches if it is necessary
+                    let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
+                    let fixed = await this.fixUnlinkedBranch(branchingAt);
                     if(fixed.error) result = {error:fixed.error}
                     else result = fixed
 
                   }else if(added.switched && added.switched.outOfSync){
-                    
+                    //Something went wrong while syncing unlinked branch
+                    //Rollback and update blockchain with peers'
                     let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
                     this.broadcast('getBlockchainStatus')
                     result = rolledback
 
-                  }else if(added.unlinked){
-                    
-                    let fixed = await this.fixUnlinkedBranch(added.unlinked);
-                    if(fixed.error) result = {error:fixed.error}
-                    else result = fixed
-
-                  }else if(added.unlinkedExtended){
-                    
-                    let fixed = await this.fixUnlinkedBranch(added.unlinkedExtended);
-                    if(fixed.error) result = {error:fixed.error}
-                    else result = fixed
-                    
                   }else{
                     result = added
                   }
@@ -2235,7 +1764,10 @@ class Node {
     
   }
 
-
+  /**
+   * Validates blockchain and, if not valid, rolls back to before the conflicting block
+   * @param {Boolean} allowRollback 
+   */
   async validateBlockchain(allowRollback){
     if(this.chain instanceof Blockchain){
       let isValid = this.chain.isChainValid();
@@ -2273,16 +1805,6 @@ class Node {
 
   }
 
-
-  rollBackBlocks(blockIndex){  //Tool to roll back conflicting blocks - To be changed soon
-    if(typeof blockIndex == 'number' && this.chain instanceof Blockchain){
-      var sideChain = [];
-      sideChain = this.chain.chain.splice(blockIndex);
-      
-      return sideChain;
-    }
-  }
-
 /**
  * @desc Emits all transactions as peerMessages.
    @param {string} $sender - Sender of coins's Public key
@@ -2297,7 +1819,6 @@ class Node {
             if(!transaction.signature){
               logger('Transaction signature failed. Missing signature')
               resolve({error:'Transaction signature failed. Missing signature'})
-              
             }else{
               
               this.chain.createTransaction(transaction)
@@ -2310,6 +1831,7 @@ class Node {
                       if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
                       resolve({error:txBroadcasted.error});
                     }else if(txBroadcasted.isReadOnly){
+                      //Is a transaction call linked to read only method
                       resolve({ value: txBroadcasted.isReadOnly });
                     }else{
                       this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); 
@@ -2317,10 +1839,8 @@ class Node {
                       if(this.verbose) logger(chalk.cyan('->'+' Emitted transaction : ')+ transaction.hash.substr(0, 15)+"...")
                       resolve(txBroadcasted);
                     }
-                    
 
                   }else{
-  
                     this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
                     if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
                     resolve({error:valid.error});
@@ -2330,15 +1850,19 @@ class Node {
             }
           }
          
-        
-        
       }catch(e){
         console.log(chalk.red(e));
+        resolve({error:e.message})
       }
       
     })
   }
 
+  /**
+   * Simple helper function to properly convert a transaction of type call
+   * to an actual call
+   * @param {Transaction} transaction 
+   */
   convertTransactionCallToAction(transaction){
     return {
       fromAccount: transaction.fromAddress,
@@ -2354,6 +1878,12 @@ class Node {
     }
   }
 
+  /**
+   * Determines whether the transactions is a simple transaction, an allocation, 
+   * a stake or call, and if so, what type of call
+   * @param {Transaction} transaction 
+   * @param {Boolean} test - Enables testing the call in VM before broadcasting it. Recommended
+   */
   handleTransactionType(transaction, test){
     return new Promise(async (resolve)=>{
         if(transaction.type == 'call'){
@@ -2435,6 +1965,10 @@ class Node {
     })
   }
 
+  /**
+   * @desc Emits all actions as peerMessages.
+   * @param {Action} action 
+   */
   broadcastAction(action){
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
@@ -2446,7 +1980,7 @@ class Node {
           if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
           resolve({error:isValid.error})
         }else{
-  
+          //Handler will redirect action according to its type
           let success = await this.chain.testHandleAction(action)
           if(success.error) resolve({error:success.error})
           else if(!success.error){
@@ -2469,6 +2003,10 @@ class Node {
     })
   }
 
+  /**
+   * @desc Simulates the broadcasting of an action, without adding it
+   * @param {Action} action 
+   */
   testAction(action){
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
@@ -2485,6 +2023,9 @@ class Node {
     })
   }
 
+  /**
+   * @desc Helper function to get the latest full block, not just the header
+   */
   async getLatestFullBlock(){
     let latestHeader = this.chain.getLatestBlock()
     let block = await this.chain.getBlockFromDB(latestHeader.blockNumber)
@@ -2496,7 +2037,10 @@ class Node {
   }
 
 
-
+  /**
+   * @desc Runs when a SIGTERM event is emitted from the node instance
+   *       Saves all states listed below
+   */
   save(){
     return new Promise(async (resolve, reject)=>{
       try{
@@ -2530,6 +2074,9 @@ class Node {
     
   }
 
+  /**
+   * @desc Saves all connection ports to .env file
+   */
   async savePortConfig(){
     let written = await writeToFile(`
 PORT=${this.port}
@@ -2540,7 +2087,9 @@ DHT_PORT=${this.peerDiscoveryPort}
   }
 
   
-
+  /**
+   * @desc Saves all configs to nodesconfig file
+   */
   async saveNodeConfig(){
     return new Promise(async (resolve, reject)=>{
       let config = {
@@ -2571,13 +2120,19 @@ DHT_PORT=${this.peerDiscoveryPort}
     setInterval(async ()=>{
       that.messageBuffer = {};
       this.chain.save()
-      // let status = await this.buildBlockchainStatus()
-      // this.serverBroadcast('blockchainStatus', status)
+      this.housekeeping()
       let backUp = await this.chain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
   }
 
+  housekeeping(){}
+
+  /**
+   * @desc Displays message to any client connected to local API server
+   * @param {String} message 
+   * @param {*} arg 
+   */
   UILog(message, arg){
     if(arg){
       this.outputToUI(message, arg)

@@ -1,5 +1,5 @@
-let Transaction = require('./backend/classes/transaction')
-const Wallet = require('./backend/classes/wallet')
+let Transaction = require('./modules/classes/transaction')
+const Wallet = require('./modules/classes/wallets/wallet')
 const sha1 = require('sha1')
 const activePort = require('dotenv').config({ path: './config/.env' }).parsed.API_PORT
 const ioClient = require('socket.io-client');

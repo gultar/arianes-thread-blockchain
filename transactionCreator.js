@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-const WalletConnector = require('./backend/classes/walletConnector');
-const Transaction = require('./backend/classes/transaction')
+const WalletConnector = require('./modules/classes/wallets/walletConnector');
+const Transaction = require('./modules/classes/transactions/transaction')
 const sha1 = require('sha1')
 let inquirer = require('inquirer');
 const program = require('commander')
 const axios = require('axios');
-const { readFile, createTargetFile } = require('./backend/tools/utils');
+const { readFile, createTargetFile } = require('./modules/tools/utils');
 const fs = require('fs')
 
 

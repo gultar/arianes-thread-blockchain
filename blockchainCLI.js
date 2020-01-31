@@ -2,9 +2,9 @@
 
 const Node = require('./node');
 const program = require('commander');
-const { logger, readFile } = require('./backend/tools/utils');
+const { logger, readFile } = require('./modules/tools/utils');
 const fs = require('fs')
-const genesis = require('./backend/tools/getGenesis')
+const genesis = require('./modules/tools/getGenesis')
 const publicIP = require('public-ip')
 
 
@@ -173,7 +173,7 @@ program
         }else{
           const { Worker } = require('worker_threads');
           let worker = new Worker(`
-          let Miner = require(__dirname+'/backend/classes/minerTools/miner')
+          let Miner = require(__dirname+'/modules/classes/minerTools/miner')
           let miner = new Miner({
               publicKey:'',
               verbose:false,
