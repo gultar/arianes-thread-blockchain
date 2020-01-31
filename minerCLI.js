@@ -11,7 +11,7 @@ program
     .option('-w, --walletName <walletName>', 'Name of the miner wallet')
     .option('-p, --password <password>', 'Password needed to unlock wallet')
     .option('-v, --verbose', 'Verbose level')
-    .option('-m, --numberOfCores [numCores]', 'Start a miner over multiple cpus. Default: max cores')
+    .option('-n, --numberOfCores [numCores]', 'Start a miner over multiple cpus. Default: max cores')
 
 program
     .command('start')

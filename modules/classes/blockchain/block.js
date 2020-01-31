@@ -93,7 +93,7 @@ class Block{
           cpus = new Array(numberOfCores)
         }
         for await(let cpu of cpus){
-          const worker = new Worker('./backend/classes/proofOfWork/pow.js', {
+          const worker = new Worker(__dirname+'/../proofOfWork/pow.js', {
             workerData: {
               block:this,
               difficulty:difficulty
