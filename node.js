@@ -187,7 +187,7 @@ class Node {
             if(savedPort) logger('Saved port to .env config file')
             else logger('WARNING: Could not save port to .env file')
             this.heartbeat();
-            this.localAPI();
+            this.initAPIs();
             // if(this.clusterMiner) this.initMinerAPI();
             
             
@@ -1292,7 +1292,7 @@ class Node {
     
   }
 
-  localAPI(){
+  initAPIs(){
 
     let app = express()
     if(!this.exposeHTTP) app.use(express.static(__dirname+'/views'));
@@ -1423,6 +1423,8 @@ class Node {
                     if(added){
                       if(added.error){
                         logger(chalk.red('REJECTED BLOCK:'), added.error)
+                      }else if(added.busy){
+                        logger(chalk.yellow('WARNING: Received block but node is busy downloading'))
                       }
   
                     }
@@ -1519,68 +1521,72 @@ class Node {
           try{
 
             let block = JSON.parse(data);
-            let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
-            let alreadyIsInActiveBranch = this.chain.branches[block.hash];
-  
-            if(!alreadyReceived && !alreadyIsInActiveBranch){
-              if(this.chain.validateBlockHeader(block)){
+            if(!isValidBlockJSON(block)) resolve({error:'ERROR: Block is of invalid format'})
+            else{
+              let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
+              let alreadyIsInActiveBranch = this.chain.branches[block.hash];
+    
+              if(!alreadyReceived && !alreadyIsInActiveBranch){
+                if(this.chain.validateBlockHeader(block)){
 
-                //Retransmit block
-                this.broadcast('peerMessage', peerMessage)
-                //Become peer's most recent block
-                this.peersLatestBlocks[fromPeer] = block
+                  //Retransmit block
+                  this.broadcast('peerMessage', peerMessage)
+                  //Become peer's most recent block
+                  this.peersLatestBlocks[fromPeer] = block
 
-                //Tells the miner to stop mining and stand by
-                //While node is push next block
-                this.minerChannel.emit('nodeEvent','stopMining')
-                this.minerChannel.emit('nodeEvent','isBusy')
+                  //Tells the miner to stop mining and stand by
+                  //While node is push next block
+                  this.minerChannel.emit('nodeEvent','stopMining')
+                  this.minerChannel.emit('nodeEvent','isBusy')
 
-                //Validates than runs the block
-                let added = await this.chain.pushBlock(block);
-                if(added.error){
-                  //Something failed, miner can carry on
-                  this.minerChannel.emit('nodeEvent','isAvailable')
-                  resolve({error:added.error})
-                }
-                else{
-                  let currentLength = this.chain.length;
-                  //If not linked, stop mining after pushing the block, to allow more time for mining on this node
-                  let result = {}
-
-                  if(added.findMissing || added.unlinked || added.unlinkedExtended){
-                    //Received some block but it wasn't linked to any other block
-                    //in this chain. So, node tries to find the block to which it is linked
-                    //in order to swap branches if it is necessary
-                    let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
-                    let fixed = await this.fixUnlinkedBranch(branchingAt);
-                    if(fixed.error) result = {error:fixed.error}
-                    else result = fixed
-
-                  }else if(added.switched && added.switched.outOfSync){
-                    //Something went wrong while syncing unlinked branch
-                    //Rollback and update blockchain with peers'
-                    let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
-                    this.broadcast('getBlockchainStatus')
-                    result = rolledback
-
-                  }else{
-                    result = added
+                  //Validates than runs the block
+                  let added = await this.chain.pushBlock(block);
+                  if(added.error){
+                    //Something failed, miner can carry on
+                    this.minerChannel.emit('nodeEvent','isAvailable')
+                    resolve({error:added.error})
                   }
-                  this.minerChannel.emit('nodeEvent','isAvailable')
-                  resolve(result)
+                  else{
+                    let currentLength = this.chain.length;
+                    //If not linked, stop mining after pushing the block, to allow more time for mining on this node
+                    let result = {}
+
+                    if(added.findMissing || added.unlinked || added.unlinkedExtended){
+                      //Received some block but it wasn't linked to any other block
+                      //in this chain. So, node tries to find the block to which it is linked
+                      //in order to swap branches if it is necessary
+                      let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
+                      let fixed = await this.fixUnlinkedBranch(branchingAt);
+                      if(fixed.error) result = {error:fixed.error}
+                      else result = fixed
+
+                    }else if(added.switched && added.switched.outOfSync){
+                      //Something went wrong while syncing unlinked branch
+                      //Rollback and update blockchain with peers'
+                      let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
+                      this.broadcast('getBlockchainStatus')
+                      result = rolledback
+
+                    }else{
+                      result = added
+                    }
+                    this.minerChannel.emit('nodeEvent','isAvailable')
+                    resolve(result)
+                  }
+    
+                }else{
+                  resolve({error:'ERROR:New block header is invalid'})
                 }
-  
               }else{
-                resolve({error:'ERROR:New block header is invalid'})
+                resolve({error:`ERROR: Block ${block.blockNumber} already received`})
               }
-            }else{
-              resolve({error:'ERROR: Block already received'})
             }
+            
           }catch(e){
             resolve({error:e.message})
           }
         }else{
-          resolve({error:'ERROR: Node is busy, could not add block'})
+          resolve({busy:'ERROR: Node is busy, could not add block'})
         }
       }else{
         resolve({error:'ERROR: Missing parameters'})

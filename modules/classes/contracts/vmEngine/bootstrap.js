@@ -240,7 +240,7 @@ class Bootstrap{
 
                 }else if(message.error){
 
-                    console.log('VM ERROR:',message)
+                    // console.log('VM ERROR:',message)
                     this.events.emit(message.hash, {
                         error:message.error,
                         contractName:message.contractName
