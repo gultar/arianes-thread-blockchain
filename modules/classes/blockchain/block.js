@@ -89,9 +89,11 @@ class Block{
       
       if (isMainThread){
         let cpus = require('os').cpus()
-        if(numberOfCores && typeof numberOfCores == number){
+        
+        if(numberOfCores && typeof numberOfCores == 'number'){
           cpus = new Array(numberOfCores)
         }
+        
         for await(let cpu of cpus){
           const worker = new Worker(__dirname+'/../proofOfWork/pow.js', {
             workerData: {

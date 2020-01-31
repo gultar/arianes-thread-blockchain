@@ -14,7 +14,7 @@ class Miner{
         //Walletname and password
         this.keychain = keychain;
         //Number of mining cores
-        this.numOfCores = numberOfCores
+        this.numberOfCores = numberOfCores
         //Wallet
         this.wallet = {}
         this.manager = new WalletManager()
