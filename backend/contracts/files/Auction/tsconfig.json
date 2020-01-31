@@ -1,7 +1,0 @@
-{
-    "compilerOptions": {
-        "target": "ESNext",
-        "watch": true,
-        "lib":["es2017"]
-    }
-}
