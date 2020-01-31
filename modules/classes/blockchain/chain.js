@@ -254,7 +254,7 @@ class Blockchain{
       if(blockNumberAlreadyExists || blockAlreadyExists){
         resolve({error:`ERROR: Block ${newBlock.blockNumber} already exists`})
       }else if(!isNextBlock){
-        resolve({error:'ERROR: BlockNumber of new block does not follow this chain'})
+        resolve({error:'ERROR: Number of new block does not follow latest block'})
       }else{
         let errors = {}
         let newHeader = this.extractHeader(newBlock)
@@ -1700,7 +1700,8 @@ class Blockchain{
       difficulty:block.difficulty,
       totalDifficulty:block.totalDifficulty,
       challenge:block.challenge,
-      txHashes:Object.keys(block.transactions),
+      txHashes:(block.transactions? Object.keys(block.transactions) : []),
+      actionHashes:(block.actions ? Object.keys(block.actions):[]),
       minedBy:block.minedBy,
     }
 

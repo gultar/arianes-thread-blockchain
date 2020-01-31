@@ -1322,7 +1322,7 @@ class Node {
   }
 
   async startMinerAPI(socket){
-    logger('Starting miner cluster API')
+    logger('Miner connected')
     
     this.minerAPI = new MinerAPI({
       chain:this.chain,
