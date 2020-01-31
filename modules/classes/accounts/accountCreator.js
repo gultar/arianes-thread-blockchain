@@ -4,7 +4,7 @@
 */
 
 const WalletManager = require('../wallets/walletManager');
-const Account = require('../actions/action')
+const Account = require('../account/account')
 
 class AccountCreator{
     constructor(){
