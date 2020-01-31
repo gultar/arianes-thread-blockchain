@@ -10,37 +10,37 @@ if (activePort.error) throw activePort.error
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
 const sendTx = async () =>{
-    // let transaction = new Transaction
-    // ({
-    //     fromAddress:"ail",
-    //     toAddress:"Tokens",
-    //     amount:0,
-    //     data:{
-    //         method:'issue',
-    //         cpuTime:5,
-    //         params:{
-    //             symbol:"GOLD",
-    //             amount:100,
-    //             receiver:"huor"
-    //         }
-    //     },
-    //     type:"call"
-    // });
     let transaction = new Transaction
     ({
         fromAddress:"tuor",
         toAddress:"Tokens",
         amount:0,
         data:{
-            method:'getBalanceOfAccount',
+            method:'issue',
             cpuTime:5,
             params:{
                 symbol:"GOLD",
-                account:"huor"
+                amount:100,
+                receiver:"huor"
             }
         },
         type:"call"
     });
+    // let transaction = new Transaction
+    // ({
+    //     fromAddress:"tuor",
+    //     toAddress:"Tokens",
+    //     amount:0,
+    //     data:{
+    //         method:'getBalanceOfAccount',
+    //         cpuTime:5,
+    //         params:{
+    //             symbol:"GOLD",
+    //             account:"huor"
+    //         }
+    //     },
+    //     type:"call"
+    // });
     let wallet = await manager.loadByWalletName("8003")
     if(wallet){
         let unlocked = await wallet.unlock("8003")

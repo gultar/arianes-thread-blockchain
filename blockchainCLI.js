@@ -74,6 +74,7 @@ program
   .option('-c, --clusterMiner [numbers]', 'Launch a cluster of miners. Default: 1 workers')
   .option('-w, --walletName <walletName>', 'Name of the miner wallet')
   .option('-k, --password <password>', 'Password needed to unlock wallet')
+  .option('-x, --exposeHTTP', 'Expose HTTP API to allow external interaction with blockchain node')
 
 program
   .command('start')
@@ -144,6 +145,7 @@ program
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
         httpsEnabled:true,
+        exposeHTTP:program.exposeHTTP || false,
         enableLocalPeerDiscovery:discovery.local,
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,

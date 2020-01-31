@@ -67,6 +67,7 @@ class Node {
     this.port = options.port || '8000'
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
+    this.exposeHTTP = options.exposeHTTP || false
     this.address = `${this.httpPrefix}://${this.host}:${this.port}`;
     this.minerPort = options.minerPort || parseInt(this.port) + 2000
     //MinerWorker
@@ -171,6 +172,7 @@ class Node {
             logger('Loaded transaction mempool');
             logger('Number of transactions in pool: '+this.mempool.sizeOfPool());
             logger('Number of actions in pool: '+this.mempool.sizeOfActionPool());
+
 
             if(this.httpsEnabled){
               let sslConfig = await this.ssl.getCertificateAndPrivateKey()
@@ -600,180 +602,6 @@ class Node {
       this.findPeers()
     }
   }
-
-
-  // /**
-  //   Basis for P2P connection
-  // */
-  // connectToPeer(address, callback){
-    
-  //   if(address && this.address != address){
-  //     if(!this.connectionsToPeers[address]){
-        
-  //       let connectionAttempts = 0;
-  //       let peer;
-  //       try{
-          
-  //         let config = {
-  //           'reconnection limit' : 1000,
-  //           'max reconnection attempts' : 3,
-  //           'pingInterval': 200, 
-  //           'pingTimeout': 10000,
-  //           'secure':true,
-  //           'rejectUnauthorized':false,
-  //           'query':
-  //           {
-  //             token: JSON.stringify({ 'address':this.address }),
-  //           }
-  //         }
-
-  //         if(this.noLocalhost && (address.includes('localhost') || address.includes('127.0.0.1') || address.includes('0.0.0.0'))){
-  //           logger('Connections to localhost not allowed')
-  //           return null;
-  //         }
-          
-  //         peer = ioClient(address, config);
-  //         peer.heartbeatTimeout = 120000;
-
-  //         if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
-  //         this.UILog('Requesting connection to '+ address+ ' ...');
-
-  //         peer.on('connect_timeout', (timeout)=>{
-  //           if(connectionAttempts >= 3) { 
-  //             peer.destroy()
-  //           }else{
-  //             connectionAttempts++;
-  //           }
-              
-  //         })
-
-  //         peer.on('error', (error)=>{
-  //           console.log(error)
-  //         })
-
-
-  //         peer.on('connect', async () =>{
-  //           if(!this.connectionsToPeers[address]){
-
-  //             this.connectionsToPeers[address] = peer;
-  //             logger(chalk.green('Connected to ', address))
-  //             this.UILog('Connected to ', address+' at : '+ displayTime())
-  //             peer.emit('message', 'Connection established by '+ this.address);
-  //             let status = await this.buildBlockchainStatus()
-  //             // let status = {
-  //             //   totalDifficultyHex: this.chain.getTotalDifficulty(),
-  //             //   bestBlockHeader: this.chain.getLatestBlock(),
-  //             //   length: this.chain.chain.length
-  //             // }
-  //             peer.emit('connectionRequest', this.address);
-  //             this.nodeList.addNewAddress(address)  
-
-  //             setTimeout(()=>{
-  //               peer.emit('getBlockchainStatus', status);
-  //               peer.emit('getPeers')
-  //             },2000);
-              
-              
-  //           }else{}
-  //         })
-
-  //         peer.on('newPeers', (peers)=> {
-  //           if(peers && typeof peers == Array){
-  //             peers.forEach(addr =>{
-  //               //Validate if ip address
-  //               logger('Peer sent a list of potential peers')
-  //               if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
-  //                 this.nodeList.addNewAddress(addr)
-  //               }
-  //             })
-  //           }
-  //         })
-
-  //         peer.on('blockchainStatus', async (status)=>{
-  //           // logger(`Received blockchain status from peer ${address}`);
-  //           if(!this.isDownloading){
-  //             let updated = await this.receiveBlockchainStatus(peer, status)
-  //             this.isDownloading = false
-  //           }
-  //         })
-
-  //         peer.on('disconnect', () =>{
-  //           logger(`connection with peer ${address} dropped`);
-  //           delete this.connectionsToPeers[address];
-  //           this.peerManager.connectToPeer(address)
-  //           peer.destroy()
-  //         })
-
-  //         if(callback){
-  //           callback(peer)
-  //         }
-
-
-
-  //       }catch(err){
-  //         console.log(err)
-  //       }
-
-  //     }else{
-  //       // logger('Already initiated peer connection')
-  //     }
-
-  //   }
-  // }
-
-
-  // downloadBlockFromHash(peer, hash){
-  //   return new Promise(async (resolve)=>{
-  //     if(peer && hash){
-        
-  //       peer.emit('getBlockFromHash', hash);
-
-  //       peer.on('blockFromHash', (block)=>{
-          
-  //         if(block){
-  //           if(block.fork){
-  //             peer.off('blockFromHash');
-  //             resolve(block.fork)
-  //           }else{
-
-  //             if(block.error){
-  //               logger('BLOCK DOWNLOAD ERROR:',block.error)
-  //               peer.off('blockFromHash');
-  //               resolve({error:block.error})
-  //             }
-  
-  //             peer.off('blockFromHash');
-  //             resolve(block)
-  //           }
-            
-  //         }else{
-  //           logger('ERROR: No block received')
-  //         }
-  //       })
-  //     }
-  //   })
-  // }
-
-  // requestChainInfo(peer){
-  //   return new Promise( async(resolve)=>{
-  //     if(peer){
-  //       if(this.chain instanceof Blockchain){
-  //         peer.emit('getInfo');
-  
-  //         peer.on('chainInfo', (info)=>{
-  //           if(info){
-  //             peer.off('chainInfo')
-  //             resolve(info)
-  //           }else{
-  //             peer.off('chainInfo')
-  //             resolve({error:'ERROR: Could not fetch chain info'})
-  //           }
-  //         })
-  //       }
-  //     }
-  //   })
-    
-  // }
 
   downloadGenesisBlock(peer){
     return new Promise((resolve)=>{
@@ -1467,17 +1295,15 @@ class Node {
   localAPI(){
 
     let app = express()
-    app.use(express.static(__dirname+'/views'));
+    if(!this.exposeHTTP) app.use(express.static(__dirname+'/views'));
     express.json({ limit: '300kb' })
     app.use(helmet())
 
-    // this.initChainInfoAPI(app);
     this.httpAPI.initServiceAPI(app)
     this.httpAPI.initChainInfoAPI(app)
-    // this.initHTTPAPI(app);
 
     const server = http.createServer(app)
-    server.listen(this.minerPort, 'localhost');
+    server.listen(this.minerPort, (this.exposeHTTP ? '' : 'localhost'));
     this.localServer = socketIo(server);
 
     logger('Local API accessible on ',this.minerPort)
@@ -1486,7 +1312,6 @@ class Node {
       let token = socket.handshake.query.token;
 
       if(token && token == 'InitMiner'){
-        // this.minerConnector(socket)
         this.startMinerAPI(socket)
       }else{
         socket.emit('message', 'Connected to local node');

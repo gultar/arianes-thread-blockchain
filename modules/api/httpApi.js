@@ -216,6 +216,7 @@ class HttpAPI{
     })
 
     app.get('/getBlock', (req, res)=>{
+      console.log(req.protocol + '://' + "myDomain.com" + req.originalUrl)
       let blockNumber = req.query.blockNumber;
       if(blockNumber && typeof blockNumber == number){
         let block = this.chain.chain[blockNumber]
