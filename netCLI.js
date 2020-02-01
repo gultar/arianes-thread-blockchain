@@ -60,5 +60,22 @@ program
 
     })
 
+program
+    .command('joinNet <network>')
+    .description('Joins specific network according to configs found in config/netConfig.json')
+    .action(( address )=>{
+        if(nodeAddress){
+            openSocket(nodeAddress, (socket)=>{
+                if(address){
+                    socket.emit('connectionRequest', address)
+                }
+            })
+
+        }else{
+            throw new Error('URL of active is required')
+        }
+
+    })
+
 program.parse(process.argv)
 

@@ -566,7 +566,6 @@ class Node {
         address:this.address,
         host:this.host,
         port:this.peerDiscoveryPort,
-        channel:this.networkChannel
       });
       
       this.peerDiscovery.searchDHT()

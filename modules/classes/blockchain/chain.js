@@ -102,19 +102,6 @@ class Blockchain{
   }
 
   async createGenesisBlock(){
-    // let genesisBlock = new Block(1554987342039,
-    //   { 
-    //     'maxCurrency':new Transaction
-    //     ({
-    //       fromAddress:'coinbase',
-    //       toAddress:'coinbase',
-    //       amount:1000 * 1000 * 1000 * 1000,
-    //       data:'Maximum allowed currency in circulation',
-    //       type:'coinbaseReserve',
-    //       hash:false,
-    //       miningFee:0
-    //     }),
-    //   }, {});
       let genesisBlock = new Block({
         timestamp:1554987342039,
         transactions:{ 
@@ -134,8 +121,9 @@ class Blockchain{
       genesisBlock.difficulty = '0x100000';//'0x2A353F';
       genesisBlock.totalDifficulty = genesisBlock.difficulty
       genesisBlock.challenge = setNewChallenge(genesisBlock)
-      genesisBlock.blockTime = 20
+      genesisBlock.blockTime = 10
       genesisBlock.consensus = "Proof of Work" //Possible values : Proof of Work, Permissioned, Proof of Stake, Proof of Importance
+      genesisBlock.network = "blockchain-mainnet"
       genesisBlock.maxCoinSupply = Math.pow(10, 10);
       genesisBlock.signatures = {}
       genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesis.signatures )
@@ -3068,6 +3056,24 @@ class Blockchain{
     
   }
 
+  async addGitIgnoreToBlockchainFolder(){
+      const { createGitIgnore, addLineToGitIgnore, readGitIgnoreFile } = require('../../tools/gitIgnoreHandler')
+      // let file = await readGitIgnoreFile('./.gitignore')
+      let buf = fs.readFileSync('./.gitignore')
+      let file = buf.toString()
+
+      let folderName = this.chainDB.dataFolder
+      console.log('Folder', folderName)
+      if(file && file.indexOf(folderName) == -1){
+          file = file+'\n '+folderName+'*'
+          console.log('File', file)
+          let written = fs.writeFileSync('./.gitignore', file)
+          console.log(written)
+      }
+      console.log(file)
+      return file
+  }
+
 
   /**
     Inits the blockchain by, first, fetching the last block/last state store in a JSON file
@@ -3079,6 +3085,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       logger('Loading all blocks. Please wait...')
       try{
+        let gitIgnore = await this.addGitIgnoreToBlockchainFolder()
         let loaded = await this.loadBlocks()
         if(loaded){
           let contractTableStarted = await this.contractTable.init()

@@ -4,12 +4,13 @@ const EventEmitter = require('events').EventEmitter
 const Swarm = require('discovery-swarm')
 const { randomBytes } = require('crypto')
 const { logger } = require('../tools/utils')
+const genesis = require('../tools/getGenesis')
 
 class PeerDiscovery{
 
     constructor(opts){
-        let { address, host, port, channel, knownPeers } = opts
-        this.channel = channel || 'mainnet';
+        let { address, host, port, knownPeers } = opts
+        this.channel = genesis.network || 'mainnet';
         this.address = address;
         this.host = host;
         this.port = port;

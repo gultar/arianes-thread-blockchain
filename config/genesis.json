@@ -16,6 +16,8 @@
   "actions": {},
   "previousHash": "",
   "consensus":"Proof of Work", 
+  "network":"blockchain-mainnet",
+  "dataFolder":"",
   "blockTime":10,
   "totalDifficulty": "0x4096",
   "difficulty": "0x1024",

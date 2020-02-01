@@ -1,5 +1,5 @@
 const store = require('rocket-store')
-
+const genesis = require('../../tools/getGenesis')
 
 class Database{
     constructor(dbName, options){
@@ -7,18 +7,20 @@ class Database{
         this.name = dbName;
         this.configSet = null;
         this.options = options
+        this.dataFolder = (genesis.dataFolder && genesis.dataFolder !== '' ? genesis.dataFolder : "./databases/")
     }
 
     async init(){
         try{
             if(!this.options){
+                
                 await this.database.options({
-                    data_storage_area :"./databases/",
+                    data_storage_area :this.dataFolder,
                     data_format       : this.database._FORMAT_JSON,
                 });
             }else{
                 let defaultOptions = {
-                    data_storage_area :"./databases/",
+                    data_storage_area :this.dataFolder,
                     data_format       : this.database._FORMAT_JSON,
                 }
                 let options = { ...defaultOptions, ...options }

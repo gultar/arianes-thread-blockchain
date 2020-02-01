@@ -1,4 +1,2 @@
 node_modules/*
-blockchain.json
-mempool.json
-nodes.json
+./databases/*

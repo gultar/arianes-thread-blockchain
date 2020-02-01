@@ -59,6 +59,7 @@ const openSocket = async (address, runFunction) =>{
 program
 .option('-u, --url <nodeURL>', "URL of running node to send transaction to")
 .option('-y, --yes', 'Skip prompt')
+.option('-f, --folder <folder>', 'Folder to empty')
 
 program
 .command('getinfo')
@@ -190,14 +191,17 @@ program
 .command('reset')
 .description('Requests some general information about the blockchain')
 .option('-y, --yes', 'Skip prompt')
+.option('-f, --folder <folder>', 'Folder to empty')
 .action(()=>{
+    console.log('Folder', program.folder)
     const inquirer = require('inquirer');
     const { exec } = require('child_process');
     let validation = {
         type: 'input', name: 'validation', message: 'Are you sure you want to delete all blockchain files? ("yes" or "no")' 
     }
     if(program.yes){
-        exec('rm -r -f databases/*',(err, stdout, stderr)=>{
+        
+        exec(`rm -r -f ${program.folder || 'databases'}/*`,(err, stdout, stderr)=>{
             if (err) {
               // node couldn't execute the command
               return;
@@ -213,7 +217,7 @@ program
         .then((answer)=>{
             if(answer.validation == 'yes' || answer.validation == 'y' || answer.validation == '1'){
                 // exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/* data/accountsDB/* data/cpuTimeAllocationsDB/* data/memAllocationsDB/* data/contractDB/* data/contractStateDB/* data/accounts.json data/transactionDB/* data/actionDB/* data/balanceDB/*', (err, stdout, stderr) => {
-                    exec('rm -r -f databases/*',(err, stdout, stderr)=>{
+                    exec(`rm -r -f ${program.folder || 'databases'}/*`,(err, stdout, stderr)=>{
                         if (err) {
                         // node couldn't execute the command
                         return;
