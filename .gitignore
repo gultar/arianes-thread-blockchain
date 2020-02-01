@@ -1,3 +1,5 @@
 node_modules/*
-./databases/*
- blockchain-mainnet*
+
+databases/*
+ 
+blockchain-mainnet/*
