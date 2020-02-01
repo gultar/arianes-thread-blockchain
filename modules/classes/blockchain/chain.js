@@ -102,43 +102,43 @@ class Blockchain{
   }
 
   async createGenesisBlock(){
-      let genesisBlock = new Block({
-        timestamp:1554987342039,
-        transactions:{ 
-              'maxCurrency':new Transaction
-              ({
-                fromAddress:'coinbase',
-                toAddress:'coinbase',
-                amount:1000 * 1000 * 1000 * 1000,
-                data:'Maximum allowed currency in circulation',
-                type:'coinbaseReserve',
-                hash:false,
-                miningFee:0
-              }),
-            },
-        actions:{}
-      })
-      genesisBlock.difficulty = '0x100000';//'0x2A353F';
-      genesisBlock.totalDifficulty = genesisBlock.difficulty
-      genesisBlock.challenge = setNewChallenge(genesisBlock)
-      genesisBlock.blockTime = 10
-      genesisBlock.consensus = "Proof of Work" //Possible values : Proof of Work, Permissioned, Proof of Stake, Proof of Importance
-      genesisBlock.network = "blockchain-mainnet"
-      genesisBlock.maxCoinSupply = Math.pow(10, 10);
-      genesisBlock.signatures = {}
-      genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesis.signatures )
-      genesisBlock.calculateHash();
-      genesisBlock.states = {
-        //Other public addresses can be added to initiate their balance in the genesisBlock
-        //Make sure at least one of the them has some funds, otherwise no transactions will be possible
-        "coinbase":{ balance:1000 * 1000 * 1000 * 1000 },
-        "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{ balance:10000 },
-        "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{ balance:10000 },
-        "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{ balance:10000 },
-        "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{ balance:10000 },
-      }
+    let genesisBlock = new Block({
+      timestamp:1554987342039,
+      transactions:{ 
+            'maxCurrency':new Transaction
+            ({
+              fromAddress:'coinbase',
+              toAddress:'coinbase',
+              amount:1000 * 1000 * 1000 * 1000,
+              data:'Maximum allowed currency in circulation',
+              type:'coinbaseReserve',
+              hash:false,
+              miningFee:0
+            }),
+          },
+      actions:{}
+    })
+    genesisBlock.difficulty = '0x1024'//'0x100000';//'0x2A353F';
+    genesisBlock.totalDifficulty = genesisBlock.difficulty
+    genesisBlock.challenge = setNewChallenge(genesisBlock)
+    genesisBlock.blockTime = 10
+    genesisBlock.consensus = "Proof of Work" //Possible values : Proof of Work, Permissioned, Proof of Stake, Proof of Importance
+    genesisBlock.network = "mainnet"
+    genesisBlock.maxCoinSupply = Math.pow(10, 10);
+    genesisBlock.signatures = {}
+    genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesisBlock.signatures )
+    genesisBlock.calculateHash();
+    genesisBlock.states = {
+      //Other public addresses can be added to initiate their balance in the genesisBlock
+      //Make sure at least one of the them has some funds, otherwise no transactions will be possible
+      "coinbase":{ balance:1000 * 1000 * 1000 * 1000 },
+      "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{ balance:10000 },
+      "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{ balance:10000 },
+      "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{ balance:10000 },
+      "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{ balance:10000 },
+    }
 
-      return genesisBlock
+    return genesisBlock
   }
   /**
    * Stores Genesis block to database as well as coinstore transaction
@@ -3057,7 +3057,6 @@ class Blockchain{
   }
 
   async addGitIgnoreToBlockchainFolder(){
-      
       let buf = fs.readFileSync('./.gitignore')
       let file = buf.toString()
 

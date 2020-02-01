@@ -2,11 +2,13 @@ const genesis = require('../tools/getGenesis')
 const getGenesisConfigHash = require('../tools/genesisConfigHash')
 
 class NetworkToken{
-    constructor(){
-        this.network = genesis.network
-        this.consensus = genesis.consensus
-        this.genesisConfigHash = getGenesisConfigHash()
-        this.genesisConfig = genesis
+    constructor(options){
+        if(!options) options = genesis
+        let { network, consensus, genesisConfigHash, genesisConfig } = options
+        this.network = network || genesis.network
+        this.consensus = consensus || genesis.consensus
+        this.genesisConfigHash = genesisConfigHash || getGenesisConfigHash()
+        this.genesisConfig = genesisConfig || genesis
     }
 }
 

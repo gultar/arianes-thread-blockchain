@@ -1,5 +1,9 @@
 node_modules/*
 
 databases/*
-	testnet/*
-	fuck/*
+dumb/
+dumb/*
+mainnet/
+mainnet/*
+./databases/
+./databases/*

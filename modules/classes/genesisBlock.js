@@ -1,7 +1,8 @@
 const Block = require('./blockchain/block')
-const Transaction = require('./transaction')
+const Transaction = require('./transactions/transaction')
 const { setNewChallenge, setNewDifficulty, Difficulty } = require('./proofOfWork/challenge')
 const { logger, writeToFile, readFile } = require('../tools/utils')
+const sha256 = require('../tools/sha256')
 
  /**
    * Fetches existing genesisBlock
@@ -36,9 +37,9 @@ function loadGenesisFile(){
    * Creates a new genesisBlock json file in /config
    * Needed to create a new blockchain
    */
- function saveGenesisFile(){
+ function saveGenesisFile(genesisBlock=createGenesisBlock()){
     return new Promise(async (resolve)=>{
-      let genesisBlock = this.createGenesisBlock();
+      // let genesisBlock = this.createGenesisBlock();
       let saved = await writeToFile(genesisBlock, './config/genesis.json')
       if(saved){
         resolve(genesisBlock)
@@ -65,7 +66,7 @@ function createGenesisBlock(){
             },
         actions:{}
       })
-      genesisBlock.difficulty = '0x100000';//'0x2A353F';
+      genesisBlock.difficulty = '0x1024'//'0x100000';//'0x2A353F';
       genesisBlock.totalDifficulty = genesisBlock.difficulty
       genesisBlock.challenge = setNewChallenge(genesisBlock)
       genesisBlock.blockTime = 10
@@ -73,7 +74,7 @@ function createGenesisBlock(){
       genesisBlock.network = "mainnet"
       genesisBlock.maxCoinSupply = Math.pow(10, 10);
       genesisBlock.signatures = {}
-      genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesis.signatures )
+      genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesisBlock.signatures )
       genesisBlock.calculateHash();
       genesisBlock.states = {
         //Other public addresses can be added to initiate their balance in the genesisBlock
