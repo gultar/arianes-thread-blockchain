@@ -308,10 +308,8 @@ class Mempool{
             
             for await(var hash of hashes){
                 batchSize += jsonSize(transactions)
-                console.log('Got hash', hash)
                 if(batchSize < this.maxBatchSize){
                     let transaction = await this.getTransaction(hash)
-                    console.log('Got', transaction)
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
                         this.usedTxReceipts[hash] = this.createTransactionReceipt(transaction)
