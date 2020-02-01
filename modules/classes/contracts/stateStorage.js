@@ -14,10 +14,10 @@ class StateStorage{
 
     async update(state){
         if(state && Object.keys(state).length > 0 && !state.error){
-            let currentBlock = this.getCurrentBlock();
+            let currentBlock = await this.getCurrentBlock();
             let timestamp = currentBlock.timestamp
             
-            this.state = state;
+            if(state && Object.keys(state).length > 0) this.state = state;
             
             let added = await this.database.put({
                 key:timestamp,
@@ -48,28 +48,11 @@ class StateStorage{
     async save(state = undefined){
         try{
             
-            let currentBlock = this.getCurrentBlock()
+            let currentBlock = await this.getCurrentBlock()
             let timestamp = currentBlock.timestamp
-
-            // // if(!this.state || Object.keys(this.state).length == 0){
-            // //     console.log('No state found. Getting previous current state')
-            // //     let currentState = await this.getCurrentState()
-            // //     if(currentState && Object.keys(currentState).length > 0){
-            // //         if(currentState.error) return { error:currentState.error } 
-            // //         console.log(`Previous current state at block ${currentBlock.blockNumber}: ${currentState}`)
-            // //         this.state = currentState
-            // //     }else{
-            // //         let closestState = await this.getClosestState(timestamp)
-            // //         if(closestState && Object.keys(closestState).length > 0){
-            // //             if(closestState.error) return { error:closestState.error }
-            // //             console.log('About to save the latest state', closestState)
-            // //             this.state = closestState
-            // //         }else{
-            // //             return { error:'ERROR: Could not save state. State and closest state are empty' }
-            // //         }
-            // //     }
-                
-            // // }
+            if(state && Object.keys(state).length > 0){
+                this.state = state
+            }
             
             let currentStateChanged = await this.database.put({
                 key:'currentState',
@@ -81,7 +64,7 @@ class StateStorage{
             })
             if(currentStateChanged.error) return { error:currentStateChanged }
             else if(currentStateChanged) return currentStateChanged
-            // return true
+            
         }catch(e){
             
             return { error:e.message }
@@ -90,93 +73,73 @@ class StateStorage{
 
     async getCurrentState(){
         try{
-            // let closestState = await this.getLatestState()
-            // if(closestState){
-            //     if(closestState.error) return { error:closestState.error }
-            //     console.log('Getting latest state', closestState)
-            //     return closestState
-            // }else{
-            //     return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
-            // }
-            // let { state } = await this.database.get('currentState');
             let closestState = await this.getLatestState()
             if(closestState){
                 if(closestState.error) return { error:closestState.error }
-                // console.log('Getting latest state', JSON.stringify(closestState, null, 2))
                 return closestState
             }else{
-                return { error:`ERROR: Could not find current state of contract ${this.name} at block ${this.getCurrentBlock().blockNumber}` }
+                return { error:`ERROR: Could not find current state of contract ${this.name} at block ${await this.getCurrentBlock().blockNumber}` }
             }
-        
-            // if(state){
-            //     if(state.error) return { error:state.error }
-
-            //     return state
-            // }else{
-                
-                
-                
-            // }
         }catch(e){
             return {error:e.message}
         }
     }
 
-    async rollback(blockNumber){
-        try{
-            // let current = await this.getCurrentState()
-            // console.log('Current state', JSON.stringify(current, null, 1))
-            // console.log('Rolling back '+this.name+' to state', blockNumber)
-            let block = await this.getBlock(blockNumber)
-            // console.log('Block number', blockNumber)
-            let timestamp = block.timestamp;
-            // console.log('Past timestamp', timestamp)
-            let state = await this.getClosestState(timestamp)
-            // console.log('Past state', JSON.stringify(state, null, 1))
-            if(state){
-                if(state.error) return { error:state.error }
-                this.state = state
-                let saved = await this.save(state)
+    // async rollback(blockNumber){
+    //     try{
+    //         // let current = await this.getCurrentState()
+    //         // console.log('Current state', JSON.stringify(current, null, 1))
+    //         console.log('Rolling back '+this.name+' to state', blockNumber)
+    //         let block = await this.getBlock(blockNumber)
+    //         console.log('Block number', blockNumber)
+    //         let timestamp = block.timestamp;
+    //         console.log('Past timestamp', timestamp)
+    //         let state = await this.getClosestState(timestamp)
+    //         console.log('Past state', JSON.stringify(state, null, 1))
+    //         if(state){
+    //             if(state.error) return { error:state.error }
+    //             this.state = state
+    //             let saved = await this.update(state)
                 
-                if(saved.error) return { error:saved.error }
-                else return saved
-            }else{
-                return { error:'ERROR Could not find state at block' }
-                //means state does not exist beyond this blocknumber
-            }
+    //             if(saved.error) return { error:saved.error }
+    //             else return saved
+    //         }else{
+    //             return { error:'ERROR Could not find state at block' }
+    //             //means state does not exist beyond this blocknumber
+    //         }
             
             
-        }catch(e){
-            return { error:e.message }
-        }
+    //     }catch(e){
+    //         return { error:e.message }
+    //     }
         
-    }
+    // }
 
-    async testRollback(blockNumber){
-        try{
-            // let current = await this.getCurrentState()
-            // console.log('Current state', JSON.stringify(current, null, 1))
-            // console.log('Rolling back '+this.name+' to state', blockNumber)
-            let block = await this.getBlock(blockNumber)
-            console.log('Block number', blockNumber)
-            let timestamp = block.timestamp;
-            console.log('Past timestamp', timestamp)
-            let state = await this.getClosestState(timestamp)
-            console.log('Past state', JSON.stringify(state, null, 1))
-            if(state){
-                if(state.error) return { error:state.error }
-                else return state
-            }else{
-                return { error:'ERROR Could not find state at block' }
-                //means state does not exist beyond this blocknumber
-            }
+    // async testRollback(blockNumber){
+    //     try{
+    //         // let current = await this.getCurrentState()
+    //         // console.log('Current state', JSON.stringify(current, null, 1))
+    //         // console.log('Rolling back '+this.name+' to state', blockNumber)
+    //         let block = await this.getBlock(blockNumber)
+    //         console.log('Block number', blockNumber)
+    //         let timestamp = block.timestamp;
+    //         console.log('Past timestamp', timestamp)
+    //         let state = await this.getClosestState(timestamp)
+    //         console.log('Past state', JSON.stringify(state, null, 1))
+    //         if(state){
+    //             if(state.error) return { error:state.error }
+    //             else return state
+    //         }else{
+    //             return { error:'ERROR Could not find state at block' }
+    //             //means state does not exist beyond this blocknumber
+    //         }
             
             
-        }catch(e){
-            return { error:e.message }
-        }
+    //     }catch(e){
+    //         return { error:e.message }
+    //     }
         
-    }
+    // }
     
     //Mainly used when rolling back changes
     async getClosestState(requestedTimestamp){
@@ -210,16 +173,17 @@ class StateStorage{
                         return state
                     }else{
 
-                        let { state } = await this.database.get(requestedTimestamp);
+                        let { state, blockNumber } = await this.database.get(requestedTimestamp);
                         if(state && Object.keys(state).length && !state.error){
-                            // console.log('Found exact timestamp', requestedTimestamp)
+                            console.log('Found exact timestamp', requestedTimestamp, ' at block ', blockNumber)
+                            
                             return state
                         }else{
                             let closestTimestamp = await findClosest(requestedTimestamp, timestamps)
                             if(closestTimestamp){
                                 let { state, blockNumber } = await this.database.get(closestTimestamp.toString())
                                 if(state.error) return { error:state.error }
-                                // console.log('Found closest state to blockNumber', blockNumber)
+                                console.log('Found closest state to blockNumber', blockNumber)
                                 return state
                             }else{
                                 return { error:'ERROR: Could not find closest to '+requestedTimestamp }
@@ -238,6 +202,31 @@ class StateStorage{
         
     }
 
+    async rollbackToBlock(blockNumber){
+        let block = await this.getBlock(blockNumber)
+        let timestampString = block.timestamp
+        let targetTimestamp = parseInt(timestampString)
+        let keys = await this.database.getAllKeys()
+        let parsedKeys = await this.parseTimestamps(keys)
+
+        for await(let timestamp of parsedKeys){
+            if(timestamp > targetTimestamp){
+                let entry = await this.database.get(timestamp.toString())
+                if(!entry) console.log({ error:`ERROR: Could not locate state entry ${timestamp}` })
+                else if(entry.error) return { error:entry.error }
+
+                if(entry && !entry.error){
+                    let deleted = await this.database.deleteId(timestamp.toString())
+                    if(deleted.error) console.log(deleted.error)
+                }
+                
+
+            }
+        }
+        return true
+
+    }
+
     
 
     async getLatestState(){
@@ -247,7 +236,8 @@ class StateStorage{
                     
                     let latestTimestamp = await this.getLatestTimestamp()
                     let latestState = await this.getClosestState(latestTimestamp.toString())
-                    return latestState
+                    if(latestState.error) return { error:latestState.error }
+                    else return latestState
                     
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }

@@ -494,8 +494,8 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
-          // socket.emit('testRollback', args[0], args[1])
-          socket.emit('tryPing')
+          socket.emit('testDelete', args[0])
+          // socket.emit('tryPing')
           break;
         case 'closest':
           if(!isConnected){

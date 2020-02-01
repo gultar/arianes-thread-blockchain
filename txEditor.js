@@ -20,12 +20,13 @@ const sendTx = async () =>{
             cpuTime:5,
             params:{
                 symbol:"GOLD",
-                amount:100,
+                amount:1,
                 receiver:"huor"
             }
         },
         type:"call"
     });
+    console.log(JSON.stringify(transaction.data))
     // let transaction = new Transaction
     // ({
     //     fromAddress:"tuor",

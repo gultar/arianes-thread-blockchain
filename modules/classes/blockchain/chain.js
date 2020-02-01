@@ -44,8 +44,8 @@ class Blockchain{
     this.accountTable = new AccountTable();
     this.balance = new BalanceTable(this.accountTable)
     this.contractTable = new ContractTable({
-      getCurrentBlock:()=>{
-        return this.getLatestBlock()
+      getCurrentBlock:async ()=>{
+        return await this.getLatestBlock()
       },
       getBlock:(number)=>{
         return this.chain[number]
@@ -244,6 +244,19 @@ class Blockchain{
     return this.chain[this.chain.length - 1];
   }
 
+  /**
+   * @desc Helper function to get the latest full block, not just the header
+   */
+  async getLatestFullBlock(){
+    let latestHeader = this.getLatestBlock()
+    let block = await this.getBlockFromDB(latestHeader.blockNumber)
+    if(!block || block.error){
+      block = await this.getBlockFromDB(latestHeader.blockNumber - 1)
+    }
+
+    return block
+  }
+
   addBlockToChain(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       //Push block header to chain
@@ -294,6 +307,7 @@ class Blockchain{
               let removedNewHeader = this.chain.pop()
               resolve({error: errors})
             }else{
+
               for await(let hash of newHeader.txHashes){
                 this.spentTransactionHashes[hash] = { spent:newHeader.blockNumber }
               }
@@ -303,6 +317,9 @@ class Blockchain{
                   this.spentActionHashes[hash] = { spent:newHeader.blockNumber }
                 }
               }
+
+              let statesSaved = await this.contractTable.saveStates(newHeader)
+              if(statesSaved.error) console.log('State saving error', statesSaved.error)
               //.push(...newHeader.txHashes)
               
               let added = await this.addBlockToDB(newBlock)
@@ -310,8 +327,7 @@ class Blockchain{
                 if(added.error) resolve({error:added.error})
     
                 
-                let statesSaved = await this.contractTable.saveStates()
-                if(statesSaved.error) console.log('State saving error', statesSaved.error)
+                
                 
                 let saved = await this.saveLastKnownBlockToDB()
                 if(saved.error) console.log('Saved last block', saved)
@@ -1814,12 +1830,9 @@ class Blockchain{
         }
       }
 
-      // this.spentTransactionHashes = this.spentTransactionHashes.filter(hash => !txHashes.includes(hash));
-      // this.spentActionHashes = this.spentActionHashes.filter(hash => !actionHashes.includes(hash));
-      
       let stateRolledBack = await this.contractTable.rollback(newLastBlock.blockNumber)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
-
+      
       if(actionHashes.length > 0){
         for await(var hash of actionHashes){
           //Rolling back actions and contracts
@@ -1846,12 +1859,18 @@ class Blockchain{
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
       let mainBranch = []
+
+      
+      
       for await(let header of removed){
         let block = await this.getBlockFromDB(header.blockNumber);
         if(block.error){
           console.log('An error occurred while getting block '+header.blockNumber)
         }else{
           mainBranch.push(block)
+          // let removed = await this.removeBlockFromDB(block)
+          // if(removed.error) console.log('BLOCK REMOVE ERROR: ', removed.error)
+
         }
       }
       

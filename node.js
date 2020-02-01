@@ -1272,6 +1272,20 @@ class Node {
         socket.emit('rollbackResult', rolledback)
       })
 
+      socket.on('testRollback', async (contractName, blockNumber)=>{
+        
+        let storage = await this.chain.contractTable.stateStorage[contractName]
+        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
+        else if(storage.error) socket.emit('contractState', { error:storage.error })
+        else{
+          // let rolledback = await storage.testRollback(blockNumber)
+          // console.log(JSON.stringify(rolledback, null, 2))
+          // let timestamp = this.chain.chain[blockNumber].timestamp
+          let closest = await storage.testRollback(blockNumber)
+          console.log(JSON.stringify(closest, null, 2))
+        }
+      })
+
       socket.on('getTransactionFromDB', async (hash)=>{
         let transaction = await this.chain.getTransactionFromDB(hash)
         socket.emit('transactionFromDB', transaction)
@@ -1280,6 +1294,16 @@ class Node {
       socket.on('getActionFromDB', async (hash)=>{
         let action = await this.chain.getActionFromDB(hash)
         socket.emit('actionFromDB', action)
+      })
+
+      socket.on('testDelete', async (txHash)=>{
+        let transaction = await this.mempool.transactions.get(txHash)
+        console.log('Transaction', transaction)
+
+        if(transaction && !transaction.error){
+          let deleted = await this.mempool.transactions.deleteId(txHash)
+          console.log('Deleted', deleted)
+        }
       })
 
       socket.on('disconnect', ()=>{

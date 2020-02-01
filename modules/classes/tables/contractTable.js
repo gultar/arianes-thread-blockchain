@@ -20,8 +20,8 @@ class ContractTable{
             
             this.stateStorage[name] = new StateStorage({
                 name:name,
-                getCurrentBlock:()=>{
-                    return this.getCurrentBlock()
+                getCurrentBlock:async ()=>{
+                    return await this.getCurrentBlock()
                 },
                 getBlock:(number)=>{
                     return this.getBlock(number)
@@ -56,8 +56,8 @@ class ContractTable{
                     else{
                         this.stateStorage[name] = new StateStorage({
                             name:name,
-                            getCurrentBlock:()=>{
-                                return this.getCurrentBlock()
+                            getCurrentBlock:async ()=>{
+                                return await this.getCurrentBlock()
                             },
                             getBlock:(number)=>{
                                 return this.getBlock(number)
@@ -70,10 +70,10 @@ class ContractTable{
                         this.stateStorage[name].state = state;
                         let updated = await this.stateStorage[name].update(state)
                         if(updated.error) resolve({error:updated.error})
+                        else resolve(updated)
+                        // let started = await this.stateStorage[name].save(await this.getCurrentBlock())
+                        // if(started.error) resolve({error:started})
                         
-                        let started = await this.stateStorage[name].save()
-                        if(started.error) resolve({error:started})
-                        else resolve(started)
                         
                     }
                 }else{
@@ -107,8 +107,8 @@ class ContractTable{
 
                 this.stateStorage[contractName] = new StateStorage({
                     name:contractName,
-                    getCurrentBlock:()=>{
-                        return this.getCurrentBlock()
+                    getCurrentBlock:async ()=>{
+                        return await this.getCurrentBlock()
                     },
                     getBlock:(number)=>{
                         return this.getBlock(number)
@@ -164,12 +164,11 @@ class ContractTable{
     }
 
 
-    saveStates(){
+    saveStates(block){
         return new Promise(async (resolve)=>{
             for await(let contractName of Object.keys(this.stateStorage)){
                 if(this.stateStorage[contractName]){
-                    
-                    let saved = await this.stateStorage[contractName].save()
+                    let saved = await this.stateStorage[contractName].save(block)
                 
                     if(saved.error) resolve({error:saved.error})
                 }
@@ -209,7 +208,7 @@ class ContractTable{
                 
                 let contract = await this.contractDB.get(name)
                 if(contract){
-                    let deleted = await this.contractDB.delete(contract)
+                    let deleted = await this.contractDB.deleteId(name)
                     if(deleted.error) resolve({error:deleted.error})
                     let stateDeleted = await this.removeState(name);
                     if(stateDeleted.error) resolve({error:stateDeleted.error})
@@ -261,8 +260,7 @@ class ContractTable{
                 let storage = this.stateStorage[contractName]
                 if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
                 else{
-                    
-                    let rolledBack = await storage.rollback(blockNumber)
+                    let rolledBack = await storage.rollbackToBlock(blockNumber)
                     if(rolledBack.error) return { error:rolledBack.error }
                 }
             }
