@@ -3065,7 +3065,7 @@ class Blockchain{
       let folderName = this.chainDB.dataFolder
       console.log('Folder', folderName)
       if(file && file.indexOf(folderName) == -1){
-          file = file+'\n '+folderName+'*'
+          file = file+'\n\t'+folderName+'*'
           console.log('File', file)
           let written = fs.writeFileSync('./.gitignore', file)
           console.log(written)

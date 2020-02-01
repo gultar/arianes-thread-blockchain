@@ -1,6 +1,5 @@
 node_modules/*
 
 databases/*
- 
-blockchain-mainnet/*
- testnet/*
+	testnet/*
+	fuck/*
