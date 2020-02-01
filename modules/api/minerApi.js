@@ -116,7 +116,7 @@ class MinerAPI{
 
         let transactions = await this.mempool.gatherTransactionsForBlock()
         if(transactions.error) return { error:transactions.error }
-        
+        console.log('Got', transactions)
         //Validate all transactions to be mined, delete those that are invalid
         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
 

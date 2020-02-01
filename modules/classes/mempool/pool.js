@@ -246,7 +246,7 @@ class Mempool{
     removeTransaction(hash){
         return new Promise(async(resolve)=>{
             delete this.txReceipts[hash]
-            let deleted = await this.transactions.delete({_id:hash})
+            let deleted = await this.transactions.deleteId(hash)
             resolve(deleted)
         })
     }
@@ -254,7 +254,7 @@ class Mempool{
     removeAction(hash){
         return new Promise(async (resolve)=>{
             delete this.actionReceipts[hash]
-            let deleted = await this.actions.delete({_id:hash})
+            let deleted = await this.actions.deleteId(hash)
             resolve(deleted)
         })
     }
@@ -308,10 +308,10 @@ class Mempool{
             
             for await(var hash of hashes){
                 batchSize += jsonSize(transactions)
-                
+                console.log('Got hash', hash)
                 if(batchSize < this.maxBatchSize){
                     let transaction = await this.getTransaction(hash)
-                    
+                    console.log('Got', transaction)
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
                         this.usedTxReceipts[hash] = this.createTransactionReceipt(transaction)
