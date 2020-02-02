@@ -151,7 +151,7 @@ program
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
         network:program.network || 'mainnet',
-        noLocalhost:true,
+        noLocalhost:false,
         genesis:genesis,
         minerWorker:false,
         clusterMiner:program.clusterMiner,

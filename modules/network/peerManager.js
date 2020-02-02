@@ -25,11 +25,15 @@ class PeerManager{
         
         if(address && this.address != address){
             if(!this.connectionsToPeers[address]){
-                if(address.includes(this.host)){
-                    let [ prefix, hostAndPort ] = address.split('://')
-                    let [ host, port ] = hostAndPort.split(':')
-                    address = `${prefix}://${this.lanHost}:${port}`
-                    console.log('NEW ADDRESS', address)
+
+                //This is to enable connections on the same machine, if disabled, can only connect to remote nodes
+                if(!this.noLocalhost){
+                    if(address.includes(this.host)){
+                        let [ prefix, hostAndPort ] = address.split('://')
+                        let [ host, port ] = hostAndPort.split(':')
+                        address = `${prefix}://${this.lanHost}:${port}`
+                        // console.log('NEW ADDRESS', address)
+                    }
                 }
                 let connectionAttempts = 0;
                 let peer;

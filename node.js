@@ -366,7 +366,7 @@ class Node {
             }
           }else{
             this.peerManager.connectToPeer(peerAddress)
-            logger('ERROR: Could not find peer socket to download blockchain')
+            // logger('ERROR: Could not find peer socket to download blockchain')
           }
           
         }catch(e){
@@ -618,6 +618,7 @@ class Node {
             let isSameIp = extractBaseIpAddress(peer.address) == extractBaseIpAddress(this.address)
             if(!this.connectionsToPeers[peer.address] && !isSameIp){
               let { host, port, address } = peer
+              if(host == this.host) host = this.lanHost
               logger('Found new peer', chalk.green(address))
               this.peerManager.connectToPeer(address)
             }
