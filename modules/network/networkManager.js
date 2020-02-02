@@ -5,9 +5,9 @@ const { saveGenesisFile } = require('../classes/genesisBlock')
 const { readFile, writeToFile, logger } = require('../tools/utils')
 
 class NetworkManager{
-    constructor(){
+    constructor(network){
         this.genesis = genesis
-        this.currentNetwork = genesis.network || 'mainnet'
+        this.currentNetwork = network || genesis.network || 'mainnet'
         this.configs = {}
     }
 

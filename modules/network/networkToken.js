@@ -9,6 +9,7 @@ class NetworkToken{
         this.consensus = consensus || genesis.consensus
         this.genesisConfigHash = genesisConfigHash || getGenesisConfigHash()
         this.genesisConfig = genesisConfig || genesis
+        this.seedNodes = {}
     }
 }
 

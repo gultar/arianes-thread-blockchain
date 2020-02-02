@@ -64,7 +64,6 @@ program
     )
   .option('-i, --ipaddress <hostname>', 'Specify node hostname')
   .option('-p, --port <port>', 'Specify node port')
-  .option('-j, --join [network]', 'Joins network')
   .option('-s, --seeds <seeds>', 'Seed nodes to initiate p2p connections')
   .option('-v, --verbose', 'Enable transaction and network verbose')
   .option('-d, --peerDiscovery [type]', 'Enable peer discovery using various methods')
@@ -75,7 +74,7 @@ program
   .option('-w, --walletName <walletName>', 'Name of the miner wallet')
   .option('-k, --password <password>', 'Password needed to unlock wallet')
   .option('-x, --exposeHTTP', 'Expose HTTP API to allow external interaction with blockchain node')
-  .option('-n, --network', 'Blockchain network to join')
+  .option('-n, --network <network>', 'Blockchain network to join')
 
 program
   .command('start')
@@ -150,7 +149,7 @@ program
         enableLocalPeerDiscovery:discovery.local,
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
-        networkChannel:program.network || 'mainnet',
+        network:program.network || 'mainnet',
         noLocalhost:true,
         genesis:genesis,
         minerWorker:false,
@@ -161,12 +160,6 @@ program
      node.startServer()
      .then( started =>{
       if(started.error) throw new Error(started.error)
-
-      if(program.join){
-        node.joinPeers();
-      }
-
-      
 
       if(program.mine){
         let walletName = program.walletName;

@@ -64,7 +64,7 @@ program
     })
 
 program
-    .command('joinnet <network>')
+    .command('join <network>')
     .description('Joins specific network according to configs found in config/netConfig.json')
     .action(async ( network )=>{
         if(nodeAddress){
@@ -95,7 +95,7 @@ program
     })
 
 program
-    .command('createnet <network>')
+    .command('create <network>')
     .description('Joins specific network according to configs found in config/netConfig.json')
     .action(async ( network )=>{
         if(nodeAddress){

@@ -93,8 +93,9 @@ class Node {
     this.accountCreator = new AccountCreator();
     this.chain = new Blockchain([], this.mempool);
     //Network tools
+    this.network = options.network
     this.ssl = new SSLHandler()
-    this.networkManager = new NetworkManager()
+    this.networkManager = new NetworkManager(this.network)
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -167,6 +168,8 @@ class Node {
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
             let networkConfigLoaded = await this.networkManager.init()
+            let joined = await this.networkManager.joinNetwork(this.network)
+            if(joined.error) console.log('NETWORK ERROR', joined.error)
             
             if(!nodeListLoaded) reject('Could not load node list')
             if(!mempoolLoaded) reject('Could not load mempool');
@@ -306,6 +309,7 @@ class Node {
     socket.on('disconnect', async()=>{ 
       logger(`Peer ${peerAddress} has disconnected from node`);
       delete this.peersConnected[peerAddress];
+      socket.disconnect()
     })
 
     socket.on('connectionRequest', async(address)=>{
@@ -609,7 +613,7 @@ class Node {
             let isSameIp = extractBaseIpAddress(peer.address) == extractBaseIpAddress(this.address)
             if(!this.connectionsToPeers[peer.address] && !isSameIp){
               let { host, port, address } = peer
-              logger('Found new peer', chalk.green(address))
+              // logger('Found new peer', chalk.green(address))
               this.peerManager.connectToPeer(address)
             }
           })

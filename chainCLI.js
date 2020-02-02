@@ -193,7 +193,7 @@ program
 .option('-y, --yes', 'Skip prompt')
 .option('-f, --folder <folder>', 'Folder to empty')
 .action(()=>{
-    console.log('Folder', program.folder)
+    if(!program.folder) throw new Error('ERROR: Need to specify which data folder to empty')
     const inquirer = require('inquirer');
     const { exec } = require('child_process');
     let validation = {
@@ -201,8 +201,9 @@ program
     }
     if(program.yes){
         
-        exec(`rm -r -f ${program.folder || 'databases'}/*`,(err, stdout, stderr)=>{
+        exec(`rm -r -f ./data/${program.folder}/*`,(err, stdout, stderr)=>{
             if (err) {
+                console.log('ERROR', err)
               // node couldn't execute the command
               return;
             }
@@ -217,7 +218,7 @@ program
         .then((answer)=>{
             if(answer.validation == 'yes' || answer.validation == 'y' || answer.validation == '1'){
                 // exec('rm data/chainDB/* data/mempool.json data/balances.json data/lastBlock.json data/stateDB/* data/accountsDB/* data/cpuTimeAllocationsDB/* data/memAllocationsDB/* data/contractDB/* data/contractStateDB/* data/accounts.json data/transactionDB/* data/actionDB/* data/balanceDB/*', (err, stdout, stderr) => {
-                    exec(`rm -r -f ${program.folder || 'databases'}/*`,(err, stdout, stderr)=>{
+                    exec(`rm -r -f ./data/${program.folder}/*`,(err, stdout, stderr)=>{
                         if (err) {
                         // node couldn't execute the command
                         return;
