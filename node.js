@@ -213,15 +213,9 @@ class Node {
               if(socket){
                 
                     socket.on('authentication', (config)=>{
-                      console.log('Received', config)
                       let verified = this.verifyNetworkConfig(config)
-                      if(verified){
-                        console.log('Verified:', verified)
+                      if(!verified.error){
                         socket.emit('authenticated', { success:true })
-                      }else{
-                        socket.emit('authenticated', { error:'ERROR: Could not admit peer to network' })
-
-                      }
                         socket.on('message', (msg) => { logger('Client:', msg); });
 
                         if(token && token != undefined){
@@ -247,6 +241,11 @@ class Node {
                           socket.emit('message', 'Connected to local node');
                           this.externalEventHandlers(socket);
                         }
+                      }else{
+                        socket.emit('authenticated', { error:'ERROR: Could not admit peer to network' })
+
+                      }
+                        
                       
                     })
                     
@@ -274,15 +273,11 @@ class Node {
   }
 
   verifyNetworkConfig(networkConfig){
-    if(networkConfig){
+    if(networkConfig && typeof networkConfig == 'object'){
       let genesisConfigHash = getGenesisConfigHash()
-      console.log('Own hash', genesisConfigHash)
       let peerGenesisConfigHash = sha256(JSON.stringify(networkConfig.genesisConfig))
-      console.log('Peer hash', peerGenesisConfigHash)
       let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
-      console.log('Is valid', isValidPeerGenesisHash)
       let matchesOwnGenesisConfigHash = peerGenesisConfigHash === genesisConfigHash
-      console.log('Matches', matchesOwnGenesisConfigHash)
       return isValidPeerGenesisHash && matchesOwnGenesisConfigHash
     }else{
       return { error:'ERROR: Need to provide valid network config' }
