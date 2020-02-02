@@ -91,5 +91,23 @@ program
 
     })
 
+program
+    .command('createnet <network>')
+    .description('Joins specific network according to configs found in config/netConfig.json')
+    .action(async ( network )=>{
+        if(nodeAddress){
+            let manager = new NetworkManager()
+            let started = await manager.init()
+            let genesis = require('./modules/tools/getGenesis')
+            let token = new NetworkToken(genesis)
+            let added = await manager.addNetwork(token)
+            
+
+        }else{
+            throw new Error('URL of active is required')
+        }
+
+    })
+
 program.parse(process.argv)
 

@@ -76,22 +76,27 @@ class PeerManager{
                             
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
-                                
-                                this.connectionsToPeers[address] = peer;
-                                logger(chalk.green('Connected to ', address))
-                                this.UILog('Connected to ', address)
-                                
-                                peer.emit('message', 'Connection established by '+ this.address);
-                                let status = await this.buildBlockchainStatus()
-                                peer.emit('connectionRequest', this.address);
-                                this.nodeList.addNewAddress(address)  
-                                this.onPeerAuthenticated(peer)
-                                
+                                if(response.success){
+                                    this.connectionsToPeers[address] = peer;
+                                    logger(chalk.green('Connected to ', address))
+                                    this.UILog('Connected to ', address)
+                                    
+                                    peer.emit('message', 'Connection established by '+ this.address);
+                                    let status = await this.buildBlockchainStatus()
+                                    peer.emit('connectionRequest', this.address);
+                                    this.nodeList.addNewAddress(address)  
+                                    this.onPeerAuthenticated(peer)
+                                    
 
-                                setTimeout(()=>{
-                                    peer.emit('getBlockchainStatus', status);
-                                    peer.emit('getPeers')
-                                },2000);
+                                    setTimeout(()=>{
+                                        peer.emit('getBlockchainStatus', status);
+                                        peer.emit('getPeers')
+                                    },2000);
+                                }else{
+                                    logger('WARNING: Could not connect to peer '+address)
+                                    peer.disconnect()
+                                }
+                                
                             });
                             
                         

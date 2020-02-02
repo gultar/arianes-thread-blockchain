@@ -1,6 +1,7 @@
 const NetworkToken = require('./networkToken')
 const genesis = require('../tools/getGenesis')
 const { readFile, writeToFile } = require('../tools/utils')
+const fs = require('fs')
 
 class NetworkConfig{
     constructor(){
@@ -23,8 +24,9 @@ class NetworkConfig{
 
     async loadNetworkConfig(){
         try{
-            let file = await readFile(this.path)
-            if(file){
+            let exists = fs.existsSync(this.path)
+            if(exists){
+                let file = await readFile(this.path)
                 this.networks = JSON.parse(file).networks
                 return file
             }else{

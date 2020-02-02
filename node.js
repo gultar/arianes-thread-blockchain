@@ -177,7 +177,7 @@ class Node {
             logger('Loaded transaction mempool');
             logger('Number of transactions in pool: '+this.mempool.sizeOfPool());
             logger('Number of actions in pool: '+this.mempool.sizeOfActionPool());
-
+            logger('Attempting to connect to network: '+this.networkManager.currentNetwork)
 
             if(this.httpsEnabled){
               let sslConfig = await this.ssl.getCertificateAndPrivateKey()
@@ -215,7 +215,7 @@ class Node {
                     socket.on('authentication', (config)=>{
                       let verified = this.verifyNetworkConfig(config)
                       if(!verified.error){
-                        socket.emit('authenticated', { success:true })
+                        socket.emit('authenticated', { success:this.networkManager.getNetwork() })
                         socket.on('message', (msg) => { logger('Client:', msg); });
 
                         if(token && token != undefined){
@@ -242,7 +242,7 @@ class Node {
                           this.externalEventHandlers(socket);
                         }
                       }else{
-                        socket.emit('authenticated', { error:'ERROR: Could not admit peer to network' })
+                        socket.emit('authenticated', { error:'ERROR: Could not admit peer to network', network:this.networkManager.getNetwork() })
 
                       }
                         

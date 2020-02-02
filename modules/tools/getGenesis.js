@@ -1,13 +1,17 @@
 const fs = require('fs')
-const Blockchain = require('../classes/blockchain/chain')
+const { createGenesisBlock, saveGenesisFile } = require('../classes/genesisBlock')
 let genesis = {}
-if(fs.existsSync('./config/genesis.json')){
-    genesis = JSON.parse(fs.readFileSync('./config/genesis.json', 'utf8'))
-}else{
-    let _tempChain = new Blockchain()
-    genesis = _tempChain.createGenesisBlock()
+let path = './config/genesis.json'
+const getGenesis = ()=>{
+    if(fs.existsSync(path)){
+        genesis = JSON.parse(fs.readFileSync(path, 'utf8'))
+    }else{
+        genesis = createGenesisBlock()
+        let saved = fs.writeFileSync(path, JSON.stringify(genesis, null, 2))
+    }
+
+    return genesis
 }
 
-module.exports = genesis
-
+module.exports = getGenesis()
 
