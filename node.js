@@ -567,7 +567,7 @@ class Node {
       this.peerDiscovery.collectPeers((emitter)=>{
         emitter.on('peerDiscovered', (peer)=> {
           let { host, port, address } = peer
-          logger('Found new peer', chalk.green(address))
+          // logger('Found new peer', chalk.green(address))
           this.peerManager.connectToPeer(address)
         })
       })
