@@ -25,6 +25,7 @@ class NetworkConfig{
         try{
             let file = await readFile(this.path)
             if(file){
+                this.networks = JSON.parse(file).networks
                 return file
             }else{
                 let token = new NetworkToken(genesis)

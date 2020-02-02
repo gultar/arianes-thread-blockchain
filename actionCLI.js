@@ -340,6 +340,8 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
             let password = program.password
             let filename = program.filename
             let initParams = program.initParams
+
+            console.log(program.filename)
             
             if(!address) throw new Error('ERROR: URL of receiving node is required')
             if(!accountName) throw new Error('ERROR: Name of sending account is required')

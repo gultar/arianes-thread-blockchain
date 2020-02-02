@@ -9,20 +9,16 @@ class NetworkManager{
         this.genesis = genesis
         this.currentNetwork = genesis.network || 'mainnet'
         this.configs = {}
-        this.networks = {}
     }
 
     async init(){
         try{
-            let networkConfig = new NetworkConfig()
-            let configString = await networkConfig.loadNetworkConfig()
-            this.configs = networkConfig
-            if(configString){
-                if(configString.error) return { error:configString.error }
-                let configs = JSON.parse(configString)
-                this.networks = configs.networks
+            this.configs = new NetworkConfig() 
+            let loaded = await this.configs.loadNetworkConfig()
+            if(loaded){
+                if(loaded.error) return { error:loaded.error }
                 logger('Loaded network configurations')
-                return true
+                return loaded
             }else{
                 return { error:'ERROR: Could not initialize network manager' }
             }
@@ -46,8 +42,9 @@ class NetworkManager{
         return added
     }
 
-    async getNetwork(network){
-        return this.configs.getNetwork(network)
+    getNetwork(network=genesis.network){
+        let networkToken = this.configs.getNetwork(network)
+        return networkToken
     }
 
     async joinNetwork(network){

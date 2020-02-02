@@ -3,10 +3,11 @@ const { logger } = require('../tools/utils')
 const chalk = require('chalk')
 
 class PeerManager{
-    constructor({ address, connectionsToPeers, nodeList, receiveBlockchainStatus, buildBlockchainStatus, UILog, verbose, noLocalhost }){
+    constructor({ address, connectionsToPeers, networkManager, nodeList, receiveBlockchainStatus, buildBlockchainStatus, UILog, verbose, noLocalhost }){
         this.address = address
         this.connectionsToPeers = connectionsToPeers
         this.nodeList = nodeList
+        this.networkManager = networkManager
         this.receiveBlockchainStatus = receiveBlockchainStatus
         this.buildBlockchainStatus = buildBlockchainStatus
         this.UILog = UILog
@@ -25,7 +26,12 @@ class PeerManager{
                 let connectionAttempts = 0;
                 let peer;
                 try{
-                
+                    let networkConfig = this.networkManager.getNetwork()
+                    let token = {
+                        address:this.address,
+                        networkConfig:networkConfig
+                    }
+                    console.log(token)
                     let config = {
                         'reconnection limit' : 1000,
                         'max reconnection attempts' : 3,
@@ -35,7 +41,7 @@ class PeerManager{
                         'rejectUnauthorized':false,
                         'query':
                         {
-                            token: JSON.stringify({ 'address':this.address }),
+                            token: JSON.stringify(token),
                         }
                     }
 
@@ -66,46 +72,33 @@ class PeerManager{
 
                     peer.on('connect', async () =>{
                         if(!this.connectionsToPeers[address]){
-                            this.connectionsToPeers[address] = peer;
-                            logger(chalk.green('Connected to ', address))
-                            this.UILog('Connected to ', address)
-                            
-                            peer.emit('message', 'Connection established by '+ this.address);
-                            let status = await this.buildBlockchainStatus()
-                            peer.emit('connectionRequest', this.address);
-                            this.nodeList.addNewAddress(address)  
+                            peer.emit('authentication', networkConfig);
+                            peer.on('authenticated',async  (response)=>{
+                                console.log(response)
+                                // use the socket as usual
+                                this.connectionsToPeers[address] = peer;
+                                logger(chalk.green('Connected to ', address))
+                                this.UILog('Connected to ', address)
+                                
+                                peer.emit('message', 'Connection established by '+ this.address);
+                                let status = await this.buildBlockchainStatus()
+                                peer.emit('connectionRequest', this.address);
+                                this.nodeList.addNewAddress(address)  
+                                this.onPeerAuthenticated(peer)
+                                
 
-                            setTimeout(()=>{
-                                peer.emit('getBlockchainStatus', status);
-                                peer.emit('getPeers')
-                            },2000);
+                                setTimeout(()=>{
+                                    peer.emit('getBlockchainStatus', status);
+                                    peer.emit('getPeers')
+                                },2000);
+                            });
+                            
                         
                         
                         }else{}
                     })
 
-                    peer.on('newPeers', (peers)=> {
-                        if(peers && typeof peers == Array){
-                            peers.forEach(addr =>{
-                                //Validate if ip address
-                                logger('Peer sent a list of potential peers')
-                                if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
-                                    this.nodeList.addNewAddress(addr)
-                                }
-                            })
-                        }
-                    })
-
-                    peer.on('blockchainStatus', async (status)=>{
-                        let updated = await this.receiveBlockchainStatus(peer, status)
-                        if(updated.error) console.log(updated.error)
-                    })
-
-                    peer.on('disconnect', () =>{
-                        logger(`connection with peer ${address} dropped`);
-                        delete this.connectionsToPeers[address];
-                        peer.disconnect()
-                    })
+                    
 
                     if(callback){
                         callback(peer)
@@ -120,6 +113,31 @@ class PeerManager{
             }
 
         }
+    }
+
+    onPeerAuthenticated(peer){
+        peer.on('newPeers', (peers)=> {
+            if(peers && typeof peers == Array){
+                peers.forEach(addr =>{
+                    //Validate if ip address
+                    logger('Peer sent a list of potential peers')
+                    if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
+                        this.nodeList.addNewAddress(addr)
+                    }
+                })
+            }
+        })
+
+        peer.on('blockchainStatus', async (status)=>{
+            let updated = await this.receiveBlockchainStatus(peer, status)
+            if(updated.error) console.log(updated.error)
+        })
+
+        peer.on('disconnect', () =>{
+            logger(`connection with peer ${address} dropped`);
+            delete this.connectionsToPeers[address];
+            peer.disconnect()
+        })
     }
 }
 

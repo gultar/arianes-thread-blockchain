@@ -1,6 +1,5 @@
 const makeExternal = require('makeExternal')
 const Permissions = require('Permissions')
-const createContractInterface = require('createContractInterface')
 
 class Storage{
     constructor(initParams){

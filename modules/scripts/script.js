@@ -1,5 +1,5 @@
-const Action = require('../../../classes/action')
-const Wallet = require('../../../classes/wallet')
+const Transaction = require('../classes/transactions/transaction')
+const Wallet = require('../classes/wallets/wallet')
 const axios = require('axios')
 const setData = async  () =>{
 
@@ -17,23 +17,42 @@ const setData = async  () =>{
     // }
 
     let instruction = {
-        contractName: "Token",
         method:"issue",
-        account:'tuor',
+        cpuTime:5,
         params:{
-            'symbol':"hermeticCoin",
-            'amount':10000,
+            'symbol':"HERMETIC",
+            'amount':1,
             "receiver":"voronwe",
         }
     }
 
-    let action = new Action('tuor', 'contract', 'call', instruction)
+    console.log(JSON.stringify(instruction))
+
+    let createHermetic = {
+        method:"createToken",
+        cpuTime:5,
+        params:{
+            'symbol':"HERMETIC",
+            'maxSupply':10000000000000,
+            "name":"hermeticCoin",
+        }
+    }
+
+    let transaction = new Transaction({
+        fromAddress:'tuor',
+        toAddress:'Tokens',
+        amount:0,
+        data:instruction,
+        type:'call',
+
+    })
+
     let unlocked = await wallet.unlock('8003', 2)
-    let signature = await wallet.sign(action.hash)
+    let signature = await wallet.sign(transaction.hash)
 
-    action.signature = signature;
+    transaction.signature = signature;
 
-    axios.post(`http://127.0.0.1:10003/action`, action)
+    axios.post(`http://127.0.0.1:10003/transaction`, transaction)
     .then( response => {
         console.log(response.data)
         

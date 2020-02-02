@@ -48,6 +48,7 @@ const {
   isValidBlockJSON
 } = require('./modules/tools/jsonvalidator');
 const sha256 = require('./modules/tools/sha256');
+const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
 const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
@@ -110,6 +111,7 @@ class Node {
     this.peerManager = new PeerManager({
       address:this.address,
       connectionsToPeers:this.connectionsToPeers,
+      networkManager:this.networkManager,
       nodeList:this.nodeList,
       noLocalhost:this.noLocalhost,
       receiveBlockchainStatus:(peer, status)=>{
@@ -210,31 +212,42 @@ class Node {
               
               if(socket){
                 
-                    socket.on('message', (msg) => { logger('Client:', msg); });
-
-                    if(token && token != undefined){
-                      token = JSON.parse(token)
-                      let peerAddress = token.address
-                      
-                      if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
-                        
-                        if(!this.peersConnected[peerAddress]){
-
-                          this.peersConnected[peerAddress] = socket;
-                          this.nodeList.addNewAddress(peerAddress);
-                          this.nodeEventHandlers(socket, peerAddress);
-
-                        }else{
-                          //  logger('Peer is already connected to node')
-                        }
+                    socket.on('authentication', (config)=>{
+                      let verified = this.verifyNetworkConfig(config)
+                      if(verified){
+                        console.log('Verified:', verified)
+                        socket.emit('authenticated', { success:true })
                       }else{
-                        socket.emit('message', 'Connected to local node');
-                        this.externalEventHandlers(socket);
-                      } 
-                    }else{
-                      socket.emit('message', 'Connected to local node');
-                      this.externalEventHandlers(socket);
-                    }
+                        socket.emit('authenticated', { error:'ERROR: Could not admit peer to network' })
+
+                      }
+                        socket.on('message', (msg) => { logger('Client:', msg); });
+
+                        if(token && token != undefined){
+                          token = JSON.parse(token)
+                          let peerAddress = token.address
+                          
+                          if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
+                            
+                            if(!this.peersConnected[peerAddress]){
+
+                              this.peersConnected[peerAddress] = socket;
+                              this.nodeList.addNewAddress(peerAddress);
+                              this.nodeEventHandlers(socket, peerAddress);
+
+                            }else{
+                              //  logger('Peer is already connected to node')
+                            }
+                          }else{
+                            socket.emit('message', 'Connected to local node');
+                            this.externalEventHandlers(socket);
+                          } 
+                        }else{
+                          socket.emit('message', 'Connected to local node');
+                          this.externalEventHandlers(socket);
+                        }
+                      
+                    })
                     
                 
                 
@@ -257,6 +270,22 @@ class Node {
 
         
     })
+  }
+
+  verifyNetworkConfig(networkConfig){
+    if(networkConfig){
+      let genesisConfigHash = getGenesisConfigHash()
+      console.log('Own hash', genesisConfigHash)
+      let peerGenesisConfigHash = sha256(JSON.stringify(networkConfig.genesisConfig))
+      console.log('Peer hash', peerGenesisConfigHash)
+      let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
+      console.log('Is valid', isValidPeerGenesisHash)
+      let matchesOwnGenesisConfigHash = peerGenesisConfigHash === genesisConfigHash
+      console.log('Matches', matchesOwnGenesisConfigHash)
+      return isValidPeerGenesisHash && matchesOwnGenesisConfigHash
+    }else{
+      return { error:'ERROR: Need to provide valid network config' }
+    }
   }
 
   /**
@@ -405,7 +434,7 @@ class Node {
               if(block.error) socket.emit('previousBlock', {error:block.error})
               socket.emit('previousBlock', block)
             }else{
-              socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${previousBlock.hash} at block index ${previousBlock.blockNumber}`})
+              socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${previousBlock.hash.substr(0, 10)}... at block index ${previousBlock.blockNumber}`})
             }
             
           }
@@ -438,7 +467,7 @@ class Node {
                 if(block.error) socket.emit('nextBlock', {error:block.error})
                 socket.emit('nextBlock', block)
               }else{
-                socket.emit('nextBlock', {error:`ERROR: Could not find block body of ${nextBlock.hash} at block index ${nextBlock.blockNumber}`})
+                socket.emit('nextBlock', {error:`ERROR: Could not find block body of ${nextBlock.hash.substr(0, 10)}... at block index ${nextBlock.blockNumber}`})
               }
               
                 

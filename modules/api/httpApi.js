@@ -125,7 +125,7 @@ class HttpAPI{
             })
 
           }else{
-            res.send('ERROR: Invalid transaction format')
+            res.send('ERROR: Invalid action format')
           }
           
         }catch(e){
@@ -150,7 +150,7 @@ class HttpAPI{
               }
             })
           }else{
-            res.send('ERROR: Invalid transaction format')
+            res.send('ERROR: Invalid action format')
           }
           
         }catch(e){
@@ -216,7 +216,6 @@ class HttpAPI{
     })
 
     app.get('/getBlock', (req, res)=>{
-      console.log(req.protocol + '://' + "myDomain.com" + req.originalUrl)
       let blockNumber = req.query.blockNumber;
       if(blockNumber && typeof blockNumber == number){
         let block = this.chain.chain[blockNumber]
@@ -231,7 +230,7 @@ class HttpAPI{
 
     app.get('/getBlockHeader', (req, res)=>{
       let blockNumber = req.query.blockNumber;
-      if(this.chain instanceof Blockchain && blockNumber && typeof blockNumber == number){
+      if(blockNumber && typeof blockNumber == number){
         let header = this.chain.getBlockHeader(blockNumber)
         if(header){
           res.json(header).end()
