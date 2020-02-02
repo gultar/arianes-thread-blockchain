@@ -31,7 +31,7 @@ class PeerManager{
                         address:this.address,
                         networkConfig:networkConfig
                     }
-                    console.log(token)
+                    
                     let config = {
                         'reconnection limit' : 1000,
                         'max reconnection attempts' : 3,
@@ -73,7 +73,7 @@ class PeerManager{
 
                     peer.on('connect', async () =>{
                         if(!this.connectionsToPeers[address]){
-                            console.log(peer)
+                            
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
                                 console.log(response)
