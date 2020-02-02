@@ -53,16 +53,18 @@ function createGenesisBlock(){
     let genesisBlock = new Block({
         timestamp:1554987342039,
         transactions:{ 
-              'maxCurrency':new Transaction
-              ({
+              'maxCurrency':{
                 fromAddress:'coinbase',
                 toAddress:'coinbase',
                 amount:1000 * 1000 * 1000 * 1000,
                 data:'Maximum allowed currency in circulation',
                 type:'coinbaseReserve',
                 hash:false,
-                miningFee:0
-              }),
+                miningFee:0,
+                timestamp:1554987342039,
+                nonce:0,
+                delayToBlock:0,
+              },
             },
         actions:{}
       })
@@ -85,6 +87,8 @@ function createGenesisBlock(){
         "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{ balance:10000 },
         "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr":{ balance:10000 },
       }
+
+      genesisBlock.startMineTime = genesisBlock.timestamp
 
       return genesisBlock
   }
