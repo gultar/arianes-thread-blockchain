@@ -52,6 +52,7 @@ class PeerManager{
                     
                     peer = ioClient(address, config);
                     peer.heartbeatTimeout = 120000;
+                    peer.address = address
 
                     if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
                     this.UILog('Requesting connection to '+ address+ ' ...');
@@ -72,6 +73,7 @@ class PeerManager{
 
                     peer.on('connect', async () =>{
                         if(!this.connectionsToPeers[address]){
+                            console.log(peer)
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
                                 console.log(response)
@@ -134,6 +136,7 @@ class PeerManager{
         })
 
         peer.on('disconnect', () =>{
+            let address = peer.address
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
             peer.disconnect()

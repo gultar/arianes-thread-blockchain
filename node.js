@@ -213,6 +213,7 @@ class Node {
               if(socket){
                 
                     socket.on('authentication', (config)=>{
+                      console.log('Received', config)
                       let verified = this.verifyNetworkConfig(config)
                       if(verified){
                         console.log('Verified:', verified)
