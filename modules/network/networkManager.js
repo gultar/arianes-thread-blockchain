@@ -42,7 +42,7 @@ class NetworkManager{
         return added
     }
 
-    getNetwork(network=genesis.network){
+    getNetwork(network=this.currentNetwork){
         let networkToken = this.configs.getNetwork(network)
         return networkToken
     }
