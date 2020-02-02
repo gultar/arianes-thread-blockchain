@@ -1,5 +1,5 @@
 const fs = require('fs')
-const { createGenesisBlock, saveGenesisFile } = require('../classes/genesisBlock')
+const { createGenesisBlock } = require('../classes/genesisBlock')
 let genesis = {}
 let path = './config/genesis.json'
 const getGenesis = ()=>{

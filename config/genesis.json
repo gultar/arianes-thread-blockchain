@@ -7,10 +7,10 @@
       "toAddress": "coinbase",
       "type": "coinbaseReserve",
       "data": "Maximum allowed currency in circulation",
-      "timestamp": 1580659382277,
+      "timestamp": 1580660046866,
       "amount": 1000000000000,
       "nonce": 0,
-      "hash": "1a495a463034b407ed878a0901cf420a3e44692e4bc1aab6356e270d69f2f26d",
+      "hash": "d0a9076f97736b5cf6658edb8adca79271ff76e765af0d794efffdc296819c43",
       "miningFee": 0.0149,
       "delayToBlock": 0
     }
@@ -24,13 +24,13 @@
   "hash": "09899ef0175512358bcee24d5a1c3db63f816ee5eec03bc977df3dd0cb06f7d0",
   "minedBy": "",
   "challenge": "7ee2825ab3eb2ed69d1e7b6a50ca38ffc08ebed2a60a6894b170c24ad79ae",
-  "startMineTime": 1580659382279,
+  "startMineTime": 1580660046868,
   "endMineTime": 0,
   "coinbaseTransactionHash": "",
   "signatures": {},
   "blockTime": 10,
-  "consensus": "Proof of Importance",
-  "network": "testnet",
+  "consensus": "Proof of Work",
+  "network": "mainnet",
   "maxCoinSupply": 10000000000,
   "states": {
     "coinbase": {
