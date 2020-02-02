@@ -73,10 +73,10 @@ class PeerManager{
 
                     peer.on('connect', async () =>{
                         if(!this.connectionsToPeers[address]){
-                            
+                            console.log('NET', networkConfig)
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
-                                console.log(JSON.stringify(response, null, 2))
+                                // console.log(JSON.stringify(response, null, 2))
                                 if(response.success){
                                     this.connectionsToPeers[address] = peer;
                                     logger(chalk.green('Connected to ', address))

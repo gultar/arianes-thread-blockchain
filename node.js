@@ -277,6 +277,7 @@ class Node {
     if(networkConfig && typeof networkConfig == 'object'){
       let genesisConfigHash = getGenesisConfigHash()
       console.log('Gen', genesisConfigHash)
+      console.log('Gen config', networkConfig.genesisConfig)
       let peerGenesisConfigHash = sha256(JSON.stringify(networkConfig.genesisConfig))
       console.log('Peer', peerGenesisConfigHash)
       let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
