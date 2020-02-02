@@ -9,8 +9,8 @@ const genesis = require('../tools/getGenesis')
 class PeerDiscovery{
 
     constructor(opts){
-        let { address, host, port, knownPeers } = opts
-        this.channel = genesis.network || 'mainnet';
+        let { channel, address, host, port, knownPeers } = opts
+        this.channel = channel;
         this.address = address;
         this.host = host;
         this.port = port;

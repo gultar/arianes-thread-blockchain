@@ -243,7 +243,7 @@ class Node {
                         }
                       }else{
                         socket.emit('authenticated', { error:'ERROR: Could not admit peer to network', network:this.networkManager.getNetwork() })
-
+                        socket.disconnect()
                       }
                         
                       
@@ -277,8 +277,10 @@ class Node {
       let genesisConfigHash = getGenesisConfigHash()
       let peerGenesisConfigHash = sha256(JSON.stringify(networkConfig.genesisConfig))
       let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
+      if(!isValidPeerGenesisHash) return false
       let matchesOwnGenesisConfigHash = peerGenesisConfigHash === genesisConfigHash
-      return isValidPeerGenesisHash && matchesOwnGenesisConfigHash
+      if(!matchesOwnGenesisConfigHash) return false
+      return true
     }else{
       return { error:'ERROR: Need to provide valid network config' }
     }
@@ -590,7 +592,9 @@ class Node {
       }
     }
     if(!this.peerDiscovery){
+      logger('Looking for peers on ', this.networkManager.currentNetwork)
       this.peerDiscovery = new PeerDiscovery({
+        channel:this.networkManager.currentNetwork,
         address:this.address,
         host:this.host,
         port:this.peerDiscoveryPort,
