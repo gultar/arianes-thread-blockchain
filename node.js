@@ -214,7 +214,7 @@ class Node {
                 
                     socket.on('authentication', (config)=>{
                       let verified = this.verifyNetworkConfig(config)
-                      if(!verified.error){
+                      if(verified && !verified.error){
                         socket.emit('authenticated', { success:this.networkManager.getNetwork() })
                         socket.on('message', (msg) => { logger('Client:', msg); });
 
