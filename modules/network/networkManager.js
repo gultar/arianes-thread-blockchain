@@ -39,7 +39,7 @@ class NetworkManager{
 
     async addNetwork(networkToken){
         let added = this.configs.addNetwork(networkToken)
-        let saved = await this.save()
+        let saved = await this.save({ silent:true })
         return added
     }
 
@@ -63,8 +63,8 @@ class NetworkManager{
         
     }
 
-    async save(){
-        logger('Saving network configurations')
+    async save({ silent=false }){
+        if(!silent) logger('Saving network configurations')
         return await this.configs.saveNetworkConfig()
     }
 }
