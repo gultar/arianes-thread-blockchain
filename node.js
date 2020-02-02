@@ -608,7 +608,7 @@ class Node {
             let isSameIp = extractBaseIpAddress(peer.address) == extractBaseIpAddress(this.address)
             if(!this.connectionsToPeers[peer.address] && !isSameIp){
               let { host, port, address } = peer
-              logger('Found new peer', chalk.green(address))
+              // logger('Found new peer', chalk.green(address))
               this.peerManager.connectToPeer(address)
             }
           })
