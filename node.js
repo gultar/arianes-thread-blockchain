@@ -167,7 +167,7 @@ class Node {
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
             let networkConfigLoaded = await this.networkManager.init()
-            
+            console.log(this.networkManager.getNetwork())
             if(!nodeListLoaded) reject('Could not load node list')
             if(!mempoolLoaded) reject('Could not load mempool');
             //if(!accountsLoaded) reject('Could not load account table')
@@ -177,6 +177,7 @@ class Node {
             logger('Loaded transaction mempool');
             logger('Number of transactions in pool: '+this.mempool.sizeOfPool());
             logger('Number of actions in pool: '+this.mempool.sizeOfActionPool());
+            logger('Loaded network configurations')
             logger('Attempting to connect to network: '+this.networkManager.currentNetwork)
 
             if(this.httpsEnabled){
@@ -275,10 +276,14 @@ class Node {
   verifyNetworkConfig(networkConfig){
     if(networkConfig && typeof networkConfig == 'object'){
       let genesisConfigHash = getGenesisConfigHash()
+      console.log('Gen', genesisConfigHash)
       let peerGenesisConfigHash = sha256(JSON.stringify(networkConfig.genesisConfig))
+      console.log('Peer', peerGenesisConfigHash)
       let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
+      console.log('Is valid', isValidPeerGenesisHash)
       if(!isValidPeerGenesisHash) return false
       let matchesOwnGenesisConfigHash = peerGenesisConfigHash === genesisConfigHash
+      console.log('Matches', matchesOwnGenesisConfigHash)
       if(!matchesOwnGenesisConfigHash) return false
       return true
     }else{
@@ -608,7 +613,7 @@ class Node {
             let isSameIp = extractBaseIpAddress(peer.address) == extractBaseIpAddress(this.address)
             if(!this.connectionsToPeers[peer.address] && !isSameIp){
               let { host, port, address } = peer
-              // logger('Found new peer', chalk.green(address))
+              logger('Found new peer', chalk.green(address))
               this.peerManager.connectToPeer(address)
             }
           })

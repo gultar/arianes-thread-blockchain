@@ -4,6 +4,7 @@ const program = require('commander');
 const ioClient = require('socket.io-client');
 const NetworkManager = require('./modules/network/networkManager')
 const NetworkToken = require('./modules/network/networkToken')
+const { logger } = require('./modules/tools/utils')
 const activePort = require('dotenv').config({ path: './config/.env' })
 if (activePort.error) throw activePort.error
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
@@ -72,13 +73,15 @@ program
             let isKnownNetwork = manager.getNetwork(network)
             if(isKnownNetwork){
                 let swapped = await manager.joinNetwork(network)
-                console.log('Swapped:', swapped)
+                let saved = await manager.save()
+                logger(`Joined network ${network}`)
             }else{
                 let genesis = require('./modules/tools/getGenesis')
                 if(genesis.network == network){
                     let token = new NetworkToken(genesis)
                     let added = await manager.addNetwork(token)
-                    console.log('Network added')
+                    let saved = await manager.save()
+                    logger(`Added network ${network} from genesis block`)
                 }else{
                     console.log('Could not find network '+network)
                 }

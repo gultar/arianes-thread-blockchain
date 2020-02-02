@@ -17,7 +17,6 @@ class NetworkManager{
             let loaded = await this.configs.loadNetworkConfig()
             if(loaded){
                 if(loaded.error) return { error:loaded.error }
-                logger('Loaded network configurations')
                 return loaded
             }else{
                 return { error:'ERROR: Could not initialize network manager' }
@@ -53,7 +52,7 @@ class NetworkManager{
         if(networkToken){
             let newGenesis = networkToken.genesisConfig
             let savedGenesis = await saveGenesisFile(newGenesis)
-            let saved = this.save()
+            let saved = this.save('silent')
             if(saved.error || savedGenesis.error) return { error:saved.error || savedGenesis.error } 
             else return saved
         }else{
