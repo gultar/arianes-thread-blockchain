@@ -29,8 +29,8 @@
   "coinbaseTransactionHash": "",
   "signatures": {},
   "blockTime": 10,
-  "consensus": "Proof of Work",
-  "network": "mainnet",
+  "consensus": "Proof of Importance",
+  "network": "testnet",
   "maxCoinSupply": 10000000000,
   "states": {
     "coinbase": {

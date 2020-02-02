@@ -2,6 +2,8 @@
 
 const program = require('commander');
 const ioClient = require('socket.io-client');
+const NetworkManager = require('./modules/network/networkManager')
+const NetworkToken = require('./modules/network/networkToken')
 const activePort = require('dotenv').config({ path: './config/.env' })
 if (activePort.error) throw activePort.error
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
@@ -61,15 +63,27 @@ program
     })
 
 program
-    .command('joinNet <network>')
+    .command('joinnet <network>')
     .description('Joins specific network according to configs found in config/netConfig.json')
-    .action(( address )=>{
+    .action(async ( network )=>{
         if(nodeAddress){
-            openSocket(nodeAddress, (socket)=>{
-                if(address){
-                    socket.emit('connectionRequest', address)
+            let manager = new NetworkManager()
+            let started = await manager.init()
+            let isKnownNetwork = manager.getNetwork(network)
+            if(isKnownNetwork){
+                let swapped = await manager.joinNetwork(network)
+                console.log('Swapped:', swapped)
+            }else{
+                let genesis = require('./modules/tools/getGenesis')
+                if(genesis.network == network){
+                    let token = new NetworkToken(genesis)
+                    let added = await manager.addNetwork(token)
+                    console.log('Network added')
+                }else{
+                    console.log('Could not find network '+network)
                 }
-            })
+            }
+            
 
         }else{
             throw new Error('URL of active is required')

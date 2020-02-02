@@ -39,6 +39,7 @@ class NetworkManager{
 
     async addNetwork(networkToken){
         let added = this.configs.addNetwork(networkToken)
+        let saved = await this.save()
         return added
     }
 
@@ -50,12 +51,16 @@ class NetworkManager{
     async joinNetwork(network){
         let networkToken = this.configs.getNetwork(network)
         if(networkToken){
-            let newGenesis = networkToken.config
-            let saved = await saveGenesisFile(newGenesis)
-            if(saved.error) return { error:saved.error } 
+            let newGenesis = networkToken.genesisConfig
+            let savedGenesis = await saveGenesisFile(newGenesis)
+            let saved = this.save()
+            if(saved.error || savedGenesis.error) return { error:saved.error || savedGenesis.error } 
+            else return saved
+        }else{
+            return { error:`ERROR: Network configurations for ${network} do not exist` }
         }
 
-        return saved
+        
     }
 
     async save(){

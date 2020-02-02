@@ -76,8 +76,7 @@ class PeerManager{
                             
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
-                                console.log(response)
-                                // use the socket as usual
+                                
                                 this.connectionsToPeers[address] = peer;
                                 logger(chalk.green('Connected to ', address))
                                 this.UILog('Connected to ', address)
