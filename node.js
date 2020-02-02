@@ -167,7 +167,7 @@ class Node {
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
             let networkConfigLoaded = await this.networkManager.init()
-            console.log(this.networkManager.getNetwork())
+            
             if(!nodeListLoaded) reject('Could not load node list')
             if(!mempoolLoaded) reject('Could not load mempool');
             //if(!accountsLoaded) reject('Could not load account table')
@@ -243,7 +243,7 @@ class Node {
                           this.externalEventHandlers(socket);
                         }
                       }else{
-                        socket.emit('authenticated', { error:'ERROR: Could not admit peer to network', network:this.networkManager.getNetwork() })
+                        socket.emit('authenticated', { error:verified.error, network:this.networkManager.getNetwork() })
                         socket.disconnect()
                       }
                         
@@ -276,16 +276,11 @@ class Node {
   verifyNetworkConfig(networkConfig){
     if(networkConfig && typeof networkConfig == 'object'){
       let genesisConfigHash = getGenesisConfigHash()
-      console.log('Gen', genesisConfigHash)
-      console.log('Gen config', networkConfig.genesisConfig)
       let peerGenesisConfigHash = sha256(JSON.stringify(networkConfig.genesisConfig))
-      console.log('Peer', peerGenesisConfigHash)
       let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
-      console.log('Is valid', isValidPeerGenesisHash)
-      if(!isValidPeerGenesisHash) return false
+      if(!isValidPeerGenesisHash) return { error:'ERROR: Peer genesis config hash is not valid' }
       let matchesOwnGenesisConfigHash = peerGenesisConfigHash === genesisConfigHash
-      console.log('Matches', matchesOwnGenesisConfigHash)
-      if(!matchesOwnGenesisConfigHash) return false
+      if(!matchesOwnGenesisConfigHash) return { error:"Peer's genesis config hash does not match the network's" }
       return true
     }else{
       return { error:'ERROR: Need to provide valid network config' }

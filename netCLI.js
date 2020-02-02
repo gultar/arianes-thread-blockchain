@@ -83,7 +83,7 @@ program
                     let saved = await manager.save()
                     logger(`Added network ${network} from genesis block`)
                 }else{
-                    console.log('Could not find network '+network)
+                    logger('ERROR: Could not find network '+network)
                 }
             }
             
