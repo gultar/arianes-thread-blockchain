@@ -76,7 +76,6 @@ class PeerManager{
                             
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
-                                console.log(response)
                                 if(response.success){
                                     this.connectionsToPeers[address] = peer;
                                     logger(chalk.green('Connected to ', address))
@@ -94,7 +93,7 @@ class PeerManager{
                                         peer.emit('getPeers')
                                     },2000);
                                 }else{
-                                    logger('WARNING: Could not connect to peer '+address)
+                                    if(response.network) await this.networkManager.addNetwork(response.network)
                                     peer.disconnect()
                                 }
                                 
