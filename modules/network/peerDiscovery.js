@@ -73,7 +73,7 @@ class PeerDiscovery{
 
     searchDHT(){
         return new Promise((resolve)=>{
-            logger('Looking for peers on Bittorrent DHT')
+            // logger('Looking for peers on Bittorrent DHT')
             let potentialPeers = {}
             this.swarm = Swarm({
                 id: randomBytes(32).toString('hex'), // peer-id for user
@@ -84,23 +84,34 @@ class PeerDiscovery{
             
             this.swarm.listen(this.port)
             this.swarm.on('connection', (connection, peer) => {
-                if(connection){
-                    if(isIP.v4(peer.host) && peer.host != 'localhost'){
-                        let nodePort = parseInt(peer.port) + 2000 //To be changed and fixed to a port number
-                        let address = `https://${peer.host}:${nodePort}`;
-                        peer.address = address
-                        this.emitter.emit('peerDiscovered', peer)
+                if(peer.channel){
+                    let channel = peer.channel.toString()
+                    if(channel === this.channel){
+                        if(connection){
+                            if(isIP.v4(peer.host) && peer.host != 'localhost'){
+                                let nodePort = parseInt(peer.port) + 2000 //To be changed and fixed to a port number
+                                let address = `https://${peer.host}:${nodePort}`;
+                                peer.address = address
+                                this.emitter.emit('peerDiscovered', peer)
+                            }
+                            
+                        } 
                     }
                     
-                } 
-                // console.log('connection', connection)
+                }
             })
+
             this.swarm.on('peer', function(peer) {
-                
-                let address = `${peer.host}:${peer.port}`
-                potentialPeers[address] = {
-                    peer:peer,
-                    connected:false,
+                if(peer.channel){
+                    let channel = peer.channel.toString()
+                    if(channel == this.channel){
+                        let address = `${peer.host}:${peer.port}`
+                        potentialPeers[address] = {
+                            peer:peer,
+                            connected:false,
+                            channel:channel
+                        }
+                    }
                 }
             })
             this.swarm.join(this.channel)

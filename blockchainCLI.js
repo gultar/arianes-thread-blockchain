@@ -139,9 +139,10 @@ program
           }
         }
       }
-
+      let lanHost = await getIP()
       node = new Node({
         host:program.ipaddress ? program.ipaddress : configs.host,
+        lanHost:lanHost,
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
         httpsEnabled:true,

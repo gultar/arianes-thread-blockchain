@@ -66,12 +66,14 @@ class Node {
     this.genesis = options.genesis
     //Basic node configs
     this.host = options.host || 'localhost',
+    this.lanHost = options.lanHost
     this.port = options.port || '8000'
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
     this.exposeHTTP = options.exposeHTTP || false
     this.exposeControlPanel = options.exposeControlPanel || true
     this.address = `${this.httpPrefix}://${this.host}:${this.port}`;
+    this.lanAddress = `${this.httpPrefix}://${this.lanHost}:${this.port}`;
     this.minerPort = options.minerPort || parseInt(this.port) + 2000
     //MinerWorker
     this.minerAPI = {}
@@ -111,6 +113,9 @@ class Node {
     this.minerStarted = false;
     this.peerManager = new PeerManager({
       address:this.address,
+      host:this.host,
+      lanHost:this.lanHost,
+      lanAddress:this.lanAddress,
       connectionsToPeers:this.connectionsToPeers,
       networkManager:this.networkManager,
       nodeList:this.nodeList,
@@ -572,7 +577,7 @@ class Node {
       this.peerDiscovery.collectPeers((emitter)=>{
         emitter.on('peerDiscovered', (peer)=> {
           let { host, port, address } = peer
-          // logger('Found new peer', chalk.green(address))
+          logger('Found new peer', chalk.green(address))
           this.peerManager.connectToPeer(address)
         })
       })
@@ -597,7 +602,7 @@ class Node {
       }
     }
     if(!this.peerDiscovery){
-      logger('Looking for peers on ', this.networkManager.currentNetwork)
+      logger('Looking for peers on swarm channel:', this.networkManager.currentNetwork)
       this.peerDiscovery = new PeerDiscovery({
         channel:this.networkManager.currentNetwork,
         address:this.address,
@@ -613,7 +618,7 @@ class Node {
             let isSameIp = extractBaseIpAddress(peer.address) == extractBaseIpAddress(this.address)
             if(!this.connectionsToPeers[peer.address] && !isSameIp){
               let { host, port, address } = peer
-              // logger('Found new peer', chalk.green(address))
+              logger('Found new peer', chalk.green(address))
               this.peerManager.connectToPeer(address)
             }
           })

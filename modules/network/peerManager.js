@@ -3,8 +3,11 @@ const { logger } = require('../tools/utils')
 const chalk = require('chalk')
 
 class PeerManager{
-    constructor({ address, connectionsToPeers, networkManager, nodeList, receiveBlockchainStatus, buildBlockchainStatus, UILog, verbose, noLocalhost }){
+    constructor({ address, host, lanHost, lanAddress, connectionsToPeers, networkManager, nodeList, receiveBlockchainStatus, buildBlockchainStatus, UILog, verbose, noLocalhost }){
         this.address = address
+        this.host = host
+        this.lanHost = lanHost
+        this.lanAddress = lanAddress
         this.connectionsToPeers = connectionsToPeers
         this.nodeList = nodeList
         this.networkManager = networkManager
@@ -22,7 +25,12 @@ class PeerManager{
         
         if(address && this.address != address){
             if(!this.connectionsToPeers[address]){
-                
+                if(address.includes(this.host)){
+                    let [ prefix, hostAndPort ] = address.split('://')
+                    let [ host, port ] = hostAndPort.split(':')
+                    address = `${prefix}://${this.lanHost}:${port}`
+                    console.log('NEW ADDRESS', address)
+                }
                 let connectionAttempts = 0;
                 let peer;
                 try{
