@@ -1,10 +1,10 @@
 const NetworkToken = require('./networkToken')
+const genesis = require('../tools/getGenesis')
 const { readFile, writeToFile } = require('../tools/utils')
 
 class NetworkConfig{
     constructor(){
         this.networks = {}
-        this.peerStats = {}
         this.path = './config/networkConfig.json'
     }
 
@@ -27,7 +27,11 @@ class NetworkConfig{
             if(file){
                 return file
             }else{
-                return { error:'ERROR Could not load network config file' }
+                let token = new NetworkToken(genesis)
+                this.networks[genesis.network] = token
+                let saved = await this.saveNetworkConfig()
+                if(saved.error) return { error:saved.error }
+                else return saved
             }
         }catch(e){
             return { error:e.message }

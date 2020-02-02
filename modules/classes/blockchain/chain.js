@@ -3057,15 +3057,23 @@ class Blockchain{
   }
 
   async addGitIgnoreToBlockchainFolder(){
+    let exists = fs.existsSync('./.gitignore')
+    if(exists){
       let buf = fs.readFileSync('./.gitignore')
       let file = buf.toString()
-
+  
       let folderName = this.chainDB.dataFolder
       if(file && file.indexOf(folderName) == -1){
           file = file+"\n"+folderName+"\n"+folderName+'*'
           let written = fs.writeFileSync('./.gitignore', file)
       }
       return file
+    }else{
+      let folderName = this.chainDB.dataFolder
+      let file = "node_modules/*"+"\n"+folderName+"\n"+folderName+'*'
+      let written = fs.writeFileSync('./.gitignore', file)
+      return file
+    }
   }
 
 

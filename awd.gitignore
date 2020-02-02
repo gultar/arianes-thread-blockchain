@@ -1,0 +1,10 @@
+node_modules/*
+
+databases/*
+dumb/
+dumb/*
+mainnet/
+mainnet/*
+./databases/
+./databases/*
+.gitignore

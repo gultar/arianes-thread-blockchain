@@ -25,6 +25,7 @@ const PeerDiscovery = require('./modules/network/peerDiscovery');
 const SSLHandler = require('./modules/network/sslHandler')
 const Mempool = require('./modules/classes/mempool/pool');
 const PeerManager = require('./modules/network/peerManager')
+const NetworkManager = require('./modules/network/networkManager')
 /****************** APIs ********************* */
 const MinerAPI = require('./modules/api/minerApi')
 const HttpAPI = require('./modules/api/httpApi')
@@ -68,6 +69,7 @@ class Node {
     this.httpsEnabled = options.httpsEnabled
     this.httpPrefix = (this.httpsEnabled ? 'https' : 'http')
     this.exposeHTTP = options.exposeHTTP || false
+    this.exposeControlPanel = options.exposeControlPanel || true
     this.address = `${this.httpPrefix}://${this.host}:${this.port}`;
     this.minerPort = options.minerPort || parseInt(this.port) + 2000
     //MinerWorker
@@ -91,7 +93,7 @@ class Node {
     this.chain = new Blockchain([], this.mempool);
     //Network tools
     this.ssl = new SSLHandler()
-    
+    this.networkManager = new NetworkManager()
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -139,6 +141,7 @@ class Node {
         return this.getChainInfo()
       }
     })
+    
   }
 
 
@@ -161,7 +164,7 @@ class Node {
             
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
-            
+            let networkConfigLoaded = await this.networkManager.init()
             
             if(!nodeListLoaded) reject('Could not load node list')
             if(!mempoolLoaded) reject('Could not load mempool');
@@ -1318,7 +1321,10 @@ class Node {
   initAPIs(){
 
     let app = express()
-    if(!this.exposeHTTP) app.use(express.static(__dirname+'/views'));
+    if(this.exposeControlPanel){
+      if(this.exposeHTTP)logger('WARNING: Exposing control panel to the public')
+      app.use(express.static(__dirname+'/views'));
+    }
     express.json({ limit: '300kb' })
     app.use(helmet())
 
@@ -1901,6 +1907,7 @@ class Node {
         let blockchainSaved = await this.chain.save()
         let savedStates = await this.chain.balance.saveBalances(this.chain.getLatestBlock());
         let savedNodeList = await this.nodeList.saveNodeList();
+        let savedNetworkConfig = await this.networkManager.save()
         let savedMempool = await this.mempool.saveMempool();
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();

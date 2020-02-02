@@ -62,7 +62,7 @@ program
   pool   - For managing transaction pool
   `
     )
-  .option('-n, --hostname <hostname>', 'Specify node hostname')
+  .option('-i, --ipaddress <hostname>', 'Specify node hostname')
   .option('-p, --port <port>', 'Specify node port')
   .option('-j, --join [network]', 'Joins network')
   .option('-s, --seeds <seeds>', 'Seed nodes to initiate p2p connections')
@@ -75,6 +75,7 @@ program
   .option('-w, --walletName <walletName>', 'Name of the miner wallet')
   .option('-k, --password <password>', 'Password needed to unlock wallet')
   .option('-x, --exposeHTTP', 'Expose HTTP API to allow external interaction with blockchain node')
+  .option('-n, --network', 'Blockchain network to join')
 
 program
   .command('start')
@@ -84,18 +85,18 @@ program
 
 
     
-    if(!program.hostname){
+    if(!program.ipaddress){
       
       let ip = await getIP()
       if(ip.error){
         console.log('IP ERROR: ', ip.error)
         
       }else{
-        program.hostname = ip
+        program.ipaddress = ip
       }
 
       if(program.peerDiscovery == 'dht'){
-        program.hostname = await publicIP.v4()
+        program.ipaddress = await publicIP.v4()
       }
     }
 
@@ -126,6 +127,7 @@ program
             break;
         }
       }
+
       if(program.clusterMiner){
         let walletName = program.walletName;
         let walletPassword = program.password;
@@ -136,12 +138,11 @@ program
             name:program.walletName,
             password:program.password
           }
-          
-          
         }
       }
+
       node = new Node({
-        host:program.hostname ? program.hostname : configs.host,
+        host:program.ipaddress ? program.ipaddress : configs.host,
         port:program.port ? program.port : configs.port,
         verbose:configs.verbose,
         httpsEnabled:true,
@@ -149,7 +150,7 @@ program
         enableLocalPeerDiscovery:discovery.local,
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:parseInt(configs.port) - 2000,
-        networkChannel:'mainnet',
+        networkChannel:program.network || 'mainnet',
         noLocalhost:true,
         genesis:genesis,
         minerWorker:false,
