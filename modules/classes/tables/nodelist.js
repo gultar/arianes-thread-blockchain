@@ -6,7 +6,7 @@ class NodeList{
         this.addresses = addresses;
         this.contacts = contacts
         this.blackListed = blackListed;
-        this.filename = './databases/nodelist.json'
+        this.filename = './config/nodelist.json'
     }
 
     addNewAddress(address){
