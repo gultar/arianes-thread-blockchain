@@ -22,6 +22,7 @@
     "express-rate-limit": "^3.5.3",
     "express-ws": "^4.0.0",
     "fetch": "^1.1.0",
+    "figlet": "^1.2.4",
     "helmet": "^3.21.2",
     "hex-to-binary": "^1.0.1",
     "hex2dec": "^1.1.2",

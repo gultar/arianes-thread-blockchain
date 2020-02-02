@@ -39,7 +39,7 @@ class NetworkManager{
     async addNetwork(networkToken){
         let added = this.configs.addNetwork(networkToken)
         let saved = await this.save('silent')
-        return added
+        return saved
     }
 
     getNetwork(network=this.currentNetwork){

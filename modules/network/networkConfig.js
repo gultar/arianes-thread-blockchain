@@ -11,6 +11,7 @@ class NetworkConfig{
 
     addNetwork(networkToken){
         this.networks[networkToken.network] = networkToken
+        return networkToken
     }
 
     getNetwork(networkName){

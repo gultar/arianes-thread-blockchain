@@ -152,6 +152,10 @@ class Node {
     
   }
 
+  displaySplashScreen(){
+    let figlet = require('figlet')
+    console.log(chalk.green(figlet.textSync('Romarin.js')))
+  }
 
   /**
     Boots up Node's Websocket Server and local HTTP and Wesocket APIs
@@ -159,10 +163,10 @@ class Node {
   startServer(){
 
     return new Promise(async (resolve, reject)=>{
-      
-      console.log(chalk.cyan('\n******************************************'))
-      console.log(chalk.cyan('*')+' Starting node at '+this.address);
-      console.log(chalk.cyan('******************************************\n'))
+      this.displaySplashScreen()
+      console.log(chalk.cyan('\n*************************************************'))
+      console.log(chalk.cyan('*')+' Starting node at '+this.address+chalk.cyan("   *"));
+      console.log(chalk.cyan('*************************************************\n'))
 
         this.chain.init()
         .then(async (chainLoaded)=>{
@@ -722,9 +726,15 @@ class Node {
           }else if(isBlockPushed.isBusy){
             peer.emit('getNextBlock', block.hash)
             awaitRequest()
-          }else if(isBlockPushed.sync){
-            //Try to fix something
-            awaitRequest()
+          }else if(isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended){
+            //Received some block but it wasn't linked to any other block
+            //in this chain. So, node tries to find the block to which it is linked
+            //in order to swap branches if it is necessary
+            let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+            let fixed = await this.fixUnlinkedBranch(branchingAt);
+            if(fixed.error) result = {error:fixed.error}
+            else result = fixed
+
           }else{
             
             peer.emit('getNextBlock', block.hash)

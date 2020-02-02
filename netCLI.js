@@ -104,7 +104,10 @@ program
             let genesis = require('./modules/tools/getGenesis')
             let token = new NetworkToken(genesis)
             let added = await manager.addNetwork(token)
-            
+            if(added.error) logger(added.error)
+            else{
+                logger(`Created new network: ${token.network}`)
+            }
 
         }else{
             throw new Error('URL of active is required')
