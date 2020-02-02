@@ -93,7 +93,13 @@ class PeerManager{
                                         peer.emit('getPeers')
                                     },2000);
                                 }else{
-                                    if(response.network) await this.networkManager.addNetwork(response.network)
+                                    if(response.network){
+                                        let exists = this.networkManager.getNetwork(response.network.network)
+                                        if(!exists){
+                                            logger('Discovered new network ', response.network.network)
+                                            await this.networkManager.addNetwork(response.network)
+                                        }
+                                    }
                                     peer.disconnect()
                                 }
                                 
