@@ -1,5 +1,5 @@
 const { readFile, writeToFile } = require('../tools/utils')
-
+const fs = require('fs')
 class NetworkConfig{
     constructor({ network, seeds }){
         this.network = network
@@ -10,11 +10,17 @@ class NetworkConfig{
 
     async loadNetworkConfig(){
         try{
-            let file = await readFile(this.path)
-            if(file){
-                return file
+            let exists = fs.existsSync(this.path)
+            if(exists){
+                let file = await readFile(this.path)
+                if(file){
+                    return file
+                }else{
+                    return { error:'ERROR Could not load network config file' }
+                }
             }else{
-                return { error:'ERROR Could not load network config file' }
+                let saved = await this.saveNetworkConfig()
+                return saved
             }
         }catch(e){
             return { error:e.message }
@@ -26,7 +32,7 @@ class NetworkConfig{
             let saved = await writeToFile(this, this.path)
             if(saved){
                 if(saved.error) return { error:saved.error }
-                return saved
+                return this
             }else{
                 return { error:'ERROR: Could not save network config file' }
             }
