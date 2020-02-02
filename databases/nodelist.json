@@ -1,7 +1,5 @@
 {
-  "addresses": [
-    "https://167.99.191.70:8000"
-  ],
+  "addresses": [],
   "contacts": {},
   "blackListed": [],
   "filename": "./databases/nodelist.json"

@@ -3056,25 +3056,25 @@ class Blockchain{
     
   }
 
-  async addGitIgnoreToBlockchainFolder(){
-    let exists = fs.existsSync('./.gitignore')
-    if(exists){
-      let buf = fs.readFileSync('./.gitignore')
-      let file = buf.toString()
+  // async addGitIgnoreToBlockchainFolder(){
+  //   let exists = fs.existsSync('./.gitignore')
+  //   if(exists){
+  //     let buf = fs.readFileSync('./.gitignore')
+  //     let file = buf.toString()
   
-      let folderName = this.chainDB.dataFolder
-      if(file && file.indexOf(folderName) == -1){
-          file = file+"\n"+folderName+"\n"+folderName+'*'
-          let written = fs.writeFileSync('./.gitignore', file)
-      }
-      return file
-    }else{
-      let folderName = this.chainDB.dataFolder
-      let file = "node_modules/*"+"\n"+folderName+"\n"+folderName+'*'
-      let written = fs.writeFileSync('./.gitignore', file)
-      return file
-    }
-  }
+  //     let folderName = this.chainDB.dataFolder
+  //     if(file && file.indexOf(folderName) == -1){
+  //         file = file+"\n"+folderName+"\n"+folderName+'*'
+  //         let written = fs.writeFileSync('./.gitignore', file)
+  //     }
+  //     return file
+  //   }else{
+  //     let folderName = this.chainDB.dataFolder
+  //     let file = "node_modules/*"+"\n"+folderName+"\n"+folderName+'*'
+  //     let written = fs.writeFileSync('./.gitignore', file)
+  //     return file
+  //   }
+  // }
 
 
   /**
@@ -3087,7 +3087,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       logger('Loading all blocks. Please wait...')
       try{
-        let gitIgnore = await this.addGitIgnoreToBlockchainFolder()
+        // let gitIgnore = await this.addGitIgnoreToBlockchainFolder()
         let loaded = await this.loadBlocks()
         if(loaded){
           let contractTableStarted = await this.contractTable.init()
