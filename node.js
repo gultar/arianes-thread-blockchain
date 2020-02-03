@@ -800,7 +800,7 @@ class Node {
                 this.isDownloading = false
                 if(downloaded.error){
                   logger('Could not download blockchain')
-                  console.log(downloaded.error)
+                  logger(downloaded.error)
                   resolve(false)
                 }else{
                   this.updated = true
@@ -840,7 +840,7 @@ class Node {
       try{
         if(Object.keys(this.connectionsToPeers).length > 0){
           let highestTotalDifficulty = '0x001'
-          let mostUpdateToDatePeer = null
+          let mostUpdateToDatePeer = false
           for await(let address of Object.keys(this.connectionsToPeers)){
             let peer = this.connectionsToPeers[address]
   
@@ -969,7 +969,7 @@ class Node {
         if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
         else if(peer.error) resolve({error:peer.error})
         else{
-          
+          console.log('Peer', (typeof peer == 'object' ? Object.getOwnPropertyNames(peer) : peer))
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
             
