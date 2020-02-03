@@ -453,7 +453,7 @@ class Node {
               if(block.error) socket.emit('previousBlock', {error:block.error})
               socket.emit('previousBlock', block)
             }else{
-              socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${previousBlock.hash.substr(0, 10)}... at block index ${previousBlock.blockNumber}`})
+              socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${hash.substr(0, 10)}... at block index ${index}`})
             }
             
           }
