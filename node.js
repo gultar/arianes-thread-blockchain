@@ -739,8 +739,8 @@ class Node {
             //in order to swap branches if it is necessary
             let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
             let fixed = await this.fixUnlinkedBranch(branchingAt);
-            if(fixed.error) result = {error:fixed.error}
-            else result = fixed
+            if(fixed.error) resolve({error:fixed.error})
+            else resolve(fixed)
 
           }else{
             
