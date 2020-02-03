@@ -27,19 +27,38 @@ const sendTx = async () =>{
     //     type:"call"
     // });
     // console.log(JSON.stringify(transaction.data))
+    let createHermetic = {
+        method:"createToken",
+        cpuTime:5,
+        params:{
+            'symbol':"HERMETIC",
+            'maxSupply':10000000000000,
+            "name":"hermeticCoin",
+        }
+    }
+    let getBalance = {
+        method:'getBalanceOfAccount',
+        cpuTime:5,
+        params:{
+            symbol:"HERMETIC",//"GOLD",
+            account:"voronwe"
+        }
+    }
+    let sendCoin = {
+        method:'issue',
+        cpuTime:5,
+        params:{
+            symbol:"HERMETIC",
+            amount:1,
+            receiver:"huor"
+        }
+    }
     let transaction = new Transaction
     ({
         fromAddress:"tuor",
         toAddress:"Tokens",
         amount:0,
-        data:{
-            method:'getBalanceOfAccount',
-            cpuTime:5,
-            params:{
-                symbol:"HERMETIC",//"GOLD",
-                account:"voronwe"
-            }
-        },
+        data:sendCoin,
         type:"call"
     });
     let wallet = await manager.loadByWalletName("8003")

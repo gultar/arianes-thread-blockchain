@@ -39,7 +39,7 @@ program
 .option('-d, --data <data>', 'Data to accompany the task. Always pass a JSON string, ex: {"key":"value"} ')
 .option('-i, --initParams <initParams>', 'Define initial parameters of smart contract" ')
 .option('-a, --accountName <accountName>', "Name of the account's owner wallet")
-.option('-y, --accountType <accountType>', 'Define type of account. Either user or contract')
+.option('-k, --accountType <accountType>', 'Define type of account. Either user or contract')
 .option('-w, --walletName <walletName>', "Name of the account's owner wallet")
 .option('-p, --password <password>', 'Password of owner wallet')
 
@@ -49,7 +49,7 @@ program
 .option('-a, --accountName <accountName>', "Name of the account's owner wallet")
 .option('-w, --walletName <walletName>', "Name of the account's owner wallet")
 .option('-p, --password <password>', 'Password of owner wallet')
-.option('-y, --accountType <accountType>', 'Define type of account. Either user or contract')
+.option('-k, --accountType <accountType>', 'Define type of account. Either user or contract')
 .description(`
 Creates an account to send contract call actions
 

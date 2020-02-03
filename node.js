@@ -967,6 +967,7 @@ class Node {
         let peer = await this.getMostUpToDatePeer()
         // console.log('Up to date peer is of type ', typeof peer)
         if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
+        else if(peer.error) resolve({error:peer.error})
         else{
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
