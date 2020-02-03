@@ -12,7 +12,8 @@ class ProofOfWork{
         let isValidChallenge = this.validateChallenge(block)
         if(!isValidChallenge) return false
         let isValidDifficulty = this.validateDifficulty(block)
-        if(!isValidDifficulty) return false
+        
+        // if(!isValidDifficulty) return false
 
         return true
     }
