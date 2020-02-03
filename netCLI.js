@@ -3,6 +3,7 @@
 const program = require('commander');
 const ioClient = require('socket.io-client');
 const NetworkManager = require('./modules/network/networkManager')
+const NetworkConfig = require('./modules/network/netConfig')
 const NetworkToken = require('./modules/network/networkToken')
 const { logger } = require('./modules/tools/utils')
 const activePort = require('dotenv').config({ path: './config/.env' })
@@ -68,26 +69,17 @@ program
     .description('Joins specific network according to configs found in config/netConfig.json')
     .action(async ( network )=>{
         if(nodeAddress){
-            let manager = new NetworkManager()
-            let started = await manager.init()
-            let isKnownNetwork = manager.getNetwork(network)
-            if(isKnownNetwork){
-                let swapped = await manager.joinNetwork(network)
-                let saved = await manager.save()
-                logger(`Joined network ${network}`)
-            }else{
-                let genesis = require('./modules/tools/getGenesis')
-                if(genesis.network == network){
-                    let token = new NetworkToken(genesis)
-                    let added = await manager.addNetwork(token)
-                    let saved = await manager.save()
-                    logger(`Added network ${network} from genesis block`)
-                }else{
-                    logger('ERROR: Could not find network '+network)
-                }
-            }
+            let manager = new NetworkManager(network)
+            let managerStarted = await manager.init()
+            let config = new NetworkConfig(network)
+            let loadedConfig = await config.loadNetworkConfig()
+            if(loadedConfig.error) throw new Error(loadedConfig.error)
             
-
+            let joined = await manager.joinNetwork(config.token)
+            if(joined.error) throw new Error(joined.error)
+            let saved = await manager.save()
+            if(saved.error) throw new Error(saved.error)
+            logger(`Joined network ${network}`)
         }else{
             throw new Error('URL of active is required')
         }
@@ -99,15 +91,13 @@ program
     .description('Joins specific network according to configs found in config/netConfig.json')
     .action(async ( network )=>{
         if(nodeAddress){
-            let manager = new NetworkManager()
+            let manager = new NetworkManager(network)
             let started = await manager.init()
             let genesis = require('./modules/tools/getGenesis')
             let token = new NetworkToken(genesis)
-            let added = await manager.addNetwork(token)
-            if(added.error) logger(added.error)
-            else{
-                logger(`Created new network: ${token.network}`)
-            }
+            let created = manager.createNetwork(token)
+            if(created.error) throw new Error(created.error)
+            logger(`Created new network: ${token.network}`)
 
         }else{
             throw new Error('URL of active is required')

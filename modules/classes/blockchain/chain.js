@@ -23,7 +23,8 @@ const VMController = require('../contracts/vmController')
 /******************************************** */
 
 const Block = require('./block');
-const { setNewChallenge, setNewDifficulty, Difficulty } = require('../proofOfWork/challenge');
+const Consensus = require('./consensus')
+const { setNewChallenge, setNewDifficulty, Difficulty } = require('../mining/challenge');
 const chalk = require('chalk');
 const ECDSA = require('ecdsa-secp256r1');
 const fs = require('fs');
@@ -37,12 +38,20 @@ const Database = require('../database/db')
 */
 class Blockchain{
 
-  constructor(chain=[], mempool){
+  constructor(chain=[], mempool, consensusMode){
     this.chain = chain
     this.chainDB = new Database('blockchain');
     this.mempool = mempool
     this.accountTable = new AccountTable();
     this.balance = new BalanceTable(this.accountTable)
+    this.consensusMode = consensusMode || genesis.consensus
+    this.difficulty = new Difficulty(genesis)
+    this.consensus = new Consensus({
+      consensusMode:this.consensusMode,
+      chain:this.chain,
+      difficulty:this.difficulty,
+      accountTable:this.accountTable
+    })
     this.contractTable = new ContractTable({
       getCurrentBlock:async ()=>{
         return await this.getLatestBlock()
@@ -90,7 +99,6 @@ class Blockchain{
     })
     this.spentTransactionHashes = {}
     this.spentActionHashes = {}
-    this.difficulty = new Difficulty(genesis)
     this.blockForks = {}
     this.isSyncingBlocks = false
     this.branches = {}
@@ -262,16 +270,16 @@ class Blockchain{
         this.chain.push(newHeader);
         
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
-        if(areTransactionsValid.error) errors['Transaction validation error'] = areTransactionsValid.error
+        if(areTransactionsValid.error) errors['TRANSACTION ERROR'] = areTransactionsValid.error
 
         var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(newBlock)
-        if(!doesNotContainDoubleSpend) errors['Double spend error'] = 'ERROR: Block may not contain a transaction that is already spent'
+        if(!doesNotContainDoubleSpend) errors['DOUBLE SPEND ERROR'] = 'ERROR: Block may not contain a transaction that is already spent'
         
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else{
           let executed = await this.balance.runBlock(newBlock)
         
-          if(executed.error) errors['Balance error'] = executed.error
+          if(executed.error) errors['BALANCE ERROR'] = executed.error
           else{
             
             let saved = await this.balance.saveBalances(newBlock)
@@ -279,16 +287,16 @@ class Blockchain{
 
             let actions = newBlock.actions || {}
             let allActionsExecuted = await this.executeActionBlock(actions)
-            if(allActionsExecuted.error) errors['Action Call error'] = allActionsExecuted.error;
+            if(allActionsExecuted.error) errors['ACTION ERROR'] = allActionsExecuted.error;
 
             let callsExecuted = await this.runTransactionCalls(newBlock);
-            if(callsExecuted.error) errors['Transaction Call error'] = callsExecuted.error
+            if(callsExecuted.error) errors['CALL ERROR'] = callsExecuted.error
             
             let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-            if(!transactionsDeleted) errors['Mempool transaction deletion error'] = 'ERROR: Could not delete transactions from Mempool' 
+            if(!transactionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete transactions from Mempool' 
 
             let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
-            if(!actionsDeleted) errors['Mempool action deletion error'] = 'ERROR: Could not delete actions from Mempool' 
+            if(!actionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete actions from Mempool' 
             
             //Verify is already exists
             if(Object.keys(errors).length > 0){
@@ -307,18 +315,14 @@ class Blockchain{
               }
 
               let statesSaved = await this.contractTable.saveStates(newHeader)
-              if(statesSaved.error) console.log('State saving error', statesSaved.error)
-              //.push(...newHeader.txHashes)
+              if(statesSaved.error) logger('STATE SAVE ERROR', statesSaved.error)
               
               let added = await this.addBlockToDB(newBlock)
               if(added){
                 if(added.error) resolve({error:added.error})
     
-                
-                
-                
                 let saved = await this.saveLastKnownBlockToDB()
-                if(saved.error) console.log('Saved last block', saved)
+                if(saved.error) logger('LAST BLOCK ERROR:', saved.error)
                 
                 if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
                 
@@ -686,34 +690,6 @@ class Blockchain{
         })
         if(saved.error) resolve({error:saved})
         else resolve(saved)
-      // let lastBlock =  await this.getLastKnownBlockFromDB()
-      // if(lastBlock){
-      //     if(lastBlock.error) resolve({error:lastBlock.error})
-      //     let latestBlockInMemory = this.getLatestBlock()
-      //     if(latestBlockInMemory.blockNumber <= lastBlock.blockNumber){
-      //       console.log('Is equal')
-      //       let saved = await this.chainDB.put({
-      //         id:'lastBlock',
-      //         key:'lastBlock',
-      //         value:lastBlock
-      //       })
-      //       if(saved.error) resolve({error:saved})
-      //       else resolve(saved)
-      //     }else{
-      //       let saved = await this.chainDB.put({
-      //         id:'lastBlock',
-      //         key:'lastBlock',
-      //         value:latestBlockInMemory
-      //       })
-      //       if(saved.error) resolve({error:saved})
-      //       else resolve(saved)
-      //     }
-          
-      // }else{
-        
-
-      // }
-
     })
   }
 
@@ -924,24 +900,18 @@ class Blockchain{
                 found = true
                 resolve(action)
               }else{
-                logger(`Body of block ${block.blockNumber} does not contain actions even though it should`)
-                resolve(false)
+                resolve({error:`ERROR: Body of block ${block.blockNumber} does not contain actions`})
               }
             }else{
-              logger(`Body of block ${block.blockNumber} does not exist`)
-              resolve(false)
+              resolve({error:`ERROR: Body of block ${block.blockNumber} does not exist`})
             }
           }else{
             if(lastBlock.blockNumber == block.blockNumber && !found){
-              logger('Could not find anything for hash', hash)
-              resolve(false)
+              resolve({error:'ERROR: Could not find anything for action '+ hash.substr(0, 10)})
             }
           }
         }else{
-          if(lastBlock.blockNumber == block.blockNumber && !found){
-            logger('Could not find anything for hash', hash)
-            resolve(false)
-          }
+          resolve({error:`ERROR: Header ${block.blockNumber} does not have action hashes`})
         }
         
       }
@@ -1489,19 +1459,19 @@ class Blockchain{
       var isValidTimestamp = await this.validateBlockTimestamp(block)
       var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
       var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
-      var isValidChallenge = this.validateChallenge(block);
+      // var isValidChallenge = this.validateChallenge(block);
+      var isValidConsensus = await this.consensus.validate(block)
       var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
       //validate difficulty
-      var difficultyIsAboveMinimum = BigInt(parseInt(block.difficulty, 16)) >= BigInt(parseInt(this.chain[0].difficulty, 16))
-
-      if(!difficultyIsAboveMinimum) resolve({error:'ERROR: Difficulty level must be above minimum set in genesis block'})
+      
       // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
+      if(!isValidConsensus) resolve({ error:'ERROR: Block does not meet consensus requirements' })
       if(!coinbaseIsAttachedToBlock) resolve({error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber})
       if(!hashIsBelowChallenge) resolve({error:'ERROR: Hash value must be below challenge value'})
       if(!singleCoinbase) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
       
-      if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
+      // if(!isValidChallenge) resolve({error:'ERROR: Recalculated challenge did not match block challenge'})
       if(!merkleRootIsValid) resolve({error:'ERROR: Merkle root of block IS NOT valid'})
       if(!isValidHash) resolve({error:'ERROR: Is not valid block hash'})
       if(chainAlreadyContainsBlock) resolve({error:'ERROR: Chain already contains block'})
@@ -1521,6 +1491,7 @@ class Blockchain{
     
   }
 
+  //Deprecated????
   async isValidBlock(block){
     // console.log(block)
     var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
@@ -1600,40 +1571,6 @@ class Blockchain{
 
     return true
   }
-
-  //Deprecated
-  // validateNewBlock(block){
-  //   return new Promise(async (resolve, reject)=>{
-  //     try{
-  //       var containsCurrentBlock = this.checkIfChainHasHash(block.hash);
-  //       var isLinked = this.isBlockLinked(block);
-  //       var latestBlock = this.getLatestBlock();
-  //       var transactionsAreValid = await this.blockContainsOnlyValidTransactions(block);
-  //       //Validate transactions using merkle root
-  //       if(containsCurrentBlock){
-  //         logger('BLOCK SYNC ERROR: Chain already contains that block')
-  //         resolve(false)
-  //       }
-
-  //       if(transactionsAreValid.error){
-  //         logger('New Block contains invalid transactions:', transactionsAreValid.error)
-  //         resolve(false)
-  //       }
-
-  //       if(!isLinked){
-  //         logger('BLOCK SYNC ERROR: Block is not linked with previous block')
-  //         resolve(false)
-  //       }
-
-  //       resolve(true)
-  //     }catch(e){
-  //       console.log(e);
-  //       resolve(false)
-  //     }
-  //   })
-    
-    
-  // }
 
   async blockDoesNotContainDoubleSpend(block){
     let txHashes = Object.keys(block.transactions);
@@ -1826,19 +1763,22 @@ class Blockchain{
           //Rolling back actions and contracts
           let action = await this.getActionFromDB(hash);
           if(action){
-            if(action.type == 'contract'){
-              if(action.task == 'deploy'){
-                let contractName = action.data.name;
-                let deleted = await this.contractTable.removeContract(contractName);
-                if(deleted.error) errors[hash] = deleted.error
-
-              }
-              
+            if(action.error) resolve({error:action.error})
+            else{
+              if(action.type == 'contract'){
+                if(action.task == 'deploy'){
+                  let contractName = action.data.name;
+                  let deleted = await this.contractTable.removeContract(contractName);
+                  if(deleted.error) errors[hash] = deleted.error
+  
+                }
+                
               }else if(action.type == 'account'){
                 let account = action.data
                 let removed = await this.accountTable.deleteAccount(account.name, account.signature);
                 if(removed.error) errors[hash] = removed.error
               }
+            }
             
           }
         }
@@ -1894,7 +1834,7 @@ class Blockchain{
       
     })
   }
-
+  //Redundant with the above method ^
   validateTransactionsOfBlock(block){
     return new Promise(async (resolve, reject)=>{
       let txHashes = Object.keys(block.transactions);
@@ -2060,11 +2000,6 @@ class Blockchain{
 
         let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
         if(alreadyExistsInBlockchain) resolve({error:'Transaction already exists in blockchain'})
-
-        // let alreadyExistsInMempool = await this.mempool.getTransaction(transaction.hash)
-        // if(alreadyExistsInMempool) resolve({error:'Transaction already exists in mempool'})
-
-        // else if(alreadyExistsInMempool.error) resolve({error:alreadyExistsInMempool})
 
         if(isTransactionCall){
 
@@ -2691,18 +2626,40 @@ class Blockchain{
   }
 
   rollbackAction(action){
-      return new Promise((resolve)=>{
+      return new Promise(async (resolve)=>{
           if(action.type == 'account'){
             if(action.task == 'create'){
-
+              let accountData = action.data
+              let account = await this.accountTable.getAccount(accountData.name)
+              if(account){
+                if(account.error) resolve({error:account.error})
+                let deleted = await this.accountTable.deleteAccount(accountData.name)
+                if(deleted.error) resolve({error:deleted.error})
+                else resolve(deleted)
+              }else{
+                //Is not a fatal error since faulty code may be inserted in the blockchain
+                //but never fully executed. As long as such faulty code is executed by all nodes
+                //in the same way, it's fine
+                resolve({error:`Could not find account ${accountData.name} in database`})
+              }
             }
           }else if(action.type == 'contract'){
             if(action.task == 'deploy'){
-              
-            }else if(action.task == 'call'){
+              let contractData = action.data
+              let exists = await this.contractTable.getContract(contractData.contractName)
+              if(exists){
+                if(exists.error) resolve({error:exists.error})
+                else{
+                  let deleted = await this.contractTable.removeContract(contractData.contractName)
+                  if(deleted.error) resolve({error:deleted.error})
+                  else resolve(deleted)
+                }
+              }else{
+                //Again, not a fatal error
+                resolve({error:`Contract ${contractData.contractName} does not exist`})
+              }
 
             }
-
           }
       })
   }
@@ -2905,12 +2862,6 @@ class Blockchain{
   */
   validateChecksum(transaction){
     if(transaction){
-      // console.log('Validate', transaction.fromAddress+ 
-      //  transaction.toAddress+ 
-      //  transaction.amount+ 
-      //  transaction.data+ 
-      //  transaction.timestamp+
-      //  transaction.nonce)
        if(sha256(
                 transaction.fromAddress+ 
                 transaction.toAddress+ 
@@ -3055,26 +3006,6 @@ class Blockchain{
     })
     
   }
-
-  // async addGitIgnoreToBlockchainFolder(){
-  //   let exists = fs.existsSync('./.gitignore')
-  //   if(exists){
-  //     let buf = fs.readFileSync('./.gitignore')
-  //     let file = buf.toString()
-  
-  //     let folderName = this.chainDB.dataFolder
-  //     if(file && file.indexOf(folderName) == -1){
-  //         file = file+"\n"+folderName+"\n"+folderName+'*'
-  //         let written = fs.writeFileSync('./.gitignore', file)
-  //     }
-  //     return file
-  //   }else{
-  //     let folderName = this.chainDB.dataFolder
-  //     let file = "node_modules/*"+"\n"+folderName+"\n"+folderName+'*'
-  //     let written = fs.writeFileSync('./.gitignore', file)
-  //     return file
-  //   }
-  // }
 
 
   /**

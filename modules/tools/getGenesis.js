@@ -3,11 +3,15 @@ const { createGenesisBlock } = require('../classes/genesisBlock')
 let genesis = {}
 let path = './config/genesis.json'
 const getGenesis = ()=>{
-    if(fs.existsSync(path)){
-        genesis = JSON.parse(fs.readFileSync(path, 'utf8'))
+    if(process.GENESIS){
+        return process.GENESIS
     }else{
-        genesis = createGenesisBlock()
-        let saved = fs.writeFileSync(path, JSON.stringify(genesis, null, 2))
+        if(fs.existsSync(path)){
+            genesis = JSON.parse(fs.readFileSync(path, 'utf8'))
+        }else{
+            genesis = createGenesisBlock()
+            let saved = fs.writeFileSync(path, JSON.stringify(genesis, null, 2))
+        }
     }
 
     return genesis

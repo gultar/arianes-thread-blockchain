@@ -33,40 +33,6 @@ class Block{
     this.hash = sha256(this.previousHash + this.timestamp + this.merkleRoot + this.nonce + this.actionMerkleRoot).toString();
   }
 
-  
-  // mine(difficulty){
-  //     return new Promise((resolve)=>{
-  //       if(!process.ACTIVE_MINER){
-          
-  //         process.ACTIVE_MINER = require('child_process').fork(`./backend/tools/proofOfWork.js`);
-  //         process.ACTIVE_MINER.send({block:this, difficulty:difficulty})
-  //         process.ACTIVE_MINER.on('message', (message)=>{
-            
-  //           if(message.message) console.log(message.message)
-  //           if(message.success){
-  //             let block = message.success
-  //             resolve(block)
-  //           }else if(message.aborted){
-  //             process.ACTIVE_MINER.kill()
-  //             resolve(false)
-              
-  //           }
-  
-            
-  //         })
-  //         process.ACTIVE_MINER.on('error', function(data) {
-  //             console.log('stderr: ' + data);
-  //             resolve(false)
-  //         });
-  //         process.ACTIVE_MINER.on('close', function() { })
-  //       }else{
-  //         //logger('ERROR: Already started miner')
-  //       }
-  //     })
-      
-
-  // }
-
   mine(difficulty, numberOfCores){
     return new Promise(async(resolve)=>{
       const {
@@ -95,7 +61,7 @@ class Block{
         }
         
         for await(let cpu of cpus){
-          const worker = new Worker(__dirname+'/../proofOfWork/pow.js', {
+          const worker = new Worker(__dirname+'/../mining/minerThreads.js', {
             workerData: {
               block:this,
               difficulty:difficulty

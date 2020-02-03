@@ -1,6 +1,6 @@
 const Block = require('./blockchain/block')
 const Transaction = require('./transactions/transaction')
-const { setNewChallenge, setNewDifficulty, Difficulty } = require('./proofOfWork/challenge')
+const { setNewChallenge, setNewDifficulty, Difficulty } = require('./mining/challenge')
 const { logger, writeToFile, readFile } = require('../tools/utils')
 const sha256 = require('../tools/sha256')
 

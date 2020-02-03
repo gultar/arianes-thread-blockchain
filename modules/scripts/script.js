@@ -6,15 +6,15 @@ const setData = async  () =>{
     let newWallet = new Wallet()
     let wallet = await newWallet.importWalletFromFile('./wallets/8003-b5ac90fbdd1355438a65edd2fabe14e9fcca10ea.json')
 
-    // let data = {
-    //     "first":"Principle of mentalism",
-    //     "second":"Principle of correspondence",
-    //     "third":"Principle of vibration",
-    //     "fourth":"Principle of polarity",
-    //     "fifth":"Principle of rythm",
-    //     "sixth":"Principle of causality",
-    //     "seventh":"Principle of gender"
-    // }
+    let data = {
+        "first":"Principle of mentalism",
+        "second":"Principle of correspondence",
+        "third":"Principle of vibration",
+        "fourth":"Principle of polarity",
+        "fifth":"Principle of rythm",
+        "sixth":"Principle of causality",
+        "seventh":"Principle of gender"
+    }
 
     let instruction = {
         method:"issue",

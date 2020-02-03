@@ -1,4 +1,4 @@
-const NetworkConfig = require('./networkConfig')
+const NetworkConfig = require('./netConfig')
 const NetworkToken = require('./networkToken')
 const genesis = require('../tools/getGenesis')
 const { saveGenesisFile } = require('../classes/genesisBlock')
@@ -13,10 +13,13 @@ class NetworkManager{
 
     async init(){
         try{
-            this.configs = new NetworkConfig() 
+            this.configs = new NetworkConfig(this.currentNetwork)
             let loaded = await this.configs.loadNetworkConfig()
             if(loaded){
                 if(loaded.error) return { error:loaded.error }
+                let joined = await this.joinNetwork(loaded)
+                if(joined.error) return { error:joined.error }
+
                 return loaded
             }else{
                 return { error:'ERROR: Could not initialize network manager' }
@@ -30,16 +33,15 @@ class NetworkManager{
     async createNetwork(config){
         if(!config) config = genesis
         let token = new NetworkToken(config)
-        let added = await this.configs.addNetwork(token)
-        let joined = await this.joinNetwork(token.network)
+        let newGenesis = token.genesisConfig
+        let savedGenesis = await saveGenesisFile(newGenesis)
+        if(savedGenesis.error) return { error:savedGenesis.error }
         if(joined.error) return { error:joined.error }
         else return joined
     }
 
     async addNetwork(networkToken){
-        let added = this.configs.addNetwork(networkToken)
-        let saved = await this.save('silent')
-        return saved
+        return await this.configs.joinNetwork(networkToken)
     }
 
     getNetwork(network=this.currentNetwork){
@@ -47,19 +49,13 @@ class NetworkManager{
         return networkToken
     }
 
-    async joinNetwork(network){
-        let networkToken = this.configs.getNetwork(network)
-        if(networkToken){
-            let newGenesis = networkToken.genesisConfig
-            let savedGenesis = await saveGenesisFile(newGenesis)
-            let saved = this.save('silent')
-            if(saved.error || savedGenesis.error) return { error:saved.error || savedGenesis.error } 
-            else return saved
-        }else{
-            return { error:`ERROR: Network configurations for ${network} do not exist` }
-        }
-
-        
+    async joinNetwork(token){
+        let newGenesis = token.genesisConfig
+        let savedGenesis = await saveGenesisFile(newGenesis)
+        process.GENESIS = newGenesis
+        let saved = this.save('silent')
+        if(saved.error || savedGenesis.error) return { error:saved.error || savedGenesis.error } 
+        else return saved
     }
 
     async save(silent=false){

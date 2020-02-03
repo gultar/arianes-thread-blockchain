@@ -64,6 +64,12 @@ class Node {
   constructor(options){
     //Genesis Configs
     this.genesis = options.genesis
+    //Network tools
+    this.ssl = new SSLHandler()
+    this.network = options.network
+    process.NETWORK = this.network
+    this.networkManager = new NetworkManager(this.network)
+    
     //Basic node configs
     this.host = options.host || 'localhost',
     this.lanHost = options.lanHost
@@ -94,10 +100,6 @@ class Node {
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
     this.chain = new Blockchain([], this.mempool);
-    //Network tools
-    this.network = options.network
-    this.ssl = new SSLHandler()
-    this.networkManager = new NetworkManager(this.network)
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -154,7 +156,7 @@ class Node {
 
   displaySplashScreen(){
     let figlet = require('figlet')
-    console.log(chalk.green(figlet.textSync('Romarin.js')))
+    console.log(chalk.green(figlet.textSync('HydraChain.js')))
   }
 
   /**
@@ -168,17 +170,22 @@ class Node {
       console.log(chalk.cyan('*')+' Starting node at '+this.address+chalk.cyan("   *"));
       console.log(chalk.cyan('*************************************************\n'))
 
+        // process.GENESIS = this.genesis
+        
+        let networkConfigLoaded = await this.networkManager.init()
+        if(networkConfigLoaded.error) logger("NETWORK INIT ERROR", networkConfigLoaded.error)
+        let token = this.networkManager.getNetwork()
+        let joined = await this.networkManager.joinNetwork(token)
+        if(joined.error) logger('NETWORK ERROR', joined.error)
+
         this.chain.init()
         .then(async (chainLoaded)=>{
             
             
-            process.GENESIS = this.genesis
+            
             
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
-            let networkConfigLoaded = await this.networkManager.init()
-            let joined = await this.networkManager.joinNetwork(this.network)
-            if(joined.error) console.log('NETWORK ERROR', joined.error)
             
             if(!nodeListLoaded) reject('Could not load node list')
             if(!mempoolLoaded) reject('Could not load mempool');

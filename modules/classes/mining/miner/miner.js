@@ -134,6 +134,7 @@ class Miner{
         
       }
 
+
     async prepareBlockForMining(rawBlock){
         
         let coinbase = await this.createCoinbase()

@@ -3,15 +3,15 @@ const activePort = require('dotenv').config({ path: './config/.env' })
 if (activePort.error) throw activePort.error
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
-const Miner = require('./modules/classes/mining/miner/miner')
+const Validator = require('./modules/classes/validating/validator')
 const program = require('commander');
 const chalk = require('chalk')
 const { logger } = require('./modules/tools/utils')
 program
-    .option('-w, --walletName <walletName>', 'Name of the miner wallet')
+    .option('-w, --walletName <walletName>', 'Name of the validator wallet')
     .option('-p, --password <password>', 'Password needed to unlock wallet')
     .option('-v, --verbose', 'Verbose level')
-    .option('-n, --numberOfCores [numCores]', 'Start a miner over multiple cpus. Default: 1 core')
+    .option('-n, --numberOfCores [numCores]', 'Start a validator over multiple cpus. Default: 1 core')
 
 program
     .command('start')
@@ -31,14 +31,14 @@ program
         if(!program.walletName || !program.password) {throw new Error('Wallet name and password required to mine!'); return null;}
         if(!nodeAddress) throw new Error('Need to provide node port to connect to')
         
-        if(program.numberOfCores) console.log(`Starting miner with ${program.numberOfCores} active core${numberOfCores > 1? 's':''}`)
-        let miner = new Miner({
+        if(program.numberOfCores) console.log(`Starting validator with ${program.numberOfCores} active core${numberOfCores > 1? 's':''}`)
+        let validator = new Validator({
             publicKey:program.publickey,
             verbose:true,
             keychain:{ name:program.walletName, password:program.password },
             numberOfCores: numberOfCores
         })
-        miner.connect(nodeAddress)
+        validator.connect(nodeAddress)
 
     })
 

@@ -7,7 +7,7 @@ class Database{
         this.name = dbName;
         this.configSet = null;
         this.options = options
-        this.dataFolder = (genesis.network && genesis.network !== '' ? "./data/"+genesis.network+"/" : "./data/mainnet/")
+        this.dataFolder = (process.NETWORK && process.NETWORK !== '' ? "./data/"+process.NETWORK+"/" : "./data/mainnet/")
     }
 
     async init(){

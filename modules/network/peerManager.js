@@ -110,6 +110,7 @@ class PeerManager{
                                         let exists = this.networkManager.getNetwork(response.network.network)
                                         if(!exists){
                                             let added = await this.networkManager.addNetwork(response.network)
+                                            if(added.error) logger('NETWORK ERROR', added.error)
                                             logger('Discovered new network ', response.network.network)
                                         }
                                     }
