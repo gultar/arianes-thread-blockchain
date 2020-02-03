@@ -837,31 +837,35 @@ class Node {
    */
   getMostUpToDatePeer(){
     return new Promise(async (resolve)=>{
-      if(Object.keys(this.connectionsToPeers).length > 0){
-        let heightestTotalDifficulty = '0x001'
-        let mostUpdateToDatePeer = null
-        for await(let address of Object.keys(this.connectionsToPeers)){
-          let peer = this.connectionsToPeers[address]
-
-          let peerLatestBlock = this.peersLatestBlocks[address]
-          if(peerLatestBlock){
-            let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
-            if(totalDifficulty > BigInt(parseInt(heightestTotalDifficulty, 16))){
-              heightestTotalDifficulty = peerLatestBlock.totalDifficulty
-              mostUpdateToDatePeer = peer
+      try{
+        if(Object.keys(this.connectionsToPeers).length > 0){
+          let highestTotalDifficulty = '0x001'
+          let mostUpdateToDatePeer = null
+          for await(let address of Object.keys(this.connectionsToPeers)){
+            let peer = this.connectionsToPeers[address]
+  
+            let peerLatestBlock = this.peersLatestBlocks[address]
+            if(peerLatestBlock){
+              let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
+              if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
+                highestTotalDifficulty = peerLatestBlock.totalDifficulty
+                mostUpdateToDatePeer = peer
+              }
             }
+            
+          }
+  
+          if(mostUpdateToDatePeer){
+            resolve(mostUpdateToDatePeer)
+          }else{
+            resolve(false)
           }
           
-        }
-
-        if(mostUpdateToDatePeer){
-          resolve(mostUpdateToDatePeer)
         }else{
           resolve(false)
         }
-        
-      }else{
-        resolve(false)
+      }catch(e){
+        resolve({error:e.message})
       }
     })
   }
