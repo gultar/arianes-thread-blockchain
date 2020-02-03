@@ -969,7 +969,7 @@ class Node {
         if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
         else if(peer.error) resolve({error:peer.error})
         else{
-          console.log('Peer', (typeof peer == 'object' ? Object.getOwnPropertyNames(peer) : peer))
+          
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
             

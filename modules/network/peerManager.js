@@ -106,6 +106,7 @@ class PeerManager{
                                         peer.emit('getPeers')
                                     },2000);
                                 }else{
+                                    logger('Could not connect to remote node', response)
                                     if(response.network){
                                         let exists = this.networkManager.getNetwork(response.network.network)
                                         if(!exists){
