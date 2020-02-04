@@ -49,7 +49,6 @@ class PeerManager{
                         'max reconnection attempts' : 3,
                         'pingInterval': 200, 
                         'pingTimeout': 10000,
-                        'transports':['websocket'],
                         'secure':true,
                         'rejectUnauthorized':false,
                         'query':
