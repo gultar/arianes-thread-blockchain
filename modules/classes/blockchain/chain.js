@@ -553,7 +553,7 @@ class Blockchain{
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
 
       // let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
-      let rolledback = await this.rollbackToBlock(isLinkedToBlockNumber)
+      let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
         let previousBlock = {}
         for await(let block of branch){
