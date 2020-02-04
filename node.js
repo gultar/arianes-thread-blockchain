@@ -1603,7 +1603,6 @@ class Node {
     
               if(!alreadyReceived && !alreadyIsInActiveBranch){
                 if(this.chain.validateBlockHeader(block)){
-                  console.log(peerMessage)
                   //Retransmit block
                   this.broadcast('peerMessage', peerMessage)
                   //Become peer's most recent block
