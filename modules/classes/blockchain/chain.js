@@ -1802,7 +1802,7 @@ class Blockchain{
           if(block.error) resolve({error:block.error})
           else{
             let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
-            if(deleted.error) resolve({error:deleted.error})
+            
           }
         }else{
           console.log('CAN NOT ROLLBACK BLOCK NOT FOUND')
