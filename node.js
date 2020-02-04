@@ -1635,9 +1635,9 @@ class Node {
                         let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch)
                         let downloadFromAddress = peerMessage.relayPeer
                         console.log('Peer address', downloadFromAddress)
-                        let peer = this.connectionsToPeers[downloadFromAddress]
+                        let peer = this.peerManager.getPeer(downloadFromAddress)
                         console.log('Peer', typeof peer)
-                        this.broadcastAction('getBlockchainStatus')
+                        this.broadcast('getBlockchainStatus')
                         result = rolledback
                         
                         

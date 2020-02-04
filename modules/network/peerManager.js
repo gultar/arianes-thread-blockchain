@@ -142,6 +142,10 @@ class PeerManager{
         }
     }
 
+    getPeer(address){
+        return this.connectionsToPeers[address]
+    }
+
     onPeerAuthenticated(peer){
         peer.on('newPeers', (peers)=> {
             if(peers && typeof peers == Array){
