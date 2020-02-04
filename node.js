@@ -299,7 +299,11 @@ class Node {
       let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
       if(!isValidPeerGenesisHash) return { error:'ERROR: Peer genesis config hash is not valid' }
       let matchesOwnGenesisConfigHash = peerGenesisConfigHash === genesisConfigHash
-      if(!matchesOwnGenesisConfigHash) return { error:"Peer's genesis config hash does not match the network's" }
+      if(!matchesOwnGenesisConfigHash){
+        console.log('Peer',peerGenesisConfigHash)
+        console.log('This',genesisConfigHash)
+        return { error:"Peer's genesis config hash does not match the network's" }
+      }
       return true
     }else{
       return { error:'ERROR: Need to provide valid network config' }
@@ -1627,7 +1631,7 @@ class Node {
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
                       if(!this.isDownloading){
-                        
+
                         let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
                         let blockNumberOfBranch = branchingAt.blockNumber
                         let rolledback = await this.chain.rollbackToBlock(branchingAt)

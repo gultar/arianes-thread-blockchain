@@ -616,7 +616,7 @@ class Blockchain{
         }
     }else{
       if(tries <= 3){
-        await this.rollbackToMergeBranch(blockNumber-1, tries++)
+        return await this.rollbackToMergeBranch(blockNumber-1, tries++)
       }else{
         return { error:`ERROR: Could not rollback to block ${blockNumber}` }
       }
