@@ -1793,21 +1793,24 @@ class Blockchain{
 
       
       
-      for await(let header of removed){
-        let block = await this.getBlockFromDB(header.blockNumber);
-        if(block){
-          if(block.error) resolve({error:block.error})
-          else{
-            let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
-            if(deleted.error) resolve({error:deleted.error})
-          }
-        }
-      }
+      
       
       logger('Rolled back to block ', number)
       logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
+
+        // for await(let header of removed){
+        //   let block = await this.getBlockFromDB(header.blockNumber);
+        //   if(block){
+        //     if(block.error) resolve({error:block.error})
+        //     else{
+        //       let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
+        //       if(deleted.error) resolve({error:deleted.error})
+        //     }
+        //   }
+        // }
+        
         resolve(mainBranch)
       }
     })
