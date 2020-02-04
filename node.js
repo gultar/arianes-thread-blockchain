@@ -701,6 +701,7 @@ class Node {
 
   downloadBlockchain(peer, lastHeader){
     return new Promise(async (resolve)=>{
+      this.minerChannel.emit('isBusy')
       let startHash = this.chain.getLatestBlock().hash;
       let lastHash = lastHeader.hash;
       let length = lastHeader.blockNumber + 1;
@@ -725,6 +726,7 @@ class Node {
 
       const closeConnection = () =>{
         peer.off('nextBlock')
+        this.minerChannel.emit('isAvailable')
         this.isDownloading = false;
       }
 
