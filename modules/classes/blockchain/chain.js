@@ -565,19 +565,12 @@ class Blockchain{
           }else{
 
             let synced = await this.addBlockToChain(block, true)
-            if(synced.error) {
-              if(rolledback){
-                for await(let oldBlock of rolledback){
-                  let addedBackIn = await this.addBlockToChain(oldBlock)
-                  if(addedBackIn.error) return { error:addedBackIn.error }
-                  logger(`Swap failed: readding block ${oldBlock.blockNumber} : ${block.hash.substr(0, 15)}...`)
-                }
-              }
-              
-              return { staying:true }
+            if(synced.error)  return { findMissing:true }
+            else{
+              logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${block.hash.substr(0, 20)}...`));
+              previousBlock = block;
             }
-            logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${block.hash.substr(0, 20)}...`));
-            previousBlock = block;
+            
           }
           
         }
