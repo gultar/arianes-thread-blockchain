@@ -1737,6 +1737,7 @@ class Blockchain{
 
       let errors = {}
       let totalBlockNumber = this.chain.length
+      if(number < 0) number = 0
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
       //Getting a copy of the blocks that will later be removed from the chain
