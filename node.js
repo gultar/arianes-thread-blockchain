@@ -1630,14 +1630,14 @@ class Node {
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
                       if(!this.isDownloading){
-                        console.log(added)
                         let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
-                        console.log(branchingAt)
-                        let blockNumberOfBranch = branchingAt.blockNumber
-                        let rolledback = await this.chain.rollbackToBlock(blockNumberOfBranch)
+                        let blockNumberOfBranch = added.blockNumber -1
+                        let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch)
                         let downloadFromAddress = peerMessage.relayPeer
+                        console.log('Peer address', downloadFromAddress)
                         let peer = this.connectionsToPeers[downloadFromAddress]
-                        peer.emit('getBlockchainStatus')
+                        console.log('Peer', typeof peer)
+                        this.broadcastAction('getBlockchainStatus')
                         result = rolledback
                         
                         

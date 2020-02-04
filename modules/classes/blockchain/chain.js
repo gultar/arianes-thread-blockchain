@@ -437,7 +437,7 @@ class Blockchain{
     if(!alreadyExists){
       this.unlinkedBranches[newBlock.previousHash] = [ newBlock ]
       logger(chalk.yellow(`* Unlinked branch at previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
-      return { unlinked:newBlock.hash }
+      return { unlinked:newBlock.hash, blockNumber:newBlock.blockNumber }
     }else{
       return { error:'ERROR: Block already exists in branch' }
     }
@@ -507,9 +507,9 @@ class Blockchain{
           logger(chalk.yellow(`* Will now attempt to find missing previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
           //By returning this, node will query peers this newBlock hash's previous blocks 
           //until it either links to blockchain or to a branch that is itself linked to the blockchain
-          return { findMissing:firstUnlinkedBlock.hash }
+          return { findMissing:firstUnlinkedBlock.hash, blockNumber:firstUnlinkedBlock.blockNumber }
         }else{
-          return { unlinkedExtended:firstUnlinkedBlock.hash }
+          return { unlinkedExtended:firstUnlinkedBlock.hash, blockNumber:firstUnlinkedBlock.blockNumber }
         }
       }
       
