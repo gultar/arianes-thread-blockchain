@@ -552,50 +552,52 @@ class Blockchain{
       
       //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
 
-      let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
+      // let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
+      let rolledback = await this.rollbackToBlock(isLinkedToBlockNumber)
       if(rolledback){
-        if(rolledback.error) return { error:rolledback.error }
-        else{
-          if(rolledback && Array.isArray(rolledback)){
-            let lastRolledBackBlock = rolledback[rolledback.length - 1]
-            this.branches[lastRolledBackBlock.hash] = rolledback
-          }else{
-            console.log('Rolled back is not array', rolledback)
-          }
-        }
-       
-        if(rolledback.error) return { error:rolledback.error }
-        else{
-
-          let previousBlock = {}
-          for await(let block of branch){
-            if(block.hash !== firstBlockOfBranch.hash && previousBlock.hash !== block.previousHash){
-              console.log(`ERROR: Block ${block.blockNumber} is not linked to previous block`)
-              console.log('Previous:', previousBlock)
-              console.log('Current:', block)
-              
-            }else{
-
-              let synced = await this.addBlockToChain(block, true)
-              if(synced.error) {
-                if(rolledback){
-                  for await(let oldBlock of rolledback){
-                    let addedBackIn = await this.addBlockToChain(oldBlock)
-                    if(addedBackIn.error) return { error:addedBackIn.error }
-                    logger(`Swap failed: readding block ${oldBlock.blockNumber} : ${block.hash.substr(0, 15)}...`)
-                  }
-                }
-                
-                return { staying:true }
-              }
-              logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${block.hash.substr(0, 20)}...`));
-              previousBlock = block;
-            }
+        let previousBlock = {}
+        for await(let block of branch){
+          if(block.hash !== firstBlockOfBranch.hash && previousBlock.hash !== block.previousHash){
+            console.log(`ERROR: Block ${block.blockNumber} is not linked to previous block`)
+            console.log('Previous:', previousBlock)
+            console.log('Current:', block)
             
+          }else{
+
+            let synced = await this.addBlockToChain(block, true)
+            if(synced.error) {
+              if(rolledback){
+                for await(let oldBlock of rolledback){
+                  let addedBackIn = await this.addBlockToChain(oldBlock)
+                  if(addedBackIn.error) return { error:addedBackIn.error }
+                  logger(`Swap failed: readding block ${oldBlock.blockNumber} : ${block.hash.substr(0, 15)}...`)
+                }
+              }
+              
+              return { staying:true }
+            }
+            logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${block.hash.substr(0, 20)}...`));
+            previousBlock = block;
           }
-          logger(chalk.cyan(`* Swapped branches`));
-          return { switched:true }
+          
         }
+        logger(chalk.cyan(`* Swapped branches`));
+        return { switched:true }
+        // if(rolledback.error) return { error:rolledback.error }
+        // else{
+        //   if(rolledback && Array.isArray(rolledback)){
+        //     let lastRolledBackBlock = rolledback[rolledback.length - 1]
+        //     this.branches[lastRolledBackBlock.hash] = rolledback
+        //   }else{
+        //     console.log('Rolled back is not array', rolledback)
+        //   }
+        // }
+       
+        // if(rolledback.error) return { error:rolledback.error }
+        // else{
+
+
+        // }
         
 
       }else{
