@@ -3093,6 +3093,7 @@ class Blockchain{
             }
           }else{
             this.chain.push(genesisBlock)
+            let added = await this.genesisBlockToDB(genesisBlock)
             logger(`Finished loading genesis block`) 
             resolve(true)
           }
