@@ -494,8 +494,16 @@ class Node {
                 if(block.error) socket.emit('nextBlock', {error:block.error})
                 socket.emit('nextBlock', block)
               }else{
+                setTimeout(()=>{ 
+                  block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+                  if(block){
+                    if(block.error) socket.emit('nextBlock', {error:block.error})
+                    else socket.emit('nextBlock', block)
+                  }else{
+                    socket.emit('nextBlock', { error:`ERROR: Block ${hash.substr(0, 8)} number ${nextBlock.blockNumber} not found` })
+                  }
+                }, 200)
 
-                socket.emit('nextBlock',{end:'End of blockchain'})
               }
               
                 
