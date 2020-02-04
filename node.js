@@ -494,7 +494,7 @@ class Node {
                 if(block.error) socket.emit('nextBlock', {error:block.error})
                 socket.emit('nextBlock', block)
               }else{
-                setTimeout(()=>{ 
+                setTimeout(async ()=>{ 
                   block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
                   if(block){
                     if(block.error) socket.emit('nextBlock', {error:block.error})
