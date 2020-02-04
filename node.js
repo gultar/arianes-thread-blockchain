@@ -1475,7 +1475,7 @@ class Node {
         if(isValidHash){
           if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
             this.messageBuffer[messageId] = peerMessage;
-
+            peerMessage.relayPeer = this.address
             acknowledge({received:messageId})
               switch(type){
                 case 'transaction':
@@ -1632,7 +1632,7 @@ class Node {
                       if(!this.isDownloading){
                         let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
                         let blockNumberOfBranch = added.blockNumber -1
-                        let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch)
+                        let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
                         let downloadFromAddress = peerMessage.relayPeer
                         console.log('Peer address', downloadFromAddress)
                         let peer = this.peerManager.getPeer(downloadFromAddress)
