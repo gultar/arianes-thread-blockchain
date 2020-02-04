@@ -1633,7 +1633,7 @@ class Node {
 
                         let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
                         let blockNumberOfBranch = branchingAt.blockNumber
-                        let rolledback = await this.chain.rollbackToBlock(branchingAt)
+                        let rolledback = await this.chain.rollbackToBlock(blockNumberOfBranch)
                         let downloadFromAddress = peerMessage.relayPeer
                         let peer = this.connectionsToPeers[downloadFromAddress]
                         peer.emit('getBlockchainStatus')
