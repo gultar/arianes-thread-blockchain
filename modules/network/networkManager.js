@@ -36,8 +36,7 @@ class NetworkManager{
         let newGenesis = token.genesisConfig
         let savedGenesis = await saveGenesisFile(newGenesis)
         if(savedGenesis.error) return { error:savedGenesis.error }
-        if(joined.error) return { error:joined.error }
-        else return joined
+        else return savedGenesis
     }
 
     async addNetwork(networkToken){

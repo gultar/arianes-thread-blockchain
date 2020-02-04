@@ -2069,8 +2069,6 @@ class Blockchain{
 
         if(isSendingAddressValid && isReceivingAddressValid){
 
-          //validate nonce from balanceTable
-
           let isSignatureValid = await this.validateSignature(transaction, fromAddress);
           if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
 

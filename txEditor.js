@@ -10,22 +10,31 @@ if (activePort.error) throw activePort.error
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
 const sendTx = async () =>{
-    // let transaction = new Transaction
-    // ({
-    //     fromAddress:"tuor",
-    //     toAddress:"Tokens",
-    //     amount:0,
-    //     data:{
-    //         method:'issue',
-    //         cpuTime:5,
-    //         params:{
-    //             symbol:"GOLD",
-    //             amount:1,
-    //             receiver:"huor"
-    //         }
-    //     },
-    //     type:"call"
-    // });
+    let setValue = {
+        "first":"Principle of mentalism",
+        "second":"Principle of correspondence",
+        "third":"Principle of vibration",
+        "fourth":"Principle of polarity",
+        "fifth":"Principle of rythm",
+        "sixth":"Principle of causality",
+        "seventh":"Principle of gender"
+    }
+
+    let transaction = new Transaction
+    ({
+        fromAddress:"tuor",
+        toAddress:"Storage",
+        amount:0,
+        data:{
+            method:'get',
+            cpuTime:5,
+            params:{
+                id:"axiom",
+            }
+        },
+        type:"call"
+    });
+    
     // console.log(JSON.stringify(transaction.data))
     let createHermetic = {
         method:"createToken",
@@ -53,14 +62,14 @@ const sendTx = async () =>{
             receiver:"huor"
         }
     }
-    let transaction = new Transaction
-    ({
-        fromAddress:"tuor",
-        toAddress:"Tokens",
-        amount:0,
-        data:sendCoin,
-        type:"call"
-    });
+    // let transaction = new Transaction
+    // ({
+    //     fromAddress:"tuor",
+    //     toAddress:"Tokens",
+    //     amount:0,
+    //     data:getBalance,
+    //     type:"call"
+    // });
     let wallet = await manager.loadByWalletName("8003")
     if(wallet){
         let unlocked = await wallet.unlock("8003")
