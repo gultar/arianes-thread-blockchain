@@ -42,6 +42,19 @@ class AccountTable{
           })
       }
 
+      getKeyOfAccount(name){
+          return new Promise(async (resolve)=>{
+              let accountEntry = await this.accountsDB.get(name)
+              if(accountEntry){
+                if(accountEntry.error) resolve({error:accountEntry.error})
+                else{
+                    let account = accountEntry.account;
+                    resolve(account.ownerKey)
+                }
+              }
+          })
+      }
+
       getAccountsOfKey(key){
         return new Promise(async(resolve)=>{
             let foundAccounts = []
@@ -64,29 +77,31 @@ class AccountTable{
       }
 
       //Deprecated
-      deleteAccount(name, signature){
+      deleteAccount({ name, signature }){
           return new Promise(async(resolve, reject)=>{
             try{
                 if(name && signature && typeof signature == 'string'){
-                    if(this.accounts[name]){
-                        let account = this.accounts[name];
+                    let account = await this.getAccount(name)
+                    if(account){
+                        if(account.error) resolve({error:account.error})
                         const publicKey = ECDSA.fromCompressedPublicKey(account.ownerKey);
                         let isOwner = await publicKey.verify(account.hash, signature);
                         if(isOwner){
-                            delete this.accounts[name];
-                            resolve(true)
+                            let deleted = await this.accountsDB.deleteId(account.name)
+                            if(deleted.error) resolve({error:deleted.error})
+                            else resolve(deleted)
                         }else{
-                            resolve(false)
+                            resolve({ error:`ERROR: Could not delete ${name}` })
                         }
                     }else{
-                        resolve(false)
+                        resolve({error:'ERROR: Could not retrieve account ${name}'})
                     }
                 }else{
-                    resolve(false)
+                    resolve({error:'ERROR: Need to provide account name and signature'})
                 }
                 
             }catch(e){
-                console.log(e)
+                resolve({error:e.message})
             }
             
           })

@@ -256,10 +256,10 @@ class Blockchain{
   addBlockToChain(newBlock, silent=false){
     return new Promise(async (resolve)=>{
       //Push block header to chain
-      
       var isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
       let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
+      
       if(blockNumberAlreadyExists || blockAlreadyExists){
         resolve({error:`ERROR: Block ${newBlock.blockNumber} already exists`})
       }else if(!isNextBlock){
@@ -271,30 +271,30 @@ class Blockchain{
         
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
         if(areTransactionsValid.error) errors['TRANSACTION ERROR'] = areTransactionsValid.error
-
+        
         var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(newBlock)
         if(!doesNotContainDoubleSpend) errors['DOUBLE SPEND ERROR'] = 'ERROR: Block may not contain a transaction that is already spent'
-        
+
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else{
           let executed = await this.balance.runBlock(newBlock)
-        
+          
           if(executed.error) errors['BALANCE ERROR'] = executed.error
           else{
             
             let saved = await this.balance.saveBalances(newBlock)
             if(saved.error) resolve({error:saved.error})
-
+            
             let actions = newBlock.actions || {}
             let allActionsExecuted = await this.executeActionBlock(actions)
             if(allActionsExecuted.error) errors['ACTION ERROR'] = allActionsExecuted.error;
-
+            
             let callsExecuted = await this.runTransactionCalls(newBlock);
             if(callsExecuted.error) errors['CALL ERROR'] = callsExecuted.error
             
             let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
             if(!transactionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete transactions from Mempool' 
-
+            
             let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
             if(!actionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete actions from Mempool' 
             
@@ -303,7 +303,7 @@ class Blockchain{
               let removedNewHeader = this.chain.pop()
               resolve({error: errors})
             }else{
-
+              
               for await(let hash of newHeader.txHashes){
                 this.spentTransactionHashes[hash] = { spent:newHeader.blockNumber }
               }
@@ -423,7 +423,7 @@ class Blockchain{
     let alreadyExists = this.branches[newBlock.hash]
     if(!alreadyExists){
       this.branches[newBlock.hash] = [ newBlock ]
-      logger(chalk.cyan(`* New branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
+      logger(chalk.cyan(`[*] New branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 23)}...`));
       return true
     }else{
       return { error:'ERROR: Block already exists in branch' }
@@ -462,7 +462,7 @@ class Blockchain{
         existingBranch.push(newBlock)
         this.branches[newBlock.hash] = [ ...existingBranch ]
         delete this.branches[newBlock.previousHash]
-        logger(chalk.cyan(`* Extended branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 20)}...`));
+        logger(chalk.cyan(`[*] Extended branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 18)}...`));
         //check out branch and validate it
         //if valid candidate for branch swap, swap
         //if not, stay on main chain
@@ -901,29 +901,30 @@ class Blockchain{
       let lastBlock = this.getLatestBlock()
       let found = false;
       for await(var block of this.chain){
-        if(block.actionHashes){
-          if(block.actionHashes.includes(hash)){
-            let body = await this.getBlockFromDB(block.blockNumber)
-            if(body){
-              if(body.actions){
-                let action = body.actions[hash];
-                found = true
-                resolve(action)
+        if(block.blockNumber != 0){
+          if(block.actionHashes){
+            if(block.actionHashes.includes(hash)){
+              let body = await this.getBlockFromDB(block.blockNumber)
+              if(body){
+                if(body.actions){
+                  let action = body.actions[hash];
+                  found = true
+                  resolve(action)
+                }else{
+                  resolve({error:`ERROR: Body of block ${block.blockNumber} does not contain actions`})
+                }
               }else{
-                resolve({error:`ERROR: Body of block ${block.blockNumber} does not contain actions`})
+                resolve({error:`ERROR: Body of block ${block.blockNumber} does not exist`})
               }
             }else{
-              resolve({error:`ERROR: Body of block ${block.blockNumber} does not exist`})
+              if(lastBlock.blockNumber == block.blockNumber && !found){
+                resolve({error:'ERROR: Could not find anything for action '+ hash.substr(0, 10)})
+              }
             }
           }else{
-            if(lastBlock.blockNumber == block.blockNumber && !found){
-              resolve({error:'ERROR: Could not find anything for action '+ hash.substr(0, 10)})
-            }
+            resolve({error:`ERROR: Header ${block.blockNumber} does not have action hashes`})
           }
-        }else{
-          resolve({error:`ERROR: Header ${block.blockNumber} does not have action hashes`})
         }
-        
       }
     })
   }
@@ -1738,17 +1739,12 @@ class Blockchain{
       let errors = {}
       let totalBlockNumber = this.chain.length
       if(number < 0) number = 0
+      let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
       //Getting a copy of the blocks that will later be removed from the chain
-      let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
       
       let blocks = this.chain.slice(startNumber + 1, this.chain.length)
-      
-      let rolledBack = await this.balance.rollback(number)
-      if(rolledBack.error) resolve({error:rolledBack.error})
-
-      
       
       let newestToOldestBlocks = blocks.reverse()
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
@@ -1765,9 +1761,6 @@ class Blockchain{
           delete this.spentActionHashes[hash]
         }
       }
-
-      let stateRolledBack = await this.contractTable.rollback(newLastBlock.blockNumber)
-      if(stateRolledBack.error) resolve({error:stateRolledBack.error})
       
       if(actionHashes.length > 0){
         for await(var hash of actionHashes){
@@ -1786,7 +1779,7 @@ class Blockchain{
                 
               }else if(action.type == 'account'){
                 let account = action.data
-                let removed = await this.accountTable.deleteAccount(account.name, account.signature);
+                let removed = await this.accountTable.deleteAccount({ name:account.name, signature:account.ownerSignature });
                 if(removed.error) errors[hash] = removed.error
               }
             }
@@ -1794,6 +1787,12 @@ class Blockchain{
           }
         }
       }
+
+      let rolledBack = await this.balance.rollback(number.toString())
+      if(rolledBack.error) resolve({error:rolledBack.error})
+
+      let stateRolledBack = await this.contractTable.rollback(newLastBlock.blockNumber)
+      if(stateRolledBack.error) resolve({error:stateRolledBack.error})
 
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
@@ -1803,13 +1802,12 @@ class Blockchain{
       
       for await(let header of removed){
         let block = await this.getBlockFromDB(header.blockNumber);
-        if(block.error){
-          console.log('An error occurred while getting block '+header.blockNumber)
-        }else{
-          mainBranch.push(block)
-          // let removed = await this.removeBlockFromDB(block)
-          // if(removed.error) console.log('BLOCK REMOVE ERROR: ', removed.error)
-
+        if(block){
+          if(block.error) resolve({error:block.error})
+          else{
+            let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
+            if(deleted.error) resolve({error:deleted.error})
+          }
         }
       }
       
@@ -2642,7 +2640,7 @@ class Blockchain{
               let account = await this.accountTable.getAccount(accountData.name)
               if(account){
                 if(account.error) resolve({error:account.error})
-                let deleted = await this.accountTable.deleteAccount(accountData.name)
+                let deleted = await this.accountTable.deleteAccount(accountData)
                 if(deleted.error) resolve({error:deleted.error})
                 else resolve(deleted)
               }else{

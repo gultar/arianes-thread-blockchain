@@ -23,7 +23,7 @@ class Mempool{
     }
 
     async manageDeferredTransactions(latestBlock){
-        if(latestBlock && latestBlock.blockNumber){
+        if(latestBlock && latestBlock.blockNumber >= 0){
             
             let numTransactionAdded = 0
             if(latestBlock.blockNumber >= 1){
@@ -47,7 +47,7 @@ class Mempool{
     }
 
     async manageDeferredActions(latestBlock){
-        if(latestBlock && latestBlock.blockNumber){
+        if(latestBlock && latestBlock.blockNumber >= 0){
             let numActionAdded = 0
             if(latestBlock.blockNumber >= 1){
                 for await(let hash of Object.keys(this.delayedActions)){
