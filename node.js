@@ -1635,14 +1635,17 @@ class Node {
                     //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                     let result = {}
 
-                    if(added.findMissing || added.unlinked || added.unlinkedExtended){
+                    if(added.findMissing){
                       //Received some block but it wasn't linked to any other block
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
                       if(!this.isDownloading){
                         
-                        let blockNumberOfBranch = added.blockNumber -1
-                        let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
+                        
+                        let currentLength = this.chain.chain.length
+                        let branchNumberIsHigher = added.blockNumber > currentLength
+                        let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : added.blockNumber - 2)
+                        let rolledback = await this.chain.rollbackToMergeBranch(rollbackTo)
                         let originAddress = peerMessage.originAddress
 
                         let peer = this.peerManager.getPeer(relayPeer)
