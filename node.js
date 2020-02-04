@@ -1639,30 +1639,30 @@ class Node {
                       //Received some block but it wasn't linked to any other block
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
-                      if(!this.isDownloading){
+                      // if(!this.isDownloading){
                         
-                        let blockNumberOfBranch = added.blockNumber -1
-                        let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
-                        let downloadFromAddress = peerMessage.relayPeer
-                        let downloadFromOriginAddress = peerMessage.originAddress
+                      //   let blockNumberOfBranch = added.blockNumber -1
+                      //   let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
+                      //   let downloadFromAddress = peerMessage.relayPeer
+                      //   let downloadFromOriginAddress = peerMessage.originAddress
 
-                        let peer = this.peerManager.getPeer(downloadFromAddress)
+                      //   let peer = this.peerManager.getPeer(downloadFromAddress)
                         
-                        if(!peer) peer = this.peerManager.getPeer(downloadFromOriginAddress)
+                      //   if(!peer) peer = this.peerManager.getPeer(downloadFromOriginAddress)
 
-                        if(peer) peer.emit('getBlockchainStatus')
-                        else this.broadcast('getBlockchainStatus')
-                        result = rolledback
+                      //   if(peer) peer.emit('getBlockchainStatus')
+                      //   else this.broadcast('getBlockchainStatus')
+                      //   result = rolledback
                         
                         
-                      }else{
-                        return { isDownloading:true }
-                      }
+                      // }else{
+                      //   return { isDownloading:true }
+                      // }
 
-                     
-                      // let fixed = await this.fixUnlinkedBranch(branchingAt);
-                      // if(fixed.error) result = {error:fixed.error}
-                      // else result = fixed
+                      let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
+                      let fixed = await this.fixUnlinkedBranch(branchingAt);
+                      if(fixed.error) result = {error:fixed.error}
+                      else result = fixed
 
                     }else if(added.switched && added.switched.outOfSync){
                       //Something went wrong while syncing unlinked branch
