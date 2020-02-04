@@ -1349,7 +1349,6 @@ class Node {
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
-        
         socket.emit('rollbackResult', rolledback)
       })
 

@@ -1731,14 +1731,17 @@ class Blockchain{
 
       let errors = {}
       let totalBlockNumber = this.chain.length
+      
       if(number < 0) number = 0
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
+      
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
+      
       //Getting a copy of the blocks that will later be removed from the chain
       
       let blocks = this.chain.slice(startNumber + 1, this.chain.length)
-      
+
       let newestToOldestBlocks = blocks.reverse()
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
@@ -1789,24 +1792,27 @@ class Blockchain{
 
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
+      
       let mainBranch = []
+
+      for await(let header of removed){
+        
+        let block = await this.getBlockFromDB(header.blockNumber);
+        if(block){
+          if(block.error) resolve({error:block.error})
+          else{
+            let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
+            if(deleted.error) resolve({error:deleted.error})
+          }
+        }else{
+          console.log('CAN NOT ROLLBACK BLOCK NOT FOUND')
+        }
+      }
 
       logger('Rolled back to block ', number)
       logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
-
-        for await(let header of removed){
-          let block = await this.getBlockFromDB(header.blockNumber);
-          if(block){
-            if(block.error) resolve({error:block.error})
-            else{
-              let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
-              if(deleted.error) resolve({error:deleted.error})
-            }
-          }
-        }
-        
         resolve(mainBranch)
       }
     })
@@ -3074,6 +3080,7 @@ class Blockchain{
                   for await(let hash of actionHashes){
                     this.spentActionHashes[hash] = { spent:block.blockNumber }
                   }
+                  
                   this.chain.push(this.extractHeader(block))
                   if(blockNumber == lastBlock.blockNumber){
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
@@ -3084,7 +3091,6 @@ class Blockchain{
             }
           }else{
             this.chain.push(genesisBlock)
-            let added = await this.genesisBlockToDB(genesisBlock)
             logger(`Finished loading genesis block`) 
             resolve(true)
           }
