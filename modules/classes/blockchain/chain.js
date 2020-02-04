@@ -1791,10 +1791,6 @@ class Blockchain{
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
       let mainBranch = []
 
-      
-      
-      
-      
       logger('Rolled back to block ', number)
       logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
