@@ -1634,7 +1634,7 @@ class Node {
                     //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                     let result = {}
 
-                    if(added.findMissing){
+                    if(added.findMissing || added.unlinked){
                       //Received some block but it wasn't linked to any other block
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
