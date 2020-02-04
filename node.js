@@ -1632,6 +1632,7 @@ class Node {
                       if(!this.isDownloading){
 
                         let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
+                        console.log(branchingAt)
                         let blockNumberOfBranch = branchingAt.blockNumber
                         let rolledback = await this.chain.rollbackToBlock(blockNumberOfBranch)
                         let downloadFromAddress = peerMessage.relayPeer
