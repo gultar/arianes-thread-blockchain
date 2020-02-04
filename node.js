@@ -1630,7 +1630,7 @@ class Node {
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
                       if(!this.isDownloading){
-
+                        console.log(added)
                         let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
                         console.log(branchingAt)
                         let blockNumberOfBranch = branchingAt.blockNumber
