@@ -1,12 +1,6 @@
-# Thousandfold blocks
+# BoxCoin.js blocks
 
-A Nodejs + Socket.io + Rocket-Store PoW Blockchain platform with support for smart contracts written in Nodejs. It's still a WIP and will likely remain so for a while but feel free to reach out or contribute to this project as I would like to see it put to good use eventually
-
-
-
-Aside from some fine tuning, here are some possible future implementations:
-- A proof of stake version of the same project.
-- TCP NAT traversal to do a live test
+A Nodejs + Socket.io + Rocket-Store Blockchain platform with support for smart contracts written in Nodejs and pluggable consensus protocol. The platform is shipped with Proof of Work and Permissioned capabilities. It's still a WIP and will likely remain so for a while but feel free to reach out or contribute to this project as I would like to see it put to good use eventually
 
 ### Prerequisites
 
@@ -39,7 +33,7 @@ Almost all configurations for the generation of blocks are found in the
 
 You can set the balances of your account for the ICO.
 Other configurations like block times, initial/minimum difficulty and much more 
-can be set in this file.
+can be set in this file. Default configurations are those of the main network.
 
 You can then set your node's network configs at
 ./config/nodeconfig.json
@@ -50,17 +44,22 @@ You can then set your node's network configs at
 Then you can either instantiate the class by using
 
 ```
-let myNode = new Node({
-        host: configs.host,
-        port: configs.port,
-        verbose: configs.verbose,
-        httpsEnabled: true, -> Is set by default
-        enableLocalPeerDiscovery: discovery.local,
-        enableDHTDiscovery: discovery.dht,
-        peerDiscoveryPort: parseInt(configs.port) - 2000,
-        networkChannel: 'blockchain-mainnet',
-        noLocalhost: true,
-        genesis: genesis
+      let myNode = new Node({
+        host: "123.123.123.123", //If made public, is public ip of network
+        lanHost: "192.168.1.1", //Internal IP, optional
+        port: "8000",  //ioServer port
+        verbose: false, //Displays more info like transactions sent
+        httpsEnabled: true,  //Enables HTTP REST api
+        exposeHTTP: false,  //Make HTTP REST Api public
+        enableLocalPeerDiscovery: false,  //MSSDNS, over local network
+        enableDHTDiscovery: true, //DHT, over the internet
+        peerDiscoveryPort: "6000", 
+        network:"mainnet",  //Name of network to connect to
+        noLocalhost:false,  //Enable connects on same environment
+        genesis:genesis,  //Gotten from ./modules/tools/getGenesis
+        minerWorker:false,  //Enable worker on same node.js process but in a worker. No advised, unless on a small private network
+        clusterMiner:program.clusterMiner,  //Number of cores to use in worker. Default: 1
+        keychain:program.keychain //In case of miner worker, wallet and password
       })
 
 
@@ -95,21 +94,23 @@ Usage: blockchainCLI <value> [-options]
 
 Options:
   -V, --version                     output the version number
-  -n, --hostname <hostname>         Specify node hostname
+  -i, --ipaddress <hostname>        Specify node hostname
   -p, --port <port>                 Specify node port
-  -j, --join [network]              Joins network
-  -s, --seed <seed>                 Seed nodes to initiate p2p. Ex: '127.0.0.1:1000;127.0.0.1:1001;127.0.0.1:1002'
+  -s, --seeds <seeds>               Seed nodes to initiate p2p connections
   -v, --verbose                     Enable transaction and network verbose
   -d, --peerDiscovery [type]        Enable peer discovery using various methods
   -t, --peerDiscoveryPort <port>    Enable peer discovery using various methods
   -l, --dhtDisconnectDelay <delay>  Length of time after which the node disconnects from dht network
+  -m, --mine                        Start a block miner child process alongside the node
+  -c, --clusterMiner [numbers]      Launch a cluster of miners. Default: 1 workers
+  -w, --walletName <walletName>     Name of the miner wallet
+  -k, --password <password>         Password needed to unlock wallet
+  -x, --exposeHTTP                  Expose HTTP API to allow external interaction with blockchain node
+  -n, --network <network>           Blockchain network to join
   -h, --help                        output usage information
 
-
 Commands:
-  start                 Starts blockchain node
-  create                Creates the genesis block
-  rollback <blockNum>   Rollback blocks from chain (from the end) 
+  start                             Starts blockchain node
 
 
 ```
@@ -178,6 +179,7 @@ validated by other nodes. Here is an example of the data payload located in the 
 ```
 {
   'method':'contractMethod',
+  'cpuTime':0-100,
   'params':{
     'key':'value'
   }

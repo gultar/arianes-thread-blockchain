@@ -494,7 +494,8 @@ class Node {
                 if(block.error) socket.emit('nextBlock', {error:block.error})
                 socket.emit('nextBlock', block)
               }else{
-                socket.emit('nextBlock', {error:`ERROR: Could not find block body of ${nextBlock.hash.substr(0, 10)}... at block index ${nextBlock.blockNumber}`})
+
+                socket.emit('nextBlock',{end:'End of blockchain'})
               }
               
                 
@@ -1492,8 +1493,9 @@ class Node {
                 case 'newBlockFound':
                   if(!this.chain.isBusy){
                     this.chain.isBusy = true
+                    
                     this.broadcast('peerMessage', peerMessage)
-                    let added = await this.handleNewBlockFound(data, originAddress, peerMessage);
+                    let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
                     this.chain.isBusy = false;
                     if(added){
                       if(added.error){
@@ -1589,7 +1591,7 @@ class Node {
    * @param {String} fromPeer 
    * @param {Object} peerMessage 
    */
-  handleNewBlockFound(data, fromPeer, peerMessage){
+  handleNewBlockFound(data, relayPeer, peerMessage){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
         if(!this.isDownloading){
@@ -1606,7 +1608,7 @@ class Node {
                   //Retransmit block
                   this.broadcast('peerMessage', peerMessage)
                   //Become peer's most recent block
-                  this.peersLatestBlocks[fromPeer] = block
+                  this.peersLatestBlocks[relayPeer] = block
 
                   //Tells the miner to stop mining and stand by
                   //While node is push next block
@@ -1635,9 +1637,9 @@ class Node {
                         let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
                         let downloadFromAddress = peerMessage.relayPeer
                         let downloadFromOriginAddress = peerMessage.originAddress
-                        console.log('Peer address', downloadFromAddress)
+
                         let peer = this.peerManager.getPeer(downloadFromAddress)
-                        console.log('Peer', typeof peer)
+                        
                         if(!peer) peer = this.peerManager.getPeer(downloadFromOriginAddress)
 
                         if(peer) peer.emit('getBlockchainStatus')

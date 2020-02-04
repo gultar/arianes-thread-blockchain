@@ -40,6 +40,7 @@ const txgen = (program) =>{
         if(program.data){
             data = await parseDataArgument(program.data)
         }
+        let speed = (program.speed && !isNaN(parseInt(program.speed)) ? parseInt(program.speed) : 1000)
         openSocket(`${nodeAddress}`, (socket)=>{
             
             let generator = setInterval(async ()=>{
@@ -70,7 +71,7 @@ const txgen = (program) =>{
                     console.log('ERROR: Could not find wallet')
                 }
                 
-            }, 100)
+            }, speed)
             socket.on('transactionEmitted', (result)=>{
                 if(result.error) console.log(result)//clearInterval(generator)
                 // else if(result.result) console.log(result.result)
@@ -95,6 +96,7 @@ program
 .option('-k, --type <type>', "Type of transaction")
 .option('-d, --data <data>', "Optional data to be added")
 .option('-u, --url <nodeURL>', "URL of running node to send transaction to")
+.option('-s, --speed <speed>', 'Speed of loop interval')
 .description('Sends a transaction to another wallet')
 .action(async ()=>{
     if(program.walletName && program.password && nodeAddress){
