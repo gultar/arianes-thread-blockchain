@@ -1603,7 +1603,7 @@ class Node {
     
               if(!alreadyReceived && !alreadyIsInActiveBranch){
                 if(this.chain.validateBlockHeader(block)){
-
+                  console.log(peerMessage)
                   //Retransmit block
                   this.broadcast('peerMessage', peerMessage)
                   //Become peer's most recent block
@@ -1635,7 +1635,7 @@ class Node {
                         let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
                         let blockNumberOfBranch = branchingAt.blockNumber
                         let rolledback = await this.chain.rollbackToBlock(branchingAt)
-                        let downloadFromAddress = peerMessage.relayAddress
+                        let downloadFromAddress = peerMessage.relayPeer
                         let peer = this.connectionsToPeers[downloadFromAddress]
                         peer.emit('getBlockchainStatus')
                         result = rolledback
