@@ -44,23 +44,23 @@ You can then set your node's network configs at
 Then you can either instantiate the class by using
 
 ```
-      let myNode = new Node({
-        host: "123.123.123.123", //If made public, is public ip of network
-        lanHost: "192.168.1.1", //Internal IP, optional
-        port: "8000",  //ioServer port
-        verbose: false, //Displays more info like transactions sent
-        httpsEnabled: true,  //Enables HTTP REST api
-        exposeHTTP: false,  //Make HTTP REST Api public
-        enableLocalPeerDiscovery: false,  //MSSDNS, over local network
-        enableDHTDiscovery: true, //DHT, over the internet
-        peerDiscoveryPort: "6000", 
-        network:"mainnet",  //Name of network to connect to
-        noLocalhost:false,  //Enable connects on same environment
-        genesis:genesis,  //Gotten from ./modules/tools/getGenesis
-        minerWorker:false,  //Enable worker on same node.js process but in a worker. No advised, unless on a small private network
-        clusterMiner:program.clusterMiner,  //Number of cores to use in worker. Default: 1
-        keychain:program.keychain //In case of miner worker, wallet and password
-      })
+let myNode = new Node({
+  host: "123.123.123.123", //If made public, is public ip of network
+  lanHost: "192.168.1.1", //Internal IP, optional
+  port: "8000",  //ioServer port
+  verbose: false, //Displays more info like transactions sent
+  httpsEnabled: true,  //Enables HTTP REST api
+  exposeHTTP: false,  //Make HTTP REST Api public
+  enableLocalPeerDiscovery: false,  //MSSDNS, over local network
+  enableDHTDiscovery: true, //DHT, over the internet
+  peerDiscoveryPort: "6000", 
+  network:"mainnet",  //Name of network to connect to
+  noLocalhost:false,  //Enable connects on same environment
+  genesis:genesis,  //Gotten from ./modules/tools/getGenesis
+  minerWorker:false,  //Enable worker on same node.js process but in a worker. No advised, unless on a small private network
+  clusterMiner:program.clusterMiner,  //Number of cores to use in worker. Default: 1
+  keychain:program.keychain //In case of miner worker, wallet and password
+})
 
 
 let started = await myNode.startServer()

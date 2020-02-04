@@ -529,7 +529,7 @@ class Blockchain{
         if(branchHasMoreWork){
           return true
         }else{
-          false
+          return false
         }
        
   }

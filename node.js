@@ -1643,28 +1643,31 @@ class Node {
                       if(!this.isDownloading){
                         
                         
-                        let currentLength = this.chain.chain.length
-                        let branchNumberIsHigher = added.blockNumber > currentLength
-                        let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : added.blockNumber - 2)
-                        let rolledback = await this.chain.rollbackToMergeBranch(rollbackTo)
-                        let originAddress = peerMessage.originAddress
+                        let isValidBranch = await this.chain.validateBranch(block)
+                        if(isValidBranch || added.findMissing){
+                          let currentLength = this.chain.chain.length
+                          let branchNumberIsHigher = added.blockNumber > currentLength
+                          let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : added.blockNumber - 2)
+                          let rolledback = await this.chain.rollbackToMergeBranch(rollbackTo)
+                          let originAddress = peerMessage.originAddress
 
-                        let peer = this.peerManager.getPeer(relayPeer)
-                        
-                        if(!peer){
-                          console.log('RELAY DID NOT WORK', originAddress)
-                          peer = this.peerManager.getPeer(originAddress)
-                        }
+                          let peer = this.peerManager.getPeer(relayPeer)
+                          
+                          if(!peer){
+                            console.log('RELAY DID NOT WORK', originAddress)
+                            peer = this.peerManager.getPeer(originAddress)
+                          }
 
-                        if(peer){
-                          console.log('GOT PEER')
-                          peer.emit('getBlockchainStatus')
+                          if(peer){
+                            console.log('GOT PEER')
+                            peer.emit('getBlockchainStatus')
+                          }
+                          else{
+                            console.log('NEED TO BROADCAST')
+                            this.broadcast('getBlockchainStatus')
+                          }
+                          result = rolledback
                         }
-                        else{
-                          console.log('NEED TO BROADCAST')
-                          this.broadcast('getBlockchainStatus')
-                        }
-                        result = rolledback
                         
                         
                       }else{
