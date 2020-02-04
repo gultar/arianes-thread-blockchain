@@ -554,11 +554,14 @@ class Blockchain{
 
       let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
       if(rolledback){
-        if(rolledback && Array.isArray(rolledback)){
-          let lastRolledBackBlock = rolledback[rolledback.length - 1]
-          this.branches[lastRolledBackBlock.hash] = rolledback
-        }else{
-          console.log('Rolled back is not array', rolledback)
+        if(rolledback.error) return { error:rolledback.error }
+        else{
+          if(rolledback && Array.isArray(rolledback)){
+            let lastRolledBackBlock = rolledback[rolledback.length - 1]
+            this.branches[lastRolledBackBlock.hash] = rolledback
+          }else{
+            console.log('Rolled back is not array', rolledback)
+          }
         }
        
         if(rolledback.error) return { error:rolledback.error }
@@ -601,7 +604,8 @@ class Blockchain{
     }
   }
 
-  async rollbackToMergeBranch(blockNumber){
+  async rollbackToMergeBranch(blockNumber, tries=0){
+    let maxTries = 3
     let isPartOfChain = this.chain[blockNumber]
     let isLastBlock = this.getLatestBlock().blockNumber == blockNumber
     if(isPartOfChain){
@@ -611,7 +615,11 @@ class Blockchain{
           return rolledback
         }
     }else{
-      return { error:`ERROR: Could not rollback to block ${blockNumber}. Out of bound` }
+      if(tries <= 3){
+        await this.rollbackToMergeBranch(blockNumber-1, tries++)
+      }else{
+        return { error:`ERROR: Could not rollback to block ${blockNumber}` }
+      }
     }
   }
 

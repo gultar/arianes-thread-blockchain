@@ -1626,10 +1626,25 @@ class Node {
                       //Received some block but it wasn't linked to any other block
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
-                      let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
-                      let fixed = await this.fixUnlinkedBranch(branchingAt);
-                      if(fixed.error) result = {error:fixed.error}
-                      else result = fixed
+                      if(!this.isDownloading){
+                        
+                        let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
+                        let blockNumberOfBranch = branchingAt.blockNumber
+                        let rolledback = await this.chain.rollbackToBlock(branchingAt)
+                        let downloadFromAddress = peerMessage.relayAddress
+                        let peer = this.connectionsToPeers[downloadFromAddress]
+                        peer.emit('getBlockchainStatus')
+                        result = rolledback
+                        
+                        
+                      }else{
+                        return { isDownloading:true }
+                      }
+
+                     
+                      // let fixed = await this.fixUnlinkedBranch(branchingAt);
+                      // if(fixed.error) result = {error:fixed.error}
+                      // else result = fixed
 
                     }else if(added.switched && added.switched.outOfSync){
                       //Something went wrong while syncing unlinked branch
