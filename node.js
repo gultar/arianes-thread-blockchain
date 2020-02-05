@@ -1668,7 +1668,7 @@ class Node {
                       //in order to swap branches if it is necessary
                       if(!this.isDownloading){
                         
-                        
+                          let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
                           let fixed = await this.fixUnlinkedBranch(branchingAt);
                           if(fixed.error) result = await rollbackAndSync(added, peerMessage)
                           else result = fixed
