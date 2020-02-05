@@ -475,9 +475,9 @@ class Node {
 
     socket.on('getNextBlock', async (hash)=>{
       if(hash){
-        await rateLimiter.consume(socket.handshake.address).catch(e => { 
-          // console.log("Peer sent too many 'getNextBlock' events") 
-        }); // consume 1 point per event from IP
+        // await rateLimiter.consume(socket.handshake.address).catch(e => { 
+        //   // console.log("Peer sent too many 'getNextBlock' events") 
+        // }); // consume 1 point per event from IP
 
         let index = this.chain.getIndexOfBlockHash(hash)
         let isGenesis = this.chain.chain[0].hash == hash
@@ -721,8 +721,9 @@ class Node {
         }
       }
 
-      const closeConnection = () =>{
+      const closeConnection = (error=false) =>{
         peer.off('nextBlock')
+        if(error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
         this.isDownloading = false;
       }
 
@@ -735,12 +736,12 @@ class Node {
           resolve(true)
         }else if(block.error){
           logger(block.error)
-          closeConnection()
+          closeConnection({ error:true })
           resolve({ error: block.error })
         }else{
           let isBlockPushed = await this.chain.pushBlock(block);
           if(isBlockPushed.error){
-            closeConnection()
+            closeConnection({ error:true })
             resolve({ error: isBlockPushed.error })
           }else if(isBlockPushed.outOfSync){
             //Do something like a diagnosis to fix out of sync blockchain
