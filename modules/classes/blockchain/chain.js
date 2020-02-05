@@ -1843,14 +1843,15 @@ class Blockchain{
       for await(let header of removed){
         
         let block = await this.getBlockFromDB(header.blockNumber);
-        if(block){
+        if(!block){
+          console.log('COULD NOT FIND BLOCK')
+          console.log(block)
+        }else{
           if(block.error) resolve({error:block.error})
           else{
             let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
             
           }
-        }else{
-          console.log('CAN NOT ROLLBACK BLOCK NOT FOUND')
         }
       }
 
