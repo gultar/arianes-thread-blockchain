@@ -1697,9 +1697,9 @@ class Node {
                       //   }
                         
                         
-                      // }else{
-                      //   return { isDownloading:true }
-                      // }
+                      }else{
+                        return { isDownloading:true }
+                      }
 
                      
                       
