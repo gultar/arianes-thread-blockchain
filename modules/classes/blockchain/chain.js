@@ -99,10 +99,10 @@ class Blockchain{
     })
     this.spentTransactionHashes = {}
     this.spentActionHashes = {}
-    this.blockForks = {}
     this.isSyncingBlocks = false
     this.branches = {}
     this.unlinkedBranches = {}
+    this.looseBlocks = {}
     this.miningReward = 50;
     this.blockSize = 5; //Minimum Number of transactions per block
     this.maxDepthForBlockForks = 3;
@@ -467,11 +467,32 @@ class Blockchain{
   async createNewUnlinkedBranch(newBlock){
     //Pushing new block with previous so that node may find the missing blocks and use the last one found to 
     //fetch the unlinkedBranch created here
+    let isLooseBlockLinked = false
+    let looseBlock = this.looseBlocks[newBlock.previousHash]
+    if(looseBlock) isLooseBlockLinked = await this.chain.getBlockbyHash(looseBlock.previousHash)
     let alreadyExists = this.unlinkedBranches[newBlock.previousHash]
-    if(!alreadyExists){
-      this.unlinkedBranches[newBlock.previousHash] = [ newBlock ]
+    if(!alreadyExists && !isLooseBlockLinked){
+      if(looseBlock) this.unlinkedBranches[looseBlock.previousHash] = [ looseBlock, newBlock ]
+      else this.unlinkedBranches[newBlock.previousHash] = [ newBlock ]
       logger(chalk.yellow(`* Unlinked branch at previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
       return { unlinked:newBlock.hash, blockNumber:newBlock.blockNumber }
+    }else if(!alreadyExists && isLooseBlockLinked){
+
+      let looseBlocks = [ looseBlock, newBlock ]
+      for await(let block of looseBlocks){
+        let isValidCandidate = await this.validateBranch(block)
+        if(isValidCandidate){
+          if(isValidCandidate.error) return { error:isValidCandidate.error }
+          let isValid  = await this.validateBlock(block)
+          if(isValid.error) return { error:isValid.error }
+
+          let added = await this.addBlockToChain(block)
+          if(added.error) return { error:added.error }
+        }
+      }
+
+      return looseBlocks
+      
     }else{
       return { error:'ERROR: Block already exists in branch' }
     }
@@ -504,7 +525,10 @@ class Blockchain{
         let isValidCandidateBranch = await this.validateBranch(newBlock, existingBranch);
 
         if(isValidCandidateBranch){
+          global.minerChannel.emit('nodeEvent', 'stopMining')
+          global.minerChannel.emit('nodeEvent', 'isSwitchingBranch')
           let switched = await this.switchToBranch(existingBranch)
+          global.minerChannel.emit('nodeEvent', 'finishedSwitchingBranch')
           if(switched.error) return { error:switched.error }
           else return { switched:switched }
         }else{

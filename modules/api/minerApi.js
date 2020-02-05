@@ -47,11 +47,13 @@ class MinerAPI{
                 case 'isAvailable':
                     this.isAPIBusy = false
                     break;
+                case 'isSwitchingBranch':
                 case 'isDownloading':
-                    this.isDownloading = true
+                    this.isNodeWorking = true
                     break;
+                case 'finishedSwitchingBranch':
                 case 'finishedDownloading':
-                    this.isDownloading = false
+                    this.isNodeWorking = false
                     break;
                 case 'stopMining':
                     //Stop miner
@@ -64,12 +66,12 @@ class MinerAPI{
 
         
         this.mempool.events.on('newAction', async (action)=>{
-            if(!this.isAPIBusy && !this.isMinerBusy && !this.isDownloading){
+            if(!this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                 await this.sendNewBlock()
             }
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
-             if(!this.isAPIBusy && !this.isMinerBusy && !this.isDownloading){
+             if(!this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                  
                 await this.sendNewBlock()
             }

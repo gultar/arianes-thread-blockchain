@@ -84,7 +84,7 @@ class Node {
     //MinerWorker
     this.minerAPI = {}
     this.minerChannel = new EventEmitter()
-    
+    global.minerChannel = this.minerChannel
     this.id = options.id || sha1(Math.random() * Date.now());
     this.publicKey = options.publicKey;
     this.verbose = options.verbose;
@@ -481,8 +481,8 @@ class Node {
         //   // console.log("Peer sent too many 'getNextBlock' events") 
         // }); // consume 1 point per event from IP
 
-        let index = this.chain.getIndexOfBlockHash(hash)
-        let isGenesis = this.chain.chain[0].hash == hash
+        let index = await this.chain.getIndexOfBlockHashInChain(hash)
+        let isGenesis = genesis.hash == hash
         
         if(index || isGenesis){
           if(hash == this.chain.getLatestBlock().hash){
@@ -755,7 +755,8 @@ class Node {
             //Received some block but it wasn't linked to any other block
             //in this chain. So, node tries to find the block to which it is linked
             //in order to swap branches if it is necessary
-            console.log('About to fix missing blocks')
+            
+            // console.log('About to fix missing blocks')
             let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
            
             let fixed = await this.fixUnlinkedBranch(branchingAt);
@@ -901,6 +902,7 @@ class Node {
         //Finding missing blocks from an unlinked branch where block was pushed. 
         //By finding the missing blocks, current branch is to be swapped with it
         // console.log('About to find missing blocks')
+        
         let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
         
         if(missingBlocks.error) resolve({error:missingBlocks.error})
@@ -1722,6 +1724,7 @@ class Node {
             resolve({error:e.message})
           }
         }else{
+          this.chain.looseBlocks[block.hash] = block
           resolve({busy:'ERROR: Node is busy, could not add block'})
         }
       }else{
