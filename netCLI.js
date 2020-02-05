@@ -95,6 +95,7 @@ program
             let started = await manager.init()
             let genesis = require('./modules/tools/getGenesis')
             let token = new NetworkToken(genesis)
+            console.log(token)
             let created = manager.createNetwork(token)
             if(created.error) throw new Error(created.error)
             logger(`Created new network: ${token.network}`)

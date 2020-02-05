@@ -47,6 +47,9 @@ class MinerAPI{
                 case 'isAvailable':
                     this.isAPIBusy = false
                     break;
+                case 'isDownloading':
+                        this.isDownloading = event
+                        break;
                 case 'stopMining':
                     //Stop miner
                     this.socket.emit('stopMining')

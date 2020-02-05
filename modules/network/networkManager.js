@@ -35,6 +35,7 @@ class NetworkManager{
         let token = new NetworkToken(config)
         let newGenesis = token.genesisConfig
         let savedGenesis = await saveGenesisFile(newGenesis)
+        let saved = await this.saveConfig(token)
         if(savedGenesis.error) return { error:savedGenesis.error }
         else return savedGenesis
     }
@@ -55,6 +56,16 @@ class NetworkManager{
         let saved = this.save('silent')
         if(saved.error || savedGenesis.error) return { error:saved.error || savedGenesis.error } 
         else return saved
+    }
+
+    async saveConfig(token){
+        let written = await writeToFile(token, `./config/${token.network}.json`)
+        if(written){
+            if(written.error) return { error:written.error }
+            else return written
+        }else{
+            return { error:`ERROR: Could not write config file for ${token.network}` }
+        }
     }
 
     async save(silent=false){
