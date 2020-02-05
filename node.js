@@ -452,7 +452,7 @@ class Node {
         }); // consume 1 point per event from IP
         let index = this.chain.getIndexOfBlockHash(hash)
         
-        if(index && index > 0){
+        if(index && index >= 0){
           if(hash == this.chain.chain[0].hash){
             socket.emit('previousBlock', {end:'Reached genesis block'})
           }else{
@@ -467,7 +467,7 @@ class Node {
           }
           
         }else{
-          socket.emit('previousBlock', {error:'Block not found'})
+          socket.emit('previousBlock', {error:'Previous block not found'})
         }
       }
       
@@ -481,9 +481,9 @@ class Node {
 
         let index = this.chain.getIndexOfBlockHash(hash)
         let isGenesis = this.chain.chain[0].hash == hash
-        
+        let lastBlock = this.chain.getLatestBlock()
         if(index || isGenesis){
-          if(hash == this.chain.getLatestBlock().hash){
+          if(hash >= this.chain.getLatestBlock().hash){
             socket.emit('nextBlock', {end:'End of blockchain'})
           }else{
             
@@ -494,6 +494,7 @@ class Node {
                 if(block.error) socket.emit('nextBlock', {error:block.error})
                 socket.emit('nextBlock', block)
               }else{
+                
                 setTimeout(async ()=>{ 
                   block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
                   if(block){
@@ -502,7 +503,7 @@ class Node {
                   }else{
                     socket.emit('nextBlock', { error:`ERROR: Block ${hash.substr(0, 8)} number ${nextBlock.blockNumber} not found` })
                   }
-                }, 200)
+                }, 400)
 
               }
               
@@ -767,7 +768,7 @@ class Node {
             //Received some block but it wasn't linked to any other block
             //in this chain. So, node tries to find the block to which it is linked
             //in order to swap branches if it is necessary
-            
+          
             let missingBlocks = await this.getMissingBlocksToSyncBranch(block.previousHash, peer)
             if(missingBlocks){
               
@@ -1040,7 +1041,7 @@ class Node {
               }
               
               else{
-                
+                createTimeout()
                 peer.emit('getPreviousBlock', block.hash)
               }
 
