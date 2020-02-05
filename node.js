@@ -702,7 +702,7 @@ class Node {
   downloadBlockchain(peer, lastHeader){
     return new Promise(async (resolve)=>{
       this.minerChannel.emit('nodeEvent','stopMining')
-      this.minerChannel.emit('nodeEvent','isBusy')
+      this.minerChannel.emit('nodeEvent','isDownloading')
       let startHash = this.chain.getLatestBlock().hash;
       let lastHash = lastHeader.hash;
       let length = lastHeader.blockNumber + 1;
@@ -727,7 +727,7 @@ class Node {
 
       const closeConnection = () =>{
         peer.off('nextBlock')
-        this.minerChannel.emit('nodeEvent','isAvailable')
+        this.minerChannel.emit('nodeEvent','finishedDownloading')
         this.isDownloading = false;
       }
 
@@ -1328,6 +1328,17 @@ class Node {
 
       socket.on('update', ()=>{
         this.broadcast('getBlockchainStatus');
+      })
+
+      socket.on('isDownloading', (state)=>{
+        if(state){
+          console.log('Emitting is downloading')
+          this.minerChannel.emit('nodeEvent','isDownloading')
+        }
+        else{
+          console.log('Emitting finished downloading')
+          this.minerChannel.emit('nodeEvent','finishedDownloading')
+        }
       })
 
       socket.on('forceReceiveBlocks', ()=>{

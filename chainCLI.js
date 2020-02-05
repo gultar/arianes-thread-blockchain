@@ -261,6 +261,21 @@ program
     })
 })
 
+program
+.command('test [value]')
+.description('test')
+.action((value)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('isDownloading', value);
+                setTimeout(()=>{ socket.close() }, 300)
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
 
 program.parse(process.argv)
 

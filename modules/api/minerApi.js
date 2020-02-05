@@ -40,6 +40,7 @@ class MinerAPI{
         
         //This is for when node is syncing a block or busy doing something else
         this.channel.on('nodeEvent', (event)=>{
+            console.log('Received an event', event)
             switch(event){
                 case 'isBusy':
                     this.isAPIBusy = true
@@ -48,23 +49,28 @@ class MinerAPI{
                     this.isAPIBusy = false
                     break;
                 case 'isDownloading':
-                        this.isDownloading = event
-                        break;
+                    this.isDownloading = true
+                    break;
+                case 'finishedDownloading':
+                    this.isDownloading = false
+                    break;
                 case 'stopMining':
                     //Stop miner
                     this.socket.emit('stopMining')
                     break;
             }
         })
+        
+        this.channel.on('test', m => console.log(m))
 
         
         this.mempool.events.on('newAction', async (action)=>{
-            if(!this.isAPIBusy && !this.isMinerBusy){
+            if(!this.isAPIBusy && !this.isMinerBusy && !this.isDownloading){
                 await this.sendNewBlock()
             }
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
-             if(!this.isAPIBusy && !this.isMinerBusy){
+             if(!this.isAPIBusy && !this.isMinerBusy && !this.isDownloading){
                  
                 await this.sendNewBlock()
             }
