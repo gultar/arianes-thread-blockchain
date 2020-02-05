@@ -463,7 +463,7 @@ class Node {
               if(block.error) socket.emit('previousBlock', {error:block.error})
               socket.emit('previousBlock', block)
             }else{
-              socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${hash.substr(0, 10)}... at block index ${index}`})
+              socket.emit('previousBlock', {error:`ERROR: Could not find block ${hash.substr(0, 10)}... at index ${index}`})
             }
             
           }
@@ -493,20 +493,22 @@ class Node {
             let nextBlock = this.chain.chain[index + 1]
             let latestBlock = this.chain.getLatestBlock()
             if(nextBlock){
+              console.log( await this.chain.getBlockFromDB(nextBlock.blockNumber))
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+              if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
               if(block && !block.error){
-                
+                socket.emit('nextBlock', block)
+              }else if(block.error){
                 socket.emit('nextBlock', block)
               }else{
                 let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
                 if(isBeforeLastBlock){
                   socket.emit('nextBlock', { end:'End of blockchain' })
                 }else{
-                  socket.emit('nextBlock', { error:'ERROR: Block ${block.blockNumber} of hash ${block.hash.substr(0, 8)} not found' })
+                  socket.emit('nextBlock', { error:`ERROR: Block ${block.blockNumber} of hash ${block.hash.substr(0, 8)} not found` })
                 }
                 
               }
-              
                 
             }else{
               console.log('Chain does not contain block at ', index+1)
@@ -742,39 +744,8 @@ class Node {
           closeConnection({ error:true })
           resolve({ error: block.error })
         }else{
-          let isBlockPushed = await this.chain.pushBlock(block);
-          if(isBlockPushed.error){
-            closeConnection({ error:true })
-            resolve({ error: isBlockPushed.error })
-          }else if(isBlockPushed.outOfSync){
-            //Do something like a diagnosis to fix out of sync blockchain
-            resolve({ error:'Blockchain is out of sync'})
-          }else if(isBlockPushed.isBusy){
-            peer.emit('getNextBlock', block.hash)
-            awaitRequest()
-          }else if(isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended){
-            //Received some block but it wasn't linked to any other block
-            //in this chain. So, node tries to find the block to which it is linked
-            //in order to swap branches if it is necessary
-            
-            // console.log('About to fix missing blocks')
-            let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
-           
-            let fixed = await this.fixUnlinkedBranch(branchingAt);
-            if(fixed.error){
-              console.log('Fixed', fixed.error)
-              let rolledBack = await this.chain.rollbackToBlock(block.blockNumber - 5)
-              closeConnection()
-              resolve(await this.downloadBlockchain(peer, this.chain.getLatestBlock()))
-            }
-            else resolve(fixed)
-
-          }else{
-            
-            peer.emit('getNextBlock', block.hash)
-            awaitRequest()
-          }
-          
+          peer.emit('getNextBlock', block.hash)
+          awaitRequest()
         }
       })
       
@@ -782,6 +753,38 @@ class Node {
 
     })
     
+  }
+
+  async pushDownloadedBlocks(blocks){
+    if(blocks){
+      for await(let block of blocks){
+        let isBlockPushed = await this.chain.pushBlock(block);
+        if(isBlockPushed.error){
+          resolve({ error: isBlockPushed.error })
+        }else if(isBlockPushed.isBusy){
+          console.log('NODE BUSY')
+          peer.emit('getNextBlock', block.previousHash)
+        }else if(isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended){
+          //Received some block but it wasn't linked to any other block
+          //in this chain. So, node tries to find the block to which it is linked
+          //in order to swap branches if it is necessary
+          let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+         
+          let fixed = await this.fixUnlinkedBranch(branchingAt);
+          if(fixed.error){
+            console.log('Fixed', fixed.error)
+            let rolledBack = await this.chain.rollbackToBlock(block.blockNumber - 5)
+            closeConnection()
+            resolve(await this.downloadBlockchain(peer, this.chain.getLatestBlock()))
+          }
+          else resolve(fixed)
+
+        }else{
+          
+          
+        }
+      }
+    }
   }
 
   async buildBlockchainStatus(){
