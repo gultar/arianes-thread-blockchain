@@ -771,17 +771,18 @@ class Node {
             // let fixed = await this.fixUnlinkedBranch(branchingAt);
             // if(fixed.error) resolve({error:fixed.error})
             // else resolve(fixed)
-            let isValidBranch = await this.chain.validateBranch(block)
-            if(isValidBranch || isBlockPushed.findMissing){
-              let currentLength = this.chain.chain.length
-              let branchNumberIsHigher = isBlockPushed.blockNumber > currentLength
-              let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : isBlockPushed.blockNumber - 2)
-              let rolledback = await this.chain.rollbackToMergeBranch(rollbackTo)
-              let lastBlock = this.chain.getLatestBlock()
-              peer.emit('getNextBlock', lastBlock.hash)
+            // let isValidBranch = await this.chain.validateBranch(block)
+            // if(isValidBranch || isBlockPushed.findMissing){
               
               
-            }
+              
+            // }
+            let currentLength = this.chain.chain.length
+            let branchNumberIsHigher = isBlockPushed.blockNumber > currentLength
+            let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : isBlockPushed.blockNumber - 2)
+            let rolledback = await this.chain.rollbackToMergeBranch(rollbackTo)
+            let lastBlock = this.chain.getLatestBlock()
+            peer.emit('getNextBlock', lastBlock.hash)
 
 
 
