@@ -1679,7 +1679,7 @@ class Node {
                         
 
 
-                        let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+                        let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
                         let missingBlocks = await this.getMissingBlocksToSyncBranch(branchingAt)
                         if(missingBlocks){
                           let error = false
