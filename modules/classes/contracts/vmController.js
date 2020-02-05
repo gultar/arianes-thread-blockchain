@@ -90,27 +90,15 @@ class VMController{
         let calls = {}
         
         for await(let contractName of Object.keys(codes)){
-            let start = process.hrtime()
             let contractCode = await this.contractConnector.getContractCode(contractName)
-            let hrend = process.hrtime(start)
-            console.info('GetContract: %ds %dms', hrend[0], hrend[1] / 1000000)
             if(contractCode){
-                start = process.hrtime()
                 let added = await this.vmBootstrap.addContract(contractName, contractCode)
                 if(added.error) return { error:added.error } 
-                hrend = process.hrtime(start)
-                console.info('AddContract: %ds %dms', hrend[0], hrend[1] / 1000000)
 
-                start = process.hrtime()
                 let state = await this.contractConnector.getState(contractName)
-                hrend = process.hrtime(start)
-                console.info('GetState: %ds %dms', hrend[0], hrend[1] / 1000000)
                 if(state && Object.keys(state).length > 0){
                     
-                    start = process.hrtime()
                     let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
-                    hrend = process.hrtime(start)
-                    console.info('SetContractState: %ds %dms', hrend[0], hrend[1] / 1000000)
                     if(stateAdded.error) return { error:stateAdded.error }
 
                     let moreCalls = codes[contractName].calls

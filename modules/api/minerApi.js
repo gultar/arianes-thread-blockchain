@@ -82,13 +82,16 @@ class MinerAPI{
           if(isValid.error) logger('INVALID BLOCK', isValid.error)
           else{
             //To guard against accidentally creating doubles
+            let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
+            let headerExists = this.chain[block.blockNumber]
+            if(!headerExists) headerExists = await this.chain.getBlockbyHash(block.hash)
             let exists = await this.chain.getBlockFromDB(block.blockNumber)
-            if(!exists){
+            if(!exists && !headerExists && isNextBlock){
                 //Broadcast new block found
                 this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
-                let added = await this.chain.pushBlock(block)
-                if(added.error)logger('MINEDBLOCK ERROR:',added.error)
+                let added = await this.chain.addBlockToChain(block)
+                if(added.error)logger('MINEDBLOCK:',added.error)
                 else return block
             }else{
                 return false

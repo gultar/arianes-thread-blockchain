@@ -1,8 +1,6 @@
 const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
-
 let start = process.hrtime()
-
 class Bootstrap{
     constructor({ contractConnector, accountTable, buildCode, deferContractAction, emitContractAction, getCurrentBlock }){
         this.contractConnector = contractConnector
@@ -65,7 +63,6 @@ class Bootstrap{
             worker.terminate()
             this.stopVMTimer(contractName)
             delete this.workers[contractName]
-
             return true
         }catch(e){
             return {error:e.message}
@@ -174,10 +171,7 @@ class Bootstrap{
                     }
 
                 }else if(message.getContract){
-                    start = process.hrtime()
                     let contract = await this.contractConnector.getContractCode(message.getContract);
-                    let hrend = process.hrtime(start)
-                    console.info('GetsContractCode: %ds %dms', hrend[0], hrend[1] / 1000000)
                     // let contractName = message.getContract
                     // let worker = await this.getWorker(contractName)
 

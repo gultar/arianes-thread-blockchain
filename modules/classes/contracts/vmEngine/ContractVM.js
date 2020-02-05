@@ -312,7 +312,7 @@ class ContractVM{
         if(contractName && classCode){
             this.contractClasses[contractName] = classCode
             let exported = await this.exportContractToSandbox(contractName)
-            // this.sandbox.context.require[contractName] = classCode
+            
             return true
         }else{
             return { setContractClassError:'Must pass valid contractName and classCode' }
