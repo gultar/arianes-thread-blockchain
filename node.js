@@ -725,7 +725,7 @@ class Node {
 
       const closeConnection = (error=false) =>{
         peer.off('nextBlock')
-        if(error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+        if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
         this.isDownloading = false;
       }
 
@@ -757,23 +757,15 @@ class Node {
             //in order to swap branches if it is necessary
             console.log('About to fix missing blocks')
             let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
-            let missingBlocks = await this.getMissingBlocksToSyncBranch(branchingAt)
-            if(missingBlocks){
-              for await(let missing of missingBlocks){
-                console.log(`Missing ${block.blockNumber}: ${block.hash}`)
-                let pushed = await this.chain.pushBlock(missing)
-                if(pushed.error){
-                  let rolledBack = await this.chain.rollbackToBlock(missing.blockNumber - 5)
-                  peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
-                }
-              }
-            }else{
+           
+            let fixed = await this.fixUnlinkedBranch(branchingAt);
+            if(fixed.error){
+              console.log('Fixed', fixed.error)
               let rolledBack = await this.chain.rollbackToBlock(block.blockNumber - 5)
-              peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
+              closeConnection()
+              resolve(await this.downloadBlockchain(peer, this.chain.getLatestBlock()))
             }
-            // let fixed = await this.fixUnlinkedBranch(branchingAt);
-            // if(fixed.error) resolve({error:fixed.error})
-            // else resolve(fixed)
+            else resolve(fixed)
 
           }else{
             
