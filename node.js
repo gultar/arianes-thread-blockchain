@@ -452,7 +452,7 @@ class Node {
         }); // consume 1 point per event from IP
         let index = this.chain.getIndexOfBlockHash(hash)
         
-        if(index && index >= 0){
+        if(index && index > 0){
           if(hash == this.chain.chain[0].hash){
             socket.emit('previousBlock', {end:'Reached genesis block'})
           }else{
@@ -461,13 +461,13 @@ class Node {
               if(block.error) socket.emit('previousBlock', {error:block.error})
               socket.emit('previousBlock', block)
             }else{
-              socket.emit('previousBlock', {error:`ERROR: Could not find block ${hash.substr(0, 10)}... at index ${index}`})
+              socket.emit('previousBlock', {error:`ERROR: Could not find block body of ${hash.substr(0, 10)}... at block index ${index}`})
             }
             
           }
           
         }else{
-          socket.emit('previousBlock', {error:'Previous block not found'})
+          socket.emit('previousBlock', {error:'Block not found'})
         }
       }
       
@@ -481,33 +481,26 @@ class Node {
 
         let index = this.chain.getIndexOfBlockHash(hash)
         let isGenesis = this.chain.chain[0].hash == hash
-        let lastBlock = this.chain.getLatestBlock()
+        
         if(index || isGenesis){
           if(hash == this.chain.getLatestBlock().hash){
             socket.emit('nextBlock', {end:'End of blockchain'})
           }else{
             
             let nextBlock = this.chain.chain[index + 1]
+            let latestBlock = this.chain.getLatestBlock()
             if(nextBlock){
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
               if(block && !block.error){
+                
                 socket.emit('nextBlock', block)
               }else{
-                if(nextBlock.blockNumber >= lastBlock.blockNumber - 1){
-                  socket.emit('nextBlock', {end:'End of blockchain'})
+                let isBeforeLastBlock = newBlock.blockNumber >= latestBlock.blockNumber - 1
+                if(isBeforeLastBlock){
+                  socket.emit('nextBlock', { end:'End of blockchain' })
                 }else{
-                  setTimeout(async ()=>{ 
-                    block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
-                    if(block){
-                      if(block.error) socket.emit('nextBlock', {error:block.error})
-                      else socket.emit('nextBlock', block)
-                    }else{
-                      socket.emit('nextBlock', { error:`ERROR: Block ${hash.substr(0, 8)} number ${nextBlock.blockNumber} not found` })
-                    }
-                  }, 400)
-  
+                  socket.emit('nextBlock', { error:'ERROR: Block ${block.blockNumber} of hash ${block.hash.substr(0, 8)} not found' })
                 }
-                // if(block.error) socket.emit('nextBlock', {error:block.error})
                 
               }
               
@@ -706,8 +699,6 @@ class Node {
 
   downloadBlockchain(peer, lastHeader){
     return new Promise(async (resolve)=>{
-      this.minerChannel.emit('nodeEvent','stopMining')
-      this.minerChannel.emit('nodeEvent','isDownloading')
       let startHash = this.chain.getLatestBlock().hash;
       let lastHash = lastHeader.hash;
       let length = lastHeader.blockNumber + 1;
@@ -716,28 +707,18 @@ class Node {
       let maxRetryNumber = 10
       this.retrySending = null;
       
-      const awaitRequest = async (retries=0) =>{
-        if(retries < maxRetryNumber){
-          this.retrySending = setTimeout(async ()=>{
+      const awaitRequest = () =>{
+        if(unansweredRequests <= maxRetryNumber){
+          this.retrySending = setTimeout(()=>{
             
             peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
-            return await awaitRequest(retries++)
+            unansweredRequests++
+            awaitRequest()
           }, 5000)
         }else{
           logger('Blockchain download failed. No answer')
           closeConnection()
         }
-        // if(unansweredRequests <= maxRetryNumber){
-        //   this.retrySending = setTimeout(()=>{
-            
-        //     peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
-        //     unansweredRequests++
-        //     awaitRequest()
-        //   }, 5000)
-        // }else{
-        //   logger('Blockchain download failed. No answer')
-        //   closeConnection()
-        // }
       }
 
       const closeConnection = () =>{
@@ -750,11 +731,10 @@ class Node {
         clearTimeout(this.retrySending)
         if(block.end){
           logger('Blockchain updated successfully!')
-          
-          this.minerChannel.emit('nodeEvent','finishedDownloading')
           closeConnection()
           resolve(true)
         }else if(block.error){
+          logger(block.error)
           closeConnection()
           resolve({ error: block.error })
         }else{
@@ -772,27 +752,13 @@ class Node {
             //Received some block but it wasn't linked to any other block
             //in this chain. So, node tries to find the block to which it is linked
             //in order to swap branches if it is necessary
-          
-            let missingBlocks = await this.getMissingBlocksToSyncBranch(block.previousHash, peer)
-            if(missingBlocks){
-              
-                if(missingBlocks.error) resolve({error:missingBlocks.error})
-                else if(missingBlocks.isLinked){
-                  let firstBlock = missingBlocks.isLinked[0]
-
-                  peer.emit('getNextBlock', firstBlock.hash)
-                }
-            }else{
-              let currentLength = this.chain.chain.length
-              let branchNumberIsHigher = isBlockPushed.blockNumber > currentLength
-              let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : isBlockPushed.blockNumber - 2)
-              let rolledback = await this.chain.rollbackToBlock(rollbackTo)
-              let lastBlock = this.chain.getLatestBlock()
-              peer.emit('getNextBlock', lastBlock.hash)
-
-            }
+            let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+            let fixed = await this.fixUnlinkedBranch(branchingAt);
+            if(fixed.error) resolve({error:fixed.error})
+            else resolve(fixed)
 
           }else{
+            
             peer.emit('getNextBlock', block.hash)
             awaitRequest()
           }
@@ -849,7 +815,7 @@ class Node {
                 this.isDownloading = false
                 if(downloaded.error){
                   logger('Could not download blockchain')
-                  console.log(downloaded.error)
+                  logger(downloaded.error)
                   resolve(false)
                 }else{
                   this.updated = true
@@ -1006,15 +972,14 @@ class Node {
 
   
   //Heavy WIP
-  getMissingBlocksToSyncBranch(unsyncedBlockHash, peer){
+  getMissingBlocksToSyncBranch(unsyncedBlockHash){
     return new Promise(async (resolve)=>{
       if(!unsyncedBlockHash){
         resolve({error:'ERROR: Need to provide block hash of missing branch block'})
       }else{
-        let timeout;
-        const createTimeout = () =>{ timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000) }
+        let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
         let missingBlocks = []
-        if(!peer) peer = await this.getMostUpToDatePeer()
+        let peer = await this.getMostUpToDatePeer()
         // console.log('Up to date peer is of type ', typeof peer)
         if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
         else if(peer.error) resolve({error:peer.error})
@@ -1022,8 +987,7 @@ class Node {
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            if(!block.error)console.log('RECEIVED BLOCK', block.blockNumber)
-            else console.log('FUCK', block)
+            
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
@@ -1045,7 +1009,7 @@ class Node {
               }
               
               else{
-                createTimeout()
+                
                 peer.emit('getPreviousBlock', block.hash)
               }
 
@@ -1363,17 +1327,6 @@ class Node {
         this.broadcast('getBlockchainStatus');
       })
 
-      socket.on('isDownloading', (state)=>{
-        if(state){
-          console.log('Emitting is downloading')
-          this.minerChannel.emit('nodeEvent','isDownloading')
-        }
-        else{
-          console.log('Emitting finished downloading')
-          this.minerChannel.emit('nodeEvent','finishedDownloading')
-        }
-      })
-
       socket.on('forceReceiveBlocks', ()=>{
         logger('Will now receive new blocks mined on the network')
         this.update = true
@@ -1394,6 +1347,7 @@ class Node {
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
+        
         socket.emit('rollbackResult', rolledback)
       })
 
@@ -1679,43 +1633,31 @@ class Node {
                     //If not linked, stop mining after pushing the block, to allow more time for mining on this node
                     let result = {}
 
-                    if(added.findMissing || added.unlinked){
+                    if(added.findMissing || added.unlinked || added.unlinkedExtended){
                       //Received some block but it wasn't linked to any other block
                       //in this chain. So, node tries to find the block to which it is linked
                       //in order to swap branches if it is necessary
                       if(!this.isDownloading){
                         
+                        let blockNumberOfBranch = added.blockNumber -1
+                        let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
+                        let downloadFromAddress = peerMessage.relayPeer
+                        let downloadFromOriginAddress = peerMessage.originAddress
+
+                        let peer = this.peerManager.getPeer(downloadFromAddress)
                         
-                        let isValidBranch = await this.chain.validateBranch(block)
-                        if(isValidBranch || added.findMissing){
-                          let currentLength = this.chain.chain.length
-                          let branchNumberIsHigher = added.blockNumber > currentLength
-                          let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : added.blockNumber - 2)
-                          let rolledback = await this.chain.rollbackToMergeBranch(rollbackTo)
-                          let originAddress = peerMessage.originAddress
+                        if(!peer) peer = this.peerManager.getPeer(downloadFromOriginAddress)
 
-                          let peer = this.peerManager.getPeer(relayPeer)
-                          
-                          if(!peer){
-                            console.log('RELAY DID NOT WORK', originAddress)
-                            peer = this.peerManager.getPeer(originAddress)
-                          }
-
-                          if(peer){
-                            peer.emit('getBlockchainStatus')
-                          }
-                          else{
-                            this.broadcast('getBlockchainStatus')
-                          }
-                          result = rolledback
-                        }
+                        if(peer) peer.emit('getBlockchainStatus')
+                        else this.broadcast('getBlockchainStatus')
+                        result = rolledback
                         
                         
                       }else{
                         return { isDownloading:true }
                       }
 
-                      // let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
+                     
                       // let fixed = await this.fixUnlinkedBranch(branchingAt);
                       // if(fixed.error) result = {error:fixed.error}
                       // else result = fixed
