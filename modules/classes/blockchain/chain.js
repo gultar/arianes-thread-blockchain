@@ -1841,18 +1841,8 @@ class Blockchain{
       let mainBranch = []
 
       for await(let header of removed){
-        
-        let block = await this.getBlockFromDB(header.blockNumber);
-        if(!block){
-          console.log('COULD NOT FIND BLOCK')
-          console.log(block)
-        }else{
-          if(block.error) resolve({error:block.error})
-          else{
-            let deleted = await this.chainDB.deleteId(block.blockNumber.toString())
-            
-          }
-        }
+        let deleted = await this.chainDB.deleteId(header.blockNumber.toString())
+        console.log('Deleted', deleted)
       }
 
       logger('Rolled back to block ', number)
