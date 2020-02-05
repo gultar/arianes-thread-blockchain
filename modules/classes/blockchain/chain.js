@@ -384,7 +384,7 @@ class Blockchain{
                 else resolve(branched)
               }else{
                 
-                let added = await this.addBlockToChain(newBlock, silent, validated)
+                let added = await this.addBlockToChain(newBlock, silent)
                   if(added.error) resolve({error:added.error})
                   else resolve(added)
               }
