@@ -755,8 +755,22 @@ class Node {
             //Received some block but it wasn't linked to any other block
             //in this chain. So, node tries to find the block to which it is linked
             //in order to swap branches if it is necessary
-            peer.emit('getNextBlock', block.previousHash)
-            // let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+            console.log('About to fix missing blocks')
+            let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+            let missingBlocks = await this.getMissingBlocksToSyncBranch(branchingAt)
+            if(missingBlocks){
+              for await(let missing of missingBlocks){
+                console.log(`Missing ${block.blockNumber}: ${block.hash}`)
+                let pushed = await this.chain.pushBlock(missing)
+                if(pushed.error){
+                  let rolledBack = await this.chain.rollbackToBlock(missing.blockNumber - 5)
+                  peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
+                }
+              }
+            }else{
+              let rolledBack = await this.chain.rollbackToBlock(block.blockNumber - 5)
+              peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
+            }
             // let fixed = await this.fixUnlinkedBranch(branchingAt);
             // if(fixed.error) resolve({error:fixed.error})
             // else resolve(fixed)
@@ -991,7 +1005,6 @@ class Node {
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            console.log(`num ${block.blockNumber} hash ${block.hash}`)
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
