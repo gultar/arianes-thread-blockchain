@@ -491,6 +491,7 @@ class Node {
           }else{
             
             let nextBlock = this.chain.getNextBlockbyHash(hash)
+            console.log(nextBlock)
             let latestBlock = this.chain.getLatestBlock()
             if(nextBlock){
               // console.log( await this.chain.getBlockFromDB(nextBlock.blockNumber))
