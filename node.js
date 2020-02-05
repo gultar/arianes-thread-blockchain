@@ -1625,6 +1625,21 @@ class Node {
         if(!this.isDownloading){
           try{
 
+            const rollbackAndSync = async (block, peerMessage) =>{
+              let blockNumberOfBranch = block.blockNumber -1
+              let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
+              let downloadFromAddress = peerMessage.relayPeer
+              let downloadFromOriginAddress = peerMessage.originAddress
+
+              let peer = this.peerManager.getPeer(downloadFromAddress)
+              
+              if(!peer) peer = this.peerManager.getPeer(downloadFromOriginAddress)
+
+              if(peer) peer.emit('getBlockchainStatus')
+              else this.broadcast('getBlockchainStatus')
+              return rolledback
+            }
+
             let block = JSON.parse(data);
             if(!isValidBlockJSON(block)) resolve({error:'ERROR: Block is of invalid format'})
             else{
@@ -1661,18 +1676,23 @@ class Node {
                       //in order to swap branches if it is necessary
                       if(!this.isDownloading){
                         
-                        let blockNumberOfBranch = added.blockNumber -1
-                        let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
-                        let downloadFromAddress = peerMessage.relayPeer
-                        let downloadFromOriginAddress = peerMessage.originAddress
-
-                        let peer = this.peerManager.getPeer(downloadFromAddress)
                         
-                        if(!peer) peer = this.peerManager.getPeer(downloadFromOriginAddress)
 
-                        if(peer) peer.emit('getBlockchainStatus')
-                        else this.broadcast('getBlockchainStatus')
-                        result = rolledback
+
+                        let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+                        let missingBlocks = await this.getMissingBlocksToSyncBranch(branchingAt)
+                        if(missingBlocks){
+                          let error = false
+                          for await(let missing of missingBlocks){
+                            console.log(`Missing ${block.blockNumber}: ${block.hash}`)
+                            let pushed = await this.chain.pushBlock(missing)
+                            if(pushed.error) error = pushed.error
+                          }
+
+                          if(error) return await rollbackAndSync(added, peerMessage)
+                        }else{
+                          return await rollbackAndSync
+                        }
                         
                         
                       }else{
