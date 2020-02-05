@@ -268,56 +268,90 @@ class Blockchain{
         let errors = {}
         let newHeader = this.extractHeader(newBlock)
         this.chain.push(newHeader);
-        
+
+        let start = process.hrtime();
         var areTransactionsValid = await this.validateBlockTransactions(newBlock)
         if(areTransactionsValid.error) errors['TRANSACTION ERROR'] = areTransactionsValid.error
-        
+        let hrend = process.hrtime(start)
+        console.info('TxValid time (hr): %ds %dms', hrend[0], hrend[1] / 1000000)
+
+        start = process.hrtime();
         var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(newBlock)
         if(!doesNotContainDoubleSpend) errors['DOUBLE SPEND ERROR'] = 'ERROR: Block may not contain a transaction that is already spent'
+        hrend = process.hrtime(start)
+        console.info('DoubleSpend time: %ds %dms', hrend[0], hrend[1] / 1000000)
 
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else{
+          start = process.hrtime();
           let executed = await this.balance.runBlock(newBlock)
+          hrend = process.hrtime(start)
+          console.info('Balance run time: %ds %dms', hrend[0], hrend[1] / 1000000)
           
           if(executed.error) errors['BALANCE ERROR'] = executed.error
           else{
-            
+            start = process.hrtime();
             let saved = await this.balance.saveBalances(newBlock)
             if(saved.error) resolve({error:saved.error})
+            hrend = process.hrtime(start)
+            console.info('Balance save time: %ds %dms', hrend[0], hrend[1] / 1000000)
             
+            start = process.hrtime();
             let actions = newBlock.actions || {}
             let allActionsExecuted = await this.executeActionBlock(actions)
             if(allActionsExecuted.error) errors['ACTION ERROR'] = allActionsExecuted.error;
+            hrend = process.hrtime(start)
+            console.info('Actions time: %ds %dms', hrend[0], hrend[1] / 1000000)
             
+            start = process.hrtime();
             let callsExecuted = await this.runTransactionCalls(newBlock);
             if(callsExecuted.error) errors['CALL ERROR'] = callsExecuted.error
+            hrend = process.hrtime(start)
+            console.info('Calls time: %ds %dms', hrend[0], hrend[1] / 1000000)
             
+            start = process.hrtime();
             let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-            if(!transactionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete transactions from Mempool' 
+            if(!transactionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete transactions from Mempool'
+            hrend = process.hrtime(start)
+            console.info('DeleteTx time: %ds %dms', hrend[0], hrend[1] / 1000000) 
             
+            start = process.hrtime();
             let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
             if(!actionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete actions from Mempool' 
+            hrend = process.hrtime(start)
+            console.info('DeleteActions time: %ds %dms', hrend[0], hrend[1] / 1000000) 
             
             //Verify is already exists
             if(Object.keys(errors).length > 0){
               let removedNewHeader = this.chain.pop()
               resolve({error: errors})
             }else{
-              
+              start = process.hrtime();
               for await(let hash of newHeader.txHashes){
                 this.spentTransactionHashes[hash] = { spent:newHeader.blockNumber }
               }
-  
+              hrend = process.hrtime(start)
+              console.info('SpendTx time: %ds %dms', hrend[0], hrend[1] / 1000000) 
+
+              start = process.hrtime();
               if(newHeader.actionsHashes){
                 for await(let hash of newHeader.actionHashes){
                   this.spentActionHashes[hash] = { spent:newHeader.blockNumber }
                 }
               }
+              hrend = process.hrtime(start)
+              console.info('SpendAction time: %ds %dms', hrend[0], hrend[1] / 1000000) 
 
+              start = process.hrtime();
               let statesSaved = await this.contractTable.saveStates(newHeader)
               if(statesSaved.error) logger('STATE SAVE ERROR', statesSaved.error)
+              hrend = process.hrtime(start)
+              console.info('SaveState time: %ds %dms', hrend[0], hrend[1] / 1000000) 
               
+              start = process.hrtime();
               let added = await this.addBlockToDB(newBlock)
+              hrend = process.hrtime(start)
+              console.info('AddBlock time: %ds %dms', hrend[0], hrend[1] / 1000000) 
               if(added){
                 if(added.error) resolve({error:added.error})
     
@@ -2131,8 +2165,6 @@ class Blockchain{
 
               if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
               if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
-              //By enabling this, coins are burnt. 
-              //By disabling, something bugs down the line
               if(!amountHigherOrEqualToZero) resolve({error:'REJECTED: Amount needs to be higher than or equal to zero'});
               if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
               if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
@@ -2240,7 +2272,7 @@ class Blockchain{
           let hash = Object.keys(calls)[0];
 
           let call = calls[hash]
-          
+
           let result = await this.executeSingleCall(call)
           if(result.error) resolve({error:result.error})
           else{
@@ -2575,7 +2607,7 @@ class Blockchain{
         this.factory.addCall(call, call.data.contractName)
         let code = await this.factory.buildCode()
         if(code.error) resolve({error:code.error})
-
+        
         let result = await this.vmController.executeCalls(code)
         
         if(result){

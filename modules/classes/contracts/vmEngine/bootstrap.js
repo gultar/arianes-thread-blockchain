@@ -1,5 +1,8 @@
 const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
+
+let start = process.hrtime()
+
 class Bootstrap{
     constructor({ contractConnector, accountTable, buildCode, deferContractAction, emitContractAction, getCurrentBlock }){
         this.contractConnector = contractConnector
@@ -18,6 +21,7 @@ class Bootstrap{
 
     startVM(){
         this.events.on('run', async (code)=>{
+            start = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
             this.calls[code.hash] = code
@@ -113,6 +117,7 @@ class Bootstrap{
                 }
            })
            
+           
            this.workers[contractName] = worker
 
            if(this.workerMemory[contractName] && Object.keys(this.workerMemory[contractName]).length > 0){
@@ -126,7 +131,7 @@ class Bootstrap{
            worker.on('exit', ()=>{ })
            worker.on('message', async (message)=>{
                 // let rewinded = await this.rewindVMTimer(contractName)
-                
+               
                 if(message.singleResult){
                     
                     
@@ -169,8 +174,10 @@ class Bootstrap{
                     }
 
                 }else if(message.getContract){
-
+                    start = process.hrtime()
                     let contract = await this.contractConnector.getContractCode(message.getContract);
+                    let hrend = process.hrtime(start)
+                    console.info('GetsContractCode: %ds %dms', hrend[0], hrend[1] / 1000000)
                     // let contractName = message.getContract
                     // let worker = await this.getWorker(contractName)
 
@@ -216,9 +223,6 @@ class Bootstrap{
                             worker.postMessage(false)
                         }
                     }
-                    // let account = await this.accountTable.getAccount(name);
-
-                    
 
                 }else if(message.emitContractAction){
                     
@@ -234,10 +238,7 @@ class Bootstrap{
                             worker.postMessage(false)
                         }
                     }
-                    // let account = await this.accountTable.getAccount(name);
-
                     
-
                 }else if(message.error){
 
                     // console.log('VM ERROR:',message)

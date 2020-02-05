@@ -11,6 +11,7 @@ class ContractTable{
         this.contractDB = new Database('contracts')
         this.contractStateDB = new Database('states')
         this.stateStorage = {}
+        this.stateMemory = {}
     }
 
     async init(){
@@ -152,10 +153,15 @@ class ContractTable{
     getState(name){
         return new Promise(async (resolve)=>{
             if(this.stateStorage[name]){
-                let state = await this.stateStorage[name].getCurrentState()
+                if(this.stateMemory[name]){
+                    resolve(this.stateMemory[name])
+                }else{
+                    let state = await this.stateStorage[name].getLatestState()
                 
-                if(state.error) resolve({error:state.error})
-                else resolve(state)
+                    if(state.error) resolve({error:state.error})
+                    else resolve(state)
+                }
+                
             }else{
                 resolve({error:`ERROR: State does not exist for contract ${name}`})
             }
@@ -188,6 +194,7 @@ class ContractTable{
                     let updated = await this.stateStorage[name].update(newState)
                     if(updated.error) resolve({error:updated.error})
                     else{
+                        this.stateMemory[name] = newState
                         resolve(true)
                     }
                     
