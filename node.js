@@ -490,7 +490,7 @@ class Node {
             socket.emit('nextBlock', {end:'End of blockchain'})
           }else{
             
-            let nextBlock = this.chain.getNextBlockbyHash(hash)
+            let nextBlock = await this.chain.getNextBlockbyHash(hash)
             console.log(nextBlock)
             let latestBlock = this.chain.getLatestBlock()
             if(nextBlock){
