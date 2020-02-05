@@ -767,23 +767,10 @@ class Node {
             //Received some block but it wasn't linked to any other block
             //in this chain. So, node tries to find the block to which it is linked
             //in order to swap branches if it is necessary
-            // let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
-            // let fixed = await this.fixUnlinkedBranch(branchingAt);
-            // if(fixed.error) resolve({error:fixed.error})
-            // else resolve(fixed)
-            // let isValidBranch = await this.chain.validateBranch(block)
-            // if(isValidBranch || isBlockPushed.findMissing){
-              
-              
-              
-            // }
-            let currentLength = this.chain.chain.length
-            let branchNumberIsHigher = isBlockPushed.blockNumber > currentLength
-            let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : isBlockPushed.blockNumber - 2)
-            // let rolledback = await this.chain.rollbackToBlock(rollbackTo)
+            
             let missingBlocks = await this.getMissingBlocksToSyncBranch(block.previousHash, peer)
             if(missingBlocks){
-                console.log('Missing blocks', missingBlocks)
+              
                 if(missingBlocks.error) resolve({error:missingBlocks.error})
                 else if(missingBlocks.isLinked){
                   let firstBlock = missingBlocks.isLinked[0]
@@ -791,12 +778,14 @@ class Node {
                   peer.emit('getNextBlock', firstBlock.hash)
                 }
             }else{
-              console.log('NO MISSING BLOCKS', missingBlocks)
+              let currentLength = this.chain.chain.length
+              let branchNumberIsHigher = isBlockPushed.blockNumber > currentLength
+              let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : isBlockPushed.blockNumber - 2)
+              let rolledback = await this.chain.rollbackToBlock(rollbackTo)
+              let lastBlock = this.chain.getLatestBlock()
+              peer.emit('getNextBlock', lastBlock.hash)
+
             }
-            // let lastBlock = this.chain.getLatestBlock()
-            // peer.emit('getNextBlock', lastBlock.previousHash)
-
-
 
           }else{
             peer.emit('getNextBlock', block.hash)
