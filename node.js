@@ -1027,7 +1027,7 @@ class Node {
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            
+            console.log(block)
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
