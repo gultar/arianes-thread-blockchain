@@ -711,23 +711,32 @@ class Node {
       let maxRetryNumber = 10
       this.retrySending = null;
       
-      const awaitRequest = () =>{
-        if(unansweredRequests <= maxRetryNumber){
+      const awaitRequest = async (retries=0) =>{
+        if(retries < maxRetryNumber){
           this.retrySending = setTimeout(()=>{
             
             peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
-            unansweredRequests++
-            awaitRequest()
+            return await awaitRequest(retries++)
           }, 5000)
         }else{
           logger('Blockchain download failed. No answer')
           closeConnection()
         }
+        // if(unansweredRequests <= maxRetryNumber){
+        //   this.retrySending = setTimeout(()=>{
+            
+        //     peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
+        //     unansweredRequests++
+        //     awaitRequest()
+        //   }, 5000)
+        // }else{
+        //   logger('Blockchain download failed. No answer')
+        //   closeConnection()
+        // }
       }
 
       const closeConnection = () =>{
         peer.off('nextBlock')
-        this.minerChannel.emit('nodeEvent','finishedDownloading')
         this.isDownloading = false;
       }
 
@@ -736,6 +745,8 @@ class Node {
         clearTimeout(this.retrySending)
         if(block.end){
           logger('Blockchain updated successfully!')
+          
+          this.minerChannel.emit('nodeEvent','finishedDownloading')
           closeConnection()
           resolve(true)
         }else if(block.error){
@@ -1669,11 +1680,9 @@ class Node {
                           }
 
                           if(peer){
-                            console.log('GOT PEER')
                             peer.emit('getBlockchainStatus')
                           }
                           else{
-                            console.log('NEED TO BROADCAST')
                             this.broadcast('getBlockchainStatus')
                           }
                           result = rolledback
