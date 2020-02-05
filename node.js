@@ -1012,14 +1012,14 @@ class Node {
 
   
   //Heavy WIP
-  getMissingBlocksToSyncBranch(unsyncedBlockHash){
+  getMissingBlocksToSyncBranch(unsyncedBlockHash, peer){
     return new Promise(async (resolve)=>{
       if(!unsyncedBlockHash){
         resolve({error:'ERROR: Need to provide block hash of missing branch block'})
       }else{
         let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
         let missingBlocks = []
-        let peer = await this.getMostUpToDatePeer()
+        if(!peer) peer = await this.getMostUpToDatePeer()
         // console.log('Up to date peer is of type ', typeof peer)
         if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
         else if(peer.error) resolve({error:peer.error})
@@ -1027,7 +1027,7 @@ class Node {
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            console.log(block)
+            console.log('RECEIVED BLOCK', block.blockNumber)
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
