@@ -783,7 +783,7 @@ class Node {
             // let rolledback = await this.chain.rollbackToBlock(rollbackTo)
             let missingBlocks = await this.getMissingBlocksToSyncBranch(block.previousHash, peer)
             if(missingBlocks){
-                console.log('Missing blocks', missingBlocks.length)
+                console.log('Missing blocks', missingBlocks)
                 if(missingBlocks.error) resolve({error:missingBlocks.error})
                 else if(missingBlocks.isLinked){
                   let firstBlock = missingBlocks.isLinked[0]
@@ -1017,7 +1017,8 @@ class Node {
       if(!unsyncedBlockHash){
         resolve({error:'ERROR: Need to provide block hash of missing branch block'})
       }else{
-        let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
+        let timeout;
+        const createTimeout = () =>{ timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000) }
         let missingBlocks = []
         if(!peer) peer = await this.getMostUpToDatePeer()
         // console.log('Up to date peer is of type ', typeof peer)
@@ -1027,7 +1028,8 @@ class Node {
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            console.log('RECEIVED BLOCK', block.blockNumber)
+            if(!block.error)console.log('RECEIVED BLOCK', block.blockNumber)
+            else console.log('FUCK', block)
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
