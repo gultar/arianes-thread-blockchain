@@ -483,28 +483,32 @@ class Node {
         let isGenesis = this.chain.chain[0].hash == hash
         let lastBlock = this.chain.getLatestBlock()
         if(index || isGenesis){
-          if(hash >= this.chain.getLatestBlock().hash){
+          if(hash == this.chain.getLatestBlock().hash){
             socket.emit('nextBlock', {end:'End of blockchain'})
           }else{
             
             let nextBlock = this.chain.chain[index + 1]
             if(nextBlock){
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
-              if(block){
-                if(block.error) socket.emit('nextBlock', {error:block.error})
+              if(block && !block.error){
                 socket.emit('nextBlock', block)
               }else{
+                if(nextBlock.blockNumber >= lastBlock.blockNumber - 1){
+                  socket.emit('nextBlock', {end:'End of blockchain'})
+                }else{
+                  setTimeout(async ()=>{ 
+                    block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+                    if(block){
+                      if(block.error) socket.emit('nextBlock', {error:block.error})
+                      else socket.emit('nextBlock', block)
+                    }else{
+                      socket.emit('nextBlock', { error:`ERROR: Block ${hash.substr(0, 8)} number ${nextBlock.blockNumber} not found` })
+                    }
+                  }, 400)
+  
+                }
+                // if(block.error) socket.emit('nextBlock', {error:block.error})
                 
-                setTimeout(async ()=>{ 
-                  block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
-                  if(block){
-                    if(block.error) socket.emit('nextBlock', {error:block.error})
-                    else socket.emit('nextBlock', block)
-                  }else{
-                    socket.emit('nextBlock', { error:`ERROR: Block ${hash.substr(0, 8)} number ${nextBlock.blockNumber} not found` })
-                  }
-                }, 400)
-
               }
               
                 
