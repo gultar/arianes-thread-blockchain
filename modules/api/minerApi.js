@@ -40,7 +40,6 @@ class MinerAPI{
         
         //This is for when node is syncing a block or busy doing something else
         this.channel.on('nodeEvent', (event)=>{
-            console.log('Received an event', event)
             switch(event){
                 case 'isBusy':
                     this.isAPIBusy = true
