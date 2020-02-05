@@ -1677,32 +1677,32 @@ class Node {
                       if(!this.isDownloading){
                         
                         
+                          let fixed = await this.fixUnlinkedBranch(branchingAt);
+                          if(fixed.error) result = await rollbackAndSync(added, peerMessage)
+                          else result = fixed
 
+                      //   let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
+                      //   let missingBlocks = await this.getMissingBlocksToSyncBranch(branchingAt)
+                      //   if(missingBlocks){
+                      //     let error = false
+                      //     for await(let missing of missingBlocks){
+                      //       console.log(`Missing ${block.blockNumber}: ${block.hash}`)
+                      //       let pushed = await this.chain.pushBlock(missing)
+                      //       if(pushed.error) error = pushed.error
+                      //     }
 
-                        let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
-                        let missingBlocks = await this.getMissingBlocksToSyncBranch(branchingAt)
-                        if(missingBlocks){
-                          let error = false
-                          for await(let missing of missingBlocks){
-                            console.log(`Missing ${block.blockNumber}: ${block.hash}`)
-                            let pushed = await this.chain.pushBlock(missing)
-                            if(pushed.error) error = pushed.error
-                          }
-
-                          if(error) return await rollbackAndSync(added, peerMessage)
-                        }else{
-                          return await rollbackAndSync
-                        }
+                      //     if(error) return await rollbackAndSync(added, peerMessage)
+                      //   }else{
+                      //     return await rollbackAndSync
+                      //   }
                         
                         
-                      }else{
-                        return { isDownloading:true }
-                      }
+                      // }else{
+                      //   return { isDownloading:true }
+                      // }
 
                      
-                      // let fixed = await this.fixUnlinkedBranch(branchingAt);
-                      // if(fixed.error) result = {error:fixed.error}
-                      // else result = fixed
+                      
 
                     }else if(added.switched && added.switched.outOfSync){
                       //Something went wrong while syncing unlinked branch
