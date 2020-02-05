@@ -781,8 +781,9 @@ class Node {
             let branchNumberIsHigher = isBlockPushed.blockNumber > currentLength
             let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : isBlockPushed.blockNumber - 2)
             let rolledback = await this.chain.rollbackToMergeBranch(rollbackTo)
-            let lastBlock = this.chain.getLatestBlock()
-            peer.emit('getNextBlock', lastBlock.hash)
+            let missingBlocks = await this.getMissingBlocksToSyncBranch(block.hash)
+            // let lastBlock = this.chain.getLatestBlock()
+            // peer.emit('getNextBlock', lastBlock.previousHash)
 
 
 
