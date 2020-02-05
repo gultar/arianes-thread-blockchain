@@ -490,17 +490,17 @@ class Node {
             socket.emit('nextBlock', {end:'End of blockchain'})
           }else{
             
-            let nextBlock = this.chain.chain[index + 1]
+            let nextBlock = this.chain.getNextBlockbyHash(hash)
             let latestBlock = this.chain.getLatestBlock()
             if(nextBlock){
-              console.log( await this.chain.getBlockFromDB(nextBlock.blockNumber))
+              // console.log( await this.chain.getBlockFromDB(nextBlock.blockNumber))
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+              console.log('Block', typeof block)
               if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
               if(block && !block.error){
                 socket.emit('nextBlock', block)
-              }else if(block.error){
-                socket.emit('nextBlock', block)
               }else{
+                
                 let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
                 if(isBeforeLastBlock){
                   socket.emit('nextBlock', { end:'End of blockchain' })

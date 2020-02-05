@@ -1217,6 +1217,14 @@ class Blockchain{
     return false;
   }
 
+  async getNextBlockbyHash(hash){
+    for await(let block of this.chain){
+      if(block.previousHash === hash) return block
+    }
+
+    return false;
+  }
+
 
   checkBalance(publicKey){
     let walletState = this.balance.getBalance(publicKey)
