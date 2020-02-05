@@ -456,7 +456,9 @@ class Node {
           if(hash == this.chain.chain[0].hash){
             socket.emit('previousBlock', {end:'Reached genesis block'})
           }else{
-            let block = await this.chain.getBlockFromDB(index - 1)
+            let previousHash = this.chain.chain[index].previousHash
+            let block = await this.chain.getBlockFromDBByHash(previousHash)
+            // let block = await this.chain.getBlockFromDB(index)
             if(block){
               if(block.error) socket.emit('previousBlock', {error:block.error})
               socket.emit('previousBlock', block)
@@ -989,7 +991,7 @@ class Node {
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
           peer.on('previousBlock', (block)=>{
-            
+            console.log(`num ${block.blockNumber} hash ${block.hash}`)
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
@@ -1345,6 +1347,11 @@ class Node {
 
       socket.on('requestPeers', ()=>{
         this.findPeers()
+      })
+
+      socket.on('findMissing', async (hash)=>{
+        let missingBlocks = await this.getMissingBlocksToSyncBranch(hash)
+        console.log(missingBlocks)
       })
       
       socket.on('rollback', async (number)=>{

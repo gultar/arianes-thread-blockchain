@@ -759,6 +759,17 @@ class Blockchain{
     })
   }
 
+  async getBlockFromDBByHash(hash){
+      let header = await this.getBlockbyHash(hash)
+      if(header){
+        let block = await this.getBlockFromDB(header.blockNumber)
+        if(block.error) return { error:block.error }
+        else return block
+      }else{
+        return false
+      }
+  }
+
 
   putBlockToDB(block){
     return new Promise(async (resolve)=>{
@@ -815,7 +826,7 @@ class Blockchain{
   getBodyFromDB(hash){
     return new Promise(async (resolve)=>{
       if(hash){
-        let header = this.getBlockFromHash(hash)
+        let header = await this.getBlockbyHash(hash)
         let bodyEntry = await this.chainDB.get(hash)
         if(bodyEntry){
             if(bodyEntry.error) resolve({error:bodyEntry.error})

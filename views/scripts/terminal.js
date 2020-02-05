@@ -494,7 +494,7 @@ var Terminal = Terminal || function(cmdLineContainer, outputContainer) {
             connectError(cmd);
             break;
           }
-          socket.emit('testDelete', args[0])
+          socket.emit('findMissing', args[0])
           // socket.emit('tryPing')
           break;
         case 'closest':
