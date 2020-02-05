@@ -780,8 +780,8 @@ class Node {
             let currentLength = this.chain.chain.length
             let branchNumberIsHigher = isBlockPushed.blockNumber > currentLength
             let rollbackTo = (branchNumberIsHigher ? currentLength - 2 : isBlockPushed.blockNumber - 2)
-            let rolledback = await this.chain.rollbackToBlock(rollbackTo)
-            let missingBlocks = await this.getMissingBlocksToSyncBranch(block.hash)
+            // let rolledback = await this.chain.rollbackToBlock(rollbackTo)
+            let missingBlocks = await this.getMissingBlocksToSyncBranch(block.previousHash)
             if(missingBlocks){
                 console.log('Missing blocks', missingBlocks.length)
                 if(missingBlocks.error) resolve({error:missingBlocks.error})
