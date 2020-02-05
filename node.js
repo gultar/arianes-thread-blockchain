@@ -753,10 +753,11 @@ class Node {
             //Received some block but it wasn't linked to any other block
             //in this chain. So, node tries to find the block to which it is linked
             //in order to swap branches if it is necessary
-            let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
-            let fixed = await this.fixUnlinkedBranch(branchingAt);
-            if(fixed.error) resolve({error:fixed.error})
-            else resolve(fixed)
+            peer.emit('getNextBlock', block.previousHash)
+            // let branchingAt = isBlockPushed.findMissing || isBlockPushed.unlinked || isBlockPushed.unlinkedExtended
+            // let fixed = await this.fixUnlinkedBranch(branchingAt);
+            // if(fixed.error) resolve({error:fixed.error})
+            // else resolve(fixed)
 
           }else{
             
