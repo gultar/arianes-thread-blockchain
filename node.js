@@ -495,7 +495,7 @@ class Node {
                 
                 socket.emit('nextBlock', block)
               }else{
-                let isBeforeLastBlock = newBlock.blockNumber >= latestBlock.blockNumber - 1
+                let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
                 if(isBeforeLastBlock){
                   socket.emit('nextBlock', { end:'End of blockchain' })
                 }else{
