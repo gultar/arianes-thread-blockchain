@@ -713,7 +713,7 @@ class Node {
       
       const awaitRequest = async (retries=0) =>{
         if(retries < maxRetryNumber){
-          this.retrySending = setTimeout(()=>{
+          this.retrySending = setTimeout(async ()=>{
             
             peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
             return await awaitRequest(retries++)
