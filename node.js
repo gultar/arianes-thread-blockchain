@@ -482,7 +482,7 @@ class Node {
         // }); // consume 1 point per event from IP
 
         let index = await this.chain.getIndexOfBlockHashInChain(hash)
-        let isGenesis = genesis.hash == hash
+        let isGenesis = this.genesis.hash == hash
         
         if(index || isGenesis){
           if(hash == this.chain.getLatestBlock().hash){
