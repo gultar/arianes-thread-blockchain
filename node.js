@@ -155,8 +155,8 @@ class Node {
   }
 
   displaySplashScreen(){
-    let figlet = require('figlet')
-    console.log(chalk.green(figlet.textSync('HydraChain.js')))
+    // let figlet = require('figlet')
+    // console.log(chalk.green(figlet.textSync('HydraChain.js')))
   }
 
   /**
