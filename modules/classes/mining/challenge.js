@@ -11,7 +11,7 @@ class Difficulty{
     this.difficultyBomb = genesisConfig.difficultyBomb || 100 * 1000;
     this.minimumDifficulty = genesisConfig.difficulty
     this.difficultyBoundDivider = genesisConfig.difficultyBoundDivider || 512
-    this.difficultyDivider = 384n //Has to be a big int
+    this.difficultyDivider = BigInt(384) //Has to be a big int
   }
 
   setNewDifficulty(previousBlock, newBlock){
@@ -27,7 +27,7 @@ class Difficulty{
 
   setNewChallenge(block){
     let difficulty = BigInt(parseInt(block.difficulty, 16))
-    if(difficulty == 0n) difficulty = 1n
+    if(difficulty == BigInt(0)) difficulty = BigInt(1)
     let newChallenge = BigInt(Math.pow(2, 255) -1) / BigInt(difficulty)
     return newChallenge.toString(16)
   }
@@ -95,7 +95,7 @@ const setNewDifficulty =(previousBlock, newBlock)=>{
   // console.log('Mine time:', mineTime)
   const timeAdjustment = (20 - mineTime >= -99? (20 - mineTime) : -99)
   // console.log('Time adjustment:', timeAdjustment)
-  const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / 512n) * BigInt(timeAdjustment)
+  const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / BigInt(512)) * BigInt(timeAdjustment)
   // console.log('Modifier:', modifier)
   const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / 100000)-2)))
   // console.log('Difficulty bomb', difficultyBomb)
@@ -108,7 +108,7 @@ const setNewDifficulty =(previousBlock, newBlock)=>{
 
 const setNewChallenge = (block) =>{
   let difficulty = BigInt(parseInt(block.difficulty, 16))
-  if(difficulty == 0n) difficulty = 1n
+  if(difficulty == BigInt(0)) difficulty = BigInt(1)
   let newChallenge = BigInt(Math.pow(2, 255) -1) / BigInt(difficulty)
   return newChallenge.toString(16)
 }
