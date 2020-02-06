@@ -62,9 +62,6 @@ class MinerAPI{
             }
         })
         
-        this.channel.on('test', m => console.log(m))
-
-        
         this.mempool.events.on('newAction', async (action)=>{
             if(!this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                 await this.sendNewBlock()

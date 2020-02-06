@@ -456,13 +456,28 @@ class Node {
           if(hash == this.chain.chain[0].hash){
             socket.emit('previousBlock', {end:'Reached genesis block'})
           }else{
+            console.log('Peer requested previous of hash', hash)
             let previousHash = this.chain.chain[index].previousHash
+            console.log('Hash is block', index)
             let block = await this.chain.getBlockFromDBByHash(previousHash)
+            console.log('Is linked to block', (block? block.hash:block))
+
+            let isInPool = await this.chain.getBlockFromPool(hash)
+            console.log('Current Is in pool', (isInPool?isInPool.hash:isInPool))
+            if(isInPool && !isInPool.error){
+              let previous = await this.chain.getBlockFromPool(isInPool.previousHash)
+              console.log('Previous is in pool', (previous?previous.hash:previous))
+              if(previous && !previous.error) socket.emit('previousBlock', { pool:previous })
+            }
+
+            let isLinkedToBranch = await this.chain.getBranch(hash)
+            console.log('Current is linked to branch', (isLinkedToBranch?isLinkedToBranch.length:isLinkedToBranch))
+            if(isLinkedToBranch && !isLinkedToBranch.error) socket.emit('previousBlock', { branch:isLinkedToBranch })
             // let block = await this.chain.getBlockFromDB(index)
             if(block){
               if(block.error) socket.emit('previousBlock', {error:block.error})
               socket.emit('previousBlock', block)
-            }else{
+            }else if(!block && !isInPool && isLinkedToBranch){
               socket.emit('previousBlock', {error:`ERROR: Could not find block ${hash.substr(0, 10)}... at index ${index}`})
             }
             
@@ -526,27 +541,14 @@ class Node {
       if(this.chain instanceof Blockchain){
         if(hash && typeof hash == 'string'){
         
-          let blockIndex = this.chain.getIndexOfBlockHash(hash);
-          if(blockIndex){
-            let block = await this.chain.getBlockFromDB(blockIndex);
+          let block = await this.chain.getBlockFromDBByHash(blockIndex);
             if(block){
               if(block.error) socket.emit('blockFromHash', {error:block.error})
               else socket.emit('blockFromHash', block)
               
-            }else if(blockIndex == this.chain.getLatestBlock().blockNumber + 1){
-              socket.emit('blockFromHash', {end:'End of blockchain'})
             }else{
-              if(this.chain.getLatestBlock().blockFork && this.chain.getLatestBlock().blockFork[hash]){
-                let block = this.chain.getLatestBlock().blockFork[hash];
-                socket.emit('blockFromHash', {fork:block})
-              }else{
-                socket.emit('blockFromHash', {error:'Block not found'})
-              }
-              
+              socket.emit('blockFromHash', {error:'Block not found'})
             }
-          }else{
-            socket.emit('blockFromHash', {error:'Block not found'})
-          }
           
         }
       }
@@ -696,6 +698,38 @@ class Node {
         peer.off('genesisBlock')
         this.isDownloading = false;
       }, 5000)
+    })
+  }
+
+  downloadBlockFromHash(peer, hash){
+    return new Promise(async (resolve)=>{
+      if(peer && hash){
+        
+        peer.emit('getBlockFromHash', hash);
+
+        peer.on('blockFromHash', (block)=>{
+          
+          if(block){
+            if(block.fork){
+              peer.off('blockFromHash');
+              resolve(block.fork)
+            }else{
+
+              if(block.error){
+                logger('BLOCK DOWNLOAD ERROR:',block.error)
+                peer.off('blockFromHash');
+                resolve({error:block.error})
+              }
+  
+              peer.off('blockFromHash');
+              resolve(block)
+            }
+            
+          }else{
+            logger('ERROR: No block received')
+          }
+        })
+      }
     })
   }
 
@@ -994,6 +1028,31 @@ class Node {
               peer.off('previousBlock')
               clearTimeout(timeout)
               resolve({error:block.error})
+            }else if(block.branch){
+
+              missingBlocks = [ ...block.branch, ...missingBlocks ]
+              let firstBlock = missingBlocks[0]
+              let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(firstBlock.previousHash)
+              if(isLinkedToChain){
+                peer.off('previousBlock')
+                clearTimeout(timeout)
+                resolve(missingBlocks)
+              }else{
+                peer.emit('getPreviousBlock', firstBlock.hash)
+              } 
+              
+            }else if(block.pool){
+
+              let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(block.pool.previousHash)
+              missingBlocks = [ block.pool, ...missingBlocks ]
+              if(isLinkedToChain){
+                peer.off('previousBlock')
+                clearTimeout(timeout)
+                resolve(missingBlocks)
+              }else{
+                peer.emit('getPreviousBlock', block.pool.hash)
+              }
+              
             }else if(block){
               
               
