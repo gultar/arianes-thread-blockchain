@@ -1395,7 +1395,7 @@ class Blockchain{
   * @return {string} Total difficulty of given blockchain, expressed as a hex string
   */
   calculateWorkDone(chain=this.chain){
-    let total = 0n;
+    let total = BigInt(0);
     chain.forEach( block=>{
       let difficulty = BigInt(parseInt(block.difficulty, 16))
       total += difficulty;
@@ -1412,7 +1412,7 @@ class Blockchain{
    */
 
   async calculateTotalDifficulty(chain=this.chain){
-     let total = 0n;
+     let total = BigInt(0);
      for await(let block of chain){
        let parseDifficulty = parseInt(block.difficulty, 16)
       let difficulty = BigInt(parseDifficulty)
