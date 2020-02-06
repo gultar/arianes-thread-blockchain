@@ -1649,10 +1649,8 @@ class Node {
                   //While node is push next block
                   this.minerChannel.emit('nodeEvent','stopMining')
                   this.minerChannel.emit('nodeEvent','isBusy')
-                  console.log('Received', block.hash)
                   //Validates than runs the block
                   let added = await this.chain.receiveBlock(block);
-                  console.log('added', added)
                   this.minerChannel.emit('nodeEvent','isAvailable')
                   if(added.error){
                     resolve({error:added.error})
