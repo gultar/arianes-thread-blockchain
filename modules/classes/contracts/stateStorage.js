@@ -224,7 +224,8 @@ class StateStorage{
 
             }
         }
-        return true
+        let latestState = await this.getLatestState()
+        return latestState
 
     }
 

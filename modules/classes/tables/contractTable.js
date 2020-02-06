@@ -269,6 +269,8 @@ class ContractTable{
                 else{
                     let rolledBack = await storage.rollbackToBlock(blockNumber)
                     if(rolledBack.error) return { error:rolledBack.error }
+
+                    this.stateMemory[contractName] = rolledBack
                 }
             }
             return true

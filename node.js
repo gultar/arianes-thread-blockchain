@@ -480,9 +480,7 @@ class Node {
         // await rateLimiter.consume(socket.handshake.address).catch(e => { 
         //   // console.log("Peer sent too many 'getNextBlock' events") 
         // }); // consume 1 point per event from IP
-        console.log('Requested hash', hash)
         let index = await this.chain.getIndexOfBlockHashInChain(hash)
-        console.log('Has index', index)
         let isGenesis = this.genesis.hash == hash
         
         if(index || isGenesis){
@@ -491,12 +489,10 @@ class Node {
           }else{
             
             let nextBlock = await this.chain.getNextBlockbyHash(hash)
-            console.log(nextBlock)
             let latestBlock = this.chain.getLatestBlock()
             if(nextBlock){
               // console.log( await this.chain.getBlockFromDB(nextBlock.blockNumber))
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
-              console.log('Block', typeof block)
               if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
               if(block && !block.error){
                 socket.emit('nextBlock', block)
@@ -1282,8 +1278,12 @@ class Node {
           
       })
 
-      socket.on('getChain', ()=>{
-        console.log(this.chain.chain)
+      socket.on('getChain',async ()=>{
+        for await(let block of this.chain.chain){
+          if(block.blockNumber >= 3190 && block.blockNumber <= 3199){
+            console.log(`${block.blockNumber} - ${block.hash}`)
+          }
+        }
       })
 
       socket.on('getBlockHeader', (blockNumber)=>{
@@ -1361,9 +1361,17 @@ class Node {
         this.findPeers()
       })
 
-      socket.on('findMissing', async (hash)=>{
-        let missingBlocks = await this.getMissingBlocksToSyncBranch(hash)
-        console.log(missingBlocks)
+      socket.on('testPush', async ({block, forReal })=>{
+        
+        if(!forReal){
+          let okay = await this.chain.receiveBlock(block)
+          
+          // console.log(await this.chain.getBranch(block))
+        }
+        else{
+          console.log('okay?')
+          console.log(await this.chain.addBlockToChain(block))
+        }
       })
       
       socket.on('rollback', async (number)=>{
@@ -1658,7 +1666,7 @@ class Node {
                   this.minerChannel.emit('nodeEvent','isBusy')
 
                   //Validates than runs the block
-                  let added = await this.chain.pushBlock(block);
+                  let added = await this.chain.receiveBlock(block);
                   if(added.error){
                     //Something failed, miner can carry on
                     this.minerChannel.emit('nodeEvent','isAvailable')

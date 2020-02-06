@@ -92,7 +92,7 @@ class MinerAPI{
                 //Broadcast new block found
                 this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
-                let added = await this.chain.addBlockToChain(block)
+                let added = await this.chain.receiveBlock(block)//addBlockToChain(block)
                 if(added.error)logger('MINEDBLOCK:',added.error)
                 else return block
             }else{

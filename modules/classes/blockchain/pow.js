@@ -40,7 +40,8 @@ class ProofOfWork{
         let recalculatedChallenge = this.difficulty.setNewChallenge(block)
         let parsedRecalculatedChallenge = BigInt(parseInt(recalculatedChallenge, 16))
         let parsedActualChallenge = BigInt(parseInt(block.challenge, 16))
-        if(parsedActualChallenge == parsedRecalculatedChallenge){
+        var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
+        if(parsedActualChallenge == parsedRecalculatedChallenge && hashIsBelowChallenge){
           return true
         }else{
           return false
