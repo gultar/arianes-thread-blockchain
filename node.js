@@ -1659,11 +1659,12 @@ class Node {
                     let missingBlocks = await this.getMissingBlocksToSyncBranch(added.extended)
                     if(missingBlocks.error){
                       resolve({error:missingBlocks.error})
-                    }else if(missingBlocks && missingBlocks.length){
+                    }else if(missingBlocks && missingBlocks.length > 0){
                       for await(let missingBlock of missingBlocks){
                         let missingBlockAdded = await this.chain.receiveBlock(missingBlock)
                         if(missingBlockAdded.error) resolve({error:missingBlockAdded.error})
                       }
+                      resolve({fixed:true})
                     }else{
                       console.log('Missing:', missingBlocks)
                       resolve({error:`ERROR: Could not find missing blocks to ${added.extended.substr(0, 15)}`})
