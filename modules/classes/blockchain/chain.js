@@ -417,20 +417,23 @@ class Blockchain{
       else{
 
         let isLinkedToBranch = await this.getBranch(newBlock.previousHash);
+        console.log('Is linked to branch', typeof isLinkedToBranch)
         if(isLinkedToBranch && isLinkedToBranch.error) return { error:isLinkedToBranch.error }
         else if(isLinkedToBranch && !isLinkedToBranch.error){
           return await this.addBlockToBranch(newBlock)
         }
         
         let isLinkedToBlockInPool = await this.getBlockFromPool(newBlock.previousHash)
+        console.log('Is linked to branch', typeof isLinkedToBlockInPool)
         if(isLinkedToBlockInPool && isLinkedToBlockInPool.error) return { error:isLinkedToBlockInPool.error }
         else if(isLinkedToBlockInPool && !isLinkedToBlockInPool.error){
           let blockFromPool = isLinkedToBlockInPool
           let branch = [ blockFromPool, newBlock ]
           // let removed = await this.removeBlockFromPool(blockFromPool.hash)
-          
+          console.log('Create new branch')
           return await this.addNewBranch(newBlock.hash, branch)
         }else{
+          console.log('Add new block')
           return await this.addBlockToPool(newBlock)
         }
 
@@ -508,7 +511,9 @@ class Blockchain{
     else {
       
       let isValidCandidate = await this.validateBranch(lastBlock, branch)
+      console.log('IIs valid candidate', isValidCandidate)
       if(isValidCandidate){
+        console.log('Integrate', branch.length)
         return await this.integrateBranch(branch)
       }else{
         logger(`${chalk.cyan('[][] Added new branch at')}  ${firstBlock.blockNumber} ${chalk.cyan(':')} ${firstBlock.hash.substr(0, 20)}...`)
@@ -573,9 +578,10 @@ class Blockchain{
        
       let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
       let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
-
+      console.log('Branch',forkTotalDifficulty)
+      console.log('This', currentTotalDifficulty)
       let branchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
-
+      
       let branchIsMuchLonger = branch.length - this.chain.length >= 5
       
       if(branchHasMoreWork || branchIsMuchLonger){
@@ -600,10 +606,15 @@ class Blockchain{
     let lastBlock = branch[branch.length - 1]
     let latestBlock = await this.getLatestFullBlock();
     let isLinkedToLast = latestBlock.hash == firstBlock.previousHash
+    console.log('Linked to last', isLinkedToLast)
     let isSameHeightAsLast = latestBlock.previousHash == firstBlock.previousHash
+    console.log('Same height', isSameHeightAsLast)
     let isLinkedToEarlierBlock = await this.getBlockFromDBByHash(firstBlock.previousHash)
+    console.log('Is linked to earlier', typeof isLinkedToEarlierBlock)
     let isLinkedToBlockInPool = await this.getBlockFromPool(firstBlock.previousHash)
+    console.log('isLinked to block in pool', typeof isLinkedToBlockInPool)
     let isLinkedToBranch = await this.getBranch(firstBlock.previousHash)
+    console.log('is linked to branch', typeof isLinkedToBranch)
 
     if(isLinkedToLast){
 
@@ -621,18 +632,18 @@ class Blockchain{
       else return { swapped:lastBlock.hash }
 
     }else if(isLinkedToBranch){
-      
+      if(isLinkedToBranch.error) return { error:isLinkedToBranch.error }
       let otherBranch = isLinkedToBranch
       return await this.integrateBranch([ ...otherBranch, ...branch ])
 
     }else if(isLinkedToBlockInPool){
-      
+      if(isLinkedToBlockInPool.error) return {error:isLinkedToBlockInPool.error}
       let blockFromPool = isLinkedToBlockInPool
       branch = [ blockFromPool, ...branch ]
       return { linked:blockFromPool.hash }
 
     }else if(isLinkedToEarlierBlock){
-      
+      if(isLinkedToEarlierBlock.error) return {error:isLinkedToEarlierBlock}
       let linkedToBlock = isLinkedToEarlierBlock
       let rolledBack = await this.rollbackToBlock(linkedToBlock.blockNumber)
       if(rolledBack.error) return { error:rolledBack.error }
