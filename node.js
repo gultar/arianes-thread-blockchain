@@ -997,17 +997,16 @@ class Node {
             }else if(block){
               
               
-              let isLinkedToChain = this.chain.getIndexOfBlockHash(block.hash)
+              let isLinkedToChain = this.chain.getIndexOfBlockHash(block.previousHash)
               missingBlocks = [ block, ...missingBlocks ]
 
               if(isLinkedToChain){
                 peer.off('previousBlock')
                 clearTimeout(timeout)
-                resolve({ isLinked:missingBlocks })
+                resolve(missingBlocks)
               }
               
               else{
-                
                 peer.emit('getPreviousBlock', block.hash)
               }
 
@@ -1348,7 +1347,16 @@ class Node {
       })
 
       socket.on('testPush', async ()=>{
-       let missing = await this.getMissingBlocksToSyncBranch(hash)
+        let roll = await this.chain.rollbackToBlock(15)
+        let missing = await this.getMissingBlocksToSyncBranch("000786069f42c2ee33d87bf7053bf0b89c124b7b6306242f1ece622d5e5d45a9")
+        let branch = await this.chain.getBranch("00010d8b8136c9ce992800c31d7b4dc42435c681c8b4fab1f0f46ac298c466ab")
+        
+        for await(let b of missing){
+          await this.chain.receiveBlock(b)
+        }
+        for await(let a of branch){
+          await this.chain.receiveBlock(a)
+        }
       })
       
       socket.on('rollback', async (number)=>{
@@ -1645,8 +1653,22 @@ class Node {
                   //Validates than runs the block
                   let added = await this.chain.receiveBlock(block);
                   this.minerChannel.emit('nodeEvent','isAvailable')
-                  if(added.error) resolve({error:added.error})
-                  else resolve(added)
+                  if(added.error){
+                    resolve({error:added.error})
+                  }else if(added.extended){
+                    let missingBlocks = await this.getMissingBlocksToSyncBranch(added.extended)
+                    if(missingBlocks.error){
+                      resolve({error:missingBlocks.error})
+                    }else if(missingBlocks && missingBlocks.length){
+                      for await(let missingBlock of missingBlocks){
+                        let missingBlockAdded = await this.chain.receiveBlock(missingBlock)
+                        if(missingBlockAdded.error) resolve({error:missingBlockAdded.error})
+                      }
+                    }else{
+                      console.log('Missing:', missingBlocks)
+                      resolve({error:`ERROR: Could not find missing blocks to ${added.extended.substr(0, 15)}`})
+                    }
+                  }
     
                 }else{
                   resolve({error:'ERROR:New block header is invalid'})

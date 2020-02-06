@@ -315,5 +315,5 @@ let block3194 = block3194Entry[block3194Entry._id]
 let branch = [ block3192, block3193, block3194, block3195, block3196, block3197, block3198, block3199]
 
 openSocket(nodeAddress, async (socket)=>{
-    socket.emit('testPush', { block:block3198 })
+    socket.emit('testPush')
 })
