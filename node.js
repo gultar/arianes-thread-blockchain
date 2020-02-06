@@ -1670,6 +1670,8 @@ class Node {
                       console.log('Missing:', missingBlocks)
                       resolve({error:`ERROR: Could not find missing blocks to ${added.extended.substr(0, 15)}`})
                     }
+                  }else{
+                    resolve(added)
                   }
     
                 }else{
