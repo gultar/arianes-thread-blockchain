@@ -413,7 +413,8 @@ class Blockchain{
     else{
 
       let isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
-      if(isNextBlock) return await this.addBlock(newBlock)
+      let isLinked = newBlock.previousHash == this.getLatestBlock().hash
+      if(isNextBlock && isLinked) return await this.addBlock(newBlock)
       else{
 
         let isLinkedToBranch = await this.getBranch(newBlock.previousHash);
@@ -581,7 +582,7 @@ class Blockchain{
       console.log('Branch',forkTotalDifficulty)
       console.log('This', currentTotalDifficulty)
       let branchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
-      
+
       let branchIsMuchLonger = branch.length - this.chain.length >= 5
       
       if(branchHasMoreWork || branchIsMuchLonger){
