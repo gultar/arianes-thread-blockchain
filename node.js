@@ -1019,7 +1019,7 @@ class Node {
         else{
           
           peer.emit('getPreviousBlock', unsyncedBlockHash)
-          peer.on('previousBlock', (block)=>{
+          peer.on('previousBlock', async (block)=>{
             if(block.end){
               peer.off('previousBlock')
               clearTimeout(timeout)
