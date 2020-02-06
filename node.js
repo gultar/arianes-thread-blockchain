@@ -737,10 +737,14 @@ class Node {
           closeConnection()
           resolve(true)
         }else if(block.error){
-          logger(block.error)
           closeConnection({ error:true })
           resolve({ error: block.error })
         }else{
+          let added = await this.chain.receiveBlock(block)
+          if(added.error){
+            logger('DOWNLOAD', added.error)
+            closeConnection()
+          }
           peer.emit('getNextBlock', block.hash)
           awaitRequest()
         }
@@ -1667,63 +1671,9 @@ class Node {
 
                   //Validates than runs the block
                   let added = await this.chain.receiveBlock(block);
-                  if(added.error){
-                    //Something failed, miner can carry on
-                    this.minerChannel.emit('nodeEvent','isAvailable')
-                    resolve({error:added.error})
-                  }
-                  else{
-                    let currentLength = this.chain.length;
-                    //If not linked, stop mining after pushing the block, to allow more time for mining on this node
-                    let result = {}
-
-                    if(added.findMissing || added.unlinked || added.unlinkedExtended){
-                      //Received some block but it wasn't linked to any other block
-                      //in this chain. So, node tries to find the block to which it is linked
-                      //in order to swap branches if it is necessary
-                      if(!this.isDownloading){
-                        
-                          let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
-                          let fixed = await this.fixUnlinkedBranch(branchingAt);
-                          if(fixed.error) result = await rollbackAndSync(added, peerMessage)
-                          else result = fixed
-
-                      //   let branchingAt = added.findMissing || added.unlinked || added.unlinkedExtended
-                      //   let missingBlocks = await this.getMissingBlocksToSyncBranch(branchingAt)
-                      //   if(missingBlocks){
-                      //     let error = false
-                      //     for await(let missing of missingBlocks){
-                      //       console.log(`Missing ${block.blockNumber}: ${block.hash}`)
-                      //       let pushed = await this.chain.pushBlock(missing)
-                      //       if(pushed.error) error = pushed.error
-                      //     }
-
-                      //     if(error) return await rollbackAndSync(added, peerMessage)
-                      //   }else{
-                      //     return await rollbackAndSync
-                      //   }
-                        
-                        
-                      }else{
-                        return { isDownloading:true }
-                      }
-
-                     
-                      
-
-                    }else if(added.switched && added.switched.outOfSync){
-                      //Something went wrong while syncing unlinked branch
-                      //Rollback and update blockchain with peers'
-                      let rolledback = await this.chain.rollbackToBlock(currentLength - 5)
-                      this.broadcast('getBlockchainStatus')
-                      result = rolledback
-
-                    }else{
-                      result = added
-                    }
-                    this.minerChannel.emit('nodeEvent','isAvailable')
-                    resolve(result)
-                  }
+                  this.minerChannel.emit('nodeEvent','isAvailable')
+                  if(added.error) resolve({error:added.error})
+                  else resolve(added)
     
                 }else{
                   resolve({error:'ERROR:New block header is invalid'})
@@ -1737,7 +1687,8 @@ class Node {
             resolve({error:e.message})
           }
         }else{
-          this.chain.looseBlocks[block.hash] = block
+          let added = await this.chain.addBlockToPool(newBlock)
+          if(added.error) console.log(`ERROR: Any error occured while adding block ${newBlock.blockNumber} to pool`)
           resolve({busy:'ERROR: Node is busy, could not add block'})
         }
       }else{
