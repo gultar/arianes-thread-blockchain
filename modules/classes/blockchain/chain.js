@@ -389,7 +389,7 @@ class Blockchain{
    *                                          
    */
 
-  async receiveBlock(newBlock){
+  async receiveBlock(newBlock, getMissingBlocks){
     if(isValidBlockJSON(newBlock)){
       //Already exists in chain?
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
@@ -399,12 +399,7 @@ class Blockchain{
       //Is none of the above, carry on with routing the block
       //to its proper place, either in the chain or in the pool
       let success = await this.routeBlock(newBlock)
-      global.minerChannel.emit('nodeEvent','isAvailabe')
-      if(success.extended){
-        //Deleted first block from pool
-      }else if(success.swapped){
-        //Delete branch from branchesDB
-      }
+      global.minerChannel.emit('nodeEvent','isAvailable')
       return success
       
     }else{
@@ -432,8 +427,8 @@ class Blockchain{
         else if(isLinkedToBlockInPool && !isLinkedToBlockInPool.error){
           let blockFromPool = isLinkedToBlockInPool
           let branch = [ blockFromPool, newBlock ]
-          let removed = await this.removeBlockFromPool(blockFromPool.hash)
-          console.log('Removed block', removed)
+          // let removed = await this.removeBlockFromPool(blockFromPool.hash)
+          
           return await this.addNewBranch(newBlock.hash, branch)
         }else{
           return await this.addBlockToPool(newBlock)
@@ -494,7 +489,7 @@ class Blockchain{
 
   async removeBlockFromPool(hash){
     //Already exists in block pool?
-    let blockExistsInPool = await this.getBlockFromPool(newBlock.hash)
+    let blockExistsInPool = await this.getBlockFromPool(hash)
     if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
     else{
       return await this.blockPoolDB.deleteId(hash)
@@ -512,7 +507,7 @@ class Blockchain{
     if(added.error) return { error:added.error }
     else {
       
-      let isValidCandidate = await this.validateBranch(lastBlock)
+      let isValidCandidate = await this.validateBranch(lastBlock, branch)
       if(isValidCandidate){
         return await this.integrateBranch(branch)
       }else{
@@ -540,8 +535,8 @@ class Blockchain{
       
       let extendedBranch = [ ...branch, newBlock ]
       
-      let removed = await this.removeBranch(newBlock.previousHash)
-      console.log('Removed branch', removed)
+      // let removed = await this.removeBranch(newBlock.previousHash)
+      
       let added = await this.addNewBranch(newBlock.hash, extendedBranch);
       if(added && added.error) return { error:added.error }
       else return added
@@ -580,8 +575,10 @@ class Blockchain{
       let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
 
       let branchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
+
+      let branchIsMuchLonger = branch.length - this.chain.length >= 5
       
-      if(branchHasMoreWork){
+      if(branchHasMoreWork || branchIsMuchLonger){
         return true
       }else{
         return false
@@ -645,7 +642,7 @@ class Blockchain{
       else return { swapped:lastBlock.hash }
       
     }else{
-        logger(`${chalk.cyan('[][]> Extended branch of')} ${branch.length} ${chalk.cyan('blocks ... to')} ${lastBlock.blockNumber} ${chalk.cyan(':')} ${lastBlock.hash.substr(0, 10)}`)
+        logger(`${chalk.cyan('[][]> Extended branch of')} ${branch.length} ${chalk.cyan('blocks to')} ${lastBlock.blockNumber} ${chalk.cyan(':')} ${lastBlock.hash.substr(0, 10)}`)
         return { extended:lastBlock.hash }
     }
   }
@@ -1840,7 +1837,7 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       
       var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
-      var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(block)
+      var doesNotContainDoubleSpend = true//await this.blockDoesNotContainDoubleSpend(block)
       var isValidHash = block.hash == RecalculateHash(block);
       var isValidTimestamp = await this.validateBlockTimestamp(block)
       var singleCoinbase = await this.validateUniqueCoinbaseTx(block)

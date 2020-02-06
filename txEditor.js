@@ -7,8 +7,8 @@ const WalletManager = require('./modules/classes/wallets/walletManager')
 const manager = new WalletManager()
 const activePort = require('dotenv').config({ path: './config/.env' })
 if (activePort.error) throw activePort.error
-const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
-
+let nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
+// nodeAddress = `http://localhost:9000`
 const sendTx = async () =>{
     let setValue = {
         "first":"Principle of mentalism",
@@ -22,9 +22,9 @@ const sendTx = async () =>{
 
     let transaction = new Transaction
     ({
-        fromAddress:"tuor",
-        toAddress:"Storage",
-        amount:0,
+        fromAddress:"Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG",
+        toAddress:"A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr",
+        amount:1,
         data:{
             method:'get',
             cpuTime:5,
@@ -32,36 +32,36 @@ const sendTx = async () =>{
                 id:"axiom",
             }
         },
-        type:"call"
+        type:""
     });
     
-    // console.log(JSON.stringify(transaction.data))
-    let createHermetic = {
-        method:"createToken",
-        cpuTime:5,
-        params:{
-            'symbol':"HERMETIC",
-            'maxSupply':10000000000000,
-            "name":"hermeticCoin",
-        }
-    }
-    let getBalance = {
-        method:'getBalanceOfAccount',
-        cpuTime:5,
-        params:{
-            symbol:"HERMETIC",//"GOLD",
-            account:"voronwe"
-        }
-    }
-    let sendCoin = {
-        method:'issue',
-        cpuTime:5,
-        params:{
-            symbol:"HERMETIC",
-            amount:1,
-            receiver:"huor"
-        }
-    }
+    // // console.log(JSON.stringify(transaction.data))
+    // let createHermetic = {
+    //     method:"createToken",
+    //     cpuTime:5,
+    //     params:{
+    //         'symbol':"HERMETIC",
+    //         'maxSupply':10000000000000,
+    //         "name":"hermeticCoin",
+    //     }
+    // }
+    // let getBalance = {
+    //     method:'getBalanceOfAccount',
+    //     cpuTime:5,
+    //     params:{
+    //         symbol:"HERMETIC",//"GOLD",
+    //         account:"voronwe"
+    //     }
+    // }
+    // let sendCoin = {
+    //     method:'issue',
+    //     cpuTime:5,
+    //     params:{
+    //         symbol:"HERMETIC",
+    //         amount:1,
+    //         receiver:"huor"
+    //     }
+    // }
     // let transaction = new Transaction
     // ({
     //     fromAddress:"tuor",
