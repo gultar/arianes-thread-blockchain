@@ -1713,6 +1713,10 @@ class Node {
                   this.minerChannel.emit('nodeEvent','isAvailable')
                   if(added.error){
                     resolve({error:added.error})
+                  }else if(added.requestUpdate){
+                    let peer = this.peerManager.getPeer(relayPeer)
+                    peer.emit('getBlockchainStatus')
+                    resolve({ updating:true })
                   }else if(added.extended){
                     let missingBlocks = await this.getMissingBlocksToSyncBranch(added.extended)
                     if(missingBlocks.error){
