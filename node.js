@@ -346,10 +346,10 @@ class Node {
       socket.emit('chainSnapshot', this.chain.chainSnapshot)
     })
 
-    socket.on('peerSnapshot', (container)=>{
+    socket.on('peerSnapshot', async (container)=>{
       let address = container.address
       let snapshot = container.snapshot
-      this.peerManager.handleNewSnapshot(address, snapshot)
+      let handled = await  this.peerManager.handleNewSnapshot(address, snapshot)
     })
 
     socket.on('peerMessage', async(peerMessage, acknowledge)=>{

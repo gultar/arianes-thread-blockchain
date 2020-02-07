@@ -16,6 +16,7 @@ class PeerManager{
         this.UILog = UILog
         this.verbose = verbose
         this.noLocalhost = noLocalhost
+        this.peerSnapshots = {}
     }
 
     /**
@@ -100,7 +101,7 @@ class PeerManager{
                                     this.nodeList.addNewAddress(address) 
                                     let snapshot = await this.requestChainSnapshot(peer)
                                     if(!snapshot) logger('WARNING: Peer did not provide a snapshot of their chain')
-                                    peer.topBlockHashes = snapshot
+                                    this.peerSnapshots[address] = snapshot
 
                                     this.onPeerAuthenticated(peer)
                                     
@@ -192,9 +193,10 @@ class PeerManager{
     }
 
     async handleNewSnapshot(address, snapshot){
-        let peer = await this.getPeer(address)
-        peer.topBlockHashes = snapshot
+        this.peerSnapshots[address] = topBlockHashes = snapshot
+        return true
     }
+
 }
 
 module.exports = PeerManager
