@@ -190,6 +190,11 @@ class PeerManager{
             }, 5000)
         })
     }
+
+    handleNewSnapshot(address, snapshot){
+        let peer = await this.getPeer(address)
+        peer.topBlockHashes = snapshot
+    }
 }
 
 module.exports = PeerManager

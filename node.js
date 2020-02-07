@@ -347,12 +347,8 @@ class Node {
     })
 
     socket.on('peerSnapshot', (snapshot)=>{
-        let peer = this.peerManager.getPeer(socket.handshake.address)
-        //Need schema validation
-        if(snapshot && typeof snapshot == 'object'){
-          peer.topBlockHashes = snapshot
-        }
-        
+      console.log('Peer', socket.handshake.address)
+        // this.peerManager.handleNewSnapshot(socket.handshake.address, snapshot)
     })
 
     socket.on('peerMessage', async(peerMessage, acknowledge)=>{
@@ -1748,6 +1744,7 @@ class Node {
                     
                     resolve({ updating:true })
                   }else if(added.extended){
+
                     let missingBlocks = await this.getMissingBlocksToSyncBranch(added.extended)
                     if(missingBlocks.error){
                       resolve({error:missingBlocks.error})
@@ -1761,6 +1758,7 @@ class Node {
                       console.log('Missing:', missingBlocks)
                       resolve({error:`ERROR: Could not find missing blocks to ${added.extended.substr(0, 15)}`})
                     }
+
                   }else{
                     resolve(added)
                   }
