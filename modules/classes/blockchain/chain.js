@@ -40,6 +40,7 @@ class Blockchain{
 
   constructor(chain=[], mempool, consensusMode){
     this.chain = chain
+    this.chainSnapshot = {}
     this.chainDB = new Database('blockchain');
     this.blockPoolDB = new Database('blockPool');
     this.branchesDB = new Database('branches');
@@ -471,6 +472,7 @@ class Blockchain{
           return { error:added.error }
         }
         else{
+          this.manageChainSnapshotQueue(newBlock)
           logger(`${chalk.green('[] Added new block')} ${newBlock.blockNumber} ${chalk.green('to chain:')} ${newBlock.hash.substr(0, 20)}...`)
           return added
         }
@@ -3367,6 +3369,28 @@ class Blockchain{
     
   }
 
+  /**
+   * Keeps a trace of the top most recent blocks and their link to previous blocks
+   * @param {Block} newBlock 
+   */
+  manageChainSnapshotQueue(newBlock){
+    let maxNumberOfHashes = 10;
+
+    this.chainSnapshot[newBlock.hash] = {
+      blockNumber:newBlock.blockNumber,
+      previousHash:newBlock.previousHash,
+      difficulty:newBlock.difficulty,
+      totalDifficulty:newBlock.totalDifficulty
+    }
+    
+    let elements = Object.keys(this.chainSnapshot)
+    if(elements.length > maxNumberOfHashes){
+      let firstHash =  elements[0]
+      delete this.chainSnapshot[firstHash]
+      
+    }
+  }
+
     /**
     Fetches a block from chainDB
     @param {string} $blockNumberString - Block number is converted to string before making query
@@ -3455,7 +3479,7 @@ class Blockchain{
                   for await(let hash of actionHashes){
                     this.spentActionHashes[hash] = { spent:block.blockNumber }
                   }
-                  
+                  this.manageChainSnapshotQueue(block)
                   this.chain.push(this.extractHeader(block))
                   if(blockNumber == lastBlock.blockNumber){
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 

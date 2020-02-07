@@ -97,13 +97,18 @@ class PeerManager{
                                     peer.emit('message', 'Connection established by '+ this.address);
                                     let status = await this.buildBlockchainStatus()
                                     peer.emit('connectionRequest', this.address);
-                                    this.nodeList.addNewAddress(address)  
+                                    this.nodeList.addNewAddress(address) 
+                                    let snapshot = await this.requestChainSnapshot(peer)
+                                    if(!snapshot) logger('WARNING: Peer did not provide a snapshot of their chain')
+                                    peer.topBlockHashes = snapshot
+
                                     this.onPeerAuthenticated(peer)
                                     
 
                                     setTimeout(()=>{
                                         peer.emit('getBlockchainStatus', status);
                                         peer.emit('getPeers')
+                                        
                                     },2000);
                                 }else{
                                     logger('Could not connect to remote node', response)
@@ -169,6 +174,20 @@ class PeerManager{
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
             peer.disconnect()
+        })
+    }
+
+    requestChainSnapshot(peer){
+        return new Promise((resolve)=>{
+            peer.on('chainSnapshot', snapshot => {
+                clearTimeout(noAnswer)
+                peer.off('chainSnapshot')
+                resolve(snapshot)
+            })
+            peer.emit('getChainSnapshot')
+            let noAnswer = setTimeout(()=>{
+                resolve(false)
+            }, 5000)
         })
     }
 }

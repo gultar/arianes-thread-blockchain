@@ -341,6 +341,20 @@ class Node {
       this.peerManager.connectToPeer(address);
     });
 
+    socket.on('getChainSnapshot', async ()=>{
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'chainStatus' events") }); // consume 1 point per event from IP
+      socket.emit('chainSnapshot', this.chain.chainSnapshot)
+    })
+
+    socket.on('peerSnapshot', (snapshot)=>{
+        let peer = this.peerManager.getPeer(socket.handshake.address)
+        //Need schema validation
+        if(snapshot && typeof snapshot == 'object'){
+          peer.topBlockHashes = snapshot
+        }
+        
+    })
+
     socket.on('peerMessage', async(peerMessage, acknowledge)=>{
       if(!this.messageBuffer[peerMessage.messageId]){
         await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
@@ -1417,6 +1431,11 @@ class Node {
           await this.chain.receiveBlock(a)
         }
       })
+
+      socket.on('getSnapshot', ()=>{
+        socket.emit('chainSnapshot', this.chain.chainSnapshot)
+      })
+
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
@@ -1710,11 +1729,14 @@ class Node {
                   this.minerChannel.emit('nodeEvent','isBusy')
                   //Validates than runs the block
                   let added = await this.chain.receiveBlock(block);
+
                   this.minerChannel.emit('nodeEvent','isAvailable')
-                  if(added.error){
-                    resolve({error:added.error})
-                  }else if(added.requestUpdate){
-                    
+                  
+                  this.broadcast('peerSnapshot', this.chain.chainSnapshot)
+
+                  if(added.error) resolve({error:added.error})
+                  else if(added.requestUpdate){
+
                     let peer = this.peerManager.getPeer(relayPeer)
                     if(peer){
                       let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
