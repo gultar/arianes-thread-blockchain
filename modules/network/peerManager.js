@@ -193,7 +193,7 @@ class PeerManager{
     }
 
     async handleNewSnapshot(address, snapshot){
-        this.peerSnapshots[address] = topBlockHashes = snapshot
+        this.peerSnapshots[address] = snapshot
         return true
     }
 
