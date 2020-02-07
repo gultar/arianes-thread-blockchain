@@ -346,9 +346,9 @@ class Node {
       socket.emit('chainSnapshot', this.chain.chainSnapshot)
     })
 
-    socket.on('peerSnapshot', (snapshotContainer)=>{
-      let address = Object.keys(snapshotContainer)
-      let snapshot = snapshotContainer[address]
+    socket.on('peerSnapshot', (container)=>{
+      let address = container.address
+      let snapshot = container.snapshot
       this.peerManager.handleNewSnapshot(address, snapshot)
     })
 
@@ -1729,7 +1729,7 @@ class Node {
 
                   this.minerChannel.emit('nodeEvent','isAvailable')
                   
-                  this.broadcast('peerSnapshot', { [this.address]:this.chain.chainSnapshot })
+                  this.broadcast('peerSnapshot', { address:this.address, snapshot:this.chain.chainSnapshot })
 
                   if(added.error) resolve({error:added.error})
                   else if(added.requestUpdate){
