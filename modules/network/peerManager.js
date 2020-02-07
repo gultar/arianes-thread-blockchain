@@ -191,7 +191,7 @@ class PeerManager{
         })
     }
 
-    handleNewSnapshot(address, snapshot){
+    async handleNewSnapshot(address, snapshot){
         let peer = await this.getPeer(address)
         peer.topBlockHashes = snapshot
     }
