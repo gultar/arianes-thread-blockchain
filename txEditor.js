@@ -22,17 +22,18 @@ const sendTx = async () =>{
 
     let transaction = new Transaction
     ({
-        fromAddress:"Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG",
-        toAddress:"A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr",
-        amount:1,
+        fromAddress:"tuor",
+        toAddress:"Storage",
+        amount:0,
         data:{
             method:'get',
             cpuTime:5,
             params:{
                 id:"axiom",
+                data:setValue
             }
         },
-        type:""
+        type:"call"
     });
     
     // // console.log(JSON.stringify(transaction.data))

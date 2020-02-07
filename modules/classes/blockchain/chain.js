@@ -417,6 +417,14 @@ class Blockchain{
       if(isNextBlock && isLinked) return await this.addBlock(newBlock)
       else{
 
+        let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 5
+        if(isTenBlocksAhead){
+          //In case of a major fork
+          let rollback = await this.rollbackToBlock(this.getLatestBlock().blockNumber - 20)
+          if(rollback.error) return { error:rollback.error }
+          else return { requestUpdate:true }
+        }
+
         let isLinkedToBranch = await this.getBranch(newBlock.previousHash);
         // console.log('Is linked to branch', typeof isLinkedToBranch)
         if(isLinkedToBranch && isLinkedToBranch.error) return { error:isLinkedToBranch.error }
@@ -512,9 +520,8 @@ class Blockchain{
     else {
       
       let isValidCandidate = await this.validateBranch(lastBlock, branch)
-      // console.log('IIs valid candidate', isValidCandidate)
+      console.log('Valid Candidate:', isValidCandidate)
       if(isValidCandidate){
-        // console.log('Integrate', branch.length)
         return await this.integrateBranch(branch)
       }else{
         logger(`${chalk.cyan('[][] Added new branch at')}  ${firstBlock.blockNumber} ${chalk.cyan(':')} ${firstBlock.hash.substr(0, 20)}...`)
@@ -633,9 +640,12 @@ class Blockchain{
       else return { swapped:lastBlock.hash }
 
     }else if(isLinkedToBranch){
+
       if(isLinkedToBranch.error) return { error:isLinkedToBranch.error }
       let otherBranch = isLinkedToBranch
-      return await this.integrateBranch([ ...otherBranch, ...branch ])
+      let extendedBranch = [ ...otherBranch, ...branch ]
+      let lastBlock = extendedBranch[extendedBranch.length -1]
+      return await this.addNewBranch(lastBlock.hash, extendedBranch)
 
     }else if(isLinkedToBlockInPool){
       if(isLinkedToBlockInPool.error) return {error:isLinkedToBlockInPool.error}
