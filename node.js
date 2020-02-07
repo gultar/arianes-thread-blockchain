@@ -1714,8 +1714,16 @@ class Node {
                   if(added.error){
                     resolve({error:added.error})
                   }else if(added.requestUpdate){
+                    
                     let peer = this.peerManager.getPeer(relayPeer)
-                    peer.emit('getBlockchainStatus')
+                    if(peer){
+                      let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
+                      if(updated.error) resolve({error:updated.error})
+                      else resolve(updated)
+                    }else{
+                      this.broadcast('getBlockchainStatus')
+                    }
+                    
                     resolve({ updating:true })
                   }else if(added.extended){
                     let missingBlocks = await this.getMissingBlocksToSyncBranch(added.extended)
