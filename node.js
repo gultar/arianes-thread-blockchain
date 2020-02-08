@@ -1769,8 +1769,6 @@ class Node {
             resolve({error:e.message})
           }
         }else{
-          let added = await this.chain.addBlockToPool(newBlock)
-          if(added.error) console.log(`ERROR: Any error occured while adding block ${newBlock.blockNumber} to pool`)
           resolve({busy:'ERROR: Node is busy, could not add block'})
         }
       }else{
