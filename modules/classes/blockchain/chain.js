@@ -581,8 +581,6 @@ class Blockchain{
        
       let forkTotalDifficulty = BigInt(parseInt(newBlock.totalDifficulty, 16))
       let currentTotalDifficulty = BigInt(parseInt(this.getLatestBlock().totalDifficulty, 16))
-      console.log('Branch',forkTotalDifficulty)
-      console.log('This', currentTotalDifficulty)
       let branchHasMoreWork = (forkTotalDifficulty > currentTotalDifficulty)
 
       let branchIsMuchLonger = branch.length - this.chain.length >= 5
@@ -2187,7 +2185,6 @@ class Blockchain{
 
       await this.createNewSnapshot()
       logger('Rolled back to block ', number)
-      logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
         resolve(mainBranch)
