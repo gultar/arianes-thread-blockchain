@@ -40,6 +40,7 @@ class Blockchain{
 
   constructor(chain=[], mempool, consensusMode){
     this.chain = chain
+    this.blockPool = {}
     this.chainSnapshot = {}
     this.chainDB = new Database('blockchain');
     this.blockPoolDB = new Database('blockPool');
