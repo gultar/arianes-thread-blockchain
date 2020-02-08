@@ -112,7 +112,7 @@ class Node {
     this.blocksToValidate = []
     this.updated = false;
     this.isDownloading = false;
-    this.autoRollback = options.autoRollback || false;
+    this.autoRollback = true || options.autoRollback || false;
     this.minerStarted = false;
     this.peerManager = new PeerManager({
       address:this.address,
@@ -778,7 +778,7 @@ class Node {
         }else if(block.error){
 
           if(this.autoRollback){
-            let blockNumber = this.chain.getBlockNumberOfHash(startHash)
+            let blockNumber = this.chain.getLatestBlock().blockNumber
             let rolledback = await this.chain.rollbackToBlock(blockNumber - 2)
             let latestHash = this.chain.getLatestBlock().hash
             peer.emit('getNextBlock', latestHash)

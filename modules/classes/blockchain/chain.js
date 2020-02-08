@@ -465,7 +465,7 @@ class Blockchain{
           return { error:added.error }
         }
         else{
-          this.manageChainSnapshotQueue(newBlock)
+          await this.manageChainSnapshotQueue(newBlock)
           logger(`${chalk.green('[] Added new block')} ${newBlock.blockNumber} ${chalk.green('to chain:')} ${newBlock.hash.substr(0, 20)}...`)
           return added
         }
@@ -2181,7 +2181,7 @@ class Blockchain{
         if(deleted.error) return deleted.error
       }
 
-      this.createNewSnapshot()
+      await this.createNewSnapshot()
       logger('Rolled back to block ', number)
       logger(`Head block is now ${this.getLatestBlock().hash.substr(0, 25)}`)
       if(Object.keys(errors).length > 0) resolve({error:errors})
@@ -3367,7 +3367,7 @@ class Blockchain{
    * Keeps a trace of the top most recent blocks and their link to previous blocks
    * @param {Block} newBlock 
    */
-  manageChainSnapshotQueue(newBlock){
+  async manageChainSnapshotQueue(newBlock){
     if(newBlock){
       let maxNumberOfHashes = 10;
 
@@ -3385,7 +3385,8 @@ class Blockchain{
         
       }
     }else{
-      this.createNewSnapshot()
+      await this.createNewSnapshot()
+      
     }
   }
 
@@ -3393,7 +3394,7 @@ class Blockchain{
    * Keeps a trace of the top most recent blocks and their link to previous blocks
    *  
    */
-  createNewSnapshot(){
+  async createNewSnapshot(){
     let maxNumberOfHashes = 10;
     let blockNumber = this.getLatestBlock().blockNumber
     this.chainSnapshot = {}
@@ -3508,7 +3509,7 @@ class Blockchain{
                   for await(let hash of actionHashes){
                     this.spentActionHashes[hash] = { spent:block.blockNumber }
                   }
-                  this.manageChainSnapshotQueue(block)
+                  await this.manageChainSnapshotQueue(block)
                   this.chain.push(this.extractHeader(block))
                   if(blockNumber == lastBlock.blockNumber){
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
