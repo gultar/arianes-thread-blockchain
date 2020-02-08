@@ -3398,8 +3398,22 @@ class Blockchain{
     let blockNumber = this.getLatestBlock().blockNumber
     this.chainSnapshot = {}
     for(var i=blockNumber - 10; i  <= blockNumber; i++){
-      let block = this.chain[i]
-      this.manageChainSnapshotQueue(block)
+      let newBlock = this.chain[i]
+      let maxNumberOfHashes = 10;
+
+      this.chainSnapshot[newBlock.hash] = {
+        blockNumber:newBlock.blockNumber,
+        previousHash:newBlock.previousHash,
+        difficulty:newBlock.difficulty,
+        totalDifficulty:newBlock.totalDifficulty
+      }
+      
+      let elements = Object.keys(this.chainSnapshot)
+      if(elements.length > maxNumberOfHashes){
+        let firstHash =  elements[0]
+        delete this.chainSnapshot[firstHash]
+        
+      }
     }
 
   }
