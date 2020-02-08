@@ -3368,25 +3368,29 @@ class Blockchain{
    * @param {Block} newBlock 
    */
   async manageChainSnapshotQueue(newBlock){
-    if(newBlock){
-      let maxNumberOfHashes = 10;
-
-      this.chainSnapshot[newBlock.hash] = {
-        blockNumber:newBlock.blockNumber,
-        previousHash:newBlock.previousHash,
-        difficulty:newBlock.difficulty,
-        totalDifficulty:newBlock.totalDifficulty
-      }
-      
-      let elements = Object.keys(this.chainSnapshot)
-      if(elements.length > maxNumberOfHashes){
-        let firstHash =  elements[0]
-        delete this.chainSnapshot[firstHash]
+    try{
+      if(newBlock){
+        let maxNumberOfHashes = 10;
+  
+        this.chainSnapshot[newBlock.hash] = {
+          blockNumber:newBlock.blockNumber,
+          previousHash:newBlock.previousHash,
+          difficulty:newBlock.difficulty,
+          totalDifficulty:newBlock.totalDifficulty
+        }
+        
+        let elements = Object.keys(this.chainSnapshot)
+        if(elements.length > maxNumberOfHashes){
+          let firstHash =  elements[0]
+          delete this.chainSnapshot[firstHash]
+          
+        }
+      }else{
+        await this.createNewSnapshot()
         
       }
-    }else{
-      await this.createNewSnapshot()
-      
+    }catch(e){
+      return e.message
     }
   }
 
@@ -3395,26 +3399,30 @@ class Blockchain{
    *  
    */
   async createNewSnapshot(){
-    let maxNumberOfHashes = 10;
-    let blockNumber = this.getLatestBlock().blockNumber
-    this.chainSnapshot = {}
-    for(var i=blockNumber - 10; i  <= blockNumber; i++){
-      let newBlock = this.chain[i]
+    try{
       let maxNumberOfHashes = 10;
+      let blockNumber = this.getLatestBlock().blockNumber
+      this.chainSnapshot = {}
+      for(var i=blockNumber - 10; i  <= blockNumber; i++){
+        let newBlock = this.chain[i]
+        let maxNumberOfHashes = 10;
 
-      this.chainSnapshot[newBlock.hash] = {
-        blockNumber:newBlock.blockNumber,
-        previousHash:newBlock.previousHash,
-        difficulty:newBlock.difficulty,
-        totalDifficulty:newBlock.totalDifficulty
-      }
-      
-      let elements = Object.keys(this.chainSnapshot)
-      if(elements.length > maxNumberOfHashes){
-        let firstHash =  elements[0]
-        delete this.chainSnapshot[firstHash]
+        this.chainSnapshot[newBlock.hash] = {
+          blockNumber:newBlock.blockNumber,
+          previousHash:newBlock.previousHash,
+          difficulty:newBlock.difficulty,
+          totalDifficulty:newBlock.totalDifficulty
+        }
         
+        let elements = Object.keys(this.chainSnapshot)
+        if(elements.length > maxNumberOfHashes){
+          let firstHash =  elements[0]
+          delete this.chainSnapshot[firstHash]
+          
+        }
       }
+    }catch(e){
+      return e.message
     }
 
   }
