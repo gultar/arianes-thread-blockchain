@@ -1,5 +1,6 @@
 const ioClient = require('socket.io-client')
 const { logger } = require('../tools/utils')
+const compareSnapshots = require('./snapshotHandler')
 const chalk = require('chalk')
 
 class PeerManager{
@@ -99,16 +100,15 @@ class PeerManager{
                                     let status = await this.buildBlockchainStatus()
                                     peer.emit('connectionRequest', this.address);
                                     this.nodeList.addNewAddress(address) 
-                                    let snapshot = await this.requestChainSnapshot(peer)
-                                    if(!snapshot) logger('WARNING: Peer did not provide a snapshot of their chain')
-                                    this.peerSnapshots[address] = snapshot
+                                    
 
                                     this.onPeerAuthenticated(peer)
                                     
 
-                                    setTimeout(()=>{
+                                    setTimeout(async()=>{
                                         peer.emit('getBlockchainStatus', status);
                                         peer.emit('getPeers')
+                                        peer.emit('getChainSnapshot')
                                         
                                     },2000);
                                 }else{
@@ -170,12 +170,22 @@ class PeerManager{
             if(updated.error) console.log(updated.error)
         })
 
+        peer.on('chainSnapshot', (snapshot)=>{
+            //if(isValidSnapshotJSON)
+            this.peerSnapshots[peer.address] = snapshot
+        })
+
         peer.on('disconnect', () =>{
             let address = peer.address
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
+            delete this.peerSnapshots[address]
             peer.disconnect()
         })
+    }
+
+    getSnapshot(address){
+        return this.peerSnapshots[address]
     }
 
     requestChainSnapshot(peer){
@@ -192,10 +202,6 @@ class PeerManager{
         })
     }
 
-    async handleNewSnapshot(address, snapshot){
-        this.peerSnapshots[address] = snapshot
-        return true
-    }
 
 }
 

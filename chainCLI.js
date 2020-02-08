@@ -101,6 +101,25 @@ program
 })
 
 program
+.command('testsnapshot <num>')
+.description('Requests a snapshot of the ten most recent blocks')
+.action((num)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+            socket.emit('testCompare', num);
+            socket.on('chainSnapshot', (info)=>{
+                console.log(JSON.stringify(info, null, 2))
+                socket.close()
+            })
+        
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+    
+})
+
+program
 .command('getblock <blockNumber>')
 .description('Requests some general information about the blockchain')
 .action((blockNumber)=>{

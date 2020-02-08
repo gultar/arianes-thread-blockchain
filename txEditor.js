@@ -20,32 +20,32 @@ const sendTx = async () =>{
         "seventh":"Principle of gender"
     }
 
-    let transaction = new Transaction
-    ({
-        fromAddress:"tuor",
-        toAddress:"Storage",
-        amount:0,
-        data:{
-            method:'get',
-            cpuTime:5,
-            params:{
-                id:"axiom",
-                data:setValue
-            }
-        },
-        type:"call"
-    });
+    // let transaction = new Transaction
+    // ({
+    //     fromAddress:"tuor",
+    //     toAddress:"Storage",
+    //     amount:0,
+    //     data:{
+    //         method:'get',
+    //         cpuTime:5,
+    //         params:{
+    //             id:"axiom",
+    //             data:setValue
+    //         }
+    //     },
+    //     type:"call"
+    // });
     
-    // // console.log(JSON.stringify(transaction.data))
-    // let createHermetic = {
-    //     method:"createToken",
-    //     cpuTime:5,
-    //     params:{
-    //         'symbol':"HERMETIC",
-    //         'maxSupply':10000000000000,
-    //         "name":"hermeticCoin",
-    //     }
-    // }
+    
+    let createHermetic = {
+        method:"createToken",
+        cpuTime:5,
+        params:{
+            'symbol':"HERMETIC",
+            'maxSupply':10000000000000,
+            "name":"hermeticCoin",
+        }
+    }
     // let getBalance = {
     //     method:'getBalanceOfAccount',
     //     cpuTime:5,
@@ -54,23 +54,25 @@ const sendTx = async () =>{
     //         account:"voronwe"
     //     }
     // }
-    // let sendCoin = {
-    //     method:'issue',
-    //     cpuTime:5,
-    //     params:{
-    //         symbol:"HERMETIC",
-    //         amount:1,
-    //         receiver:"huor"
-    //     }
-    // }
-    // let transaction = new Transaction
-    // ({
-    //     fromAddress:"tuor",
-    //     toAddress:"Tokens",
-    //     amount:0,
-    //     data:getBalance,
-    //     type:"call"
-    // });
+    let sendCoin = {
+        method:'issue',
+        cpuTime:5,
+        params:{
+            symbol:"HERMETIC",
+            amount:1,
+            receiver:"huor"
+        }
+    }
+    let transaction = new Transaction
+    ({
+        fromAddress:"tuor",
+        toAddress:"Tokens",
+        amount:0,
+        data:sendCoin,
+        type:"call"
+    });
+
+    console.log(JSON.stringify(transaction.data))
     let wallet = await manager.loadByWalletName("8003")
     if(wallet){
         let unlocked = await wallet.unlock("8003")

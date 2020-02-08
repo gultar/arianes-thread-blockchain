@@ -52,7 +52,7 @@ const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
 const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-
+const compareSnapshots = require('./modules/network/snapshotHandler')
 
 /**
   Instanciates a blockchain node
@@ -344,12 +344,6 @@ class Node {
     socket.on('getChainSnapshot', async ()=>{
       await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'chainStatus' events") }); // consume 1 point per event from IP
       socket.emit('chainSnapshot', this.chain.chainSnapshot)
-    })
-
-    socket.on('peerSnapshot', async (container)=>{
-      let address = container.address
-      let snapshot = container.snapshot
-      let handled = await  this.peerManager.handleNewSnapshot(address, snapshot)
     })
 
     socket.on('peerMessage', async(peerMessage, acknowledge)=>{
@@ -1433,6 +1427,56 @@ class Node {
         socket.emit('chainSnapshot', this.chain.chainSnapshot)
       })
 
+      socket.on('testCompare',async (num)=>{
+        let snap = this.chain.chainSnapshot
+        // let comp = {}
+
+        // let firstHash = Object.keys(this.chain.chainSnapshot)[0]
+        // let firstBlock = this.chain.chainSnapshot[firstHash]
+        // let peer = await this.getMostUpToDatePeer()
+        // let snapshot = await this.peerManager.requestChainSnapshot(peer)
+        
+        let rolled = await this.chain.rollbackToBlock(num)
+        this.chain.createNewSnapshot()
+        let newS = JSON.parse(JSON.stringify(this.chain.chainSnapshot))
+        let newS2 = JSON.parse(JSON.stringify(this.chain.chainSnapshot))
+        let peer = await this.getMostUpToDatePeer()
+        let downloaded = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
+        setTimeout(async ()=>{
+
+          let hashes = Object.keys(newS)
+          let beforeLast = newS[hashes[hashes.length - 2]]
+          let lastNewS = newS[hashes[hashes.length - 1]]
+          // console.log(newS)
+          let newHash = 'aoiwjaoiwdjaowidj'
+          let secondHash = 'aowdjwoijwdoijwd'
+          
+          let newBlock1 = {
+            blockNumber:beforeLast.blockNumber,
+            previousHash:beforeLast.previousHash,
+            difficulty:beforeLast.difficulty,
+            totalDifficulty:"0x9999999999999",
+            bob:'aimeSonAuto'
+          }
+
+          let newBlock2 = {
+            blockNumber:lastNewS.blockNumber,
+            previousHash:lastNewS.previousHash,
+            difficulty:lastNewS.difficulty,
+            totalDifficulty:'0x999999999999999999',
+            brigite:'aimeLesChats'
+          }
+
+          delete newS[hashes[hashes.length - 1]]
+          delete newS[hashes[hashes.length - 2]]
+
+          newS[newHash] = newBlock1
+          newS[secondHash] = newBlock2
+          console.log(await compareSnapshots(newS, newS2))
+        }, 3000)
+        // console.log(await compareSnapshots(newS, snap))
+      })
+
       
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
@@ -1728,8 +1772,6 @@ class Node {
                   let added = await this.chain.receiveBlock(block);
 
                   this.minerChannel.emit('nodeEvent','isAvailable')
-                  
-                  this.broadcast('peerSnapshot', { address:this.address, snapshot:this.chain.chainSnapshot })
 
                   if(added.error) resolve({error:added.error})
                   else if(added.requestUpdate){
@@ -1744,21 +1786,40 @@ class Node {
                     }
                     
                     resolve({ updating:true })
-                  }else if(added.extended){
+                  }
+                  else if(added.extended){
+                    
+                    let peer = await this.peerManager.getPeer(relayPeer)
+                    if(!peer) peer = await this.getMostUpToDatePeer()
 
-                    let missingBlocks = await this.getMissingBlocksToSyncBranch(added.extended)
-                    if(missingBlocks.error){
-                      resolve({error:missingBlocks.error})
-                    }else if(missingBlocks && missingBlocks.length > 0){
-                      for await(let missingBlock of missingBlocks){
-                        let missingBlockAdded = await this.chain.receiveBlock(missingBlock)
-                        if(missingBlockAdded.error) resolve({error:missingBlockAdded.error})
+                    if(peer){
+                      let snapshot = this.peerManager.getSnapshot(relayPeer)
+                      let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
+                      if(comparison.identical) resolve(true)
+                      else if(comparison.keep) resolve(true)
+                      else if(comparison.rollback){
+                        let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)
+                        if(rolledBack.error) resolve({error:rolledBack.error})
+
+                        let lastHeader = this.chain.getLatestBlock()
+                        let downloaded = await this.downloadBlockchain(peer, lastHeader)
+                        resolve(downloaded)
+                      }else if(comparison.merge){
+                        
+                        let blockNumber = comparison.merge.hash
+                        let rolledBack = await this.chain.rollbackToBlock(blockNumber - 1)
+                        if(rolledBack.error) resolve({error:rolledBack.error})
+
+                        let lastHeader = this.chain.getLatestBlock()
+                        let downloaded = await this.downloadBlockchain(peer, lastHeader)
+                        resolve(downloaded)
+                      }else{
+                        resolve(comparison)
                       }
-                      resolve({fixed:true})
                     }else{
-                      console.log('Missing:', missingBlocks)
-                      resolve({error:`ERROR: Could not find missing blocks to ${added.extended.substr(0, 15)}`})
+                      resolve({error:'ERROR: Could not find suitable peer to sync with'})
                     }
+                    
 
                   }else{
                     resolve(added)
@@ -1807,6 +1868,10 @@ class Node {
 
       return true;
     }
+  }
+
+  async getInSync(){
+
   }
 
  
@@ -2145,6 +2210,7 @@ DHT_PORT=${this.peerDiscoveryPort}
       that.messageBuffer = {};
       this.chain.save()
       this.housekeeping()
+      this.broadcast('getChainSnapshot')
       let backUp = await this.chain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
