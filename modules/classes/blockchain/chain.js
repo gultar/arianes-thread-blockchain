@@ -3368,20 +3368,24 @@ class Blockchain{
    * @param {Block} newBlock 
    */
   manageChainSnapshotQueue(newBlock){
-    let maxNumberOfHashes = 10;
+    if(newBlock){
+      let maxNumberOfHashes = 10;
 
-    this.chainSnapshot[newBlock.hash] = {
-      blockNumber:newBlock.blockNumber,
-      previousHash:newBlock.previousHash,
-      difficulty:newBlock.difficulty,
-      totalDifficulty:newBlock.totalDifficulty
-    }
-    
-    let elements = Object.keys(this.chainSnapshot)
-    if(elements.length > maxNumberOfHashes){
-      let firstHash =  elements[0]
-      delete this.chainSnapshot[firstHash]
+      this.chainSnapshot[newBlock.hash] = {
+        blockNumber:newBlock.blockNumber,
+        previousHash:newBlock.previousHash,
+        difficulty:newBlock.difficulty,
+        totalDifficulty:newBlock.totalDifficulty
+      }
       
+      let elements = Object.keys(this.chainSnapshot)
+      if(elements.length > maxNumberOfHashes){
+        let firstHash =  elements[0]
+        delete this.chainSnapshot[firstHash]
+        
+      }
+    }else{
+      this.createNewSnapshot()
     }
   }
 
