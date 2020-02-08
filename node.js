@@ -1819,6 +1819,7 @@ class Node {
 
         if(peer){
           let snapshot = this.peerManager.getSnapshot(relayPeer)
+          console.log('Comparing snapshots')
           let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
           if(comparison.rollback){
             let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)

@@ -433,7 +433,7 @@ class Blockchain{
           // console.log('Create new branch')
           // return await this.addNewBranch(newBlock.hash, branch)
           let isValidCandidate = await this.validateBranch(newBlock, branch)
-          if(isValidCandidate) return { rollback:blockFromPool.blockNumber - 2 }
+          if(isValidCandidate) return { rollback:blockFromPool.blockNumber - 1 }
           else return { stay:true }
         }else{
           // console.log('Add new block')
