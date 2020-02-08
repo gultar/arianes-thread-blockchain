@@ -2170,10 +2170,11 @@ class Blockchain{
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
 
-      let rolledBack = await this.balance.rollback(number.toString())
+      let lastBlock = this.getLatestBlock()
+      let rolledBack = await this.balance.rollback(lastBlock.blockNumber.toString())
       if(rolledBack.error) resolve({error:rolledBack.error})
 
-      let lastBlock = this.chain.getLatestBlock()
+      
       let stateRolledBack = await this.contractTable.rollback(lastBlock.blockNumber)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
       
