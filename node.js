@@ -775,7 +775,7 @@ class Node {
           logger('Blockchain updated successfully!')
           closeConnection()
           resolve(true)
-        }else if(block.error){
+        }else if(block.error && block.error == 'Block not found'){
 
           if(this.autoRollback){
             let blockNumber = this.chain.getLatestBlock().blockNumber

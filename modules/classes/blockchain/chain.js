@@ -424,14 +424,9 @@ class Blockchain{
         }
         
         let isLinkedToBlockInPool = await this.getBlockFromPool(newBlock.previousHash)
-        // console.log('Is linked to branch', typeof isLinkedToBlockInPool)
-        if(isLinkedToBlockInPool && isLinkedToBlockInPool.error) return { error:isLinkedToBlockInPool.error }
-        else if(isLinkedToBlockInPool && !isLinkedToBlockInPool.error){
+        if(isLinkedToBlockInPool){
           let blockFromPool = isLinkedToBlockInPool
           let branch = [ blockFromPool, newBlock ]
-          // let removed = await this.removeBlockFromPool(blockFromPool.hash)
-          // console.log('Create new branch')
-          // return await this.addNewBranch(newBlock.hash, branch)
           let isValidCandidate = await this.validateBranch(newBlock, branch)
           if(isValidCandidate) return { rollback:blockFromPool.blockNumber - 1 }
           else return { stay:true }
@@ -481,101 +476,91 @@ class Blockchain{
     if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
     else if(blockExistsInPool) return { error:`ERROR: Block ${newBlock.blockNumber} already exists in pool` }
     else{
-      let added = await this.blockPoolDB.put({
-        key:newBlock.hash,
-        value:newBlock
-      })
-      if(added.error) return { error:added.error }
-      else {
-        logger(`${chalk.cyan('[] Added block')}  ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
-        return added
-      }
+      this.blockPool[newBlock.hash] = newBlock
+      logger(`${chalk.cyan('[] Added block')}  ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
+      return  { pooled:true }
     }
     
   }
 
-  async removeBlockFromPool(hash){
-    //Already exists in block pool?
-    let blockExistsInPool = await this.getBlockFromPool(hash)
-    if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
-    else{
-      return await this.blockPoolDB.deleteId(hash)
-    }
+  // async removeBlockFromPool(hash){
+  //   //Already exists in block pool?
+  //   let blockExistsInPool = await this.getBlockFromPool(hash)
+  //   if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
+  //   else{
+  //     return await this.blockPoolDB.deleteId(hash)
+  //   }
     
-  }
+  // }
 
-  async addNewBranch(lastHash, branch){
-    let firstBlock = branch[0]
-    let lastBlock = branch[branch.length - 1]
-    let added = await this.branchesDB.put({
-      key:lastHash,
-      value:branch
-    })
-    if(added.error) return { error:added.error }
-    else {
+  // async addNewBranch(lastHash, branch){
+  //   let firstBlock = branch[0]
+  //   let lastBlock = branch[branch.length - 1]
+  //   let added = await this.branchesDB.put({
+  //     key:lastHash,
+  //     value:branch
+  //   })
+  //   if(added.error) return { error:added.error }
+  //   else {
       
-      let isValidCandidate = await this.validateBranch(lastBlock, branch)
-      console.log('Valid Candidate:', isValidCandidate)
-      if(isValidCandidate){
-        return await this.integrateBranch(branch)
-      }else{
-        logger(`${chalk.cyan('[][] Added new branch at')}  ${firstBlock.blockNumber} ${chalk.cyan(':')} ${firstBlock.hash.substr(0, 20)}...`)
-        return added
-      }
-    }
+  //     let isValidCandidate = await this.validateBranch(lastBlock, branch)
+  //     console.log('Valid Candidate:', isValidCandidate)
+  //     if(isValidCandidate){
+  //       return await this.integrateBranch(branch)
+  //     }else{
+  //       logger(`${chalk.cyan('[][] Added new branch at')}  ${firstBlock.blockNumber} ${chalk.cyan(':')} ${firstBlock.hash.substr(0, 20)}...`)
+  //       return added
+  //     }
+  //   }
     
-  }
+  // }
 
-  async removeBranch(hash){
-    //Already exists in block pool?
-    let branch = await this.getBranch(hash)
-    if(branch && branch.error) return { error:branch.error }
-    else{
-      return await this.branchesDB.deleteId(hash)
-    }
+  // async removeBranch(hash){
+  //   //Already exists in block pool?
+  //   let branch = await this.getBranch(hash)
+  //   if(branch && branch.error) return { error:branch.error }
+  //   else{
+  //     return await this.branchesDB.deleteId(hash)
+  //   }
     
-  }
+  // }
 
-  async addBlockToBranch(newBlock){
-    let branch = await this.getBranch(newBlock.previousHash);
-    if(branch){
-      if(branch.error) return { error:branch.error }
+  // async addBlockToBranch(newBlock){
+  //   let branch = await this.getBranch(newBlock.previousHash);
+  //   if(branch){
+  //     if(branch.error) return { error:branch.error }
       
-      let extendedBranch = [ ...branch, newBlock ]
+  //     let extendedBranch = [ ...branch, newBlock ]
       
-      // let removed = await this.removeBranch(newBlock.previousHash)
+  //     // let removed = await this.removeBranch(newBlock.previousHash)
       
-      let added = await this.addNewBranch(newBlock.hash, extendedBranch);
-      if(added && added.error) return { error:added.error }
-      else return added
+  //     let added = await this.addNewBranch(newBlock.hash, extendedBranch);
+  //     if(added && added.error) return { error:added.error }
+  //     else return added
       
-    }else{
-      return { error:`ERROR: Could not find branch ${newBlock.previousHash.substr(0, 20)}` }
-    }
-  }
+  //   }else{
+  //     return { error:`ERROR: Could not find branch ${newBlock.previousHash.substr(0, 20)}` }
+  //   }
+  // }
 
   async getBlockFromPool(hash){
-    let block = await this.blockPoolDB.get(hash)
+    let block = this.blockPool[hash]
     if(block){
-      if(block.error) return { error:block.error }
-      else{
-        // let block = blockEntry[blockEntry._id]
-        return block
-      }
+      return block
     }else{
       return false
     }
   }
 
-  async getBranch(previousHash){
-    let branch = await this.branchesDB.get(previousHash)
-    if(branch){
-      if(branch.error) return { error:branch.error }
-      else return branch
-    }else{
-      return false
-    }
-  }
+  // async getBranch(previousHash){
+  //   let branch = await this.branchesDB.get(previousHash)
+  //   if(branch){
+  //     if(branch.error) return { error:branch.error }
+  //     else return branch
+  //   }else{
+  //     return false
+  //   }
+  // }
 
   async validateBranch(newBlock, branch){
        
@@ -593,74 +578,74 @@ class Blockchain{
     
   }
 
-  async integrateBranch(branch){
+  // async integrateBranch(branch){
     
-    const pushBlocks = async (branch) =>{
-      for await(let block of branch){
-        let added = await this.addBlock(block)
-        if(added.error) return { error:added.error }
-      }
-      return true
-    }
+  //   const pushBlocks = async (branch) =>{
+  //     for await(let block of branch){
+  //       let added = await this.addBlock(block)
+  //       if(added.error) return { error:added.error }
+  //     }
+  //     return true
+  //   }
     
-    let firstBlock = branch[0];
-    let lastBlock = branch[branch.length - 1]
-    let latestBlock = await this.getLatestFullBlock();
-    let isLinkedToLast = latestBlock.hash == firstBlock.previousHash
-    // console.log('Linked to last', isLinkedToLast)
-    let isSameHeightAsLast = latestBlock.previousHash == firstBlock.previousHash
-    // console.log('Same height', isSameHeightAsLast)
-    let isLinkedToEarlierBlock = await this.getBlockFromDBByHash(firstBlock.previousHash)
-    // console.log('Is linked to earlier', typeof isLinkedToEarlierBlock)
-    let isLinkedToBlockInPool = await this.getBlockFromPool(firstBlock.previousHash)
-    // console.log('isLinked to block in pool', typeof isLinkedToBlockInPool)
-    let isLinkedToBranch = await this.getBranch(firstBlock.previousHash)
-    // console.log('is linked to branch', typeof isLinkedToBranch)
+  //   let firstBlock = branch[0];
+  //   let lastBlock = branch[branch.length - 1]
+  //   let latestBlock = await this.getLatestFullBlock();
+  //   let isLinkedToLast = latestBlock.hash == firstBlock.previousHash
+  //   // console.log('Linked to last', isLinkedToLast)
+  //   let isSameHeightAsLast = latestBlock.previousHash == firstBlock.previousHash
+  //   // console.log('Same height', isSameHeightAsLast)
+  //   let isLinkedToEarlierBlock = await this.getBlockFromDBByHash(firstBlock.previousHash)
+  //   // console.log('Is linked to earlier', typeof isLinkedToEarlierBlock)
+  //   let isLinkedToBlockInPool = await this.getBlockFromPool(firstBlock.previousHash)
+  //   // console.log('isLinked to block in pool', typeof isLinkedToBlockInPool)
+  //   let isLinkedToBranch = await this.getBranch(firstBlock.previousHash)
+  //   // console.log('is linked to branch', typeof isLinkedToBranch)
 
-    if(isLinkedToLast){
+  //   if(isLinkedToLast){
 
-      let pushed = await pushBlocks(branch)
-      if(pushed.error) return { error:pushed.error }
-      else return { swapped:lastBlock.hash }
+  //     let pushed = await pushBlocks(branch)
+  //     if(pushed.error) return { error:pushed.error }
+  //     else return { swapped:lastBlock.hash }
 
-    }else if(isSameHeightAsLast){
+  //   }else if(isSameHeightAsLast){
       
-      let rolledBack = await this.rollbackToBlock(firstBlock.blockNumber - 1)
-      if(rolledBack.error) return { error:rolledBack.error }
+  //     let rolledBack = await this.rollbackToBlock(firstBlock.blockNumber - 1)
+  //     if(rolledBack.error) return { error:rolledBack.error }
 
-      let pushed = await pushBlocks(branch)
-      if(pushed.error) return { error:pushed.error }
-      else return { swapped:lastBlock.hash }
+  //     let pushed = await pushBlocks(branch)
+  //     if(pushed.error) return { error:pushed.error }
+  //     else return { swapped:lastBlock.hash }
 
-    }else if(isLinkedToBranch){
+  //   }else if(isLinkedToBranch){
 
-      if(isLinkedToBranch.error) return { error:isLinkedToBranch.error }
-      let otherBranch = isLinkedToBranch
-      let extendedBranch = [ ...otherBranch, ...branch ]
-      let lastBlock = extendedBranch[extendedBranch.length -1]
-      return await this.addNewBranch(lastBlock.hash, extendedBranch)
+  //     if(isLinkedToBranch.error) return { error:isLinkedToBranch.error }
+  //     let otherBranch = isLinkedToBranch
+  //     let extendedBranch = [ ...otherBranch, ...branch ]
+  //     let lastBlock = extendedBranch[extendedBranch.length -1]
+  //     return await this.addNewBranch(lastBlock.hash, extendedBranch)
 
-    }else if(isLinkedToBlockInPool){
-      if(isLinkedToBlockInPool.error) return {error:isLinkedToBlockInPool.error}
-      let blockFromPool = isLinkedToBlockInPool
-      branch = [ blockFromPool, ...branch ]
-      return { linked:blockFromPool.hash }
+  //   }else if(isLinkedToBlockInPool){
+  //     if(isLinkedToBlockInPool.error) return {error:isLinkedToBlockInPool.error}
+  //     let blockFromPool = isLinkedToBlockInPool
+  //     branch = [ blockFromPool, ...branch ]
+  //     return { linked:blockFromPool.hash }
 
-    }else if(isLinkedToEarlierBlock){
-      if(isLinkedToEarlierBlock.error) return {error:isLinkedToEarlierBlock}
-      let linkedToBlock = isLinkedToEarlierBlock
-      let rolledBack = await this.rollbackToBlock(linkedToBlock.blockNumber)
-      if(rolledBack.error) return { error:rolledBack.error }
+  //   }else if(isLinkedToEarlierBlock){
+  //     if(isLinkedToEarlierBlock.error) return {error:isLinkedToEarlierBlock}
+  //     let linkedToBlock = isLinkedToEarlierBlock
+  //     let rolledBack = await this.rollbackToBlock(linkedToBlock.blockNumber)
+  //     if(rolledBack.error) return { error:rolledBack.error }
 
-      let pushed = await pushBlocks(branch)
-      if(pushed.error) return { error:pushed.error }
-      else return { swapped:lastBlock.hash }
+  //     let pushed = await pushBlocks(branch)
+  //     if(pushed.error) return { error:pushed.error }
+  //     else return { swapped:lastBlock.hash }
       
-    }else{
-        logger(`${chalk.cyan('[][]> Extended branch of')} ${branch.length} ${chalk.cyan('blocks to')} ${lastBlock.blockNumber} ${chalk.cyan(':')} ${lastBlock.hash.substr(0, 10)}`)
-        return { extended:lastBlock.hash }
-    }
-  }
+  //   }else{
+  //       logger(`${chalk.cyan('[][]> Extended branch of')} ${branch.length} ${chalk.cyan('blocks to')} ${lastBlock.blockNumber} ${chalk.cyan(':')} ${lastBlock.hash.substr(0, 10)}`)
+  //       return { extended:lastBlock.hash }
+  //   }
+  // }
 
   async runBlock(newBlock){
     let newHeader = this.extractHeader(newBlock)
