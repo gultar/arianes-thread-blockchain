@@ -1632,12 +1632,8 @@ class Node {
                   this.broadcast('peerMessage', peerMessage)
                   break
                 case 'newBlockFound':
-                  if(!this.chain.isBusy){
-                    this.chain.isBusy = true
-                    
-                    this.broadcast('peerMessage', peerMessage)
+                  this.broadcast('peerMessage', peerMessage)
                     let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
-                    this.chain.isBusy = false;
                     if(added){
                       if(added.error){
                         logger(chalk.red('REJECTED BLOCK:'), added.error)
@@ -1646,7 +1642,6 @@ class Node {
                       }
   
                     }
-                  }
                   break;
                 
               }
@@ -1819,7 +1814,7 @@ class Node {
 
         if(peer){
           let snapshot = this.peerManager.getSnapshot(relayPeer)
-          console.log('Comparing snapshots')
+          
           let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
           if(comparison.rollback){
             let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)
