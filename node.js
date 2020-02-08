@@ -112,6 +112,7 @@ class Node {
     this.blocksToValidate = []
     this.updated = false;
     this.isDownloading = false;
+    this.autoRollback = options.autoRollback || false;
     this.minerStarted = false;
     this.peerManager = new PeerManager({
       address:this.address,
@@ -177,13 +178,12 @@ class Node {
         let token = this.networkManager.getNetwork()
         let joined = await this.networkManager.joinNetwork(token)
         if(joined.error) logger('NETWORK ERROR', joined.error)
-        console.log(this.networkManager.getNetwork())
+        // console.log(this.networkManager.getNetwork())
+
+        
         this.chain.init()
         .then(async (chainLoaded)=>{
-            
-            
-            
-            
+          
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
             
@@ -776,30 +776,32 @@ class Node {
           closeConnection()
           resolve(true)
         }else if(block.error){
-          closeConnection({ error:true })
-          resolve({ error: block.error })
+
+          if(this.autoRollback){
+            let blockNumber = this.chain.getBlockNumberOfHash(startHash)
+            let rolledback = await this.chain.rollbackToBlock(blockNumber - 2)
+            let latestHash = this.chain.getLatestBlock().hash
+            peer.emit('getNextBlock', latestHash)
+            awaitRequest()
+          }else{
+            closeConnection({ error:true })
+            resolve({ error: block.error })
+          }
+          
         }else{
           let added = await this.chain.receiveBlock(block)
           if(added.error){
             logger('DOWNLOAD', added.error)
             closeConnection()
           }else if(added.extended){
-            let missingBlocks = await this.getMissingBlocksToSyncBranch(added.extended)
-            if(missingBlocks.error){
-              closeConnection()
-              resolve({error:missingBlocks.error})
-            }else if(missingBlocks && missingBlocks.length){
-              for await(let missingBlock of missingBlocks){
-                let missingBlockAdded = await this.chain.receiveBlock(missingBlock)
-                if(missingBlockAdded.error) resolve({error:missingBlockAdded.error})
-              }
-            }else{
-              console.log('Missing:', missingBlocks)
-              resolve({error:'ERROR: Could not complete download, blocks are missing'})
-            }
+            let rolledback = await this.chain.rollbackToBlock(added.extended)
+            let latestHash = this.chain.getLatestBlock().hash
+            peer.emit('getNextBlock', latestHash)
+            awaitRequest()
+          }else{
+            peer.emit('getNextBlock', block.hash)
+            awaitRequest()
           }
-          peer.emit('getNextBlock', block.hash)
-          awaitRequest()
         }
       })
       
@@ -1736,21 +1738,6 @@ class Node {
         if(!this.isDownloading){
           try{
 
-            const rollbackAndSync = async (block, peerMessage) =>{
-              let blockNumberOfBranch = block.blockNumber -1
-              let rolledback = await this.chain.rollbackToMergeBranch(blockNumberOfBranch - 1)
-              let downloadFromAddress = peerMessage.relayPeer
-              let downloadFromOriginAddress = peerMessage.originAddress
-
-              let peer = this.peerManager.getPeer(downloadFromAddress)
-              
-              if(!peer) peer = this.peerManager.getPeer(downloadFromOriginAddress)
-
-              if(peer) peer.emit('getBlockchainStatus')
-              else this.broadcast('getBlockchainStatus')
-              return rolledback
-            }
-
             let block = JSON.parse(data);
             if(!isValidBlockJSON(block)) resolve({error:'ERROR: Block is of invalid format'})
             else{
@@ -1772,58 +1759,8 @@ class Node {
                   let added = await this.chain.receiveBlock(block);
 
                   this.minerChannel.emit('nodeEvent','isAvailable')
-
-                  if(added.error) resolve({error:added.error})
-                  else if(added.requestUpdate){
-
-                    let peer = this.peerManager.getPeer(relayPeer)
-                    if(peer){
-                      let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
-                      if(updated.error) resolve({error:updated.error})
-                      else resolve(updated)
-                    }else{
-                      this.broadcast('getBlockchainStatus')
-                    }
-                    
-                    resolve({ updating:true })
-                  }
-                  else if(added.extended){
-                    
-                    let peer = await this.peerManager.getPeer(relayPeer)
-                    if(!peer) peer = await this.getMostUpToDatePeer()
-
-                    if(peer){
-                      let snapshot = this.peerManager.getSnapshot(relayPeer)
-                      let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
-                      if(comparison.identical) resolve(true)
-                      else if(comparison.keep) resolve(true)
-                      else if(comparison.rollback){
-                        let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)
-                        if(rolledBack.error) resolve({error:rolledBack.error})
-
-                        let lastHeader = this.chain.getLatestBlock()
-                        let downloaded = await this.downloadBlockchain(peer, lastHeader)
-                        resolve(downloaded)
-                      }else if(comparison.merge){
-                        
-                        let blockNumber = comparison.merge.hash
-                        let rolledBack = await this.chain.rollbackToBlock(blockNumber - 1)
-                        if(rolledBack.error) resolve({error:rolledBack.error})
-
-                        let lastHeader = this.chain.getLatestBlock()
-                        let downloaded = await this.downloadBlockchain(peer, lastHeader)
-                        resolve(downloaded)
-                      }else{
-                        resolve(comparison)
-                      }
-                    }else{
-                      resolve({error:'ERROR: Could not find suitable peer to sync with'})
-                    }
-                    
-
-                  }else{
-                    resolve(added)
-                  }
+                  let handled = await this.handleBlockReception(added, relayPeer)
+                  resolve(handled)
     
                 }else{
                   resolve({error:'ERROR:New block header is invalid'})
@@ -1848,6 +1785,71 @@ class Node {
     
   }
 
+  handleBlockReception(reception, relayPeer){
+    return new Promise(async (resolve)=>{
+      if(reception.error) resolve({error:reception.error})
+      else if(reception.requestUpdate){
+
+        let peer = this.peerManager.getPeer(relayPeer)
+        if(peer){
+          let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
+          if(updated.error) resolve({error:updated.error})
+          else resolve(updated)
+        }else{
+          this.broadcast('getBlockchainStatus')
+        }
+        
+        resolve({ updating:true })
+      }
+      else if(reception.rollback){
+
+        let peer = await this.peerManager.getPeer(relayPeer)
+        if(!peer) peer = await this.getMostUpToDatePeer()
+        let rolledBack = await this.chain.rollbackToBlock(reception.rollback)
+        if(rolledBack.error) resolve({error:rolledBack.error})
+        let lastHeader = this.chain.getLatestBlock()
+        let downloaded = await this.downloadBlockchain(peer, lastHeader)
+        resolve(downloaded)
+        
+      }
+      else if(reception.extended){
+        
+        let peer = await this.peerManager.getPeer(relayPeer)
+        if(!peer) peer = await this.getMostUpToDatePeer()
+
+        if(peer){
+          let snapshot = this.peerManager.getSnapshot(relayPeer)
+          let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
+          if(comparison.rollback){
+            let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)
+            if(rolledBack.error) resolve({error:rolledBack.error})
+
+            let lastHeader = this.chain.getLatestBlock()
+            let downloaded = await this.downloadBlockchain(peer, lastHeader)
+            resolve(downloaded)
+          }else if(comparison.merge){
+            
+            let blockNumber = comparison.merge.hash
+            let rolledBack = await this.chain.rollbackToBlock(blockNumber - 1)
+            if(rolledBack.error) resolve({error:rolledBack.error})
+
+            let lastHeader = this.chain.getLatestBlock()
+            let downloaded = await this.downloadBlockchain(peer, lastHeader)
+            resolve(downloaded)
+          }else{
+            resolve(comparison)
+          }
+        }else{
+          resolve({error:'ERROR: Could not find suitable peer to sync with'})
+        }
+        
+
+      }else{
+        resolve(reception)
+      }
+    })
+  }
+
   /**
    * Validates blockchain and, if not valid, rolls back to before the conflicting block
    * @param {Boolean} allowRollback 
@@ -1869,12 +1871,6 @@ class Node {
       return true;
     }
   }
-
-  async getInSync(){
-
-  }
-
- 
 
    /**
     @param {number} $number - Index of block from which to show block creation time

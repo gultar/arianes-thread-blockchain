@@ -205,24 +205,29 @@ program
 program.parse(process.argv)
 
 process.on('SIGINT', async () => {
-  logger('Shutting down node and saving state');
+  if(!node.chain.isLoadingBlocks){
+    logger('Shutting down node and saving state');
   
 
-  if(process.MINER){
-    logger('Stopping miner');
-    process.ACTIVE_MINER.kill()
+    if(process.MINER){
+      logger('Stopping miner');
+      process.ACTIVE_MINER.kill()
+    }
+  
+    node.chain.vmController.stop()
+  
+    
+    
+    let saved = await node.save()
+    .catch(e=>{
+       console.log(e)
+       process.exit()
+      })
+    process.exit()
+  }else{
+    logger('Cannot stop while loading blocks')
   }
-
-  node.chain.vmController.stop()
-
   
-  
-  let saved = await node.save()
-  .catch(e=>{
-     console.log(e)
-     process.exit()
-    })
-  process.exit()
 
 });
 

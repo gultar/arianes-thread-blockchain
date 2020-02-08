@@ -395,12 +395,9 @@ class Blockchain{
       //Already exists in chain?
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
       if(blockAlreadyExists) return { error:`ERROR Block ${newBlock.blockNumber} already exists` }
-
-      global.minerChannel.emit('nodeEvent','isBusy')
       //Is none of the above, carry on with routing the block
       //to its proper place, either in the chain or in the pool
       let success = await this.routeBlock(newBlock)
-      global.minerChannel.emit('nodeEvent','isAvailable')
       return success
       
     }else{
@@ -425,13 +422,6 @@ class Blockchain{
           if(rollback.error) return { error:rollback.error }
           else return { requestUpdate:true }
         }
-
-        let isLinkedToBranch = await this.getBranch(newBlock.previousHash);
-        // console.log('Is linked to branch', typeof isLinkedToBranch)
-        if(isLinkedToBranch && isLinkedToBranch.error) return { error:isLinkedToBranch.error }
-        else if(isLinkedToBranch && !isLinkedToBranch.error){
-          return await this.addBlockToBranch(newBlock)
-        }
         
         let isLinkedToBlockInPool = await this.getBlockFromPool(newBlock.previousHash)
         // console.log('Is linked to branch', typeof isLinkedToBlockInPool)
@@ -441,7 +431,10 @@ class Blockchain{
           let branch = [ blockFromPool, newBlock ]
           // let removed = await this.removeBlockFromPool(blockFromPool.hash)
           // console.log('Create new branch')
-          return await this.addNewBranch(newBlock.hash, branch)
+          // return await this.addNewBranch(newBlock.hash, branch)
+          let isValidCandidate = await this.validateBranch(newBlock, branch)
+          if(isValidCandidate) return { rollback:blockFromPool.blockNumber - 2 }
+          else return { stay:true }
         }else{
           // console.log('Add new block')
           return await this.addBlockToPool(newBlock)
@@ -3439,7 +3432,9 @@ class Blockchain{
       logger('Loading all blocks. Please wait...')
       try{
         // let gitIgnore = await this.addGitIgnoreToBlockchainFolder()
+        this.isLoadingBlocks = true
         let loaded = await this.loadBlocks()
+        this.isLoadingBlocks = false
         if(loaded){
           let contractTableStarted = await this.contractTable.init()
           
