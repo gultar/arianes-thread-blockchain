@@ -791,7 +791,7 @@ class Node {
             resolve({ error: block.error })
           }
           
-        }else if(block.error){
+        }else if(block.error && block.error !== 'Block not found'){
           closeConnection({ error:true })
           resolve({ error: block.error })
         }else{
