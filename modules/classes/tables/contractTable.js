@@ -40,7 +40,7 @@ class ContractTable{
     addContract(contract){
         return new Promise(async (resolve)=>{
             
-            let { name, contractAPI, initParams, account, code, state } = contract
+            let { name, contractAPI, initParams, account, code, state, totalRAM } = contract
             
             let alreadyExists = await this.contractDB.get(name)
             if(!alreadyExists){
@@ -49,7 +49,8 @@ class ContractTable{
                     code:code,
                     initParams:initParams,
                     account:account,
-                    contractAPI:contractAPI
+                    contractAPI:contractAPI,
+                    totalRAM:totalRAM
                 })
 
                 if(added){
@@ -72,10 +73,6 @@ class ContractTable{
                         let updated = await this.stateStorage[name].update(state)
                         if(updated.error) resolve({error:updated.error})
                         else resolve(updated)
-                        // let started = await this.stateStorage[name].save(await this.getCurrentBlock())
-                        // if(started.error) resolve({error:started})
-                        
-                        
                     }
                 }else{
                     resolve({ error:`ERROR: Creation of contract ${name} failed. Could not create contract entry` })
@@ -98,6 +95,27 @@ class ContractTable{
             }
             resolve(names)
         })
+    }
+
+    async addRAM(contractName, amount){
+        if(contractName && amount){
+            if(typeof amount !== 'number' || amount < 0) 
+                return { error:'ERROR: Amount of ram to allocate needs to be a positive number' }
+
+            let contract = await this.contractDB.get(contractName);
+            let currentRAM = contract.totalRAM;
+            let totalRAM = currentRAM + amount
+            let added = await this.contractDB.add({
+                _id:contract.name,
+                code:contract.code,
+                initParams:contract.initParams,
+                account:contract.account,
+                contractAPI:contract.contractAPI,
+                totalRAM:totalRAM
+            })
+            if(added.error) return { error:added.error }
+            else return added
+        }
     }
 
     loadStateStore(contractName){
@@ -239,27 +257,6 @@ class ContractTable{
                 return removedState
             }
     }
-
-    // rollbackActionBlock(actions){
-    //     return new Promise(async (resolve)=>{
-    //         if(actions){
-    //             let actionHashes = Object.keys(actions)
-    //             let errors = {}
-    //             for await (var hash of actionHashes){
-    //                 let action = actions[hash]
-    //                 let contractName = action.data.contractName
-    //                 let rolledBack = await this.rollbackState(contractName, action)
-    //                 if(rolledBack.error){ errors[hash] = rolledBack.error }
-    //             }
-
-    //             if(Object.keys(errors).length > 0) resolve({error:errors})
-    //             else resolve(true)
-                
-    //         }else{
-    //             resolve({error:'Block of actions to rollback is undefined'})
-    //         }
-    //     })
-    // }
 
     async rollback(blockNumber){
         if(blockNumber){

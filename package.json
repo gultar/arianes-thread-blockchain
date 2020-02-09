@@ -24,6 +24,7 @@
     "express-ws": "^4.0.0",
     "fetch": "^1.1.0",
     "figlet": "^1.2.4",
+    "get-folder-size": "^2.0.1",
     "helmet": "^3.21.2",
     "hex-to-binary": "^1.0.1",
     "hex2dec": "^1.1.2",

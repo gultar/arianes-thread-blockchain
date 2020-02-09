@@ -1,6 +1,7 @@
 // const vmBootstrap = require('../contracts/vmEngine/vmBootstrap')
 const vmBootstrap = require('./vmEngine/bootstrap')
 const ContractConnector = require('./contractConnector')
+const { getDirectorySize } = require('../../tools/utils')
 
 class VMController{
     constructor({ contractTable, accountTable, buildCode, deferContractAction, emitContractAction, getCurrentBlock }){
@@ -21,6 +22,11 @@ class VMController{
 
         this.vmChannel = this.vmBootstrap.startVM()
         this.vmChannel.setMaxListeners(500)
+    }
+
+    async verifyAvailableSpace(contractName){
+        let size = await getDirectorySize(contractName+'Storage')
+        let totalRessources = await this.contractTable.getTotalRAM(contractName)
     }
 
     // pushCallsToVM(calls){

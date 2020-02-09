@@ -302,6 +302,18 @@ function copyFile(source, target) {
   });
 }
 
+const getDirectorySize = ()=>{
+  return new Promise((resolve)=>{
+    const getSize = require('get-folder-size');
+ 
+    getSize('./data/quicknet/StorageStorage/', (err, size) => {
+      if (err) { resolve({error:err}) }
+    
+      resolve(size)
+    });
+  })
+}
+
 const validatePublicKey = (compressedPublicKey) =>{
   return new Promise((resolve, reject)=>{
       try{
@@ -345,4 +357,5 @@ module.exports = {
   validatePublicKey,
   getMethodNames,
   getCPUPercent,
-  createDirectoryIfNotExisting };
+  createDirectoryIfNotExisting,
+  getDirectorySize };

@@ -2528,8 +2528,8 @@ class Blockchain{
       const cliProgress = require('cli-progress');
       
       // create a new progress bar instance and use shades_classic theme
+      console.log()
       const bar1 = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-      
       //See if genesis block has been added to database
       try{
         let genesisBlock = await this.getGenesisBlockFromDB()
@@ -2560,6 +2560,7 @@ class Blockchain{
                   bar1.update(block.blockNumber);
                   if(blockNumber == lastBlock.blockNumber){
                     bar1.stop();
+                    console.log()
                     logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`)
                     resolve(true)
                   }

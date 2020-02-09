@@ -113,6 +113,7 @@ class Node {
     this.updated = false;
     this.isDownloading = false;
     this.autoRollback = true || options.autoRollback || false;
+    this.maximumAutoRollback = 50
     this.minerStarted = false;
     this.peerManager = new PeerManager({
       address:this.address,
@@ -747,6 +748,7 @@ class Node {
       let unansweredRequests = 0;
       let maxRetryNumber = 10
       this.retrySending = null;
+      let rolledBack = 0
       
       const awaitRequest = () =>{
         if(unansweredRequests <= maxRetryNumber){
@@ -777,7 +779,8 @@ class Node {
           resolve(true)
         }else if(block.error && block.error == 'Block not found'){
 
-          if(this.autoRollback){
+          if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
+            rolledBack++
             let blockNumber = this.chain.getLatestBlock().blockNumber
             let rolledback = await this.chain.rollbackToBlock(blockNumber - 2)
             let latestHash = this.chain.getLatestBlock().hash
@@ -1676,7 +1679,7 @@ class Node {
           }else{
             this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
             if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-            logger(valid.error)
+            // logger(valid.error)
           }
         })
         

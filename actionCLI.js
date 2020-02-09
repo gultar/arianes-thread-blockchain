@@ -42,7 +42,7 @@ program
 .option('-k, --accountType <accountType>', 'Define type of account. Either user or contract')
 .option('-w, --walletName <walletName>', "Name of the account's owner wallet")
 .option('-p, --password <password>', 'Password of owner wallet')
-
+.option('-r, --ram <amount>', 'Amount of RAM to allocate to contract')
 
 program
 .command('createaccount')
@@ -327,12 +327,18 @@ program
 .option('-w, --walletName <walletName>', "Name of the account's owner wallet")
 .option('-p, --password <password>', 'Password of owner wallet')
 .option('-i, --initParams <initParams>', 'Initial parameters for the deployment of contract')
+.option('-r, --ram <amount>', 'Amount of RAM to allocate to contract')
 .description(`
 Deploys a contract to the blockchain
 
 Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p [passwd] -d [Filename => ./directory/file.js']
 `)
 .action(()=>{
+            
+            const parseRAM = (amountString) =>{ 
+                let amount = parseInt(amountString) 
+                return ( !isNaN(amount) ? amount : false)
+            }
             let address = nodeAddress;
             let contractName = program.contractName
             let accountName = program.accountName
@@ -340,8 +346,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
             let password = program.password
             let filename = program.filename
             let initParams = program.initParams
-
-            console.log(program.filename)
+            let totalRAM = parseRAM(program.ram)
             
             if(!address) throw new Error('ERROR: URL of receiving node is required')
             if(!accountName) throw new Error('ERROR: Name of sending account is required')
@@ -349,6 +354,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
             if(!filename) throw new Error('ERROR: Name of contract file is required')
             if(!walletName) throw new Error('ERROR: Name of owner wallet is required')
             if(!password) throw new Error('ERROR: Password of owner wallet is required')
+            if(!totalRAM) throw new Error('ERROR: Need to allocate an amount of ram for storage')
 
             openSocket(address, async (socket)=>{
                 let contract = fs.readFileSync(filename).toString()
@@ -403,7 +409,8 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                     contractAPI:contractAPI,
                                     initParams:initParams,
                                     account:accountName,
-                                    state:state
+                                    state:state,
+                                    totalRAM:totalRAM
                                 }
                             });
     
