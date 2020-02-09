@@ -791,6 +791,9 @@ class Node {
             resolve({ error: block.error })
           }
           
+        }else if(block.error){
+          closeConnection({ error:true })
+          resolve({ error: block.error })
         }else{
           let added = await this.chain.receiveBlock(block)
           if(added.error){
