@@ -3,8 +3,7 @@
 class Consensus{
     constructor(options){
         this.options = options
-        let { consensusMode, chain, path } = options
-        this.chain = chain
+        let { consensusMode, path } = options
         this.consensusMode = consensusMode
         this.engine = {}
         this.path = path || {

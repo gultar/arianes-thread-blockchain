@@ -43,8 +43,6 @@ class Blockchain{
     this.blockPool = {}
     this.chainSnapshot = {}
     this.chainDB = new Database('blockchain');
-    this.blockPoolDB = new Database('blockPool');
-    this.branchesDB = new Database('branches');
     this.mempool = mempool
     this.accountTable = new AccountTable();
     this.balance = new BalanceTable(this.accountTable)
@@ -53,6 +51,9 @@ class Blockchain{
     this.consensus = new Consensus({
       consensusMode:this.consensusMode,
       chain:this.chain,
+      getBlock:async (blockNumber)=>{
+        return await this.getBlockFromDB(blockNumber)
+      },
       difficulty:this.difficulty,
       accountTable:this.accountTable
     })
@@ -257,139 +258,7 @@ class Blockchain{
     return block
   }
 
-  // addBlockToChain(newBlock, silent=false){
-  //   return new Promise(async (resolve)=>{
-  //     //Push block header to chain
-  //     var isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
-  //     let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
-  //     let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-      
-  //     if(blockNumberAlreadyExists || blockAlreadyExists){
-  //       resolve({error:`ERROR: Block ${newBlock.blockNumber} already exists`})
-  //     }else if(!isNextBlock){
-  //       resolve({error:'ERROR: Number of new block does not follow latest block'})
-  //     }else{
-  //       let errors = {}
-  //       let newHeader = this.extractHeader(newBlock)
-  //       this.chain.push(newHeader);
 
-  //       let start = process.hrtime();
-  //       var areTransactionsValid = await this.validateBlockTransactions(newBlock)
-  //       if(areTransactionsValid.error) errors['TRANSACTION ERROR'] = areTransactionsValid.error
-  //       let hrend = process.hrtime(start)
-  //       // console.info('TxValid time (hr): %ds %dms', hrend[0], hrend[1] / 1000000)
-
-  //       start = process.hrtime();
-  //       var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(newBlock)
-  //       if(!doesNotContainDoubleSpend) errors['DOUBLE SPEND ERROR'] = 'ERROR: Block may not contain a transaction that is already spent'
-  //       hrend = process.hrtime(start)
-  //       // console.info('DoubleSpend time: %ds %dms', hrend[0], hrend[1] / 1000000)
-
-  //       if(Object.keys(errors).length > 0) resolve({error:errors})
-  //       else{
-  //         start = process.hrtime();
-  //         let executed = await this.balance.runBlock(newBlock)
-  //         hrend = process.hrtime(start)
-  //         // console.info('Balance run time: %ds %dms', hrend[0], hrend[1] / 1000000)
-          
-  //         if(executed.error) errors['BALANCE ERROR'] = executed.error
-  //         else{
-  //           start = process.hrtime();
-  //           let saved = await this.balance.saveBalances(newBlock)
-  //           if(saved.error) resolve({error:saved.error})
-  //           hrend = process.hrtime(start)
-  //           // console.info('Balance save time: %ds %dms', hrend[0], hrend[1] / 1000000)
-            
-  //           start = process.hrtime();
-  //           let actions = newBlock.actions || {}
-  //           let allActionsExecuted = await this.executeActionBlock(actions)
-  //           if(allActionsExecuted.error) errors['ACTION ERROR'] = allActionsExecuted.error;
-  //           hrend = process.hrtime(start)
-  //           // console.info('Actions time: %ds %dms', hrend[0], hrend[1] / 1000000)
-            
-  //           start = process.hrtime();
-  //           let callsExecuted = await this.runTransactionCalls(newBlock);
-  //           if(callsExecuted.error) errors['CALL ERROR'] = callsExecuted.error
-  //           hrend = process.hrtime(start)
-  //           // console.info('Calls time: %ds %dms', hrend[0], hrend[1] / 1000000)
-            
-  //           start = process.hrtime();
-  //           let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-  //           if(!transactionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete transactions from Mempool'
-  //           hrend = process.hrtime(start)
-  //           // console.info('DeleteTx time: %ds %dms', hrend[0], hrend[1] / 1000000) 
-            
-  //           start = process.hrtime();
-  //           let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
-  //           if(!actionsDeleted) errors['MEMPOOL ERROR'] = 'ERROR: Could not delete actions from Mempool' 
-  //           hrend = process.hrtime(start)
-  //           // console.info('DeleteActions time: %ds %dms', hrend[0], hrend[1] / 1000000) 
-            
-  //           //Verify is already exists
-  //           if(Object.keys(errors).length > 0){
-  //             let removedNewHeader = this.chain.pop()
-  //             resolve({error: errors})
-  //           }else{
-  //             start = process.hrtime();
-  //             for await(let hash of newHeader.txHashes){
-  //               this.spentTransactionHashes[hash] = { spent:newHeader.blockNumber }
-  //             }
-  //             hrend = process.hrtime(start)
-  //             // console.info('SpendTx time: %ds %dms', hrend[0], hrend[1] / 1000000) 
-
-  //             start = process.hrtime();
-  //             if(newHeader.actionsHashes){
-  //               for await(let hash of newHeader.actionHashes){
-  //                 this.spentActionHashes[hash] = { spent:newHeader.blockNumber }
-  //               }
-  //             }
-  //             hrend = process.hrtime(start)
-  //             // console.info('SpendAction time: %ds %dms', hrend[0], hrend[1] / 1000000) 
-
-  //             start = process.hrtime();
-  //             let statesSaved = await this.contractTable.saveStates(newHeader)
-  //             if(statesSaved.error) logger('STATE SAVE ERROR', statesSaved.error)
-  //             hrend = process.hrtime(start)
-  //             // console.info('SaveState time: %ds %dms', hrend[0], hrend[1] / 1000000) 
-              
-  //             start = process.hrtime();
-  //             let added = await this.addBlockToDB(newBlock)
-  //             hrend = process.hrtime(start)
-  //             // console.info('AddBlock time: %ds %dms', hrend[0], hrend[1] / 1000000) 
-  //             if(added){
-  //               if(added.error) resolve({error:added.error})
-    
-  //               let saved = await this.saveLastKnownBlockToDB()
-  //               if(saved.error) logger('LAST BLOCK ERROR:', saved.error)
-                
-  //               if(!silent) logger(chalk.green(`[$] New Block ${newBlock.blockNumber} created : ${newBlock.hash.substr(0, 25)}...`));
-                
-  //               resolve(true);
-                
-  //             }else{
-    
-  //               resolve({ error:'Could not push new block' })
-  //             }
-              
-  //           }
-  //         }
-  //       }
-        
-
-  //     }
-  //   })
-  // }
-
-
-  /**
-   * minedBlock => validate =>               - addBlock => runBlock
-   *                                         - addBlockToPool
-   * 
-   * peerBlock => validate => route block => - addBlock => runBlock
-   *                                         - addBlockToPool
-   *                                         
-   *                                          
-   */
 
   async receiveBlock(newBlock, getMissingBlocks){
     if(isValidBlockJSON(newBlock)){
@@ -432,7 +301,6 @@ class Blockchain{
           if(isValidCandidate) return { rollback:blockFromPool.blockNumber - 1 }
           else return { stay:true }
         }else{
-          // console.log('Add new block')
           return await this.addBlockToPool(newBlock)
         }
 
@@ -442,32 +310,25 @@ class Blockchain{
   }
 
   async addBlock(newBlock){
-    let isValidBlock = await this.validateBlock(newBlock);
-    if(isValidBlock){
-      if(isValidBlock.error) return { error:isValidBlock.error }
+    let newHeader = this.extractHeader(newBlock)
+    this.chain.push(newHeader);
 
-      let newHeader = this.extractHeader(newBlock)
-      this.chain.push(newHeader);
-
-      let executed = await this.runBlock(newBlock)
-      if(executed.error){
+    let executed = await this.runBlock(newBlock)
+    if(executed.error){
+      this.chain.pop()
+      return { error:executed.error }
+    }
+    else {
+      let added = await this.addBlockToDB(newBlock)
+      if(added.error){
         this.chain.pop()
-        return { error:executed.error }
+        return { error:added.error }
       }
-      else {
-        let added = await this.addBlockToDB(newBlock)
-        if(added.error){
-          this.chain.pop()
-          return { error:added.error }
-        }
-        else{
-          await this.manageChainSnapshotQueue(newBlock)
-          logger(`${chalk.green('[] Added new block')} ${newBlock.blockNumber} ${chalk.green('to chain:')} ${newBlock.hash.substr(0, 20)}...`)
-          return added
-        }
+      else{
+        await this.manageChainSnapshotQueue(newBlock)
+        logger(`${chalk.green('[] Added new block')} ${newBlock.blockNumber} ${chalk.green('to chain:')} ${newBlock.hash.substr(0, 20)}...`)
+        return added
       }
-    }else{
-      return { error:`ERROR: Block ${newBlock.blockNumber} is not valid` }
     }
   }
 
@@ -484,66 +345,6 @@ class Blockchain{
     
   }
 
-  // async removeBlockFromPool(hash){
-  //   //Already exists in block pool?
-  //   let blockExistsInPool = await this.getBlockFromPool(hash)
-  //   if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
-  //   else{
-  //     return await this.blockPoolDB.deleteId(hash)
-  //   }
-    
-  // }
-
-  // async addNewBranch(lastHash, branch){
-  //   let firstBlock = branch[0]
-  //   let lastBlock = branch[branch.length - 1]
-  //   let added = await this.branchesDB.put({
-  //     key:lastHash,
-  //     value:branch
-  //   })
-  //   if(added.error) return { error:added.error }
-  //   else {
-      
-  //     let isValidCandidate = await this.validateBranch(lastBlock, branch)
-  //     console.log('Valid Candidate:', isValidCandidate)
-  //     if(isValidCandidate){
-  //       return await this.integrateBranch(branch)
-  //     }else{
-  //       logger(`${chalk.cyan('[][] Added new branch at')}  ${firstBlock.blockNumber} ${chalk.cyan(':')} ${firstBlock.hash.substr(0, 20)}...`)
-  //       return added
-  //     }
-  //   }
-    
-  // }
-
-  // async removeBranch(hash){
-  //   //Already exists in block pool?
-  //   let branch = await this.getBranch(hash)
-  //   if(branch && branch.error) return { error:branch.error }
-  //   else{
-  //     return await this.branchesDB.deleteId(hash)
-  //   }
-    
-  // }
-
-  // async addBlockToBranch(newBlock){
-  //   let branch = await this.getBranch(newBlock.previousHash);
-  //   if(branch){
-  //     if(branch.error) return { error:branch.error }
-      
-  //     let extendedBranch = [ ...branch, newBlock ]
-      
-  //     // let removed = await this.removeBranch(newBlock.previousHash)
-      
-  //     let added = await this.addNewBranch(newBlock.hash, extendedBranch);
-  //     if(added && added.error) return { error:added.error }
-  //     else return added
-      
-  //   }else{
-  //     return { error:`ERROR: Could not find branch ${newBlock.previousHash.substr(0, 20)}` }
-  //   }
-  // }
-
   async getBlockFromPool(hash){
     let block = this.blockPool[hash]
     if(block){
@@ -552,16 +353,6 @@ class Blockchain{
       return false
     }
   }
-
-  // async getBranch(previousHash){
-  //   let branch = await this.branchesDB.get(previousHash)
-  //   if(branch){
-  //     if(branch.error) return { error:branch.error }
-  //     else return branch
-  //   }else{
-  //     return false
-  //   }
-  // }
 
   async validateBranch(newBlock, branch){
        
@@ -578,75 +369,6 @@ class Blockchain{
       }
     
   }
-
-  // async integrateBranch(branch){
-    
-  //   const pushBlocks = async (branch) =>{
-  //     for await(let block of branch){
-  //       let added = await this.addBlock(block)
-  //       if(added.error) return { error:added.error }
-  //     }
-  //     return true
-  //   }
-    
-  //   let firstBlock = branch[0];
-  //   let lastBlock = branch[branch.length - 1]
-  //   let latestBlock = await this.getLatestFullBlock();
-  //   let isLinkedToLast = latestBlock.hash == firstBlock.previousHash
-  //   // console.log('Linked to last', isLinkedToLast)
-  //   let isSameHeightAsLast = latestBlock.previousHash == firstBlock.previousHash
-  //   // console.log('Same height', isSameHeightAsLast)
-  //   let isLinkedToEarlierBlock = await this.getBlockFromDBByHash(firstBlock.previousHash)
-  //   // console.log('Is linked to earlier', typeof isLinkedToEarlierBlock)
-  //   let isLinkedToBlockInPool = await this.getBlockFromPool(firstBlock.previousHash)
-  //   // console.log('isLinked to block in pool', typeof isLinkedToBlockInPool)
-  //   let isLinkedToBranch = await this.getBranch(firstBlock.previousHash)
-  //   // console.log('is linked to branch', typeof isLinkedToBranch)
-
-  //   if(isLinkedToLast){
-
-  //     let pushed = await pushBlocks(branch)
-  //     if(pushed.error) return { error:pushed.error }
-  //     else return { swapped:lastBlock.hash }
-
-  //   }else if(isSameHeightAsLast){
-      
-  //     let rolledBack = await this.rollbackToBlock(firstBlock.blockNumber - 1)
-  //     if(rolledBack.error) return { error:rolledBack.error }
-
-  //     let pushed = await pushBlocks(branch)
-  //     if(pushed.error) return { error:pushed.error }
-  //     else return { swapped:lastBlock.hash }
-
-  //   }else if(isLinkedToBranch){
-
-  //     if(isLinkedToBranch.error) return { error:isLinkedToBranch.error }
-  //     let otherBranch = isLinkedToBranch
-  //     let extendedBranch = [ ...otherBranch, ...branch ]
-  //     let lastBlock = extendedBranch[extendedBranch.length -1]
-  //     return await this.addNewBranch(lastBlock.hash, extendedBranch)
-
-  //   }else if(isLinkedToBlockInPool){
-  //     if(isLinkedToBlockInPool.error) return {error:isLinkedToBlockInPool.error}
-  //     let blockFromPool = isLinkedToBlockInPool
-  //     branch = [ blockFromPool, ...branch ]
-  //     return { linked:blockFromPool.hash }
-
-  //   }else if(isLinkedToEarlierBlock){
-  //     if(isLinkedToEarlierBlock.error) return {error:isLinkedToEarlierBlock}
-  //     let linkedToBlock = isLinkedToEarlierBlock
-  //     let rolledBack = await this.rollbackToBlock(linkedToBlock.blockNumber)
-  //     if(rolledBack.error) return { error:rolledBack.error }
-
-  //     let pushed = await pushBlocks(branch)
-  //     if(pushed.error) return { error:pushed.error }
-  //     else return { swapped:lastBlock.hash }
-      
-  //   }else{
-  //       logger(`${chalk.cyan('[][]> Extended branch of')} ${branch.length} ${chalk.cyan('blocks to')} ${lastBlock.blockNumber} ${chalk.cyan(':')} ${lastBlock.hash.substr(0, 10)}`)
-  //       return { extended:lastBlock.hash }
-  //   }
-  // }
 
   async runBlock(newBlock){
     let newHeader = this.extractHeader(newBlock)
@@ -691,325 +413,7 @@ class Blockchain{
   }
 
 
-  // /**
-  //  * Validate and add block to database and blockchain
-  //  * @param {Block} newBlock 
-  //  * @param {boolean} silent 
-  //  */
-  // pushBlock(newBlock, silent=false){
-  //   return new Promise(async (resolve)=>{
-  //     if(isValidBlockJSON(newBlock)){
-  //       let isValidBlock = await this.validateBlock(newBlock);
-  //       if(isValidBlock.error){
-  //         resolve({error:isValidBlock.error})
-  //       }
-  //       else{
-  //         let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-  //         if(blockAlreadyExists) resolve({error:'ERROR: Block already exists in blockchain'})
-  //         else{
-            
-  //           var isLinked = this.isBlockLinked(newBlock);
-  //           var linkToChain = await this.getBlockbyHash(newBlock.previousHash)
-  //           var isLinkedToChain = linkToChain && linkToChain.blockNumber == newBlock.blockNumber - 1
-  //           let blockNumberAlreadyExists = this.chain[newBlock.blockNumber]
-  //           let isLinkedToBranch = this.branches[newBlock.previousHash]
-  //           let isLinkedToUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
-  
-  //           /**
-  //            * Possible return values
-  //            * Linked branches
-  //            *  extended - Either created or extended a blockchain branch, nothing to do here
-  //            *  switched - Swapped branches with one that has more work or is longer
-  //            * Unlinked branches
-  //            *  extended - Either created or extended an unlinked blockchain branch, nothing to do here
-  //            *  findMissing - Query peer with the longest blockchain for the missing blocks at block hash
-  //            * 
-  //            * Basically, the only other result to handle, aside from an error or a success, is findMissing
-  //            */
-  //           if(isLinked){
-  //             if(blockNumberAlreadyExists){
-  //               let branched = await this.createNewBranch(newBlock);
-  //               if(branched.error) resolve({error:branched.error})
-  //               else resolve(branched)
-  //             }else{
-                
-  //               let added = await this.addBlockToChain(newBlock, silent)
-  //                 if(added.error) resolve({error:added.error})
-  //                 else resolve(added)
-  //             }
-  //           }else{
-  //             if(isLinkedToChain){
-  //               let branched = await this.createNewBranch(newBlock);
-  //               if(branched.error) resolve({error:branched.error})
-  //               else resolve(branched)
-  //             }else if(isLinkedToBranch){
-  //               let extended = await this.extendBranch(newBlock)
-  //               if(extended.error) resolve({error:extended})
-  //               else resolve(extended)
-  //             }else if(isLinkedToUnlinkedBranch){
-  //               let extended = await this.extendUnlinkedBranch(newBlock);
-  //               if(extended.error) resolve({error:extended.error})
-  //               else resolve(extended)
-  //             }else{
-  //               let branched = await this.createNewUnlinkedBranch(newBlock)
-  //               if(branched.error) resolve({error:branched.error})
-  //               else resolve(branched)
-  //             }
-  //           }
-  
-  //         }
-  //       }
-        
-  //     }else{
-  //       resolve({error:'ERROR: New block undefined'})
-  //     }
-  //   })
 
-  // }
-
-
-  // async createNewBranch(newBlock){
-  //   let alreadyExists = this.branches[newBlock.hash]
-  //   if(!alreadyExists){
-  //     this.branches[newBlock.hash] = [ newBlock ]
-  //     logger(chalk.cyan(`[*] New branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 23)}...`));
-  //     return true
-  //   }else{
-  //     return { error:'ERROR: Block already exists in branch' }
-  //   }
-  // }
-
-  // async createNewUnlinkedBranch(newBlock){
-  //   //Pushing new block with previous so that node may find the missing blocks and use the last one found to 
-  //   //fetch the unlinkedBranch created here
-  //   let isLooseBlockLinked = false
-  //   let looseBlock = this.looseBlocks[newBlock.previousHash]
-  //   if(looseBlock) isLooseBlockLinked = await this.chain.getBlockbyHash(looseBlock.previousHash)
-  //   let alreadyExists = this.unlinkedBranches[newBlock.previousHash]
-  //   if(!alreadyExists && !isLooseBlockLinked){
-  //     if(looseBlock) this.unlinkedBranches[looseBlock.previousHash] = [ looseBlock, newBlock ]
-  //     else this.unlinkedBranches[newBlock.previousHash] = [ newBlock ]
-  //     logger(chalk.yellow(`* Unlinked branch at previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
-  //     return { unlinked:newBlock.hash, blockNumber:newBlock.blockNumber }
-  //   }else if(!alreadyExists && isLooseBlockLinked){
-
-  //     let looseBlocks = [ looseBlock, newBlock ]
-  //     for await(let block of looseBlocks){
-  //       let isValidCandidate = await this.validateBranch(block)
-  //       if(isValidCandidate){
-  //         if(isValidCandidate.error) return { error:isValidCandidate.error }
-  //         let isValid  = await this.validateBlock(block)
-  //         if(isValid.error) return { error:isValid.error }
-
-  //         let added = await this.addBlockToChain(block)
-  //         if(added.error) return { error:added.error }
-  //       }
-  //     }
-
-  //     return looseBlocks
-      
-  //   }else{
-  //     return { error:'ERROR: Block already exists in branch' }
-  //   }
-  // }
-
-  // async branchContainsBlockNumber(newBlock, branch){
-  //   for await(let block of branch){
-  //     if(block.blockNumber == newBlock.blockNumber){
-  //       return true
-  //     }
-  //   }
-
-  //   return false
-  // }
-
-  // async extendBranch(newBlock){
-  //   let existingBranch = this.branches[newBlock.previousHash]
-  //   if(existingBranch){
-  //     let alreadyInBranch = await this.branchContainsBlockNumber(newBlock, existingBranch)
-  //     if(alreadyInBranch) return false;
-  //     else{
-  //       existingBranch.push(newBlock)
-  //       this.branches[newBlock.hash] = [ ...existingBranch ]
-  //       delete this.branches[newBlock.previousHash]
-  //       logger(chalk.cyan(`[*] Extended branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 18)}...`));
-  //       //check out branch and validate it
-  //       //if valid candidate for branch swap, swap
-  //       //if not, stay on main chain
-
-  //       let isValidCandidateBranch = await this.validateBranch(newBlock, existingBranch);
-
-  //       if(isValidCandidateBranch){
-  //         global.minerChannel.emit('nodeEvent', 'stopMining')
-  //         global.minerChannel.emit('nodeEvent', 'isSwitchingBranch')
-  //         let switched = await this.switchToBranch(existingBranch)
-  //         global.minerChannel.emit('nodeEvent', 'finishedSwitchingBranch')
-  //         if(switched.error) return { error:switched.error }
-  //         else return { switched:switched }
-  //       }else{
-  //         return { extended:true }
-  //       }
-  //     }
-      
-  //   }else{
-  //     return await this.createNewBranch(newBlock)
-  //   }
-  // }
-
-  // async extendUnlinkedBranch(newBlock){
-  //   let existingUnlinkedBranch = this.unlinkedBranches[newBlock.previousHash]
-  //   if(existingUnlinkedBranch){
-  //     let alreadyInBranch = await this.branchContainsBlockNumber(newBlock, existingUnlinkedBranch)
-  //     if(alreadyInBranch) return false;
-  //     else{
-  //       let firstUnlinkedBlock = existingUnlinkedBranch[0]
-  //       if(!firstUnlinkedBlock) return { error:'ERROR: Unlinked branch does not have a first block' }
-        
-  //       this.unlinkedBranches[newBlock.hash] = [ ...this.unlinkedBranches[newBlock.previousHash], newBlock ]
-  //       delete this.unlinkedBranches[newBlock.previousHash]
-
-
-  //       logger(chalk.yellow(`* Extended unlinked branch at block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 15)}...`));
-  //       //check out branch and validate it
-  //       //if valid candidate for branch swap, swap
-  //       //if not, stay on main chain
-
-  //       let isValidCandidateBranch = await this.validateBranch(newBlock, existingUnlinkedBranch);
-
-  //       if(isValidCandidateBranch){
-  //         logger(chalk.yellow(`* Will now attempt to find missing previous block ${newBlock.blockNumber} : ${newBlock.hash.substr(0, 25)}...`));
-  //         //By returning this, node will query peers this newBlock hash's previous blocks 
-  //         //until it either links to blockchain or to a branch that is itself linked to the blockchain
-  //         return { findMissing:firstUnlinkedBlock.hash, blockNumber:firstUnlinkedBlock.blockNumber }
-  //       }else{
-  //         return { unlinkedExtended:firstUnlinkedBlock.hash, blockNumber:firstUnlinkedBlock.blockNumber }
-  //       }
-  //     }
-      
-  //   }else{
-  //     return await this.createNewUnlinkedBranch(newBlock)
-  //   }
-  // }
-
-
-
-
-  // async switchToBranch(branch){
-  //   //Do the branching block respect two out of the three rules to proceed with the switching
-  //   //of blockchain branches?
-  //   let firstBlockOfBranch = branch[0]
-    
-  //   //Is the branch linked to current blockchain?
-  //   let isLinkedToBlockNumber = await this.getBlockNumberOfHash(firstBlockOfBranch.previousHash)
-    
-  //   if(!isLinkedToBlockNumber) {
-  //     //If it is not linked, proceed to find the missing  
-  //     //By adding the branch here, we may look for the missing block, then, when found, we can add it back in and connect
-  //     //possibly two branches or connect the branch to the chain
-  //     this.unlinkedBranches[firstBlockOfBranch.previousHash] = branch
-  //     return { outOfSync:firstBlockOfBranch.previousHash }
-  //   }else{
-      
-  //     //If it is linked, rollback to the block before the split and merge the branched blocks, one by one
-
-  //     // let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
-  //     let rolledback = await this.rollbackToMergeBranch(isLinkedToBlockNumber)
-  //     if(rolledback){
-  //       let previousBlock = {}
-  //       for await(let block of branch){
-  //         if(block.hash !== firstBlockOfBranch.hash && previousBlock.hash !== block.previousHash){
-  //           console.log(`ERROR: Block ${block.blockNumber} is not linked to previous block`)
-  //           console.log('Previous:', previousBlock)
-  //           console.log('Current:', block)
-            
-  //         }else{
-
-  //           let synced = await this.addBlockToChain(block, true)
-  //           if(synced.error)  return { findMissing:true }
-  //           else{
-  //             logger(chalk.cyan(`* Merged block ${block.blockNumber} : ${block.hash.substr(0, 20)}...`));
-  //             previousBlock = block;
-  //           }
-            
-  //         }
-          
-  //       }
-  //       logger(chalk.cyan(`* Swapped branches`));
-  //       return { switched:true }
-  //       // if(rolledback.error) return { error:rolledback.error }
-  //       // else{
-  //       //   if(rolledback && Array.isArray(rolledback)){
-  //       //     let lastRolledBackBlock = rolledback[rolledback.length - 1]
-  //       //     this.branches[lastRolledBackBlock.hash] = rolledback
-  //       //   }else{
-  //       //     console.log('Rolled back is not array', rolledback)
-  //       //   }
-  //       // }
-       
-  //       // if(rolledback.error) return { error:rolledback.error }
-  //       // else{
-
-
-  //       // }
-        
-
-  //     }else{
-  //       return { error:`ERROR: Could not rollback to block ${firstBlockOfBranch.blockNumber - 1}. Latest block is that height` }
-  //     }
-  //   }
-  // }
-
-  async rollbackToMergeBranch(blockNumber, tries=0){
-    let maxTries = 3
-    let isPartOfChain = this.chain[blockNumber]
-    let isLastBlock = this.getLatestBlock().blockNumber == blockNumber
-    if(isPartOfChain){
-      let rolledback = await this.rollbackToBlock(blockNumber)
-        if(rolledback.error) return { error:rolledback.error }
-        else{
-          return rolledback
-        }
-    }else{
-      if(tries <= 3){
-        return await this.rollbackToMergeBranch(blockNumber-1, tries++)
-      }else{
-        return { error:`ERROR: Could not rollback to block ${blockNumber}` }
-      }
-    }
-  }
-
- 
-
-  putHeaderToDB(block){
-    return new Promise(async (resolve)=>{
-
-        let put = await this.chainDB.add({
-            _id:block.blockNumber.toString(),
-            [block.blockNumber]:this.extractHeader(block)
-        })
-
-        if(put.error) resolve({error:put.error})
-
-        resolve(put)
-        
-    })
-  }
-
-  putBodyToDB(block){
-    return new Promise(async (resolve)=>{
-      
-        if(block.actions && Object.keys(block.actions).length > 0){
-            block.transactions['actions'] = block.actions
-        }
-        
-        let put = await this.chainDB.add({
-            _id:block.hash,
-            [block.hash]:block.transactions
-        })
-        if(put.error) resolve({error:put.error})
-        resolve(put)
-    })
-  }
 
   getLastKnownBlockFromDB(){
     return new Promise(async (resolve)=>{
@@ -1097,109 +501,10 @@ class Blockchain{
   }
 
 
-  putBlockToDB(block){
-    return new Promise(async (resolve)=>{
-      if(!block){
-        console.log('ERROR: Need to pass valid block')
-        resolve(false)
-      
-      }
-      
-      let existingBlock = await this.fetchBlockFromDB(block.blockNumber)
-      if(existingBlock){
-        let deleted = await this.removeBlockFromDB(existingBlock)
-        if(deleted){
-          let headerAdded = await this.putHeaderToDB(block);
-          if(headerAdded){
-            let bodyAdded = await this.putBodyToDB(block);
-            resolve(bodyAdded)
-          }else{
-            resolve(false)
-          }
-        }else{
-          resolve(false)
-        }
-      }else{
-        let headerAdded = await this.putHeaderToDB(block);
-        if(headerAdded){
-          let bodyAdded = await this.putBodyToDB(block);
-          resolve(bodyAdded)
-        }else{
-          resolve(false)
-        }
-      }
-      
-    })
-  }
-
-  getHeaderFromDB(blockNumber){
-    return new Promise(async (resolve)=>{
-      if(blockNumber){
-          let headerEntry = await this.chainDB.get(blockNumber.toString())
-          if(headerEntry){
-              if(headerEntry.error) resolve({error:headerEntry.error})
-              let header = headerEntry[headerEntry._id]
-              resolve(header)
-          }else{
-              resolve(false)
-          }
-      }else{
-        resolve(false)
-      }
-    })
-  }
-
-  getBodyFromDB(hash){
-    return new Promise(async (resolve)=>{
-      if(hash){
-        let header = await this.getBlockbyHash(hash)
-        let bodyEntry = await this.chainDB.get(hash)
-        if(bodyEntry){
-            if(bodyEntry.error) resolve({error:bodyEntry.error})
-            let body = bodyEntry[bodyEntry._id]
-            resolve(body) 
-        }else{
-            resolve(false)
-        }
-      }else{
-          resolve({error:'ERROR: To fetch block body a valid block hash is required'})
-      }
-    })
-  }
-
-  fetchBlockFromDB(blockNumber){
-    return new Promise(async (resolve)=>{
-      if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
-      let block = await this.getHeaderFromDB(blockNumber)
-      if(block){
-        if(block.error) resolve({error:block.error})
-        let blockBody = await this.getBodyFromDB(block.hash)
-        if(blockBody){
-          if(blockBody.error) resolve({error:blockBody.error})
-          
-          block.transactions = blockBody
-
-          if(blockBody.actions){
-            block.actions = JSON.parse(JSON.stringify(blockBody.actions))
-            delete blockBody.actions
-            resolve(block)
-          }else{
-            resolve(block)
-          }
-        }else{
-          console.log('ERROR Could not get block body')
-          resolve(false)
-        }
-      }else{
-        console.log('ERROR Could not get block header')
-        resolve(false)
-      }
-    })
-  }
 
   getBlockTransactions(hash){
-      return new Promise((resolve)=>{
-          let block = this.getBodyFromDB(hash);
+      return new Promise(async (resolve)=>{
+          let block = this.getBlockFromDBByHash(hash);
           if(block){
               if(block.error) resolve({error:block.error})
 
@@ -1294,82 +599,6 @@ class Blockchain{
   }
   
 
-  removeHeaderFromDB(blockNumber){
-    return new Promise(async (resolve)=>{
-      let headerExists = await this.chainDB.get(blockNumber.toString())
-      if(headerExists){
-          if(headerExists.error) resolve({error:headerExists.error})
-
-          let deleted = await this.chainDB.delete(blockNumber.toString())
-          if(deleted.error) resolve({error:deleted.error})
-
-          resolve(deleted)
-      }else{
-          resolve(false)
-      }
-      
-    })
-  }
-
-  removeBodyFromDB(hash){
-    return new Promise(async (resolve)=>{
-        let bodyExists = await this.chainDB.get(hash)
-        if(bodyExists){
-            if(bodyExists.error) resolve({error:bodyExists.error})
-
-            let deleted = await this.chainDB.delete(hash)
-            if(deleted.error) resolve({error:deleted.error})
-
-            resolve(deleted)
-        }else{
-            resolve(false)
-        }
-    })
-  }
-
-  removeBlockFromDB(block){
-    return new Promise(async (resolve)=>{
-      
-        let headerDeleted = await this.removeHeaderFromDB(block.blockNumber)
-        if(headerDeleted){
-            if(headerDeleted.error) resolve({error:headerDeleted.error})
-            let bodyDeleted = await this.removeHeaderFromDB(block.hash)
-            if(bodyDeleted){
-                if(bodyDeleted.error) resolve({error:bodyDeleted.error})
-                resolve(bodyDeleted)
-            }
-        }else{
-            resolve(false)
-        }
-        
-    })
-  }
-
-  replaceBlockFromDB(newBlock){
-    return new Promise(async (resolve)=>{
-        let existingBlock = await this.fetchBlockFromDB(newBlock.blockNumber.toString())
-        if(existingBlock){
-            if(existingBlock.error) resolve({error:existingBlock.error})
-            let deleted = await this.removeBlockFromDB(existingBlock)
-            if(deleted){
-                if(deleted.error) resolve({error:deleted.error})
-                let added = await this.putBlockToDB(newBlock)
-            if(added){
-                if(added.error) resolve({error:added.error})
-                resolve(added)
-            }else{
-                logger('An error occurred while putting block to DB')
-                resolve(false)
-            }
-            }else{
-            logger('ERROR: Could not delete block to be replaced from DB')
-            resolve(false)
-            }
-        }else{
-            resolve(false)
-        }
-    })
-  }
 
   selectNextPreviousBlock(){
     if(this.getLatestBlock().blockFork){
@@ -1481,9 +710,7 @@ class Blockchain{
 
   async getBlockNumberOfHash(hash){
     for await(let block of this.chain){
-      if(block.hash == hash){
-        return block.blockNumber
-      }
+      if(block.hash == hash) return block.blockNumber
     }
     
     return false;
@@ -1530,11 +757,8 @@ class Blockchain{
 
   checkBalance(publicKey){
     let walletState = this.balance.getBalance(publicKey)
-    if(walletState){
-      return walletState.balance;
-    }else{
-      return 0
-    }
+    if(walletState) return walletState.balance;
+    else return 0
     
   }
 
@@ -1632,8 +856,7 @@ class Blockchain{
         logger("ERROR: Can't get balance of undefined publickey")
         return false;
       }
-        for(var block of this.chain){
-          // logger(block);
+        for await(var block of this.chain){
           let transactions = await this.getBlockTransactions(block.hash)
           if(transactions){
             if(transactions.error) return {error:transactions.error}
@@ -1641,12 +864,12 @@ class Blockchain{
             for(var transHash of Object.keys(transactions)){
                 trans = transactions[transHash]
                 if(trans){
-                if(trans.fromAddress == address){
-                    history.sent[trans.hash] = trans
-                }
-                if(trans.toAddress == address){
-                    history.received[trans.hash] = trans;
-                }
+                  if(trans.fromAddress == address){
+                      history.sent[trans.hash] = trans
+                  }
+                  if(trans.toAddress == address){
+                      history.received[trans.hash] = trans;
+                  }
 
                 }
 
@@ -1746,7 +969,7 @@ class Blockchain{
 
     
     let timestamp = block.timestamp;
-    let twentyMinutesInTheFuture = 30 * 60 * 1000
+    let twentyMinutesInTheFuture = 20 * 60 * 1000
     let previousBlock = this.chain[block.blockNumber - 1] || this.getLatestBlock()
     let previousTimestamp = previousBlock.timestamp
     if(timestamp > previousTimestamp && timestamp < (Date.now() + twentyMinutesInTheFuture) ){
@@ -1758,34 +981,6 @@ class Blockchain{
     
   }
 
-  validateDifficulty(block){
-    let previousBlock = this.chain[block.blockNumber - 1]
-    if(previousBlock){
-      
-      let difficultyRecalculated = this.difficulty.setNewDifficulty(previousBlock, block);
-      let parsedRecalculatedDifficulty = BigInt(parseInt(difficultyRecalculated, 16))
-      let parsedActualdifficulty = BigInt(parseInt(block.difficulty, 16))
-      if(parsedActualdifficulty == parsedRecalculatedDifficulty){
-        return true;
-      }else{
-        console.log('Difficulty recalculated: ', difficultyRecalculated)
-        console.log('Block difficulty: ', block.difficulty)
-        console.log('Previous Block', previousBlock)
-        return false;
-      }
-    }
-  }
-
-  validateChallenge(block){
-    let recalculatedChallenge = this.difficulty.setNewChallenge(block)
-    let parsedRecalculatedChallenge = BigInt(parseInt(recalculatedChallenge, 16))
-    let parsedActualChallenge = BigInt(parseInt(block.challenge, 16))
-    if(parsedActualChallenge == parsedRecalculatedChallenge){
-      return true
-    }else{
-      return false
-    }
-  }
 
   validateUniqueCoinbaseTx(block){
     return new Promise(async (resolve)=>{
@@ -1811,7 +1006,7 @@ class Blockchain{
     for await(let header of this.chain){
       if(header.blockNumber > 0){
         logger('Validating block '+header.blockNumber)
-        let block = await this.fetchBlockFromDB(header.blockNumber.toString())
+        let block = await this.getBlockFromDB(header.blockNumber.toString())
         
         let isValidBlock = await this.isValidBlock(block)
         if(!isValidBlock) return { error: `Block number ${block.blockNumber} is not valid` }
@@ -1826,7 +1021,6 @@ class Blockchain{
     Criterias for validation are as follows:
     - Block has successfully calculated a valid hash
     - Block linked with previous block by including previous hash in its own hash calculation
-    - Block difficulty hasn't been tempered with
     - Total challenge score matches 
     - Chain doesn't already contain this block
     - Timestamp is greater than previous timestamp
@@ -1835,110 +1029,29 @@ class Blockchain{
     @param {string} $block - Block to be validated
   */
   async validateBlock(block){
-    return new Promise(async (resolve)=>{
+      try{
+        var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
+        var doesNotContainDoubleSpend = true//await this.blockDoesNotContainDoubleSpend(block)
+        var isValidHash = block.hash == RecalculateHash(block);
+        var isValidTimestamp = await this.validateBlockTimestamp(block)
+        var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
+        var isValidConsensus = await this.consensus.validate(block)
+        var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
+        var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       
-      var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
-      var doesNotContainDoubleSpend = true//await this.blockDoesNotContainDoubleSpend(block)
-      var isValidHash = block.hash == RecalculateHash(block);
-      var isValidTimestamp = await this.validateBlockTimestamp(block)
-      var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
-      var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
-      var isValidConsensus = await this.consensus.validate(block)
-      var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
-     
-      // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
-      if(!doesNotContainDoubleSpend) resolve({ error:`ERROR: Block ${block.blockNumber} contains double spend` })
-      if(!isValidConsensus) resolve({ error:'ERROR: Block does not meet consensus requirements' })
-      if(!coinbaseIsAttachedToBlock) resolve({error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber})
-      if(!singleCoinbase) resolve({error:'ERROR: Block must contain only one coinbase transaction'})
-      if(!merkleRootIsValid) resolve({error:'ERROR: Merkle root of block is not valid'})
-      if(!isValidHash) resolve({error:'ERROR: Is not valid block hash'})
-      if(chainAlreadyContainsBlock) resolve({error:'ERROR: Chain already contains block'})
-      
-      resolve(true)
-    })
-    
-  }
-
-  //Deprecated????
-  async isValidBlock(block){
-    // console.log(block)
-    var chainAlreadyContainsBlock = this.checkIfChainHasHash(block.hash);
-    var isValidHash = block.hash == RecalculateHash(block);
-    var isValidTimestamp = await this.validateBlockTimestamp(block)
-    var hasOnlyOneCoinbaseTx = await this.validateUniqueCoinbaseTx(block)
-    var isValidChallenge = this.validateChallenge(block);
-    var areTransactionsValid = await this.validateBlockTransactions(block)
-    var merkleRootIsValid = false;
-    var hashIsBelowChallenge = BigInt(parseInt(block.hash, 16)) <= BigInt(parseInt(block.challenge, 16))
-    //validate difficulty
-    var difficultyIsAboveMinimum = BigInt(parseInt(block.difficulty, 16)) >= BigInt(parseInt(this.chain[0].difficulty, 16))
-
-    if(!difficultyIsAboveMinimum){
-      return { error: 'ERROR: Difficulty level must be above minimum set in genesis block'}
-    }
-
-    if(!isValidTimestamp){
-      return { error: 'ERROR: Is not valid timestamp'}
-      
-    }
-
-    if(!hashIsBelowChallenge){
-      return { error: 'ERROR: Hash value must be below challenge value'}
-      
-    }
-
-    if(!hasOnlyOneCoinbaseTx){
-      return { error: 'ERROR: Block must contain only one coinbase transaction'}
-      
-    }
-
-    if(areTransactionsValid.error){
-      return { error: 'Block contains invalid transactions: '+ areTransactionsValid.error}
-      
-    }
-
-    // if(!isValidDifficulty){
-    //   logger('ERROR: Recalculated difficulty did not match block difficulty')
-    // }
-
-    if(!isValidChallenge){
-      return { error: 'ERROR: Recalculated challenge did not match block challenge'}
-     
-    }
-
-    if(block.transactions){
-      merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
-    }else{
-      let transactions = await this.getTransactionFromDB(block.hash)
-      if(transactions){
-        merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, transactions);
+        // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
+        if(!doesNotContainDoubleSpend) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
+        if(!isValidConsensus) return { error:'ERROR: Block does not meet consensus requirements' }
+        if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
+        if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
+        if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
+        if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
+        if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
+        
+        return true
+      }catch(e){
+        return { error:e.message }
       }
-    }
-
-    if(!isValidHash){
-      return { error: 'ERROR: Is not valid block hash'}
-      
-    }
-
-    // if(!timestampIsGreaterThanPrevious){
-    //   logger('ERROR: Block Timestamp must be greater than previous timestamp ')
-    //   resolve(false)
-    // }
-
-    if(!merkleRootIsValid){
-      return { error: 'ERROR: Merkle root of block IS NOT valid'}
-      
-    }
-  
-    
-    if(chainAlreadyContainsBlock){
-      return { error: 'ERROR: Chain already contains block'}
-      
-    }
-    
-
-    return true
   }
 
   async blockDoesNotContainDoubleSpend(block){
@@ -2035,16 +1148,9 @@ class Blockchain{
 
   validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
-      if(header.hash == RecalculateHash(header)){
-        return true;
-      }else{
-        
-        return false;
-      }
-    }else{
-      
-      return false;
-    }
+      if(header.hash == RecalculateHash(header)) return true;
+      else return false;
+    }else return false;
   }
 
   validateBlockchain(allowRollback){
@@ -2149,8 +1255,6 @@ class Blockchain{
         }
       }
 
-      
-
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
 
@@ -2187,11 +1291,7 @@ class Blockchain{
         for await (let hash of txHashes){
           let transaction = block.transactions[hash];
           let valid = await this.validateTransaction(transaction);
-          if(valid.error){
-            errors[hash] = valid.error
-            //If contains invalid tx, need to reject block alltogether
-            // delete block.transactions[hash];
-          }
+          if(valid.error) errors[hash] = valid.error
         }
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else resolve(block);
@@ -2209,11 +1309,7 @@ class Blockchain{
         for await (let hash of txHashes){
           let transaction = block.transactions[hash];
           let valid = await this.validateTransaction(transaction);
-          if(valid.error){
-            errors[hash] = valid.error
-            //If contains invalid tx, need to reject block alltogether
-            // delete block.transactions[hash];
-          }
+          if(valid.error) errors[hash] = valid.error
         }
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else resolve(block);
@@ -2231,11 +1327,8 @@ class Blockchain{
       let isValid = await this.validateTransaction(transaction);
       if(isValid && !isValid.error){  
         let alreadyExistsInBlockchain = this.spentTransactionHashes[hash]
-        if(!alreadyExistsInBlockchain){
-          acceptedTransactions[hash] = transaction
-        }else{
-          rejectedTransactions[hash] = transaction
-        }
+        if(!alreadyExistsInBlockchain) acceptedTransactions[hash] = transaction
+        else rejectedTransactions[hash] = transaction
       }else{
         rejectedTransactions[hash] = transaction
       }
@@ -2265,7 +1358,6 @@ class Blockchain{
         }else{
           rejectedActions[hash] = action
         }
-        acceptedActions[hash] = action
       }else{
         rejectedActions[hash] = action
       }
@@ -2298,11 +1390,7 @@ class Blockchain{
         for await (let hash of txHashes){
           let transaction = block.transactions[hash];
           let valid = await this.validateTransaction(transaction);
-          if(valid.error){
-            errors[hash] = valid.error
-            //If contains invalid tx, need to reject block alltogether
-            // delete block.transactions[hash];
-          }
+          if(valid.error) errors[hash] = valid.error
         }
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else resolve(true);
@@ -2339,7 +1427,6 @@ class Blockchain{
             return false;
         }
       }else{
-        logger('Undefined root or transactions');
         return false;
       }
     
@@ -2356,7 +1443,7 @@ class Blockchain{
   */
 
  async validateTransaction(transaction){
-  return new Promise(async (resolve, reject)=>{
+  return new Promise(async (resolve)=>{
     if(transaction){
       try{
         
@@ -2525,13 +1612,11 @@ class Blockchain{
         try{
   
           let isChecksumValid = this.validateChecksum(transaction);
-          // let isAttachedToMinedBlock = await this.coinbaseTxIsAttachedToBlock(transaction);
           let hasTheRightMiningRewardAmount = transaction.amount + transaction.miningFee <= (this.miningReward + this.calculateTransactionMiningFee(transaction));
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
           if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
           if(!hasTheRightMiningRewardAmount) resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
-          // if(!isAttachedToMinedBlock) resolve({error:'COINBASE TX REJECTED: Is not attached to any mined block'})
           if(!transactionSizeIsNotTooBig) resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'});
           
           resolve(true)
@@ -2541,7 +1626,6 @@ class Blockchain{
         }
   
       }else{
-        logger('ERROR: Coinbase transaction is undefined');
         resolve({error:'ERROR: Coinbase transaction is undefined'})
       }
   
@@ -2626,10 +1710,6 @@ class Blockchain{
       
     })
   }
-
-  
-
-  
 
   executeActionBlock(actions){
     return new Promise(async (resolve)=>{
@@ -2950,20 +2030,15 @@ class Blockchain{
   testCall(call){
     return new Promise(async (resolve)=>{
       
-      
       let code = await this.factory.createSingleCode(call)
       if(code.error) resolve({error:code.error})
       let start = process.hrtime()
       let result = await this.vmController.test(code)
       
-      let hrend = process.hrtime(start)
-
-      // console.info('Execution time : %ds %dms', hrend[0], hrend[1] / 1000000)
       if(result){
         if(result.error) resolve({error:result.error})
         else resolve(result)
       }else{
-        console.log('No result',result)
         resolve({ error:'ERROR: VM did not result any results' })
       }
           
@@ -3000,9 +2075,6 @@ class Blockchain{
                 if(deleted.error) resolve({error:deleted.error})
                 else resolve(deleted)
               }else{
-                //Is not a fatal error since faulty code may be inserted in the blockchain
-                //but never fully executed. As long as such faulty code is executed by all nodes
-                //in the same way, it's fine
                 resolve({error:`Could not find account ${accountData.name} in database`})
               }
             }
@@ -3018,10 +2090,8 @@ class Blockchain{
                   else resolve(deleted)
                 }
               }else{
-                //Again, not a fatal error
                 resolve({error:`Contract ${contractData.contractName} does not exist`})
               }
-
             }
           }
       })
@@ -3037,7 +2107,6 @@ class Blockchain{
           let isChecksumValid = await this.validateActionChecksum(action);
           let actionIsNotTooBig = (Transaction.getTransactionSize(action) / 1024) < this.transactionSizeLimit;
           let isLinkedToWallet = validatePublicKey(account.ownerKey);
-          // let hasValidActionRef = this.validateActionReference(action.actionRef)
           
           if(!hasValidActionRef) resolve({error:'ERROR: Invalid action reference passed'})
           if(!isExistingAccount) resolve({error:'ERROR: Account does not exist'})
@@ -3081,35 +2150,13 @@ class Blockchain{
           let isLinkedToWallet = validatePublicKey(account.ownerKey);
           let isSignatureValid = await this.validateActionSignature(action, account.ownerKey);
 
-          if(!isExistingAccount){
-            resolve({error:'ERROR: Account does not exist'})
-          }
-          
-          if(balanceOfSendingAddr < action.fee){
-            resolve({error:"ERROR: Sender's balance is too low"})
-          }
-
-          if(!isSignatureValid){
-            resolve({error:"ERROR: Action signature is invalid"})
-          }
-
-          if(!isChecksumValid){
-            resolve({error:"ERROR: Action checksum is invalid"})
-          }
-
-          if(!isLinkedToWallet){
-            resolve({error:"ERROR: Action ownerKey is invalid"})
-          }
-
-          if(!actionIsNotTooBig){
-            //console.log(action)
-            console.log(Transaction.getTransactionSize(action))
-            resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
-          }
-    
-          if(!hasMiningFee){
-            resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
-          }
+          if(!isExistingAccount) resolve({error:'ERROR: Account does not exist'})
+          if(balanceOfSendingAddr < action.fee) resolve({error:"ERROR: Sender's balance is too low"})
+          if(!isSignatureValid) resolve({error:"ERROR: Action signature is invalid"})
+          if(!isChecksumValid) resolve({error:"ERROR: Action checksum is invalid"})
+          if(!isLinkedToWallet) resolve({error:"ERROR: Action ownerKey is invalid"})
+          if(!actionIsNotTooBig) resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+          if(!hasMiningFee) resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
 
           resolve(true);
 
@@ -3445,7 +2492,6 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       logger('Loading all blocks. Please wait...')
       try{
-        // let gitIgnore = await this.addGitIgnoreToBlockchainFolder()
         this.isLoadingBlocks = true
         let loaded = await this.loadBlocks()
         this.isLoadingBlocks = false
@@ -3479,6 +2525,11 @@ class Blockchain{
   */
   loadBlocks(){
     return new Promise(async (resolve, reject)=>{
+      const cliProgress = require('cli-progress');
+      
+      // create a new progress bar instance and use shades_classic theme
+      const bar1 = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+      
       //See if genesis block has been added to database
       try{
         let genesisBlock = await this.getGenesisBlockFromDB()
@@ -3488,7 +2539,7 @@ class Blockchain{
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)
             this.chain[0] = genesisBlock
-            logger('Loaded last known block')
+            bar1.start(lastBlock.blockNumber, 0);
             for await(let blockNumber of [...iterator.keys()]){
               let block = await this.getBlockFromDB(blockNumber)
                 if(block){
@@ -3506,8 +2557,10 @@ class Blockchain{
                   }
                   await this.manageChainSnapshotQueue(block)
                   this.chain.push(this.extractHeader(block))
+                  bar1.update(block.blockNumber);
                   if(blockNumber == lastBlock.blockNumber){
-                    logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`) 
+                    bar1.stop();
+                    logger(`Finished loading ${parseInt(blockNumber) + 1} blocks`)
                     resolve(true)
                   }
                 }
@@ -3534,7 +2587,6 @@ class Blockchain{
             if(added.error) reject(added.error)
             logger('Added genesis block to blockchain')
             this.chain.push(genesisBlock)
-            // let saved = await this.putBlockToDB(genesisBlock)
             
             resolve(true);
 
@@ -3557,7 +2609,7 @@ class Blockchain{
    */
   save(){
     return new Promise(async (resolve)=>{
-      // let lastBlock = await writeToFile(this.getLatestBlock(), './data/lastBlock.json')
+      
       let lastBlock = await this.saveLastKnownBlockToDB()
       if(lastBlock){
         if(lastBlock.error) resolve({error:lastBlock.error})
