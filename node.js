@@ -801,7 +801,7 @@ class Node {
             logger('DOWNLOAD', added.error)
             closeConnection()
           }else if(added.extended){
-            let rolledback = await this.chain.rollbackToBlock(block.blockNumber - 1)
+            let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
             let latestHash = this.chain.getLatestBlock().hash
             peer.emit('getNextBlock', latestHash)
             awaitRequest()
