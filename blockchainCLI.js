@@ -170,7 +170,7 @@ program
         }else{
           const { Worker } = require('worker_threads');
           let worker = new Worker(`
-          let Miner = require(__dirname+'/modules/classes/minerTools/miner')
+          let Miner = require(__dirname+'/modules/classes/mining/miner')
           let miner = new Miner({
               publicKey:'',
               verbose:false,
