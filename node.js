@@ -776,9 +776,11 @@ class Node {
         clearTimeout(this.retrySending)
         if(block.end){
           logger('Blockchain updated successfully!')
-          peer.emit('')
           closeConnection()
           resolve(true)
+        }else if(block.error && block.error !== 'Block not found'){
+          closeConnection({ error:true })
+          resolve({ error: block.error })
         }else if(block.error && block.error == 'Block not found'){
 
           if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
@@ -792,9 +794,6 @@ class Node {
             resolve({ error: block.error })
           }
           
-        }else if(block.error && block.error !== 'Block not found'){
-          closeConnection({ error:true })
-          resolve({ error: block.error })
         }else{
           let added = await this.chain.receiveBlock(block)
           if(added.error){

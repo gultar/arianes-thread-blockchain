@@ -70,6 +70,7 @@ program
   .option('-t, --peerDiscoveryPort <port>', 'Enable peer discovery using various methods')
   .option('-l, --dhtDisconnectDelay <delay>', 'Length of time after which the node disconnects from dht network')
   .option('-m, --mine', 'Start a block miner child process alongside the node')
+  .option('-g, --generate', 'Generate blocks for validation, instead of mining')
   .option('-c, --clusterMiner [numbers]', 'Launch a cluster of miners. Default: 1 workers')
   .option('-w, --walletName <walletName>', 'Name of the miner wallet')
   .option('-k, --password <password>', 'Password needed to unlock wallet')
@@ -177,6 +178,31 @@ program
               keychain:{ name:"${program.walletName}", password:"${program.password}" }
           })
           miner.connect("${'http://localhost:'+node.minerPort}")`, { eval: true })
+          
+          worker.on('error', error => {
+            console.log(error)
+          })
+          worker.on('exit', (message)=> logger('Miner closed with node'))
+        }
+
+        
+      }
+
+      if(program.generate){
+        let walletName = program.walletName;
+        let walletPassword = program.password;
+        if(!walletName || !walletPassword){
+          console.log('Could not start miner process: missing walletName or password')
+        }else{
+          const { Worker } = require('worker_threads');
+          let worker = new Worker('./modules/classes/validating/launchValidator.js', { 
+            workerData: {
+              walletName:walletName,
+              password:walletPassword,
+              nodeAddress:`${'http://localhost:'+node.minerPort}`,
+              verbose:program.verbose
+            } 
+          })
           
           worker.on('error', error => {
             console.log(error)

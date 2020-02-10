@@ -21,6 +21,7 @@ class MinerAPI{
         this.isMinerBusy = false;
         this.isAPIBusy = false;
         this.socket = socket
+        this.generate = false
     }
 
     init(){
@@ -28,6 +29,9 @@ class MinerAPI{
             this.isAPIBusy = true
             await this.addMinedBlock(block)
             this.isAPIBusy = false
+        })
+        this.socket.on('generate', ()=>{
+            this.generate = true
         })
         this.socket.on('isStopped', ()=>{ this.isMinerBusy = false })
         this.socket.on('isMining', ()=>{ this.isMinerBusy = true })
@@ -61,14 +65,19 @@ class MinerAPI{
                     break;
             }
         })
+
+        this.socket.on('sendRawBlock', async ()=>{
+            await this.sendNewBlock({ generate:true })
+        })
         
         this.mempool.events.on('newAction', async (action)=>{
-            if(!this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
+
+            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                 await this.sendNewBlock()
             }
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
-             if(!this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
+             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                  
                 await this.sendNewBlock()
             }
@@ -103,11 +112,11 @@ class MinerAPI{
         }
     }
 
-    async sendNewBlock(){
+    async sendNewBlock(forceSend=false){
         //Render busy to avoid send a hundred raw blocks to the miner
         this.isAPIBusy = true
         let latestBlock = await this.getLatestFullBlock()
-        let newRawBlock = await this.createRawBlock(latestBlock)
+        let newRawBlock = await this.createRawBlock(latestBlock, forceSend)
         if(!newRawBlock.error) {
             this.socket.emit('previousBlock', latestBlock)
             this.socket.emit('rawBlock', newRawBlock)
@@ -117,7 +126,7 @@ class MinerAPI{
         this.isAPIBusy = false
     }
 
-    async createRawBlock(nextBlock){
+    async createRawBlock(nextBlock, forceSend){
         
         let latest = await this.getLatestFullBlock()
         //Checks for tx deferred to next block
@@ -139,7 +148,7 @@ class MinerAPI{
         //Validate all actions to be mined, delete those that are invalid
         actions = await this.chain.validateActionsBeforeMining(actions)
 
-        if(Object.keys(transactions).length == 0 && Object.keys(actions).length == 0){
+        if(!forceSend && Object.keys(transactions).length == 0 && Object.keys(actions).length == 0){
             return { error:'ERROR: Could not create block without transactions or actions' }
         } 
         

@@ -379,14 +379,14 @@ class Blockchain{
     let newHeader = this.extractHeader(newBlock)
     let executed = await this.balance.runBlock(newBlock)
     if(executed.error) return executed.error
-
+    
     let actions = newBlock.actions || {}
     let allActionsExecuted = await this.executeActionBlock(actions)
     if(allActionsExecuted.error) return { error:allActionsExecuted.error }
-
+    
     let saved = await this.balance.saveBalances(newBlock)
     if(saved.error) return { error:saved.error }
-
+    
     let callsExecuted = await this.runTransactionCalls(newBlock);
     if(callsExecuted.error) return { error:callsExecuted.error }
 
@@ -1103,6 +1103,7 @@ class Blockchain{
           challenge:block.challenge,
           txHashes:Object.keys(block.transactions),
           minedBy:block.minedBy,
+          signatures:block.signatures
         }
 
         if(block.actions){
@@ -1131,6 +1132,7 @@ class Blockchain{
       txHashes:(block.transactions? Object.keys(block.transactions) : []),
       actionHashes:(block.actions ? Object.keys(block.actions):[]),
       minedBy:block.minedBy,
+      signatures:block.signatures
     }
 
     if(block.actions){

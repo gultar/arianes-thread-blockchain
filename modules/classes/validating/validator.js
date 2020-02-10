@@ -1,9 +1,42 @@
 const Miner = require('../mining/miner/miner')
+const {Difficulty} = require('../mining/challenge')
+const Block = require('../blockchain/block')
 const ECDSA = require('ecdsa-secp256r1')
+const Mempool = require('../mempool/pool')
+const Blockchain = require('../blockchain/chain')
+const ioClient = require('socket.io-client')
 
 class Validator extends Miner{
     constructor({ keychain, numberOfCores, miningReward, verbose }){
         super({ keychain, numberOfCores, miningReward, verbose })
+        this.mempool = new Mempool()
+        this.generationSpeed = 2000//generationSpeed 
+    }
+
+    connect(url){
+        if(!url) throw new Error('Valid URL is Required')
+        
+        let config = {
+          query:
+              {
+                token: 'InitMiner',
+              }
+        }
+        this.socket = ioClient(url, config)
+        this.socket.on('connect', async ()=>{
+            this.log('Miner connected to ', url)
+            await this.initWallet()
+            this.socket.emit('isAvailable')
+            this.socket.emit('generate')
+            this.generateBlocks()
+        })
+        this.socket.on('disconnect', async ()=>{
+          this.socket.close()
+          process.exit()
+        })
+        this.socket.on('previousBlock', (block)=> this.previousBlock = block)
+        this.socket.on('rawBlock', async (rawBlock)=> await this.start(rawBlock))
+        this.socket.on('stopMining', async ()=> await this.stop())
     }
 
     async start(rawBlock){
@@ -19,7 +52,7 @@ class Validator extends Miner{
 
             let success = false
             
-            success = await block.mine(block.difficulty, this.numberOfCores)
+            success = await block.validate(block.difficulty, this.numberOfCores)
             if(success){
                 this.successMessage(success)
                 this.stop()
@@ -36,6 +69,34 @@ class Validator extends Miner{
         }
     }
 
+    async prepareBlockForMining(rawBlock){
+        
+        let coinbase = await this.createCoinbase()
+        rawBlock.transactions[coinbase.hash] = coinbase
+
+        let block = new Block({
+          blockNumber:rawBlock.blockNumber,
+          timestamp:Date.now(),
+          transactions:rawBlock.transactions,
+          actions:rawBlock.actions,
+          previousHash:rawBlock.previousHash
+        })
+
+        block.startMineTime = Date.now()
+        block.coinbaseTransactionHash = coinbase.hash
+        //Set difficulty level
+        let difficulty = new Difficulty(this.genesis)
+        block.difficulty = difficulty.setNewDifficulty(this.genesis, this.genesis);
+        block.challenge = difficulty.setNewChallenge(this.genesis)
+        block.totalDifficulty = this.calculateTotalDifficulty(this.genesis)
+        block.minedBy = this.wallet.publicKey;
+        return block
+    }
+
+    calculateTotalDifficulty(block){
+      return (BigInt(parseInt(this.previousBlock.totalDifficulty, 16)) + BigInt(parseInt(block.difficulty, 16))).toString(16)
+    }
+
     
     async createSignature(hash){
         let unlocked = await this.wallet.unlock(this.keychain.password)
@@ -45,7 +106,15 @@ class Validator extends Miner{
         let isValid = pubKey.verify(hash, signature)
         if(!isValid) this.createSignature(hash)
         else return signature
-      }
+    }
+
+    generateBlocks(){
+        setInterval(async ()=>{
+            this.socket.emit('sendRawBlock')
+        }, this.generationSpeed)
+    }
+
+    
 }
 
 module.exports = Validator
