@@ -120,6 +120,24 @@ program
 })
 
 program
+.command('testdownload')
+.description('Requests a snapshot of the ten most recent blocks')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+            socket.emit('testFastDownload');
+            setTimeout(()=>{
+                socket.close()
+            }, 400)
+        
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+    
+})
+
+program
 .command('getblock <blockNumber>')
 .description('Requests some general information about the blockchain')
 .action((blockNumber)=>{

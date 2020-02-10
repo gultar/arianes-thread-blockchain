@@ -432,7 +432,7 @@ class Node {
     })
 
     socket.on('getBlock', async (blockNumber, hash)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlock' events") });
       if(blockNumber && typeof blockNumber == 'number'){
         let block = await this.chain.getBlockFromDB(blockNumber);
         if(block){
@@ -745,8 +745,6 @@ class Node {
   downloadBlockchain(peer, lastHeader){
     return new Promise(async (resolve)=>{
       let startHash = this.chain.getLatestBlock().hash;
-      let lastHash = lastHeader.hash;
-      let length = lastHeader.blockNumber + 1;
       this.isDownloading = true;
       let unansweredRequests = 0;
       let maxRetryNumber = 3
@@ -803,7 +801,7 @@ class Node {
             logger('DOWNLOAD', added.error)
             closeConnection()
           }else if(added.extended){
-            let rolledback = await this.chain.rollbackToBlock(added.extended)
+            let rolledback = await this.chain.rollbackToBlock(block.blockNumber - 1)
             let latestHash = this.chain.getLatestBlock().hash
             peer.emit('getNextBlock', latestHash)
             awaitRequest()
@@ -815,76 +813,6 @@ class Node {
       })
       
       peer.emit('getNextBlock', startHash);
-
-    })
-    
-  }
-
-  fastDownloadBlockchain(peer, lastHeader){
-    return new Promise(async (resolve)=>{
-      let startHash = this.chain.getLatestBlock().hash;
-      let lastHash = lastHeader.hash;
-      let length = lastHeader.blockNumber + 1;
-      this.isDownloading = true;
-      let unansweredRequests = 0;
-      let maxRetryNumber = 3
-      this.retrySending = null;
-      let rolledBack = 0
-      let blocks = []
-      let numbersRequested = []
-      
-      let isLinkedToPreviousBlock = (nextBlock, previousBlock) =>{ 
-          return nextBlock.previousHash === previousBlock.hash
-      }
-      
-      const awaitRequest = () =>{
-        if(unansweredRequests <= maxRetryNumber){
-          this.retrySending = setTimeout(()=>{
-            
-            peer.emit('getBlock', this.chain.getLatestBlock().blockNumber + 1)
-            unansweredRequests++
-            awaitRequest()
-          }, 5000)
-        }else{
-          logger('Blockchain download failed. No answer')
-          closeConnection()
-        }
-      }
-
-      const closeConnection = (error=false) =>{
-        peer.off('block')
-        if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-        this.isDownloading = false;
-      }
-
-      peer.on('block', async (block)=>{
-        unansweredRequests = 0
-        clearTimeout(this.retrySending)
-        if(block.end){
-          logger('Blockchain updated successfully!')
-          closeConnection()
-          resolve(blocks)
-        }else if(block.error){
-          closeConnection({ error:true })
-          resolve({ error: block.error })
-        }else{
-          let lastNumberRequested = numbersRequested[numbersRequested.length - 1]
-
-          //Get block before the one requested
-          let previousBlock = this.chain.chain[lastNumberRequested - 1]
-          let isLinked = isLinkedToPreviousBlock(block, previousBlock)
-          if(isLinked){
-            blocks.push(block)
-            peer.emit('getBlock', block.blockNumber + 1)
-            awaitRequest()
-          }else{
-            peer.emit('getBlock', previousBlock.blockNumber)
-            awaitRequest()
-          }
-        }
-      })
-      numbersRequested.push(this.chain.getLatestBlock().blockNumber + 1)
-      peer.emit('getBlock', this.chain.getLatestBlock().blockNumber + 1);
 
     })
     
@@ -1491,17 +1419,6 @@ class Node {
 
       socket.on('requestPeers', ()=>{
         this.findPeers()
-      })
-
-      socket.on('testFastDownload', async ()=>{
-        let peer = await this.getMostUpToDatePeer()
-        let blocks = await this.fastDownloadBlockchain(peer, this.chain.getLatestBlock())
-        if(blocks){
-          for await(let block of blocks){
-            let received = await this.chain.receiveBlock(block)
-            if(received.error) console.log(received.error)
-          }
-        }
       })
 
       socket.on('getSnapshot', ()=>{

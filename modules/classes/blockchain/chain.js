@@ -339,6 +339,11 @@ class Blockchain{
     else if(blockExistsInPool) return { error:`ERROR: Block ${newBlock.blockNumber} already exists in pool` }
     else{
       this.blockPool[newBlock.hash] = newBlock
+      let blockPoolHashes = Object.keys(this.blockPool)
+      if(blockPoolHashes.length > 30){
+        let firstBlockHash = blockPoolHashes[0]
+        delete this.blockPool[firstBlockHash]
+      }
       logger(`${chalk.cyan('[] Added block')}  ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
       return  { pooled:true }
     }
