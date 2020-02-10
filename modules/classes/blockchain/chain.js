@@ -260,7 +260,7 @@ class Blockchain{
 
 
 
-  async receiveBlock(newBlock, getMissingBlocks){
+  async receiveBlock(newBlock){
     if(isValidBlockJSON(newBlock)){
       //Already exists in chain?
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
