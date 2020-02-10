@@ -354,7 +354,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
             if(!filename) throw new Error('ERROR: Name of contract file is required')
             if(!walletName) throw new Error('ERROR: Name of owner wallet is required')
             if(!password) throw new Error('ERROR: Password of owner wallet is required')
-            if(!totalRAM) throw new Error('ERROR: Need to allocate an amount of ram for storage')
+            // if(!totalRAM) throw new Error('ERROR: Need to allocate an amount of ram for storage')
 
             openSocket(address, async (socket)=>{
                 let contract = fs.readFileSync(filename).toString()

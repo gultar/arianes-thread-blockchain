@@ -101,13 +101,13 @@ program
 })
 
 program
-.command('testsnapshot <num>')
+.command('messagebuffer')
 .description('Requests a snapshot of the ten most recent blocks')
 .action((num)=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('testCompare', num);
-            socket.on('chainSnapshot', (info)=>{
+            socket.emit('getMessageBuffer');
+            socket.on('messageBuffer', (info)=>{
                 console.log(JSON.stringify(info, null, 2))
                 socket.close()
             })

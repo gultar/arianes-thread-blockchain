@@ -107,13 +107,15 @@ class Node {
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.peersLatestBlocks = {}
     this.messageBuffer = {};
+    this.peerMessageBuffer = []
     this.messageBufferCleanUpDelay = 30 * 1000;
+    this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
     this.blocksToValidate = []
     this.updated = false;
     this.isDownloading = false;
     this.autoRollback = true || options.autoRollback || false;
-    this.maximumAutoRollback = 50
+    this.maximumAutoRollback = 30
     this.minerStarted = false;
     this.peerManager = new PeerManager({
       address:this.address,
@@ -343,7 +345,7 @@ class Node {
     });
 
     socket.on('getChainSnapshot', async ()=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'chainStatus' events") }); // consume 1 point per event from IP
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getChainSnapshot' events") }); // consume 1 point per event from IP
       socket.emit('chainSnapshot', this.chain.chainSnapshot)
     })
 
@@ -386,7 +388,7 @@ class Node {
             let updated = await this.receiveBlockchainStatus(peer, peerStatus)
             
             if(updated){
-              if(updated.error) socket.emit('blockchainStatus', false)
+              if(updated.error) socket.emit('blockchainStatus', { error:updated.error })
               
             }
           }else{
@@ -746,7 +748,7 @@ class Node {
       let length = lastHeader.blockNumber + 1;
       this.isDownloading = true;
       let unansweredRequests = 0;
-      let maxRetryNumber = 10
+      let maxRetryNumber = 3
       this.retrySending = null;
       let rolledBack = 0
       
@@ -775,6 +777,7 @@ class Node {
         clearTimeout(this.retrySending)
         if(block.end){
           logger('Blockchain updated successfully!')
+          peer.emit('')
           closeConnection()
           resolve(true)
         }else if(block.error && block.error == 'Block not found'){
@@ -782,10 +785,9 @@ class Node {
           if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
             rolledBack++
             let blockNumber = this.chain.getLatestBlock().blockNumber
-            let rolledback = await this.chain.rollbackToBlock(blockNumber - 2)
+            let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
             let latestHash = this.chain.getLatestBlock().hash
             peer.emit('getNextBlock', latestHash)
-            awaitRequest()
           }else{
             closeConnection({ error:true })
             resolve({ error: block.error })
@@ -837,8 +839,10 @@ class Node {
  */
   receiveBlockchainStatus(peer, status){
     return new Promise(async (resolve) =>{
-      if(this.chain instanceof Blockchain && peer && status){
-        if(!this.isDownloading){
+      if(peer && status){
+        if(this.isDownloading){
+          resolve(true)
+        }else{
           let { totalDifficultyHex, bestBlockHeader, length } = status;
           
 
@@ -861,16 +865,14 @@ class Node {
                 if(downloaded.error){
                   logger('Could not download blockchain')
                   logger(downloaded.error)
-                  resolve(false)
+                  resolve({ error:'ERROR: Could not download blockchain' })
                 }else{
                   this.updated = true
                   resolve(true)
                 }
                
               }else{
-                console.log(bestBlockHeader)
-                logger('ERROR: Last block header from peer is invalid')
-                resolve(false)
+                resolve({ error:'ERROR: Last block header from peer is invalid' })
               }
             }else{
               resolve(true)
@@ -879,14 +881,12 @@ class Node {
             
   
           }else{
-            logger('ERROR: Status object is missing parameters')
-            resolve(false)
+            resolve({ error:'ERROR: Status object is missing parameters' })
           }
-        }else{
-          resolve(true)
         }
+        
       }else{
-        resolve(false)
+        resolve({ error:'ERROR: Cannot receive status without peer or status' })
       }
     })
     
@@ -1189,6 +1189,10 @@ class Node {
       socket.on('connectionRequest', (address)=>{
         this.peerManager.connectToPeer(address, (peer)=>{});
       });
+
+      socket.on('getMessageBuffer', ()=>{
+        socket.emit('messageBuffer', this.messageBuffer)
+      })
 
       socket.on('transaction',async (transaction)=>{
         try{
@@ -1622,8 +1626,9 @@ class Node {
         let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
         if(isValidHash){
           if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
-            this.messageBuffer[messageId] = peerMessage;
+            // this.messageBuffer[peerMessage.messageId] = peerMessage//this.addToMessageBuffer(peerMessage);
             peerMessage.relayPeer = this.address
+            this.addToMessageQueue(peerMessage)
             acknowledge({received:messageId})
               switch(type){
                 case 'transaction':
@@ -1788,22 +1793,17 @@ class Node {
     return new Promise(async (resolve)=>{
       if(reception.error) resolve({error:reception.error})
       else if(reception.requestUpdate){
-
-        let peer = this.peerManager.getPeer(relayPeer)
-        if(peer){
-          let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
-          if(updated.error) resolve({error:updated.error})
-          else resolve(updated)
-        }else{
-          this.broadcast('getBlockchainStatus')
-        }
         
+        let peer = await this.getMostUpToDatePeer()
+        let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
+        if(updated.error) resolve({error:updated.error})
+        else resolve(updated)
         resolve({ updating:true })
+
       }
       else if(reception.rollback){
 
-        let peer = await this.peerManager.getPeer(relayPeer)
-        if(!peer) peer = await this.getMostUpToDatePeer()
+        let peer = await this.getMostUpToDatePeer()
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback)
         if(rolledBack.error) resolve({error:rolledBack.error})
         let lastHeader = this.chain.getLatestBlock()
@@ -1812,15 +1812,15 @@ class Node {
         
       }
       else if(reception.extended){
-        
-        let peer = await this.peerManager.getPeer(relayPeer)
-        if(!peer) peer = await this.getMostUpToDatePeer()
+        logger('Comparing chain snapshots with peer', peer.address)
+        let peer = await this.getMostUpToDatePeer()
 
         if(peer){
-          let snapshot = this.peerManager.getSnapshot(relayPeer)
+          let snapshot = this.peerManager.getSnapshot(peer.address)
           
           let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
           if(comparison.rollback){
+            logger('Peer chain has a longer branch than this node')
             let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)
             if(rolledBack.error) resolve({error:rolledBack.error})
 
@@ -1828,7 +1828,7 @@ class Node {
             let downloaded = await this.downloadBlockchain(peer, lastHeader)
             resolve(downloaded)
           }else if(comparison.merge){
-            
+            logger("Need to merge peer's branched block")
             let blockNumber = comparison.merge.hash
             let rolledBack = await this.chain.rollbackToBlock(blockNumber - 1)
             if(rolledBack.error) resolve({error:rolledBack.error})
@@ -1837,6 +1837,7 @@ class Node {
             let downloaded = await this.downloadBlockchain(peer, lastHeader)
             resolve(downloaded)
           }else{
+            logger("This chain snapshot is longer")
             resolve(comparison)
           }
         }else{
@@ -2195,6 +2196,16 @@ DHT_PORT=${this.peerDiscoveryPort}
       
     })
     
+  }
+
+  addToMessageQueue(peerMessage){
+    this.messageBuffer[peerMessage.messageId] = peerMessage
+    let messageIds = Object.keys(this.messageBuffer)
+    if(messageIds.length > this.messageBufferSize){
+      let firstId = messageIds[0]
+      delete this.messageBuffer[firstId]
+
+    }
   }
 
   /**
