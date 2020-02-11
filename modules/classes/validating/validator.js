@@ -191,10 +191,7 @@ class Validator extends Miner{
 
     generateBlocks(speed = this.generationSpeed){
         this.generator = setInterval(async ()=>{
-            if(this.turn === this.wallet.publicKey){
-                this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.turn, counter:this.turnCounter })
-                
-            }
+            this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.turn, counter:this.turnCounter })
             (this.turnCounter < this.validatorOrder.length -1 ? this.turnCounter++ : this.turnCounter = 0)
             
             this.turn = this.validatorOrder[this.turnCounter]
