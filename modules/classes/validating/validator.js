@@ -81,6 +81,7 @@ class Validator extends Miner{
                     let block = this.blocksToBeSigned[hash]
                     block.signatures[event.publicKey] = event.signature
                     if(Object.keys(block.signatures) >= genesis.minimumSignatures){
+                        console.log('Tough luck buddy')
                         this.wait = false
                         this.socket.emit('success', block)
                     }
@@ -89,7 +90,7 @@ class Validator extends Miner{
         })
         this.socket.on('previousBlock', (block)=> this.previousBlock = block)
         this.socket.on('rawBlock', async (rawBlock)=> await this.start(rawBlock))
-        // this.socket.on('stopMining', async ()=> await this.stop())
+        this.socket.on('stopMining', async ()=> await this.stop())
     }
 
     async start(rawBlock){
