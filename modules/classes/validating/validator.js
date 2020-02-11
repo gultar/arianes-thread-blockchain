@@ -64,10 +64,11 @@ class Validator extends Miner{
                     this.validatorKeys = Object.keys(this.validators)
                     break;
                 case 'signedBlock':
-                    this.validators[event.publicKey] = 0
+                    
                     for await(let publicKey of this.validatorKeys){
                         this.validators[publicKey]++
                     }
+                    this.validators[event.publicKey] = 0
                     break;
             }
         })
