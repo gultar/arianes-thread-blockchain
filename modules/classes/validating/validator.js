@@ -17,6 +17,8 @@ class Validator extends Miner{
         this.generator = {}
         this.validators = {}
         this.validatorKeys = [this.wallet.publicKey]
+        this.validatorOrder = Object.keys(genesis.validators)
+        this.turn = this.validatorOrder[0]
         this.turnCounter = 0
         this.nextTurn = this.validatorKeys[0]
         this.nextTurnSkipped = setTimeout(()=>{})
@@ -51,17 +53,23 @@ class Validator extends Miner{
             let event = JSON.parse(peerMessage.data)
             switch(event.type){
                 case 'discoverValidator':
+                    clearInterval(this.generator)
                     this.validators[event.publicKey] = 0
                     this.validatorKeys = Object.keys(this.validators)
+                    this.generateBlocks()
                     break;
                 case 'validatorConnected':
+                    clearInterval(this.generator)
                     this.validators[event.publicKey] = 1
                     this.validatorKeys = Object.keys(this.validators)
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
+                    this.generateBlocks()
                     break;
                 case 'validatorDisconnected':
+                    clearInterval(this.generator)
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
+                    this.generateBlocks()
                     break;
                 case 'requestSignature':
                     let header = event.header;
@@ -75,6 +83,7 @@ class Validator extends Miner{
                     
                     break;
                 case 'signature':
+                    //expect block from validator whose turn it is only
                     let hash = event.hash
                     let block = this.blocksToBeSigned[hash]
                     if(block){
@@ -169,7 +178,11 @@ class Validator extends Miner{
 
     generateBlocks(speed = this.generationSpeed){
         this.generator = setInterval(async ()=>{
-                if(!this.wait) this.socket.emit('sendRawBlock')
+                (this.turnCounter < this.validatorOrder.length ? this.turnCounter++ : this.turnCounter = 0)
+                
+                this.turn = this.validatorOrder[this.turnCounter]
+                if(this.turn === this.wallet.publicKey) this.socket.emit('sendRawBlock')
+                
         }, speed)
     }
 
