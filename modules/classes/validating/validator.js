@@ -77,6 +77,8 @@ class Validator extends Miner{
                         this.turn = nextValidator
                         this.turnCounter = event.counter
                         console.log('Rectified turn', this.turn)
+                    }else{
+                        if(this.turn == this.wallet.publicKey) this.socket.emit('sendRawBlock')
                     }
                     break;
                 case 'requestSignature':
@@ -193,7 +195,7 @@ class Validator extends Miner{
                 
                 if(this.turn === this.wallet.publicKey){
                     this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.turn, counter:this.turnCounter })
-                    this.socket.emit('sendRawBlock')
+                    
                 }
                 
         }, speed)
