@@ -76,6 +76,7 @@ class Validator extends Miner{
                     if(this.turn !== nextValidator){
                         this.turn = nextValidator
                         this.turnCounter = event.counter
+                        console.log('Rectified turn', this.turn)
                     }
                     break;
                 case 'requestSignature':
