@@ -11,9 +11,7 @@ class Validator extends Miner{
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
         this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
-        this.validators = {
-            [this.wallet.publicKey]:'online',
-        }
+        this.validators = {}
         this.validatorKeys = [this.wallet.publicKey]
         this.turnCounter = 0
         this.nextTurn = this.validatorKeys[0]
@@ -33,6 +31,7 @@ class Validator extends Miner{
         this.socket.on('connect', async ()=>{
             this.log('Miner connected to ', url)
             await this.initWallet()
+            this.validators[this.wallet.publicKey] = 'online'
             this.socket.emit('isAvailable')
             this.socket.emit('generate')
             this.generateBlocks()
