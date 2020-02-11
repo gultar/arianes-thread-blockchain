@@ -55,7 +55,7 @@ class Validator extends Miner{
                 case 'validatorConnected':
                     // clearInterval(this.generator)
                     // this.pickTurns()
-                    this.validators[event.publicKey] = 0
+                    this.validators[event.publicKey] = 1
                     this.validatorKeys = Object.keys(this.validators)
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
                     break;
@@ -97,7 +97,7 @@ class Validator extends Miner{
                 block.endMineTime = Date.now()
                 this.previousBlock = block;
                 block.signatures[this.wallet.publicKey] = await this.createSignature(block.hash)
-                this.socket.emit('networkEvent', { type:'signedBlock', publicKey:this.wallet.publicKey })
+                this.socket.emit('networkEvent', { type:'signedBlock', publicKey:this.wallet.publicKey, timestamp:block.timestamp })
                 this.socket.emit('success', block)
 
             }else{
@@ -161,7 +161,7 @@ class Validator extends Miner{
                 nextPublicKey = publicKey
             }
         }
-
+        console.log('Longest wait:', this.validators)
         return nextPublicKey
     }
 
