@@ -14,7 +14,7 @@ class Validator extends Miner{
         this.validators = {
             [this.publicKey]:'online',
         }
-        this.validatorKeys = [this.publicKey]
+        this.validatorKeys = [this.wallet.publicKey]
         this.turnCounter = 0
         this.nextTurn = this.validatorKeys[0]
         this.nextTurnSkipped = {}
