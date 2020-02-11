@@ -76,11 +76,14 @@ class Validator extends Miner{
                 case 'signature':
                     let hash = event.hash
                     let block = this.blocksToBeSigned[hash]
-                    block.signatures[event.publicKey] = event.signature
-                    if(Object.keys(block.signatures).length >= genesis.minimumSignatures){
-                        this.wait = false
-                        this.socket.emit('success', block)
+                    if(block){
+                        block.signatures[event.publicKey] = event.signature
+                        if(Object.keys(block.signatures).length >= genesis.minimumSignatures){
+                            this.wait = false
+                            this.socket.emit('success', block)
+                        }
                     }
+                    
                     break;
             }
         })
