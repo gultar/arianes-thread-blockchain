@@ -69,6 +69,7 @@ class Validator extends Miner{
                     if(isValidHeader){
                         let signature = await this.createSignature(header.hash)
                         this.sendPeerMessage('networkEvent', { type:'signature', signature:signature, hash:header.hash, publicKey:this.wallet.publicKey })
+                        this.wait = false
                     }
                     
                     break;
