@@ -55,8 +55,9 @@ class Validator extends Miner{
                     this.validatorKeys = Object.keys(this.validators)
                     break;
                 case 'nextTurn':
+                    this.turnCounter = this.validatorKeys.indexOf(event.publicKey)
                     this.turnCounter++
-                    (this.turnCounter >= this.validatorKeys.length ? this.turnCounter = 0 : this.turnCounter = this.turnCounter)
+                    (this.turnCounter >= this.validatorKeys.length || this.turnCounter == -1 ? this.turnCounter = 0 : this.turnCounter = this.turnCounter)
                     this.nextTurn = this.validatorKeys[this.turnCounter]
                     console.log('Next turn', this.validatorKeys[this.turnCounter])
                     // clearTimeout(this.nextTurnSkipped)
@@ -143,9 +144,10 @@ class Validator extends Miner{
 
     generateBlocks(){
         setInterval(async ()=>{
+            this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.wallet.publicKey })
             if(this.validatorKeys.length == 1 || this.nextTurn == this.wallet.publicKey){
                 // this.socket.emit('sendRawBlock')
-                this.sendPeerMessage('networkEvent', { type:'nextTurn' })
+                console.log('My turn:', this.wallet.publicKey)
                 // this.nextTurnSkipped = setTimeout(()=>{ console.log('Would normally skip turn') }, 2100)
             }
         }, this.generationSpeed)
