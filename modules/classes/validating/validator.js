@@ -11,6 +11,7 @@ class Validator extends Miner{
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
         this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
+        this.generator = {}
         this.validators = {}
         this.validatorKeys = [this.wallet.publicKey]
         this.turnCounter = 0
@@ -45,23 +46,33 @@ class Validator extends Miner{
         this.socket.on('networkEvent', (peerMessage)=>{
             let event = JSON.parse(peerMessage.data)
             switch(event.type){
-                case 'validatorConnected':
-                    console.log(event)
+                case 'discoverValidator':
+                    clearInterval(this.generator)
+                    // this.pickTurns()
                     this.validators[event.publicKey] = 'online'
-                    console.log(this.validators)
                     this.validatorKeys = Object.keys(this.validators)
+                    break;
+                case 'validatorConnected':
+                    clearInterval(this.generator)
+                    // this.pickTurns()
+                    this.validators[event.publicKey] = 'online'
+                    this.validatorKeys = Object.keys(this.validators)
+                    this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
                     break;
                 case 'validatorDisconnected':
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
                     break;
                 case 'nextTurn':
-                    this.turnCounter = this.validatorKeys.indexOf(event.publicKey)
-                    this.turnCounter++
-                    (this.turnCounter >= this.validatorKeys.length || this.turnCounter == -1 ? this.turnCounter = 0 : this.turnCounter = this.turnCounter)
-                    this.nextTurn = this.validatorKeys[this.turnCounter]
-                    console.log('Next turn', this.validatorKeys[this.turnCounter])
-                    // clearTimeout(this.nextTurnSkipped)
+                    if(event.publicKey == this.wallet.publicKey){
+                        setTimeout(()=>{
+                            this.socket.emit('sendRawBlock')
+                            let index = this.validatorsKeys.indexOf(this.wallet.publicKey)
+                            let nextIndex = (index >= this.validatorKeys.length ? index = 0 : index++)
+                            let nextPublicKey = this.validatorKeys[nextIndex]
+                            this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:nextPublicKey })
+                        }, 2000)
+                    }
                     break;
             }
         })
@@ -144,7 +155,7 @@ class Validator extends Miner{
     }
 
     generateBlocks(){
-        setInterval(async ()=>{
+        this.generator = setInterval(async ()=>{
             this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.wallet.publicKey })
             if(this.validatorKeys.length == 1 || this.nextTurn == this.wallet.publicKey){
                 // this.socket.emit('sendRawBlock')
@@ -152,6 +163,12 @@ class Validator extends Miner{
                 // this.nextTurnSkipped = setTimeout(()=>{ console.log('Would normally skip turn') }, 2100)
             }
         }, this.generationSpeed)
+    }
+
+    pickTurns(){
+        setInterval(()=>{
+            
+        }, 100)
     }
 
     
