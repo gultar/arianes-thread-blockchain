@@ -68,10 +68,9 @@ class Validator extends Miner{
                     if(event.publicKey == this.wallet.publicKey){
                         setTimeout(()=>{
                             this.socket.emit('sendRawBlock')
-                            let index = this.validatorKeys.indexOf(this.wallet.publicKey)
-                            let nextIndex = (index >= this.validatorKeys.length ? index = 0 : index++)
-                            let nextPublicKey = this.validatorKeys[nextIndex]
+                            let nextPublicKey = this.validatorKeys.pop()
                             this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:nextPublicKey })
+                            this.validatorKeys.push(nextPublicKey)
                         }, 2000)
                     }
                     break;
