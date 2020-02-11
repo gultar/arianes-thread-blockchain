@@ -1499,14 +1499,14 @@ class Node {
     switch(type){
       case 'transaction':
         var transaction = JSON.parse(data);
-        let executed = await this.receiveTransaction(transaction);
-        if(executed.error && this.verbose) logger(chalk.red('TRANSACTION ERROR'), executed.error)
+        let executedTx = await this.receiveTransaction(transaction);
+        if(executedTx.error && this.verbose) logger(chalk.red('TRANSACTION ERROR'), executedTx.error)
         else this.broadcast('peerMessage', peerMessage)
         break;
       case 'action':
         let action = JSON.parse(data);
-        let executed = await this.receiveAction(action);
-        if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
+        let executedAction = await this.receiveAction(action);
+        if(executedAction.error && this.verbose) logger(chalk.red('ACTION ERROR'), executedAction.error)
         else this.broadcast('peerMessage', peerMessage)
         break
       case 'newBlockFound':
