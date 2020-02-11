@@ -51,8 +51,6 @@ class Validator extends Miner{
             let event = JSON.parse(peerMessage.data)
             switch(event.type){
                 case 'discoverValidator':
-                    clearInterval(this.generator)
-                    // this.pickTurns()
                     this.validators[event.publicKey] = 0
                     this.validatorKeys = Object.keys(this.validators)
                     break;
