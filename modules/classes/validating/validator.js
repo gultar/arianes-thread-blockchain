@@ -43,8 +43,8 @@ class Validator extends Miner{
           this.socket.close()
           process.exit()
         })
-        this.socket.on('networkEvent', (event)=>{
-            console.log('event', event)
+        this.socket.on('networkEvent', (payloadString)=>{
+            let event = JSON.parse(payloadString)
             switch(event.type){
                 case 'validatorConnected':
                     console.log('SOMEONE CONNECTED', event.publicKey)
