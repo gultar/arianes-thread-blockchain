@@ -56,12 +56,14 @@ class Validator extends Miner{
                     clearInterval(this.generator)
                     this.validators[event.publicKey] = 0
                     this.validatorKeys = Object.keys(this.validators)
+                    this.turnCounter = 0
                     this.generateBlocks()
                     break;
                 case 'validatorConnected':
                     clearInterval(this.generator)
                     this.validators[event.publicKey] = 1
                     this.validatorKeys = Object.keys(this.validators)
+                    this.turnCounter = 0
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
                     this.generateBlocks()
                     break;
@@ -69,6 +71,7 @@ class Validator extends Miner{
                     clearInterval(this.generator)
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
+                    this.turnCounter = 0
                     this.generateBlocks()
                     break;
                 case 'nextTurn':
