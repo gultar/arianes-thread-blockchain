@@ -38,7 +38,7 @@ program
 program.parse(process.argv)
 
 process.on('SIGINT', async () =>{
-    validator.stop()
-
+    validator.disconnect()
+    process.exit()
 })
 

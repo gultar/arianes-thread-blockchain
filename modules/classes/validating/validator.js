@@ -63,7 +63,7 @@ class Validator extends Miner{
                 case 'validatorDisconnected':
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
-                    if(this.validatorKeys.length == 1) this.generateBlocks()
+                    if(this.validatorKeys.length < 2) this.generateBlocks()
                     break;
                 case 'nextTurn':
                     if(event.publicKey == this.wallet.publicKey){
@@ -179,7 +179,7 @@ class Validator extends Miner{
         }, 100)
     }
 
-    stop(){
+    disconnect(){
         this.sendPeerMessage('networkEvent', { type:'validatorDisconnected', publicKey:this.wallet.publicKey })
     }
 
