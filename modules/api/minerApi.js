@@ -92,9 +92,11 @@ class MinerAPI{
         let isValid = await this.chain.validateBlock(block)
         if(isValid){
           if(isValid.error){
-              let block = await this.chain.getBlockFromDB(block.blockNumber)
+              let blockFromDB = await this.chain.getBlockFromDB(block.blockNumber)
               console.log('Received block', block.blockNumber)
               console.log('Hash', block.hash)
+              console.log('Exists block', blockFromDB.blockNumber)
+              console.log('of Hash', blockFromDB.hash)
               logger('INVALID BLOCK', isValid.error)
           }
           else{
