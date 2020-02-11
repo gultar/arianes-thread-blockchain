@@ -53,7 +53,7 @@ class Validator extends Miner{
                     this.validatorKeys = Object.keys(this.validators)
                     setTimeout(()=>{
                         this.generateBlocks()
-                    }, 2000)
+                    }, Math.floor(3000 * Math.random()))
                     break;
                 case 'validatorConnected':
                     clearInterval(this.generator)
@@ -66,8 +66,12 @@ class Validator extends Miner{
                     }, 1000)
                     break;
                 case 'validatorDisconnected':
+                    clearInterval(this.generator)
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
+                    setTimeout(()=>{
+                        this.generateBlocks()
+                    }, Math.floor(3000 * Math.random()))
                     break;
                 case 'signedBlock':
                     console.log('signed block', event.publicKey)
