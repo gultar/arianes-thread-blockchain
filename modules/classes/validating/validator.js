@@ -12,7 +12,7 @@ class Validator extends Miner{
         this.mempool = new Mempool()
         this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
         this.validators = {
-            [this.publicKey]:'online',
+            [this.wallet.publicKey]:'online',
         }
         this.validatorKeys = [this.wallet.publicKey]
         this.turnCounter = 0
@@ -47,7 +47,9 @@ class Validator extends Miner{
             let event = JSON.parse(peerMessage.data)
             switch(event.type){
                 case 'validatorConnected':
+                    console.log(event)
                     this.validators[event.publicKey] = 'online'
+                    console.log(this.validators)
                     this.validatorKeys = Object.keys(this.validators)
                     break;
                 case 'validatorDisconnected':
