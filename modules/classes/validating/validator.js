@@ -64,7 +64,7 @@ class Validator extends Miner{
                     this.validatorKeys = Object.keys(this.validators)
                     break;
                 case 'signedBlock':
-                    
+                    console.log('signed block', event.publicKey)
                     for await(let publicKey of this.validatorKeys){
                         this.validators[publicKey]++
                     }
@@ -98,7 +98,7 @@ class Validator extends Miner{
                 block.endMineTime = Date.now()
                 this.previousBlock = block;
                 block.signatures[this.wallet.publicKey] = await this.createSignature(block.hash)
-                this.socket.emit('networkEvent', { type:'signedBlock', publicKey:this.wallet.publicKey, timestamp:block.timestamp })
+                this.sendPeerMessage('networkEvent', { type:'signedBlock', publicKey:this.wallet.publicKey, timestamp:block.timestamp })
                 this.socket.emit('success', block)
 
             }else{
