@@ -48,7 +48,7 @@ class Validator extends Miner{
             switch(event.type){
                 case 'validatorConnected':
                     console.log('SOMEONE CONNECTED', event.publicKey)
-                    this.validator[event.publicKey] = 'online'
+                    this.validators[event.publicKey] = 'online'
                     this.validatorKeys = Object.keys(this.validators)
                     break;
                 case 'validatorDisconnected':
