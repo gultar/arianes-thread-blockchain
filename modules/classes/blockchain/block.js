@@ -101,11 +101,9 @@ class Block{
     })
   }
 
-  validate(difficulty, numberOfCores){
+  produce(difficulty, numberOfCores){
     return new Promise(async(resolve)=>{
-      const {
-        Worker, isMainThread, parentPort, workerData, MessageChannel
-      } = require('worker_threads');
+      const { Worker } = require('worker_threads');
 
       const stopMiners = async ({ stop, abort })=>{
         if(process.WORKER_POOL){
