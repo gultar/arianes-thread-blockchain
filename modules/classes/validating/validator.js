@@ -66,6 +66,7 @@ class Validator extends Miner{
                     this.validatorKeys = Object.keys(this.validators)
                     break;
                 case 'requestSignature':
+                    console.log('Hey', event)
                     let header = event.header;
                     let isValidHeader = this.validateBlockHeader(header)
                     if(isValidHeader){
@@ -75,10 +76,12 @@ class Validator extends Miner{
                     
                     break;
                 case 'signature':
+                    console.log('Signature:', event)
                     let hash = event.hash
                     let block = this.blocksToBeSigned[hash]
                     block.signatures[event.publicKey] = event.signature
-                    if(Object.keys(block.signatures) > 2){
+                    if(Object.keys(block.signatures) >= genesis.minimumSignatures){
+                        this.wait = false
                         this.socket.emit('success', block)
                     }
                     break;
@@ -112,7 +115,7 @@ class Validator extends Miner{
                 block.signatures[this.wallet.publicKey] = await this.createSignature(block.hash)
                 this.sendPeerMessage('networkEvent', { type:'requestSignature', publicKey:this.wallet.publicKey, header:this.extractHeader(block) })
                 this.blocksToBeSigned[block.hash] = block
-
+                this.wait = true
             }else{
                 this.log('Mining failed')
                 this.socket.emit('failed')
@@ -165,7 +168,7 @@ class Validator extends Miner{
 
     generateBlocks(speed = this.generationSpeed){
         this.generator = setInterval(async ()=>{
-                this.socket.emit('sendRawBlock')
+                if(!this.wait) this.socket.emit('sendRawBlock')
         }, speed)
     }
 
