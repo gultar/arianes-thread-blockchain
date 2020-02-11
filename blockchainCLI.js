@@ -6,7 +6,11 @@ const { logger, readFile } = require('./modules/tools/utils');
 const fs = require('fs')
 const genesis = require('./modules/tools/getGenesis')
 const publicIP = require('public-ip')
+const activePort = require('dotenv').config({ path: './config/.env' })
 
+if (activePort.error) {
+    throw activePort.error
+}
 
 let node;
 
@@ -150,7 +154,7 @@ program
         exposeHTTP:program.exposeHTTP || false,
         enableLocalPeerDiscovery:discovery.local,
         enableDHTDiscovery:discovery.dht,
-        peerDiscoveryPort:parseInt(configs.port) - 2000,
+        peerDiscoveryPort:activePort.parsed.DHT_PORT||parseInt(configs.port) - 2000,
         network:program.network || 'mainnet',
         noLocalhost:false,
         genesis:genesis,

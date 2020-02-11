@@ -16,7 +16,7 @@ class Validator extends Miner{
         this.validatorKeys = [this.wallet.publicKey]
         this.turnCounter = 0
         this.nextTurn = this.validatorKeys[0]
-        this.nextTurnSkipped = {}
+        this.nextTurnSkipped = setTimeout(()=>{})
     }
 
     connect(url){
@@ -63,14 +63,22 @@ class Validator extends Miner{
                 case 'validatorDisconnected':
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
+                    if(this.validatorKeys.length == 1) this.generateBlocks()
                     break;
                 case 'nextTurn':
                     if(event.publicKey == this.wallet.publicKey){
+                        clearTimeout(this.nextTurnSkipped)
                         setTimeout(()=>{
                             this.socket.emit('sendRawBlock')
                             let nextPublicKey = this.validatorKeys.pop()
                             this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:nextPublicKey })
                             this.validatorKeys.push(nextPublicKey)
+                            this.nextTurnSkipped = setTimeout(()=>{
+                                nextPublicKey = this.validatorKeys.pop()
+                                if(nextPublicKey == this.wallet.publicKey)  this.socket.emit('sendRawBlock')
+                                this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:nextPublicKey })
+                                this.validatorKeys.push(nextPublicKey)
+                            }, 2100)
                         }, 2000)
                     }
                     break;
