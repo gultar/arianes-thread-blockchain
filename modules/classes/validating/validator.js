@@ -50,23 +50,24 @@ class Validator extends Miner{
                     clearInterval(this.generator)
                     // this.pickTurns()
                     this.validators[event.publicKey] = 0
-                    this.generationSpeed = this.generationSpeed * 2
                     this.validatorKeys = Object.keys(this.validators)
-                    this.generateBlocks()
+                    setTimeout(()=>{
+                        this.generateBlocks()
+                    }, 2000)
                     break;
                 case 'validatorConnected':
                     clearInterval(this.generator)
                     // this.pickTurns()
                     this.validators[event.publicKey] = 1
                     this.validatorKeys = Object.keys(this.validators)
-                    this.generationSpeed = this.generationSpeed * 2
-                    this.generateBlocks()
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
+                    setTimeout(()=>{
+                        this.generateBlocks()
+                    }, 1000)
                     break;
                 case 'validatorDisconnected':
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
-                    this.generationSpeed = this.generationSpeed / 2
                     break;
                 case 'signedBlock':
                     console.log('signed block', event.publicKey)
