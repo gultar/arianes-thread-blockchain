@@ -78,7 +78,7 @@ class Validator extends Miner{
                     let hash = event.hash
                     let block = this.blocksToBeSigned[hash]
                     block.signatures[event.publicKey] = event.signature
-                    if(Object.keys(block.signatures) >= genesis.minimumSignatures){
+                    if(Object.keys(block.signatures).length >= genesis.minimumSignatures){
                         console.log('Tough luck buddy')
                         this.wait = false
                         this.socket.emit('success', block)
