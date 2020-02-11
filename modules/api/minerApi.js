@@ -69,6 +69,10 @@ class MinerAPI{
             await this.sendNewBlock({ generate:true })
             this.sendPeerMessage('networkEvent', { test:true })
         })
+
+        this.socket.on('peerMessage', async (type, data)=>{
+            this.sendPeerMessage(type, data)
+        })
         
         this.mempool.events.on('newAction', async (action)=>{
 

@@ -135,6 +135,10 @@ class Validator extends Miner{
         else return signature
     }
 
+    sendPeerMessage(type, data){
+        this.socket.emit('peerMessage', type, data)
+    }
+
     generateBlocks(){
         setInterval(async ()=>{
             if(this.nextTurn == this.wallet.publicKey){
