@@ -3,14 +3,14 @@ const {Difficulty} = require('../mining/challenge')
 const Block = require('../blockchain/block')
 const ECDSA = require('ecdsa-secp256r1')
 const Mempool = require('../mempool/pool')
-const Blockchain = require('../blockchain/chain')
+const genesis = require('../../tools/getGenesis')
 const ioClient = require('socket.io-client')
 
 class Validator extends Miner{
     constructor({ keychain, numberOfCores, miningReward, verbose }){
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
-        this.generationSpeed = 2000//generationSpeed 
+        this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
     }
 
     connect(url){
@@ -33,6 +33,9 @@ class Validator extends Miner{
         this.socket.on('disconnect', async ()=>{
           this.socket.close()
           process.exit()
+        })
+        this.socket.on('networkEvent', (event)=>{
+            console.log('Test',event)
         })
         this.socket.on('previousBlock', (block)=> this.previousBlock = block)
         this.socket.on('rawBlock', async (rawBlock)=> await this.start(rawBlock))

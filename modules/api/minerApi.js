@@ -13,7 +13,7 @@ const { logger } = require('../tools/utils')
  * @param {Socket} params.socket - Server socket on which the miner will connect
  */
 class MinerAPI{
-    constructor({ chain, mempool, channel, sendPeerMessage, socket }){
+    constructor({ chain, mempool, channel, sendPeerMessage, socket, extendProtocol }){
         this.chain = chain
         this.mempool = mempool
         this.channel = channel
@@ -41,7 +41,6 @@ class MinerAPI{
             this.mempool.events.removeAllListeners('newAction')
             this.mempool.events.removeAllListeners('newTransaction')
         })
-        
         //This is for when node is syncing a block or busy doing something else
         this.channel.on('nodeEvent', (event)=>{
             switch(event){
@@ -68,6 +67,7 @@ class MinerAPI{
 
         this.socket.on('sendRawBlock', async ()=>{
             await this.sendNewBlock({ generate:true })
+            this.sendPeerMessage('networkEvent', { test:true })
         })
         
         this.mempool.events.on('newAction', async (action)=>{
@@ -98,7 +98,7 @@ class MinerAPI{
                 //Broadcast new block found
                 this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
-                let added = await this.chain.receiveBlock(block)//addBlockToChain(block)
+                let added = await this.chain.receiveBlock(block)
                 if(added.error)logger('MINEDBLOCK:',added.error)
                 else return block
             }else{
@@ -109,6 +109,7 @@ class MinerAPI{
         }else{
           logger('ERROR: Mined Block is not valid!')
           logger(block)
+          return false
         }
     }
 

@@ -465,22 +465,16 @@ class Node {
           if(hash == this.chain.chain[0].hash){
             socket.emit('previousBlock', {end:'Reached genesis block'})
           }else{
-            console.log('Peer requested previous of hash', hash)
             let previousHash = this.chain.chain[index].previousHash
-            console.log('Hash is block', index)
             let block = await this.chain.getBlockFromDBByHash(previousHash)
-            console.log('Is linked to block', (block? block.hash:block))
 
             let isInPool = await this.chain.getBlockFromPool(hash)
-            console.log('Current Is in pool', (isInPool?isInPool.hash:isInPool))
             if(isInPool && !isInPool.error){
               let previous = await this.chain.getBlockFromPool(isInPool.previousHash)
-              console.log('Previous is in pool', (previous?previous.hash:previous))
               if(previous && !previous.error) socket.emit('previousBlock', { pool:previous })
             }
 
             let isLinkedToBranch = await this.chain.getBranch(hash)
-            console.log('Current is linked to branch', (isLinkedToBranch?isLinkedToBranch.length:isLinkedToBranch))
             if(isLinkedToBranch && !isLinkedToBranch.error) socket.emit('previousBlock', { branch:isLinkedToBranch })
             // let block = await this.chain.getBlockFromDB(index)
             if(block){
@@ -928,92 +922,6 @@ class Node {
     })
   }
 
-  // //Heavy WIP
-  // fixUnlinkedBranch(unlinkedHash){
-  //   return new Promise(async (resolve)=>{
-  //       //Finding missing blocks from an unlinked branch where block was pushed. 
-  //       //By finding the missing blocks, current branch is to be swapped with it
-  //       // console.log('About to find missing blocks')
-        
-  //       let missingBlocks = await this.getMissingBlocksToSyncBranch(unlinkedHash)
-        
-  //       if(missingBlocks.error) resolve({error:missingBlocks.error})
-  //       else if(missingBlocks.isBranch){
-  //         if(!Array.isArray(missingBlocks.isBranch) && typeof missingBlocks.isBranch == 'object'){
-  //           //If branch is composed of single block, add it to an array for further
-  //           //handling of the branch
-  //           missingBlocks.isBranch = [ missingBlocks.isBranch ]
-  //         }
-          
-  //         if(missingBlocks.isBranch.length == 0){
-  //           resolve({error:'ERROR: Peer could not find any of the missing blocks'})
-  //         }else{
-  //            // console.log('Number of branched missing blocks', missingBlocks)
-  //           let firstBlock = missingBlocks.isBranch[0]
-  //           // console.log('First missing block', firstBlock)
-  //           let branch = this.chain.branches[firstBlock.previousHash]
-  //           // console.log('Linked chain length', branch.length)
-  //           let unlinkedBranch = this.chain.unlinkedBranches[unlinkedHash]
-  //           if(!unlinkedBranch) resolve({error:`ERROR: Could not find unlinked branch at hash ${unlinkedHash.substr(0, 8)}...`})
-  //           else{
-  //             // console.log('Unlinked chain length', unlinkedBranch.length)
-  //             branch = [ ...branch, ...missingBlocks, ...unlinkedBranch ]
-  //             // console.log('Unlinked chain new length', branch.length)
-  //             let latestBranchedBlock = branch[branch.length - 1]
-  //             // console.log('Last branched block num', latestBranchedBlock.blockNumber)
-  //             let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
-  //             if(isValidCandidate){
-  //               let switched = await this.chain.switchToBranch(branch);
-  //               if(switched.error) resolve({error:switched.error})
-  //               resolve({switched:switched})
-  //             }else{
-  //               resolve({fixed:true})
-  //             }
-  //           }
-  //         }
-         
-  //       }else if(missingBlocks.isLinked){
-  //         // console.log('Number of linked missing blocks', missingBlocks.length)
-  //         if(!Array.isArray(missingBlocks.isLinked) && typeof missingBlocks.isLinked == 'object'){
-  //           missingBlocks.isLinked = [ missingBlocks.isLinked ]
-  //         }
-
-  //         if(missingBlocks.isLinked.length == 0){
-  //           resolve({error:'ERROR: Peer could not find any of the missing blocks'})
-  //         }else{
-            
-  //           let lastBlock = missingBlocks.isLinked[missingBlocks.isLinked.length - 1]
-  //           // console.log('First missing block', firstBlock)
-  //           let unlinkedBranch = this.chain.unlinkedBranches[lastBlock.hash]
-            
-  //           if(unlinkedBranch){
-  //             unlinkedBranch = [ ...missingBlocks.isLinked, ...unlinkedBranch ]
-  //             // console.log('Unlinked chain new length', unlinkedBranch.length)
-  //             let latestBranchedBlock = unlinkedBranch[unlinkedBranch.length - 1]
-  //             // console.log('Last branched block num', latestBranchedBlock.blockNumber)
-  //             this.chain.branches[latestBranchedBlock.hash] = unlinkedBranch
-  //             let branch = this.chain.branches[latestBranchedBlock.hash]
-  //             let isValidCandidate = await this.chain.validateBranch(latestBranchedBlock, branch)
-  //             if(isValidCandidate){
-  //               let switched = await this.chain.switchToBranch(branch);
-  //               if(switched.error) resolve({error:switched.error})
-
-  //               this.broadcast('getBlockchainStatus')
-  //               resolve({switched:switched})
-  //             }else{
-  //               resolve({fixed:true})
-  //             }
-  //           }else{
-  //             console.log('Unlinked branch', unlinkedBranch)
-  //             console.log('Unlinked branch on standby')
-  //             resolve({ standby:true })
-  //           }
-  //         }
-          
-  //       }
-  //   })
-  // }
-
   
   //Heavy WIP
   getMissingBlocksToSyncBranch(unsyncedBlockHash){
@@ -1424,57 +1332,6 @@ class Node {
         socket.emit('chainSnapshot', this.chain.chainSnapshot)
       })
 
-      socket.on('testCompare',async (num)=>{
-        let snap = this.chain.chainSnapshot
-        // let comp = {}
-
-        // let firstHash = Object.keys(this.chain.chainSnapshot)[0]
-        // let firstBlock = this.chain.chainSnapshot[firstHash]
-        // let peer = await this.getMostUpToDatePeer()
-        // let snapshot = await this.peerManager.requestChainSnapshot(peer)
-        
-        let rolled = await this.chain.rollbackToBlock(num)
-        this.chain.createNewSnapshot()
-        let newS = JSON.parse(JSON.stringify(this.chain.chainSnapshot))
-        let newS2 = JSON.parse(JSON.stringify(this.chain.chainSnapshot))
-        let peer = await this.getMostUpToDatePeer()
-        let downloaded = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
-        setTimeout(async ()=>{
-
-          let hashes = Object.keys(newS)
-          let beforeLast = newS[hashes[hashes.length - 2]]
-          let lastNewS = newS[hashes[hashes.length - 1]]
-          // console.log(newS)
-          let newHash = 'aoiwjaoiwdjaowidj'
-          let secondHash = 'aowdjwoijwdoijwd'
-          
-          let newBlock1 = {
-            blockNumber:beforeLast.blockNumber,
-            previousHash:beforeLast.previousHash,
-            difficulty:beforeLast.difficulty,
-            totalDifficulty:"0x9999999999999",
-            bob:'aimeSonAuto'
-          }
-
-          let newBlock2 = {
-            blockNumber:lastNewS.blockNumber,
-            previousHash:lastNewS.previousHash,
-            difficulty:lastNewS.difficulty,
-            totalDifficulty:'0x999999999999999999',
-            brigite:'aimeLesChats'
-          }
-
-          delete newS[hashes[hashes.length - 1]]
-          delete newS[hashes[hashes.length - 2]]
-
-          newS[newHash] = newBlock1
-          newS[secondHash] = newBlock2
-          console.log(await compareSnapshots(newS, newS2))
-        }, 3000)
-        // console.log(await compareSnapshots(newS, snap))
-      })
-
-      
       socket.on('rollback', async (number)=>{
         let rolledback = await this.chain.rollbackToBlock(number)
         
@@ -1552,6 +1409,12 @@ class Node {
     this.minerAPI.init()
   }
 
+  async handleNetworkEvent(peerMessage){
+    this.localServer.sockets.emit('networkEvent', peerMessage)
+  }
+
+
+
 
   /**
     Basis for gossip protocol on network
@@ -1593,7 +1456,7 @@ class Node {
     @param {String} $originAddress - IP Address of sender
     @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
-  async handlePeerMessage(peerMessage, acknowledge){
+  async handlePeerMessage(peerMessage, acknowledge, extend){
     let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
     if(data){
       try{
@@ -1615,32 +1478,7 @@ class Node {
             peerMessage.relayPeer = this.address
             this.addToMessageQueue(peerMessage)
             acknowledge({received:messageId})
-              switch(type){
-                case 'transaction':
-                  var transaction = JSON.parse(data);
-                  this.receiveTransaction(transaction);
-                  this.broadcast('peerMessage', peerMessage)
-                  break;
-                case 'action':
-                  let action = JSON.parse(data);
-                  let executed = await this.receiveAction(action);
-                  if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
-                  this.broadcast('peerMessage', peerMessage)
-                  break
-                case 'newBlockFound':
-                  this.broadcast('peerMessage', peerMessage)
-                    let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
-                    if(added){
-                      if(added.error){
-                        logger(chalk.red('REJECTED BLOCK:'), added.error)
-                      }else if(added.busy){
-                        logger(chalk.yellow('WARNING: Received block but node is busy downloading'))
-                      }
-  
-                    }
-                  break;
-                
-              }
+            await this.definePeerMessageTypes(peerMessage)
               
           }else{
             logger(`Peer ${originAddress} sent an outdated peer message`)
@@ -1656,29 +1494,66 @@ class Node {
     
   }
 
+  async definePeerMessageTypes(peerMessage){
+    let { type, data, relayPeer } = peerMessage
+    switch(type){
+      case 'transaction':
+        var transaction = JSON.parse(data);
+        let executed = await this.receiveTransaction(transaction);
+        if(executed.error && this.verbose) logger(chalk.red('TRANSACTION ERROR'), executed.error)
+        else this.broadcast('peerMessage', peerMessage)
+        break;
+      case 'action':
+        let action = JSON.parse(data);
+        let executed = await this.receiveAction(action);
+        if(executed.error && this.verbose) logger(chalk.red('ACTION ERROR'), executed.error)
+        else this.broadcast('peerMessage', peerMessage)
+        break
+      case 'newBlockFound':
+        this.broadcast('peerMessage', peerMessage)
+          let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
+          if(added){
+            if(added.error){
+              logger(chalk.red('REJECTED BLOCK:'), added.error)
+            }else if(added.busy){
+              logger(chalk.yellow('WARNING: Received block but node is busy downloading'))
+            }
+
+          }
+      case 'networkEvent':
+        await this.handleNetworkEvent(peerMessage)
+        // if(extend) extend(peerMessage)
+        break;
+      
+    }
+  }
+
   /**
     @param {Object} $transaction - New transaction emitted on the network
   */
   receiveTransaction(transaction){
-    if(transaction && this.chain instanceof Blockchain){
-      if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
-
-        this.chain.validateTransaction(transaction)
-        .then(async (valid) => {
-          if(!valid.error){
-            let added = await this.mempool.addTransaction(transaction);
-            this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-            if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-          }else{
-            this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
-            if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-            // logger(valid.error)
-          }
-        })
-        
-
+    return new Promise((resolve)=>{
+      if(transaction && this.chain instanceof Blockchain){
+        if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
+  
+          this.chain.validateTransaction(transaction)
+          .then(async (valid) => {
+            if(!valid.error){
+              let added = await this.mempool.addTransaction(transaction);
+              this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+              if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+              resolve(valid)
+            }else{
+              this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
+              if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
+              resolve({error:valid.error})
+            }
+          })
+          
+  
+        }
       }
-    }
+    })
   }
   /**
     @param {Object} $action - New action emitted on the network
