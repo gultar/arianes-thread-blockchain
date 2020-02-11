@@ -77,8 +77,12 @@ class Validator extends Miner{
                         this.turn = nextValidator
                         this.turnCounter = event.counter
                         console.log('Rectified turn', this.turn)
+                        clearInterval(this.generator)
+                        this.generateBlocks()
                     }else{
-                        if(this.turn == this.wallet.publicKey) this.socket.emit('sendRawBlock')
+                        if(nextValidator == this.wallet.publicKey){
+                            this.socket.emit('sendRawBlock')
+                        }
                     }
                     break;
                 case 'requestSignature':
@@ -187,16 +191,17 @@ class Validator extends Miner{
 
     generateBlocks(speed = this.generationSpeed){
         this.generator = setInterval(async ()=>{
-                (this.turnCounter < this.validatorOrder.length -1 ? this.turnCounter++ : this.turnCounter = 0)
+            if(this.turn === this.wallet.publicKey){
+                this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.turn, counter:this.turnCounter })
                 
-                this.turn = this.validatorOrder[this.turnCounter]
-                console.log('Next turn', this.turn)
-                console.log('Counter:',this.turnCounter)
+            }
+            (this.turnCounter < this.validatorOrder.length -1 ? this.turnCounter++ : this.turnCounter = 0)
+            
+            this.turn = this.validatorOrder[this.turnCounter]
+            console.log('Next turn', this.turn)
+            console.log('Counter:',this.turnCounter)
                 
-                if(this.turn === this.wallet.publicKey){
-                    this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.turn, counter:this.turnCounter })
-                    
-                }
+                
                 
         }, speed)
     }
