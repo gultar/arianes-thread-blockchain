@@ -51,6 +51,7 @@ class Validator extends Miner{
                     // this.pickTurns()
                     this.validators[event.publicKey] = 'online'
                     this.validatorKeys = Object.keys(this.validators)
+                    this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:event.publicKey })
                     break;
                 case 'validatorConnected':
                     clearInterval(this.generator)
