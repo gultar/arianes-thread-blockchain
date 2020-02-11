@@ -47,21 +47,26 @@ class Validator extends Miner{
             let event = JSON.parse(peerMessage.data)
             switch(event.type){
                 case 'discoverValidator':
-                    // clearInterval(this.generator)
+                    clearInterval(this.generator)
                     // this.pickTurns()
                     this.validators[event.publicKey] = 0
+                    this.generationSpeed = this.generationSpeed * 2
                     this.validatorKeys = Object.keys(this.validators)
+                    this.generateBlocks()
                     break;
                 case 'validatorConnected':
-                    // clearInterval(this.generator)
+                    clearInterval(this.generator)
                     // this.pickTurns()
                     this.validators[event.publicKey] = 1
                     this.validatorKeys = Object.keys(this.validators)
+                    this.generationSpeed = this.generationSpeed * 2
+                    this.generateBlocks()
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
                     break;
                 case 'validatorDisconnected':
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
+                    this.generationSpeed = this.generationSpeed / 2
                     break;
                 case 'signedBlock':
                     console.log('signed block', event.publicKey)
