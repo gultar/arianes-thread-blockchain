@@ -32,7 +32,7 @@ class Validator extends Miner{
         this.socket.on('connect', async ()=>{
             this.log('Miner connected to ', url)
             await this.initWallet()
-            this.validators[this.wallet.publicKey] = 'online'
+            this.validators[this.wallet.publicKey] = 0
             this.socket.emit('isAvailable')
             this.socket.emit('generate')
             this.generateBlocks()
@@ -43,43 +43,30 @@ class Validator extends Miner{
           this.socket.close()
           process.exit()
         })
-        this.socket.on('networkEvent', (peerMessage)=>{
+        this.socket.on('networkEvent', async (peerMessage)=>{
             let event = JSON.parse(peerMessage.data)
             switch(event.type){
                 case 'discoverValidator':
-                    clearInterval(this.generator)
+                    // clearInterval(this.generator)
                     // this.pickTurns()
-                    this.validators[event.publicKey] = 'online'
+                    this.validators[event.publicKey] = 0
                     this.validatorKeys = Object.keys(this.validators)
-                    this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:event.publicKey })
                     break;
                 case 'validatorConnected':
-                    clearInterval(this.generator)
+                    // clearInterval(this.generator)
                     // this.pickTurns()
-                    this.validators[event.publicKey] = 'online'
+                    this.validators[event.publicKey] = 0
                     this.validatorKeys = Object.keys(this.validators)
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
                     break;
                 case 'validatorDisconnected':
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
-                    if(this.validatorKeys.length < 2) this.generateBlocks()
                     break;
-                case 'nextTurn':
-                    if(event.publicKey == this.wallet.publicKey){
-                        clearTimeout(this.nextTurnSkipped)
-                        setTimeout(()=>{
-                            this.socket.emit('sendRawBlock')
-                            let nextPublicKey = this.validatorKeys.pop()
-                            this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:nextPublicKey })
-                            this.validatorKeys.push(nextPublicKey)
-                            this.nextTurnSkipped = setTimeout(()=>{
-                                nextPublicKey = this.validatorKeys.pop()
-                                if(nextPublicKey == this.wallet.publicKey)  this.socket.emit('sendRawBlock')
-                                this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:nextPublicKey })
-                                this.validatorKeys.push(nextPublicKey)
-                            }, 2100)
-                        }, 2000)
+                case 'signedBlock':
+                    this.validators[event.publicKey] = 0
+                    for await(let publicKey of this.validatorKeys){
+                        this.validators[publicKey]++
                     }
                     break;
             }
@@ -110,6 +97,7 @@ class Validator extends Miner{
                 block.endMineTime = Date.now()
                 this.previousBlock = block;
                 block.signatures[this.wallet.publicKey] = await this.createSignature(block.hash)
+                this.socket.emit('networkEvent', { type:'signedBlock', publicKey:this.wallet.publicKey })
                 this.socket.emit('success', block)
 
             }else{
@@ -162,21 +150,29 @@ class Validator extends Miner{
         this.socket.emit('sendPeerMessage', type, data)
     }
 
-    generateBlocks(){
-        this.generator = setInterval(async ()=>{
-            this.sendPeerMessage('networkEvent', { type:'nextTurn', publicKey:this.wallet.publicKey })
-            if(this.validatorKeys.length == 1 || this.nextTurn == this.wallet.publicKey){
-                // this.socket.emit('sendRawBlock')
-                console.log('My turn:', this.wallet.publicKey)
-                // this.nextTurnSkipped = setTimeout(()=>{ console.log('Would normally skip turn') }, 2100)
+    async pickLongestWait(){
+        let longestWait = -1
+        let nextPublicKey = false
+
+        for await(let publicKey of this.validatorKeys){
+            let score = this.validators[publicKey]
+            if(score > longestWait){
+                longestWait = score
+                nextPublicKey = publicKey
             }
-        }, this.generationSpeed)
+        }
+
+        return nextPublicKey
     }
 
-    pickTurns(){
-        setInterval(()=>{
-            
-        }, 100)
+    generateBlocks(){
+        this.generator = setInterval(async ()=>{
+            let nextTurn = await this.pickLongestWait()
+            if(nextTurn == this.wallet.publicKey){
+                this.socket.emit('sendRawBlock')
+                this.validators[this.wallet.publicKey] = 0
+            }
+        }, this.generationSpeed)
     }
 
     disconnect(){
