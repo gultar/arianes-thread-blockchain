@@ -1520,6 +1520,7 @@ class Node {
             }
 
           }
+        break;
       case 'networkEvent':
         await this.handleNetworkEvent(peerMessage)
         // if(extend) extend(peerMessage)
