@@ -11,6 +11,11 @@ class Validator extends Miner{
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
         this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
+        this.validators = genesis.validators
+        this.validatorKeys = Object.keys(genesis.validators)
+        this.turnCounter = 0
+        this.nextTurn = this.validatorKeys[0]
+        this.nextTurnSkipped = {}
     }
 
     connect(url){
@@ -35,7 +40,13 @@ class Validator extends Miner{
           process.exit()
         })
         this.socket.on('networkEvent', (event)=>{
-            console.log('Test',event)
+            switch(event.type){
+                case 'nextTurn':
+                    this.turnCounter++
+                    this.nextTurn = this.validatorKeys[this.turnCounter]
+                    clearTimeout(this.nextTurnSkipped)
+                    break;
+            }
         })
         this.socket.on('previousBlock', (block)=> this.previousBlock = block)
         this.socket.on('rawBlock', async (rawBlock)=> await this.start(rawBlock))
@@ -49,8 +60,8 @@ class Validator extends Miner{
             this.socket.emit('isMining')
 
             this.log('Starting to mint block '+block.blockNumber)
-            this.log('Number of transactions being mint: ', Object.keys(block.transactions).length)
-            this.log('Number of actions being mint: ', Object.keys(block.actions).length)
+            this.log('Number of transactions being minted: ', Object.keys(block.transactions).length)
+            this.log('Number of actions being minted: ', Object.keys(block.actions).length)
             this.log('Current difficulty:', BigInt(parseInt(block.difficulty, 16)))
 
             let success = false
@@ -113,7 +124,11 @@ class Validator extends Miner{
 
     generateBlocks(){
         setInterval(async ()=>{
-            this.socket.emit('sendRawBlock')
+            if(this.nextTurn == this.wallet.publicKey){
+                this.socket.emit('sendRawBlock')
+                this.sendPeerMessage('networkEvent', { type:'nextTurn' })
+                this.nextTurnSkipped = setTimeout(()=>{ console.log('Would normally skip turn') }, 2100)
+            }
         }, this.generationSpeed)
     }
 
