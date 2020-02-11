@@ -52,7 +52,7 @@ class Validator extends Miner{
                     this.validators[event.publicKey] = 0
                     this.validatorKeys = Object.keys(this.validators)
                     setTimeout(()=>{
-                        this.generationSpeed += 1000
+                        this.generationSpeed += 2000
                         this.generateBlocks()
                     }, Math.floor(3000 * Math.random()))
                     break;
@@ -63,7 +63,7 @@ class Validator extends Miner{
                     this.validatorKeys = Object.keys(this.validators)
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
                     setTimeout(()=>{
-                        this.generationSpeed += 1000
+                        this.generationSpeed += 2000
                         this.generateBlocks()
                     }, 1000)
                     break;
@@ -87,7 +87,7 @@ class Validator extends Miner{
         })
         this.socket.on('previousBlock', (block)=> this.previousBlock = block)
         this.socket.on('rawBlock', async (rawBlock)=> await this.start(rawBlock))
-        this.socket.on('stopMining', async ()=> await this.stop())
+        // this.socket.on('stopMining', async ()=> await this.stop())
     }
 
     async start(rawBlock){
