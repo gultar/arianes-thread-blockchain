@@ -36,8 +36,10 @@ class Validator extends Miner{
             this.socket.emit('isAvailable')
             this.socket.emit('generate')
             this.generateBlocks()
+            this.sendPeerMessage('networkEvent', { type:'validatorConnected', publicKey:this.wallet.publicKey })
         })
         this.socket.on('disconnect', async ()=>{
+          this.sendPeerMessage('networkEvent', { type:'validatorDisconnected', publicKey:this.wallet.publicKey })
           this.socket.close()
           process.exit()
         })
