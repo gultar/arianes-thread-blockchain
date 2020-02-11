@@ -70,7 +70,7 @@ class MinerAPI{
             this.sendPeerMessage('networkEvent', { test:true })
         })
 
-        this.socket.on('peerMessage', async (type, data)=>{
+        this.socket.on('sendPeerMessage', async (type, data)=>{
             this.sendPeerMessage(type, data)
         })
         

@@ -44,8 +44,10 @@ class Validator extends Miner{
           process.exit()
         })
         this.socket.on('networkEvent', (event)=>{
+            console.log('event', event)
             switch(event.type){
                 case 'validatorConnected':
+                    console.log('SOMEONE CONNECTED', event.publicKey)
                     this.validator[event.publicKey] = 'online'
                     this.validatorKeys = Object.keys(this.validators)
                     break;
@@ -136,12 +138,12 @@ class Validator extends Miner{
     }
 
     sendPeerMessage(type, data){
-        this.socket.emit('peerMessage', type, data)
+        this.socket.emit('sendPeerMessage', type, data)
     }
 
     generateBlocks(){
         setInterval(async ()=>{
-            if(this.nextTurn == this.wallet.publicKey){
+            if(this.validatorKeys.length == 1 || this.nextTurn == this.wallet.publicKey){
                 this.socket.emit('sendRawBlock')
                 this.sendPeerMessage('networkEvent', { type:'nextTurn' })
                 // this.nextTurnSkipped = setTimeout(()=>{ console.log('Would normally skip turn') }, 2100)
