@@ -10,7 +10,7 @@ const genesis = require('../../tools/getGenesis')
 const ioClient = require('socket.io-client')
 
 class Validator extends Miner{
-    constructor({ keychain, numberOfCores, miningReward, verbose }){
+    constructor({ keychain, numberOfCores, miningReward, verbose, broadcast }){
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
         this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
@@ -23,6 +23,7 @@ class Validator extends Miner{
         this.nextTurn = this.validatorKeys[0]
         this.nextTurnSkipped = setTimeout(()=>{})
         this.blocksToBeSigned = {}
+        this.broadcast = broadcast
     }
 
     connect(url){
@@ -102,6 +103,7 @@ class Validator extends Miner{
                         if(Object.keys(block.signatures).length >= genesis.minimumSignatures){
                             this.wait = false
                             this.socket.emit('success', block)
+                            delete this.blocksToBeSigned[block.hash]
                         }
                     }
                     

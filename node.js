@@ -1404,6 +1404,9 @@ class Node {
       sendPeerMessage:(type, data)=>{
         this.sendPeerMessage(type, data)
       },
+      broadcast:(type, data)=>{
+        this.broadcast(type, data)
+      },
       keychain:this.keychain,
       clusterMiner:this.clusterMiner,
       verbose:true,
@@ -2079,7 +2082,7 @@ DHT_PORT=${this.peerDiscoveryPort}
   heartbeat(){
     var that = this;
     setInterval(async ()=>{
-      that.messageBuffer = {};
+      // that.messageBuffer = {};
       this.chain.save()
       this.housekeeping()
       this.broadcast('getChainSnapshot')
