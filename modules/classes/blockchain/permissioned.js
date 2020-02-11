@@ -7,7 +7,7 @@ class Permissioned{
         this.chain = chain
         this.accountTable = accountTable
         this.validators = genesis.validators
-        this.numberOfSignatures = genesis.numberOfSignatures
+        this.numberOfSignatures = genesis.minimumSignatures || 1
     }
 
     async validate(block){
@@ -20,6 +20,7 @@ class Permissioned{
 
         let signatures = block.signatures;
         let publicKeys = Object.keys(signatures);
+        if(publicKeys.length < this.numberOfSignatures) return false
         let validated = false
         
         for await(let key of publicKeys){
