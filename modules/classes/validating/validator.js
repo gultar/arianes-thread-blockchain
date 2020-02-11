@@ -163,8 +163,8 @@ class Validator extends Miner{
         block.coinbaseTransactionHash = coinbase.hash
         //Set difficulty level
         let difficulty = new Difficulty(this.genesis)
-        block.difficulty = difficulty.setNewDifficulty(this.previousBlock, block);
-        block.challenge = difficulty.setNewChallenge(block)
+        block.difficulty = difficulty.setNewDifficulty(this.genesis, this.genesis);
+        block.challenge = difficulty.setNewChallenge(this.genesis)
         block.totalDifficulty = this.calculateTotalDifficulty(block)
         block.minedBy = this.wallet.publicKey;
         return block
@@ -195,8 +195,6 @@ class Validator extends Miner{
             (this.turnCounter < this.validatorOrder.length -1 ? this.turnCounter++ : this.turnCounter = 0)
             
             this.turn = this.validatorOrder[this.turnCounter]
-            console.log('Next turn', this.turn)
-            console.log('Counter:',this.turnCounter)
             if(this.turn == this.wallet.publicKey) this.socket.emit('sendRawBlock');
                 
                 

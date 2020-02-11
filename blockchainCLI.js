@@ -239,14 +239,13 @@ process.on('SIGINT', async () => {
     logger('Shutting down node and saving state');
   
 
+
     if(process.MINER){
       logger('Stopping miner');
       process.ACTIVE_MINER.kill()
     }
   
     node.chain.vmController.stop()
-  
-    
     
     let saved = await node.save()
     .catch(e=>{
