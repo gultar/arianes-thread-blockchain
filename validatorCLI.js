@@ -7,6 +7,7 @@ const Validator = require('./modules/classes/validating/validator')
 const program = require('commander');
 const chalk = require('chalk')
 const { logger } = require('./modules/tools/utils')
+let validator;
 program
     .option('-w, --walletName <walletName>', 'Name of the validator wallet')
     .option('-p, --password <password>', 'Password needed to unlock wallet')
@@ -24,7 +25,7 @@ program
         if(!nodeAddress) throw new Error('Need to provide node port to connect to')
         
         if(program.numberOfCores) console.log(`Starting validator with ${program.numberOfCores} active core${numberOfCores > 1? 's':''}`)
-        let validator = new Validator({
+        validator = new Validator({
             publicKey:program.publickey,
             verbose:true,
             keychain:{ name:program.walletName, password:program.password },
@@ -35,4 +36,9 @@ program
     })
 
 program.parse(process.argv)
+
+process.on('SIGINT', async () =>{
+    validator.stop()
+
+})
 

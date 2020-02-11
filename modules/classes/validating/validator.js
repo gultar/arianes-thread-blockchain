@@ -179,6 +179,10 @@ class Validator extends Miner{
         }, 100)
     }
 
+    stop(){
+        this.sendPeerMessage('networkEvent', { type:'validatorDisconnected', publicKey:this.wallet.publicKey })
+    }
+
     
 }
 
