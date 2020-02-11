@@ -178,11 +178,11 @@ class Validator extends Miner{
 
     generateBlocks(speed = this.generationSpeed){
         this.generator = setInterval(async ()=>{
-                console.log('length', this.validatorOrder.length);
                 (this.turnCounter < this.validatorOrder.length -1 ? this.turnCounter++ : this.turnCounter = 0)
-                console.log(this.turnCounter)
+                
                 this.turn = this.validatorOrder[this.turnCounter]
                 console.log('Next turn', this.turn)
+                console.log('Counter:',this.turnCounter)
                 if(this.turn === this.wallet.publicKey) this.socket.emit('sendRawBlock')
                 
         }, speed)
