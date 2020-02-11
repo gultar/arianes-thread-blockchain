@@ -99,7 +99,7 @@ class Validator extends Miner{
         })
         this.socket.on('previousBlock', (block)=> this.previousBlock = block)
         this.socket.on('rawBlock', async (rawBlock)=> await this.start(rawBlock))
-        this.socket.on('stopMining', async ()=> await this.stop())
+        // this.socket.on('stopMining', async ()=> await this.stop())
     }
 
     async start(rawBlock){
