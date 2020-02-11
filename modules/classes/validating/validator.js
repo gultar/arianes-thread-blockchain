@@ -11,8 +11,10 @@ class Validator extends Miner{
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
         this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
-        this.validators = genesis.validators
-        this.validatorKeys = Object.keys(genesis.validators)
+        this.validators = {
+            [this.publicKey]:'online',
+        }
+        this.validatorKeys = [this.publicKey]
         this.turnCounter = 0
         this.nextTurn = this.validatorKeys[0]
         this.nextTurnSkipped = {}
@@ -41,10 +43,19 @@ class Validator extends Miner{
         })
         this.socket.on('networkEvent', (event)=>{
             switch(event.type){
+                case 'validatorConnected':
+                    this.validator[event.publicKey] = 'online'
+                    this.validatorKeys = Object.keys(this.validators)
+                    break;
+                case 'validatorDisconnected':
+                    delete this.validators[event.publicKey]
+                    this.validatorKeys = Object.keys(this.validators)
+                    break;
                 case 'nextTurn':
                     this.turnCounter++
+                    (this.turnCounter >= this.validatorKeys.length ? this.turnCounter = 0 : this.turnCounter = this.turnCounter)
                     this.nextTurn = this.validatorKeys[this.turnCounter]
-                    clearTimeout(this.nextTurnSkipped)
+                    // clearTimeout(this.nextTurnSkipped)
                     break;
             }
         })
@@ -127,7 +138,7 @@ class Validator extends Miner{
             if(this.nextTurn == this.wallet.publicKey){
                 this.socket.emit('sendRawBlock')
                 this.sendPeerMessage('networkEvent', { type:'nextTurn' })
-                this.nextTurnSkipped = setTimeout(()=>{ console.log('Would normally skip turn') }, 2100)
+                // this.nextTurnSkipped = setTimeout(()=>{ console.log('Would normally skip turn') }, 2100)
             }
         }, this.generationSpeed)
     }
