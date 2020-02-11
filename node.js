@@ -738,74 +738,78 @@ class Node {
 
   downloadBlockchain(peer, lastHeader){
     return new Promise(async (resolve)=>{
-      let startHash = this.chain.getLatestBlock().hash;
-      this.isDownloading = true;
-      let unansweredRequests = 0;
-      let maxRetryNumber = 3
-      this.retrySending = null;
-      let rolledBack = 0
-      
-      const awaitRequest = () =>{
-        if(unansweredRequests <= maxRetryNumber){
-          this.retrySending = setTimeout(()=>{
-            
-            peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
-            unansweredRequests++
-            awaitRequest()
-          }, 5000)
-        }else{
-          logger('Blockchain download failed. No answer')
-          closeConnection()
-        }
-      }
-
-      const closeConnection = (error=false) =>{
-        peer.off('nextBlock')
-        if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-        this.isDownloading = false;
-      }
-
-      peer.on('nextBlock', async (block)=>{
-        unansweredRequests = 0
-        clearTimeout(this.retrySending)
-        if(block.end){
-          logger('Blockchain updated successfully!')
-          closeConnection()
-          resolve(true)
-        }else if(block.error && block.error !== 'Block not found'){
-          closeConnection({ error:true })
-          resolve({ error: block.error })
-        }else if(block.error && block.error == 'Block not found'){
-
-          if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
-            rolledBack++
-            let blockNumber = this.chain.getLatestBlock().blockNumber
-            let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
-            let latestHash = this.chain.getLatestBlock().hash
-            peer.emit('getNextBlock', latestHash)
+      if(peer){
+        let startHash = this.chain.getLatestBlock().hash;
+        this.isDownloading = true;
+        let unansweredRequests = 0;
+        let maxRetryNumber = 3
+        this.retrySending = null;
+        let rolledBack = 0
+        
+        const awaitRequest = () =>{
+          if(unansweredRequests <= maxRetryNumber){
+            this.retrySending = setTimeout(()=>{
+              
+              peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
+              unansweredRequests++
+              awaitRequest()
+            }, 5000)
           }else{
+            logger('Blockchain download failed. No answer')
+            closeConnection()
+          }
+        }
+
+        const closeConnection = (error=false) =>{
+          peer.off('nextBlock')
+          if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+          this.isDownloading = false;
+        }
+
+        peer.on('nextBlock', async (block)=>{
+          unansweredRequests = 0
+          clearTimeout(this.retrySending)
+          if(block.end){
+            logger('Blockchain updated successfully!')
+            closeConnection()
+            resolve(true)
+          }else if(block.error && block.error !== 'Block not found'){
             closeConnection({ error:true })
             resolve({ error: block.error })
-          }
-          
-        }else{
-          let added = await this.chain.receiveBlock(block)
-          if(added.error){
-            logger('DOWNLOAD', added.error)
-            closeConnection()
-          }else if(added.extended){
-            let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
-            let latestHash = this.chain.getLatestBlock().hash
-            peer.emit('getNextBlock', latestHash)
-            awaitRequest()
+          }else if(block.error && block.error == 'Block not found'){
+
+            if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
+              rolledBack++
+              let blockNumber = this.chain.getLatestBlock().blockNumber
+              let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
+              let latestHash = this.chain.getLatestBlock().hash
+              peer.emit('getNextBlock', latestHash)
+            }else{
+              closeConnection({ error:true })
+              resolve({ error: block.error })
+            }
+            
           }else{
-            peer.emit('getNextBlock', block.hash)
-            awaitRequest()
+            let added = await this.chain.receiveBlock(block)
+            if(added.error){
+              logger('DOWNLOAD', added.error)
+              closeConnection()
+            }else if(added.extended){
+              let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
+              let latestHash = this.chain.getLatestBlock().hash
+              peer.emit('getNextBlock', latestHash)
+              awaitRequest()
+            }else{
+              peer.emit('getNextBlock', block.hash)
+              awaitRequest()
+            }
           }
-        }
-      })
-      
-      peer.emit('getNextBlock', startHash);
+        })
+        
+        peer.emit('getNextBlock', startHash);
+      }else{
+        resolve(true)
+      }
 
     })
     
