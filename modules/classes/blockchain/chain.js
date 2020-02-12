@@ -377,6 +377,7 @@ class Blockchain{
 
   async runBlock(newBlock){
     let newHeader = this.extractHeader(newBlock)
+
     let executed = await this.balance.runBlock(newBlock)
     if(executed.error) return executed.error
     
@@ -397,12 +398,12 @@ class Blockchain{
     if(actionsDeleted.error) return { error:actionsDeleted.error }
 
     for await(let hash of newHeader.txHashes){
-      this.spentTransactionHashes[hash] = { spent:newHeader.blockNumber }
+      this.spentTransactionHashes[hash] = newHeader.blockNumber//{ spent:newHeader.blockNumber }
     }
 
     if(newHeader.actionsHashes){
       for await(let hash of newHeader.actionHashes){
-        this.spentActionHashes[hash] = { spent:newHeader.blockNumber }
+        this.spentActionHashes[hash] = newHeader.blockNumber//{ spent:newHeader.blockNumber }
       }
     }
 
@@ -472,7 +473,7 @@ class Blockchain{
           _id:block.blockNumber.toString(),
           [block.blockNumber]:block
       })
-
+      
       if(put.error) resolve({error:put.error})
       resolve(put)
 
@@ -1043,6 +1044,7 @@ class Blockchain{
         var isValidConsensus = await this.consensus.validate(block)
         var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
+        let areValid = await this.validateBlockTransactions(block)
       
         // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
         if(!doesNotContainDoubleSpend) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
@@ -1052,6 +1054,7 @@ class Blockchain{
         if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
         if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
         if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
+        if(areValid.error) return { error:'ERROR: Block contains invalid transactions'.error }
         
         return true
       }catch(e){
@@ -2553,14 +2556,14 @@ class Blockchain{
                   if(block.error) {
                     reject(block.error)
                   }
-                  //Could plug in balance loading from DB here
+                  
                   let txHashes = Object.keys(block.transactions)
                   let actionHashes = Object.keys(block.actions)
                   for await(let hash of txHashes){
-                    this.spentTransactionHashes[hash] = { spent:block.blockNumber }
+                    this.spentTransactionHashes[hash] = block.blockNumber//{ spent:block.blockNumber }
                   }
                   for await(let hash of actionHashes){
-                    this.spentActionHashes[hash] = { spent:block.blockNumber }
+                    this.spentActionHashes[hash] = block.blockNumber//{ spent:block.blockNumber }
                   }
                   await this.manageChainSnapshotQueue(block)
                   this.chain.push(this.extractHeader(block))
@@ -2617,7 +2620,6 @@ class Blockchain{
    */
   save(){
     return new Promise(async (resolve)=>{
-      
       let lastBlock = await this.saveLastKnownBlockToDB()
       if(lastBlock){
         if(lastBlock.error) resolve({error:lastBlock.error})
