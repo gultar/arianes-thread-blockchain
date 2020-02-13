@@ -1048,7 +1048,7 @@ class Blockchain{
       
         // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
         if(!doesNotContainDoubleSpend) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
-        if(areValidTx.error) return { error:areValidTx.error} //'ERROR: Block contains invalid transactions' 
+        if(areValidTx.error) return { error:areValidTx.error} 
         if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
         if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}

@@ -163,7 +163,7 @@ program
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:activePort.parsed.DHT_PORT||parseInt(configs.port) - 2000,
         network:program.network || 'mainnet',
-        noLocalhost:program.allowLocalhost,
+        noLocalhost:(program.allowLocalhost ? false : true),
         genesis:genesis,
         minerWorker:false,
         clusterMiner:program.clusterMiner,
