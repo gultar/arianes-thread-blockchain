@@ -33,14 +33,14 @@ class BalanceTable{
     runBlock(block){
         return new Promise(async (resolve)=>{
             if(!block) resolve({error:"Block to execute is of undefined"})
-            
+
             let calls = await this.extractTransactionCalls(block.transactions)
             
             if(calls){
                 let callsExecuted = await this.payActionBlock(calls, block.blockNumber)
                 if(callsExecuted) resolve({error:callsExecuted.errors})
             }
-
+            
             let executed = await this.executeTransactionBlock(block.transactions, block.blockNumber)
             if(executed.errors) resolve({ error: executed.errors })
             

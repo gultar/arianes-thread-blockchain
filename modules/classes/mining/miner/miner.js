@@ -105,14 +105,26 @@ class Miner{
         }
     }
 
-    async createCoinbase(){
+    async createCoinbase({ transactions, actions }){
         if(this.wallet){
-            
+          let miningFees = 0
+          let txHashes = Object.keys(transactions);
+          let actionHashes = Object.keys(actions);
+          for await(let hash of txHashes){
+            let transaction = transactions[hash]
+            miningFees += transaction.miningFee
+          }
+          for await(let hash of actionHashes){
+            let action = actions[hash]
+            miningFees += action.fee
+          }
           let coinbase = new Transaction({
             fromAddress:'coinbase',
             toAddress:this.wallet.publicKey,
-            amount:this.miningReward
+            amount:this.miningReward //+ miningFees
           })
+          coinbase.miningFee = 0
+          
           let unlocked = await this.wallet.unlock(this.keychain.password)
           
           if(unlocked){
@@ -137,7 +149,8 @@ class Miner{
 
     async prepareBlockForMining(rawBlock){
         
-        let coinbase = await this.createCoinbase()
+        let coinbase = await this.createCoinbase(rawBlock)
+        coinbase.blockNumber = rawBlock.blockNumber
         rawBlock.transactions[coinbase.hash] = coinbase
 
         let block = new Block({
@@ -147,7 +160,7 @@ class Miner{
           actions:rawBlock.actions,
           previousHash:rawBlock.previousHash
         })
-
+        
         block.startMineTime = Date.now()
         block.coinbaseTransactionHash = coinbase.hash
         //Set difficulty level

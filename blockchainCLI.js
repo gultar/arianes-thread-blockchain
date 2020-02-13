@@ -80,6 +80,8 @@ program
   .option('-k, --password <password>', 'Password needed to unlock wallet')
   .option('-x, --exposeHTTP', 'Expose HTTP API to allow external interaction with blockchain node')
   .option('-n, --network <network>', 'Blockchain network to join')
+  .option('-a, --allowLocalhost', 'Allow connections on the same machine. Default: false')
+  .option('-L, --localhost', 'Run on localhost only')
 
 program
   .command('start')
@@ -89,20 +91,25 @@ program
 
 
     
-    if(!program.ipaddress){
-      
-      let ip = await getIP()
-      if(ip.error){
-        console.log('IP ERROR: ', ip.error)
+      if(!program.ipaddress){
         
-      }else{
-        program.ipaddress = ip
+        let ip = await getIP()
+        if(ip.error){
+          console.log('IP ERROR: ', ip.error)
+          
+        }else{
+          program.ipaddress = ip
+        }
+
+        if(program.peerDiscovery == 'dht'){
+          program.ipaddress = await publicIP.v4()
+        }
       }
 
-      if(program.peerDiscovery == 'dht'){
-        program.ipaddress = await publicIP.v4()
+      if(program.localhost){
+        program.ipaddress = '127.0.0.1'
+        program.allowLocalhost = true
       }
-    }
 
       let configs = await loadNodeConfig();
       if(program.verbose){
@@ -156,7 +163,7 @@ program
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:activePort.parsed.DHT_PORT||parseInt(configs.port) - 2000,
         network:program.network || 'mainnet',
-        noLocalhost:false,
+        noLocalhost:program.allowLocalhost,
         genesis:genesis,
         minerWorker:false,
         clusterMiner:program.clusterMiner,

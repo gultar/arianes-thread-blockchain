@@ -16,29 +16,30 @@ class Permissioned{
 
     async validateBlockSignatures(block){
         let isSignaturesObject = typeof block.signatures == 'object'
-        if(!isSignaturesObject) return false
+        if(!isSignaturesObject) return { error:'ERROR: Block signatures are not of an invalid format' }
 
         let signatures = block.signatures;
         let publicKeys = Object.keys(signatures);
-        if(publicKeys.length < this.numberOfSignatures) return false
+        if(publicKeys.length < this.numberOfSignatures) return { error:'ERROR: Number of block signatures is insufficient' }
         let validated = false
         
         for await(let key of publicKeys){
 
             let isValidPublicKey = await validatePublicKey(key)
-            if(!isValidPublicKey) return false
+            if(!isValidPublicKey) return { error:'ERROR: Public key is not a valid public key' }
 
             if(!this.validators) this.validators[key] = true
 
             let isAuthorized = this.validators[key]
-            if(!isAuthorized) return false
+            if(!isAuthorized) return { error:`ERROR: Public key ${key.substr(0, 10)}... is not authorized` }
             else{
                 let signature = signatures[key]
                 const publicKey = await ECDSA.fromCompressedPublicKey(key);
-                if(!publicKey) return false
+                if(!publicKey) return { error:'ERROR: Public key provided is not a valid compressed public key' }
                 else{
                     validated = {}
                     validated[key] = await publicKey.verify(block.hash, signature)
+                    if(validated[key] === false) return { error:`ERROR: Key ${key.substr(0,10)}... signature is invalid` }
                 }
             }
         }

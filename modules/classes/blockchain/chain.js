@@ -379,7 +379,7 @@ class Blockchain{
     let newHeader = this.extractHeader(newBlock)
 
     let executed = await this.balance.runBlock(newBlock)
-    if(executed.error) return executed.error
+    if(executed.error) return { error:executed.error }
     
     let actions = newBlock.actions || {}
     let allActionsExecuted = await this.executeActionBlock(actions)
@@ -1038,23 +1038,23 @@ class Blockchain{
       try{
         var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
         var doesNotContainDoubleSpend = true//await this.blockDoesNotContainDoubleSpend(block)
+        var areValidTx = await this.validateBlockTransactions(block)
         var isValidHash = block.hash == RecalculateHash(block);
         var isValidTimestamp = await this.validateBlockTimestamp(block)
         var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
         var isValidConsensus = await this.consensus.validate(block)
         var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
-        let areValid = await this.validateBlockTransactions(block)
       
         // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
         if(!doesNotContainDoubleSpend) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
-        if(!isValidConsensus) return { error:'ERROR: Block does not meet consensus requirements' }
+        if(areValidTx.error) return { error:areValidTx.error} //'ERROR: Block contains invalid transactions' 
+        if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
         if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
         if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
         if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
         if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
-        if(areValid.error) return { error:'ERROR: Block contains invalid transactions'.error }
         
         return true
       }catch(e){
@@ -1615,14 +1615,14 @@ class Blockchain{
 
   }
 
-  async validateCoinbaseTransaction(transaction){
+  async validateCoinbaseTransaction(transaction, block){
     return new Promise(async (resolve, reject)=>{
-      if(transaction){
+      if(transaction && transaction.blockNumber){
 
         try{
-  
+          
           let isChecksumValid = this.validateChecksum(transaction);
-          let hasTheRightMiningRewardAmount = transaction.amount + transaction.miningFee <= (this.miningReward + this.calculateTransactionMiningFee(transaction));
+          let hasTheRightMiningRewardAmount = transaction.amount <= (this.miningReward);
           let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
                   
           if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
@@ -1643,6 +1643,8 @@ class Blockchain{
     
 
   }
+
+  
 
   convertTransactionToCall(transaction){
     return new Promise(async (resolve)=>{

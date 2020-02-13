@@ -137,7 +137,11 @@ class Validator extends Miner{
                 this.previousBlock = block;
                 block.signatures[this.wallet.publicKey] = await this.createSignature(block.hash)
                 this.sendPeerMessage('networkEvent', { type:'requestSignature', publicKey:this.wallet.publicKey, header:this.extractHeader(block) })
-                this.blocksToBeSigned[block.hash] = block
+                if(Object.keys(this.validators).length > 1){
+                    this.blocksToBeSigned[block.hash] = block
+                }else{
+                    this.socket.emit('success', block)
+                }
                 this.wait = true
             }else{
                 this.log('Mining failed')
@@ -148,7 +152,8 @@ class Validator extends Miner{
 
     async prepareBlockForMining(rawBlock){
         
-        let coinbase = await this.createCoinbase()
+        let coinbase = await this.createCoinbase(rawBlock)
+        coinbase.blockNumber = rawBlock.blockNumber
         rawBlock.transactions[coinbase.hash] = coinbase
 
         let block = new Block({

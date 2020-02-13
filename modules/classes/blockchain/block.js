@@ -53,50 +53,45 @@ class Block{
 
       process.WORKER_POOL = []
       
-      if (isMainThread){
-        let cpus = require('os').cpus()
+      let cpus = require('os').cpus()
         
-        if(numberOfCores && typeof numberOfCores == 'number'){
-          cpus = new Array(numberOfCores)
-        }
-        
-        for await(let cpu of cpus){
-          const worker = new Worker(__dirname+'/../mining/minerThreads.js', {
-            workerData: {
-              block:this,
-              difficulty:difficulty
-            }
-          });
-          
-          worker.on('message', async(message)=>{
-            if(message.message) console.log(message.message)
-            if(message.success){
-              let block = message.success
-              process.STOP_WORKERS({stop:true})
-              resolve(block)
-            }else if(message.aborted){
-              console.log('Aborting miners')
-              process.STOP_WORKERS({ abort:true })
-              resolve(false)
-            }
-          });
-          
-          worker.on('error', async(error)=>{
-            console.log('ERROR:', error)
-            process.STOP_WORKERS({ abort:true })
-          });
-
-          worker.on('exit', (code) => {});
-
-          worker.postMessage({start:true})
-          process.WORKER_POOL.push(worker)
-        }
-
-        process.STOP_WORKERS = stopMiners
-      }else{
-        console.log('Inside Worker!');
-        console.log(isMainThread);
+      if(numberOfCores && typeof numberOfCores == 'number'){
+        cpus = new Array(numberOfCores)
       }
+      
+      for await(let cpu of cpus){
+        const worker = new Worker(__dirname+'/../mining/minerThreads.js', {
+          workerData: {
+            block:this,
+            difficulty:difficulty
+          }
+        });
+        
+        worker.on('message', async(message)=>{
+          if(message.message) console.log(message.message)
+          if(message.success){
+            let block = message.success
+            process.STOP_WORKERS({stop:true})
+            resolve(block)
+          }else if(message.aborted){
+            console.log('Aborting miners')
+            process.STOP_WORKERS({ abort:true })
+            resolve(false)
+          }
+        });
+        
+        worker.on('error', async(error)=>{
+          console.log('ERROR:', error)
+          process.STOP_WORKERS({ abort:true })
+        });
+
+        worker.on('exit', (code) => {});
+
+        worker.postMessage({start:true})
+        process.WORKER_POOL.push(worker)
+      }
+
+      process.STOP_WORKERS = stopMiners
 
     })
   }
