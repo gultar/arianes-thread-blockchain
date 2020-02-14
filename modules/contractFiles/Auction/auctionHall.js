@@ -1,15 +1,17 @@
 let makeExternal = require('makeExternal');
 let ContractAction = require('ContractAction');
+let ContractPayable = require('ContractPayable')
 let deferExecution = require('deferExecution');
 let Permissions = require('Permissions');
 let getCurrentBlock = require('getCurrentBlock');
 class Auction {
     constructor(params) {
-        let { id, description, startingPrice, closeAuctionIn } = params;
+        let { id, description, startingPrice, closeAuctionIn, creator } = params;
         this.id = id;
         this.description = description;
         this.startingPrice = startingPrice;
         this.closeAuctionIn = closeAuctionIn;
+        this.creator = creator
         this.permissions;
     }
     async setPermissions(permissionedAccounts, callingAccount) {
@@ -47,7 +49,8 @@ class AuctionHall {
             id: id,
             description: description,
             startingPrice: startingPrice,
-            closeAuctionIn: closeAuctionIn //Either block at which to close the auction or the number of blocks to wait until is closed??
+            closeAuctionIn: closeAuctionIn,
+            creator:callingAccount //Either block at which to close the auction or the number of blocks to wait until is closed??
         };
         auctions[id] = new Auction(params);
         auctions[id].creatorAccount = callingAccount;
@@ -71,12 +74,25 @@ class AuctionHall {
             if (auction) {
                 let creatorAccount = auction.creatorAccount;
                 if (callingAccount.ownerKey === creatorAccount.ownerKey) {
+                    let creator = auction.creator
                     let highestBidder = auction.highestBidder;
                     let highestBid = auction.highestBid;
+                    let highestBidAction = auction.highestBidAction
                     auction.winner = {
                         name: highestBidder,
                         amount: highestBid
                     };
+
+                    let payable = new ContractPayable({
+                        fromAddress:highestBidder,
+                        toAddress:creator.name,
+                        amount:highestBid,
+                        fromContract:this.contractAccount,
+                        reference:highestBidAction
+                    })
+
+                    deferExecution(payable)
+
                     this.state.finishedAuctions[id] = auction;
                     delete this.state.liveAuctions[id];
                     return auction.winner;
@@ -126,14 +142,15 @@ class AuctionHall {
                 if (amount > highestBid) {
                     auction.highestBid = amount;
                     auction.highestBidder = callingAccount.name;
+                    auction.highestBidAction = callingAction;
                     return { success: `Bid placed at ${amount} by ${callingAccount.name}`, currentPrice:`${id}: ${auction.highestBid}` };
                 }else{
                     throw new Error(`ERROR: Bid must be higher than ${auction.highestBid}`);
                 }
             }else{
                 auction.highestBid = amount;
-                auction.highestBidder = callingAccount.name
-
+                auction.highestBidder = callingAccount.name;
+                auction.highestBidAction = callingAction;
                 return { success: `First bid placed at ${amount} by ${callingAccount.name}` }
             }
         }

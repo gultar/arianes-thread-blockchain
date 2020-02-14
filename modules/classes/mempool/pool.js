@@ -30,6 +30,7 @@ class Mempool{
                 for await(let hash of Object.keys(this.delayedTransactions)){
                     let transaction = this.delayedTransactions[hash]
                     if(transaction.delayToBlock <= latestBlock.blockNumber){
+                        console.log('Managed', transaction)
                         delete transaction.delayToBlock
                         let added = await this.addTransaction(transaction)
                         if(added.error) return { error: { delayedTransactionError:added.error } }
@@ -72,7 +73,7 @@ class Mempool{
 
     deferTransaction(transaction){
         if(transaction && transaction.delayToBlock){
-
+            console.log('Got one', transaction)
             this.delayedActions[transaction.hash] = transaction
 
             return true
@@ -96,6 +97,17 @@ class Mempool{
         if(action && action.delayToBlock){
             //Add extra validation
             this.delayedActions[action.hash] = action
+
+            return true
+        }else{
+            return false
+        }
+    }
+
+    deferPayable(transaction){
+        if(transaction && transaction.delayToBlock){
+            //Add extra validation
+            this.delayedTransactions[transaction.hash] = transaction
 
             return true
         }else{

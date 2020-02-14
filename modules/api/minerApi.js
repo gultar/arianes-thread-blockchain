@@ -13,7 +13,7 @@ const { logger } = require('../tools/utils')
  * @param {Socket} params.socket - Server socket on which the miner will connect
  */
 class MinerAPI{
-    constructor({ chain, mempool, channel, sendPeerMessage, socket, extendProtocol }){
+    constructor({ chain, mempool, channel, sendPeerMessage, socket }){
         this.chain = chain
         this.mempool = mempool
         this.channel = channel
@@ -151,7 +151,7 @@ class MinerAPI{
         if(transactions.error) return { error:transactions.error }
         //Validate all transactions to be mined, delete those that are invalid
         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
-
+        if(Object.keys(transactions).length > 0) console.log(transactions)
         //Checks for actions deferred to next block
         let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
         if(deferredActionsManaged.error) console.log({ error:deferredActionsManaged.error })

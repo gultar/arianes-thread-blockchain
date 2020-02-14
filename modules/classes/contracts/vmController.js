@@ -4,21 +4,59 @@ const ContractConnector = require('./contractConnector')
 const { getDirectorySize } = require('../../tools/utils')
 
 class VMController{
-    constructor({ contractTable, accountTable, buildCode, deferContractAction, emitContractAction, getCurrentBlock }){
+    constructor({ 
+        contractTable, 
+        accountTable, 
+        buildCode, 
+        deferContractAction, 
+        deferPayable, 
+        emitContractAction, 
+        emitPayable, 
+        getCurrentBlock,
+        getBalance }){
+
+        this.getBalance = getBalance
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
         });
         this.emitContractAction = emitContractAction
+        this.emitPayable = emitPayable
         this.deferContractAction = deferContractAction
+        this.deferPayable = deferPayable
         this.getCurrentBlock = getCurrentBlock
+        this.accountTable = accountTable
+        this.buildCode = buildCode
         this.vmBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
             accountTable:accountTable,
             buildCode:buildCode,
             deferContractAction:this.deferContractAction,
             getCurrentBlock:this.getCurrentBlock,
-            emitContractAction: this.emitContractAction
+            emitContractAction: this.emitContractAction,
+            emitPayable:this.emitPayable,
+            deferPayable:this.deferPayable,
+            getBalance:this.getBalance
         });
+        this.testBootstrap = new vmBootstrap({
+            contractConnector:this.contractConnector,
+            accountTable:this.accountTable,
+            buildCode:this.buildCode,
+            getBalance:this.getBalance,
+            deferContractAction:()=>{
+                return { deferred:true }
+            },
+            getCurrentBlock:this.getCurrentBlock,
+            emitContractAction: ()=>{
+                return { emitted:true }
+            },
+            emitPayable:()=>{
+                return { emitted:true }
+            },
+            deferPayable:()=>{
+                return { deferred:true }
+            }
+        });
+        this.testChannel = this.testBootstrap.startVM()
 
         this.vmChannel = this.vmBootstrap.startVM()
         this.vmChannel.setMaxListeners(500)
@@ -28,68 +66,6 @@ class VMController{
         let size = await getDirectorySize(contractName+'Storage')
         let totalRessources = await this.contractTable.getTotalRAM(contractName)
     }
-
-    // pushCallsToVM(calls){
-    //     return new Promise(async(resolve)=>{
-            
-    //         let results = {}
-    //         let errors = {}
-    //         let states = {}
-    //         this.vmChannel.emit('runCode', calls)
-    //         this.vmChannel.on('results', async (results)=>{
-                
-                
-    //             if(!results || Object.keys(results).length == 0){
-    //                 resolve({error:'ERROR: Did not return results'})
-    //             }else{  
-    //                 if(results.error) resolve({error:results.error})
-    //                 else{
-
-    //                     for await(let hash of Object.keys(results)){
-    //                         let result = results[hash]
-    //                         if(result.error) errors[hash] = result
-    //                         else{
-    //                             if(result.state && Object.keys(result.state).length > 0){
-    //                                 states[result.contractName] = result.state
-    //                                 results[hash] = result
-    //                             }else{
-    //                                 errors[hash] = result
-    //                             }
-                                
-    //                         }
-    //                     }
-        
-    //                     if(Object.keys(errors).length > 0){
-    //                         resolve({error:errors})
-    //                     }else{
-                            
-    //                         for await(let contractName of Object.keys(states)){
-    //                             let state = states[contractName]
-    //                             if(state && Object.keys(state).length > 0){
-    //                                 let updated = await this.contractConnector.updateState({
-    //                                     name:contractName,
-    //                                     newState:state,
-    //                                 })
-    //                                 if(updated.error) console.log('STATE ERROR:', updated.error)
-                                    
-    //                             }else{
-    //                                 console.log('STATE ERROR: Did not update state because state provided by VM was empty')
-    //                             }
-    //                         }
-    //                         resolve({ results:results, states:states })
-                            
-    //                     }
-    //                 }
-    //             }
-
-                
-                
-    //         })
-   
-    //     })
-        
-
-    // }
 
     async executeCalls(codes){
 
@@ -210,16 +186,17 @@ class VMController{
             let contractName = code.contractName
             let timer = {}
             if(contractName){
-                let contractSent = await this.vmBootstrap.addContract(contractName)
+                
+                let contractSent = await this.testBootstrap.addContract(contractName)
                 if(contractSent.error) resolve({ error:`ERROR: Contract ${code.contractName} does not exist` })
                 
                 let state = await this.contractConnector.getState(contractName)
                 if(state){
-                    let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
+                    let stateAdded = await this.testBootstrap.setContractState(contractName, state)
                     if(stateAdded.error) resolve({ error:stateAdded.error })
                     timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
-                    this.vmChannel.on(code.hash, async (result)=>{
-                        
+                    this.testChannel.on(code.hash, async (result)=>{
+                        console.log('Result:', result)
                         // let terminated = await this.vmBootstrap.terminateVM(contractName)
                         // if(terminated.error) resolve({ error:terminated.error })
 
@@ -234,10 +211,10 @@ class VMController{
                             // resolve(result)
                         }
                         
-                        this.vmChannel.removeAllListeners(code.hash)
+                        this.testChannel.removeAllListeners(code.hash)
                     })
                     
-                    this.vmChannel.emit('run', code)
+                    this.testChannel.emit('run', code)
 
                 }else{
                     resolve({error:`ERROR Could not find state of contract ${contractName}`})

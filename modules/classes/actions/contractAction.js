@@ -4,10 +4,11 @@ const sha256 = require('../../tools/sha256');
 const { isValidCallPayloadJSON } = require('../../tools/jsonvalidator')
 
 class ContractAction extends Action{
-    constructor({ fromAccount, data, task, actionReference, delayToBlock }){
+    constructor({ fromAccount, data, task, actionReference, delayToBlock, toAccount='' }){
         // if(!isValidCallPayloadJSON(actionReference)) throw new Error('Invalid action reference structure')
         super(fromAccount)
         this.fromAccount = fromAccount
+        this.toAccount = toAccount
         this.data = {
             contractName:data.contractName,
             method:data.method,

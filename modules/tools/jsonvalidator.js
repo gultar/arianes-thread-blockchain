@@ -112,6 +112,42 @@ const isValidContractActionJSON = (contractAction)=>{
     }
 }
 
+const isValidPayableJSON = (payable)=>{
+    var v = new Validator();
+    
+    var schema = {
+        "id":"/payable",
+        "type": "object",
+        "properties": {
+            "fromAddress": {"type": "string"},
+            "toAddress": {"type": "string"},
+            "amount": {"type": "number"},
+            "data": {"type": [
+                "string","object"
+            ]},
+            "timestamp":{"type":"number"},
+            "hash":{"type":"string"},
+            "type":{"type":"string"},
+            "reference":{"type":"object"},
+            "signature":{"type":"string"},
+            "fromContract":{"type":"string"},
+            "miningFee":{"type":"number"}
+        },
+        "required": ["fromAddress", "toAddress", "type", "timestamp", "hash", "reference", "fromContract"]
+    };
+
+    if(payable){
+        v.addSchema(schema, "/payable")
+        let valid = v.validate(payable, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            return false;
+        }
+        
+    }
+}
+
 const isValidCallPayloadJSON = (callPayload, returnErrors)=>{
     var v = new Validator();
     
@@ -517,4 +553,5 @@ module.exports = {
     isValidBlockJSON,
     isValidGenesisBlockJSON,
     isValidContractActionJSON,
+    isValidPayableJSON,
  };

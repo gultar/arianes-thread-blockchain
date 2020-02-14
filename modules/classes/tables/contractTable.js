@@ -46,6 +46,7 @@ class ContractTable{
             if(!alreadyExists){
                 let added = await this.contractDB.add({
                     _id:name,
+                    name:name,
                     code:code,
                     initParams:initParams,
                     account:account,
@@ -107,6 +108,7 @@ class ContractTable{
             let totalRAM = currentRAM + amount
             let added = await this.contractDB.add({
                 _id:contract.name,
+                name:contract.name,
                 code:contract.code,
                 initParams:contract.initParams,
                 account:contract.account,

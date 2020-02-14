@@ -7,9 +7,10 @@ const Account = require('../../accounts/account');
 const Wallet = require('../../wallets/wallet');
 const Action = require('../../actions/action')
 const ContractAction = require('../../actions/contractAction')
+const ContractPayable = require('../../transactions/payable')
 const makeExternal = require('../toolbox/makeExternal')
 const EventEmitter = require('events')
-const { isValidActionJSON, isValidAccountJSON, isValidContractActionJSON, isValidCallPayloadJSON } = require('../../../tools/jsonvalidator')
+const { isValidActionJSON, isValidAccountJSON, isValidContractActionJSON, isValidPayableJSON, isValidCallPayloadJSON } = require('../../../tools/jsonvalidator')
 
 //Kind of useless
 class Signals extends EventEmitter{
@@ -43,6 +44,7 @@ class ContractVM{
                             'Account',
                             'Action',
                             'ContractAction',
+                            'Payable',
                             'Permissions',
                             'makeExternal',
                             'isValidActionJSON',
@@ -51,7 +53,9 @@ class ContractVM{
                             'getContract',
                             'getState',
                             'getCurrentBlock',
-                            'deferExecution',
+                            'getBalance',
+                            'deferContractAction',
+                            'deferPayable',
                             'deploy',
                             'save',
                             'commit',
@@ -63,6 +67,7 @@ class ContractVM{
                         "Account":Account,
                         "Action":Action,
                         "ContractAction":ContractAction,
+                        'Payable':ContractPayable,
                         "Permissions":Permissions,
                         "makeExternal":makeExternal,
                         "isValidActionJSON":isValidActionJSON,
@@ -137,6 +142,22 @@ class ContractVM{
                                 
                             })
                             
+                        },                        
+                        "getBalance":(accountName)=>{
+                            //Promise is necessary here because of the event listener call back
+                            return new Promise((resolve)=>{
+                                this.signals.once('balance', (balance)=>{
+                                    
+                                    if(balance && !balance.error){
+                                        resolve(balance) 
+                                    }else{
+                                        this.signals.emit('failed', {error:balance.error})
+                                    }
+                                })
+                                this.signals.emit('getBalance', accountName)
+                                
+                            })
+                            
                         },
                         "getCurrentBlock":()=>{
                             return new Promise((resolve)=>{
@@ -144,10 +165,22 @@ class ContractVM{
                                 this.signals.once('currentBlock', block => resolve(block))
                             })
                         },
-                        "deferExecution":(contractAction)=>{
+                        "deferContractAction":(contractAction)=>{
                             return new Promise((resolve)=>{
                                 if(contractAction){ //&& isValidContractActionJSON(contractAction)
-                                    this.signals.emit('defer', contractAction)
+                                    this.signals.emit('deferContractAction', contractAction)
+                                    this.signals.once('deferred', (isDeferred)=>{
+                                        resolve(isDeferred)
+                                    })
+                                }else{
+                                    resolve({ error:'ERROR: Contract action received is invalid' })
+                                }
+                            })
+                        },
+                        "deferPayable":(payable)=>{
+                            return new Promise((resolve)=>{
+                                if(payable){ //&& isValidContractActionJSON(contractAction)
+                                    this.signals.emit('deferPayable', payable)
                                     this.signals.once('deferred', (isDeferred)=>{
                                         resolve(isDeferred)
                                     })
@@ -161,7 +194,7 @@ class ContractVM{
                                 if(isValidContractActionJSON(contractAction)){
                                     if(isValidActionloadJSON(contractAction.actionReference) || isValidTransactionCallJSON(contractAction)){
                                         this.signals.emit('emitContractAction', contractAction)
-                                        this.signals.once('emittedContractAction', (broadcasted)=>{
+                                        this.signals.once('emitted', (broadcasted)=>{
                                             if(broadcasted.error) resolve({error:broadcasted.error})
                                             else resolve(broadcasted)
                                         })
@@ -170,6 +203,19 @@ class ContractVM{
                                     }
                                 }else{
                                     resolve({error:'ERROR: Invalid contract action structure'})
+                                }
+                            })
+                        },
+                        "emitPayable":(payable)=>{
+                            return new Promise((resolve)=>{
+                                if(isValidPayableJSON(payable)){
+                                    this.signals.emit('emitPayable', payable)
+                                    this.signals.once('emitted', (broadcasted)=>{
+                                        if(broadcasted.error) resolve({error:broadcasted.error})
+                                        else resolve(broadcasted)
+                                    })
+                                }else{
+                                    resolve({error:'ERROR: Invalid payable structure'})
                                 }
                             })
                         },

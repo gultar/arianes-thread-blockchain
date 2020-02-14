@@ -2,12 +2,24 @@ const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
 let start = process.hrtime()
 class Bootstrap{
-    constructor({ contractConnector, accountTable, buildCode, deferContractAction, emitContractAction, getCurrentBlock }){
+    constructor({ 
+        contractConnector, 
+        accountTable, 
+        buildCode, 
+        deferContractAction, 
+        deferPayable, 
+        emitContractAction, 
+        emitPayable, 
+        getCurrentBlock, 
+        getBalance, }){
+        this.getBalance = getBalance
         this.contractConnector = contractConnector
         this.accountTable = accountTable
         this.buildCode = buildCode
         this.deferContractAction = deferContractAction
+        this.deferPayable = deferPayable
         this.emitContractAction = emitContractAction
+        this.emitPayable = emitPayable
         this.getCurrentBlock = getCurrentBlock
         this.events = new EventEmitter()
         this.workers = {}
@@ -200,14 +212,37 @@ class Bootstrap{
                         worker.postMessage({ account:{} })
                     }
 
+                }else if(message.getBalance){
+
+                    let name = message.getBalance
+                    let balance = await this.getBalance(name);
+
+                    if(balance.error) worker.postMessage({error:balance.error})
+                    else worker.postMessage({ balance:balance })
+
                 }else if(message.getCurrentBlock){
                     let currentBlock = await this.getCurrentBlock()
                     worker.postMessage({ currentBlock:currentBlock })
-                }else if(message.defer){
+                }else if(message.deferContractAction){
                     
-                    let contractAction = JSON.parse(message.defer)
+                    let contractAction = JSON.parse(message.deferContractAction)
                     if(contractAction){
                         let deferred = await this.deferContractAction(contractAction);
+                        if(deferred){
+                            if(deferred.error) worker.postMessage({error:deferred.error})
+                            else{
+                                worker.postMessage({ deferred:deferred })
+                            }
+                        }else{
+                            worker.postMessage(false)
+                        }
+                    }
+
+                }else if(message.deferPayable){
+                    
+                    let payable = JSON.parse(message.deferPayable)
+                    if(payable){
+                        let deferred = await this.deferPayable(payable);
                         if(deferred){
                             if(deferred.error) worker.postMessage({error:deferred.error})
                             else{
@@ -226,7 +261,22 @@ class Bootstrap{
                         if(emitted){
                             if(emitted.error) worker.postMessage({error:emitted.error})
                             else{
-                                worker.postMessage({ emittedContractAction:emitted })
+                                worker.postMessage({ emitted:emitted })
+                            }
+                        }else{
+                            worker.postMessage(false)
+                        }
+                    }
+                    
+                }else if(message.emitPayable){
+                    
+                    let payable = JSON.parse(message.emitPayable)
+                    if(payable){
+                        let emitted = await this.emitPayable(payable);
+                        if(emitted){
+                            if(emitted.error) worker.postMessage({error:emitted.error})
+                            else{
+                                worker.postMessage({ emitted:emitted })
                             }
                         }else{
                             worker.postMessage(false)

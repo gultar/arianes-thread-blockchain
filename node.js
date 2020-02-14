@@ -8,16 +8,12 @@
 const express = require('express');
 const http = require('http');
 const https = require('https')
-const bodyParser = require('body-parser');
-const RateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const EventEmitter = require('events')
 //*********** Websocket connection**************/
 const socketIo = require('socket.io')
-const ioClient = require('socket.io-client');
 //************Blockchain classes****************/
 const Blockchain = require('./modules/classes/blockchain/chain');
-const Block = require('./modules/classes/blockchain/block')
 const NodeList = require('./modules/classes/tables/nodelist');
 const WalletManager = require('./modules/classes/wallets/walletManager');
 const AccountCreator = require('./modules/classes/accounts/accountCreator');
@@ -31,19 +27,14 @@ const MinerAPI = require('./modules/api/minerApi')
 const HttpAPI = require('./modules/api/httpApi')
 /****************Tools*************************/
 const { 
-  displayTime, 
   displayDate, 
   logger, 
-  writeToFile, 
-  readFile, 
-  isHashPartOfMerkleTree, 
-  createDirectoryIfNotExisting } = require('./modules/tools/utils');
+  writeToFile, } = require('./modules/tools/utils');
 
 const {
   isValidTransactionJSON,
   isValidTransactionCallJSON,
   isValidCallPayloadJSON,
-  isValidWalletBalanceJSON,
   isValidActionJSON,
   isValidBlockJSON
 } = require('./modules/tools/jsonvalidator');
@@ -69,7 +60,6 @@ class Node {
     this.network = options.network
     process.NETWORK = this.network
     this.networkManager = new NetworkManager(this.network)
-    
     //Basic node configs
     this.host = options.host || 'localhost',
     this.lanHost = options.lanHost
@@ -107,16 +97,12 @@ class Node {
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.peersLatestBlocks = {}
     this.messageBuffer = {};
-    this.peerMessageBuffer = []
     this.messageBufferCleanUpDelay = 30 * 1000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
-    this.blocksToValidate = []
-    this.updated = false;
     this.isDownloading = false;
     this.autoRollback = true || options.autoRollback || false;
     this.maximumAutoRollback = 30
-    this.minerStarted = false;
     this.peerManager = new PeerManager({
       address:this.address,
       host:this.host,
@@ -169,30 +155,25 @@ class Node {
   startServer(){
 
     return new Promise(async (resolve, reject)=>{
-      this.displaySplashScreen()
+      
       console.log(chalk.cyan('\n*************************************************'))
       console.log(chalk.cyan('*')+' Starting node at '+this.address+chalk.cyan("   *"));
       console.log(chalk.cyan('*************************************************\n'))
 
-        // process.GENESIS = this.genesis
-        
         let networkConfigLoaded = await this.networkManager.init()
         if(networkConfigLoaded.error) logger("NETWORK INIT ERROR", networkConfigLoaded.error)
         let token = this.networkManager.getNetwork()
         let joined = await this.networkManager.joinNetwork(token)
         if(joined.error) logger('NETWORK ERROR', joined.error)
-        // console.log(this.networkManager.getNetwork())
-
         
         this.chain.init()
-        .then(async (chainLoaded)=>{
+        .then(async ()=>{
           
             let nodeListLoaded = await this.nodeList.loadNodeList();
             let mempoolLoaded = await this.mempool.loadMempool();
             
             if(!nodeListLoaded) reject('Could not load node list')
             if(!mempoolLoaded) reject('Could not load mempool');
-            //if(!accountsLoaded) reject('Could not load account table')
 
             logger('Loaded Blockchain'); 
             logger('Loaded peer node list');
@@ -216,8 +197,6 @@ class Node {
             else logger('WARNING: Could not save port to .env file')
             this.heartbeat();
             this.initAPIs();
-            // if(this.clusterMiner) this.initMinerAPI();
-            
             
             if(this.enableLocalPeerDiscovery){
               this.findPeersThroughDNSSD()
@@ -253,9 +232,8 @@ class Node {
                               this.nodeList.addNewAddress(peerAddress);
                               this.nodeEventHandlers(socket, peerAddress);
 
-                            }else{
-                              //  logger('Peer is already connected to node')
                             }
+
                           }else{
                             socket.emit('message', 'Connected to local node');
                             this.externalEventHandlers(socket);
@@ -268,11 +246,8 @@ class Node {
                         socket.emit('authenticated', { error:verified.error, network:this.networkManager.getNetwork() })
                         socket.disconnect()
                       }
-                        
                       
                     })
-                    
-                
                 
               }else{
                 logger(chalk.red('ERROR: Could not create socket'))
@@ -323,116 +298,111 @@ class Node {
   */
   nodeEventHandlers(socket, peerAddress){
     if(socket && peerAddress){
-      const rateLimiter = new RateLimiterMemory(
-        {
+      const rateLimiter = new RateLimiterMemory({
           points: 100, // 5 points
           duration: 1, // per second
-        });
+      });
 
-    socket.on('error', async(err)=>{
-      logger('Socket error:',err);
-    })
+      socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
+      socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
+      socket.on('getNextBlock', async (hash)=> await this.getNextBlock(socket, hash))
+      socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
+      socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
+      
+      socket.on('error', async(err)=> logger('Socket error:',err))
 
-    socket.on('disconnect', async()=>{ 
-      logger(`Peer ${peerAddress} has disconnected from node`);
-      delete this.peersConnected[peerAddress];
-      socket.disconnect()
-    })
+      socket.on('disconnect', async()=>{ 
+        logger(`Peer ${peerAddress} has disconnected from node`);
+        delete this.peersConnected[peerAddress];
+        socket.disconnect()
+      })
 
-    socket.on('connectionRequest', async(address)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
-      this.peerManager.connectToPeer(address);
-    });
+      socket.on('connectionRequest', async(address)=>{
+        await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
+        this.peerManager.connectToPeer(address);
+      });
 
-    socket.on('getChainSnapshot', async ()=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getChainSnapshot' events") }); // consume 1 point per event from IP
-      socket.emit('chainSnapshot', this.chain.chainSnapshot)
-    })
+      socket.on('getChainSnapshot', async ()=>{
+        await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getChainSnapshot' events") }); // consume 1 point per event from IP
+        socket.emit('chainSnapshot', this.chain.chainSnapshot)
+      })
 
-    socket.on('peerMessage', async(peerMessage, acknowledge)=>{
-      if(!this.messageBuffer[peerMessage.messageId]){
-        await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
-        
-        this.handlePeerMessage(peerMessage, acknowledge);
-      }
-    })
+      socket.on('peerMessage', async(peerMessage, acknowledge)=>{
+        if(!this.messageBuffer[peerMessage.messageId]){
+          await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
+          
+          this.handlePeerMessage(peerMessage, acknowledge);
+        }
+      })
 
-    socket.on('getPeers', async()=>{
-        await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getPeer' events") }); // consume 1 point per event from IP
-        let peers = this.nodeList.addresses;
-        let randomPeers = []
-        peers.forEach( peer=>{
-          let selected = (Math.random() *10) % 2 > 0; 
-          //Selected or not
-          if(selected){
-            randomPeers.push(peer);
-          }
-        })
-        socket.emit('newPeers', randomPeers);
-    })
+      socket.on('getGenesisBlock', async ()=>{
+        await rateLimiter.consume(socket.handshake.address).catch(e => { 
+          // console.log("Peer sent too many 'getNextBlock' events") 
+        }); // consume 1 point per event from IP
+        let genesisBlock = await this.chain.getGenesisBlockFromDB()
+        socket.emit('genesisBlock', genesisBlock)
+      })
 
-    
-    socket.on('getBlockchainStatus', async(peerStatus)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
-      if(this.chain instanceof Blockchain){
-        try{
-          let status = {
-            totalDifficultyHex: this.chain.getTotalDifficulty(),
-            bestBlockHeader: this.chain.getLatestBlock(),
-            length: this.chain.chain.length
-          }
+    }
+  }
 
-          socket.emit('blockchainStatus', status);
-          let peer = this.connectionsToPeers[peerAddress];
-          if(peer){
-            let updated = await this.receiveBlockchainStatus(peer, peerStatus)
-            
-            if(updated){
-              if(updated.error) socket.emit('blockchainStatus', { error:updated.error })
+  async getNextBlock(socket, hash){
+    if(hash){
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { 
+      //   // console.log("Peer sent too many 'getNextBlock' events") 
+      // }); // consume 1 point per event from IP
+      let index = await this.chain.getIndexOfBlockHashInChain(hash)
+      let isGenesis = this.genesis.hash == hash
+      
+      if(!index && !isGenesis) socket.emit('nextBlock', {error:'Block not found'})
+      else{
+        if(hash == this.chain.getLatestBlock().hash){
+          socket.emit('nextBlock', {end:'End of blockchain'})
+        }else{
+          
+          let nextBlock = await this.chain.getNextBlockbyHash(hash)
+          let latestBlock = this.chain.getLatestBlock()
+          if(!nextBlock) socket.emit('nextBlock', { error:'ERROR: Next block not found' })
+          else{
+            let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+            if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
+            if(block && !block.error){
+              socket.emit('nextBlock', block)
+            }else{
+              
+              let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
+              if(isBeforeLastBlock){
+                socket.emit('nextBlock', { end:'End of blockchain' })
+              }else{
+                socket.emit('nextBlock', { error:`ERROR: Block ${block.blockNumber} of hash ${block.hash.substr(0, 8)} not found` })
+              }
               
             }
-          }else{
-            this.peerManager.connectToPeer(peerAddress)
-            // logger('ERROR: Could not find peer socket to download blockchain')
           }
-          
-        }catch(e){
-          console.log(e)
         }
       }
+      
+    }
+  }
+
+  async getBlockFromHash(socket, hash){
+    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
+      if(hash && typeof hash == 'string'){
         
-    })
-
-    socket.on('getInfo', async()=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getInfo' events") }); // consume 1 point per event from IP
-      if(this.chain instanceof Blockchain){
-
-        try{
-
-          let info = this.getChainInfo();
-          socket.emit('chainInfo', info);
-        }catch(e){
-          console.log(e)
-        }
+        let block = await this.chain.getBlockFromDBByHash(blockIndex);
+          if(block){
+            if(block.error) socket.emit('blockFromHash', {error:block.error})
+            else socket.emit('blockFromHash', block)
+            
+          }else{
+            socket.emit('blockFromHash', {error:'Block not found'})
+          }
+        
       }
-    })
+  }
 
-    socket.on('getBlockHeader', async (blockNumber)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
-      if(blockNumber && typeof blockNumber == 'number'){
-        let header = await this.chain.getBlockHeader(blockNumber);
-        if(header){
-          socket.emit('blockHeader', header)
-        }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
-          socket.emit('blockHeader', {end:'End of header chain'})
-        }else{
-          socket.emit('blockHeader', {error:'Header not found'})
-        }
-      }
-    })
-
-    socket.on('getBlock', async (blockNumber, hash)=>{
-      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlock' events") });
+  async getBlock(socket, blockNumber, hash){
+    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlock' events") });
       if(blockNumber && typeof blockNumber == 'number'){
         let block = await this.chain.getBlockFromDB(blockNumber);
         if(block){
@@ -444,156 +414,40 @@ class Node {
         }
         
       }
-    })
-
-    socket.on('getGenesisBlock', async ()=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { 
-        // console.log("Peer sent too many 'getNextBlock' events") 
-      }); // consume 1 point per event from IP
-      let genesisBlock = this.chain.getGenesisBlockFromDB()
-      socket.emit('genesisBlock', genesisBlock)
-    })
-
-    socket.on('getPreviousBlock', async (hash)=>{
-      if(hash){
-        await rateLimiter.consume(socket.handshake.address).catch(e => { 
-          // console.log("Peer sent too many 'getNextBlock' events") 
-        }); // consume 1 point per event from IP
-        let index = this.chain.getIndexOfBlockHash(hash)
-        
-        if(index && index > 0){
-          if(hash == this.chain.chain[0].hash){
-            socket.emit('previousBlock', {end:'Reached genesis block'})
-          }else{
-            let previousHash = this.chain.chain[index].previousHash
-            let block = await this.chain.getBlockFromDBByHash(previousHash)
-
-            let isInPool = await this.chain.getBlockFromPool(hash)
-            if(isInPool && !isInPool.error){
-              let previous = await this.chain.getBlockFromPool(isInPool.previousHash)
-              if(previous && !previous.error) socket.emit('previousBlock', { pool:previous })
-            }
-
-            let isLinkedToBranch = await this.chain.getBranch(hash)
-            if(isLinkedToBranch && !isLinkedToBranch.error) socket.emit('previousBlock', { branch:isLinkedToBranch })
-            // let block = await this.chain.getBlockFromDB(index)
-            if(block){
-              if(block.error) socket.emit('previousBlock', {error:block.error})
-              socket.emit('previousBlock', block)
-            }else if(!block && !isInPool && isLinkedToBranch){
-              socket.emit('previousBlock', {error:`ERROR: Could not find block ${hash.substr(0, 10)}... at index ${index}`})
-            }
-            
-          }
-          
-        }else{
-          socket.emit('previousBlock', {error:'Block not found'})
-        }
-      }
-      
-    })
-
-    socket.on('getNextBlock', async (hash)=>{
-      if(hash){
-        // await rateLimiter.consume(socket.handshake.address).catch(e => { 
-        //   // console.log("Peer sent too many 'getNextBlock' events") 
-        // }); // consume 1 point per event from IP
-        let index = await this.chain.getIndexOfBlockHashInChain(hash)
-        let isGenesis = this.genesis.hash == hash
-        
-        if(index || isGenesis){
-          if(hash == this.chain.getLatestBlock().hash){
-            socket.emit('nextBlock', {end:'End of blockchain'})
-          }else{
-            
-            let nextBlock = await this.chain.getNextBlockbyHash(hash)
-            let latestBlock = this.chain.getLatestBlock()
-            if(nextBlock){
-              // console.log( await this.chain.getBlockFromDB(nextBlock.blockNumber))
-              let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
-              if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
-              if(block && !block.error){
-                socket.emit('nextBlock', block)
-              }else{
-                
-                let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
-                if(isBeforeLastBlock){
-                  socket.emit('nextBlock', { end:'End of blockchain' })
-                }else{
-                  socket.emit('nextBlock', { error:`ERROR: Block ${block.blockNumber} of hash ${block.hash.substr(0, 8)} not found` })
-                }
-                
-              }
-                
-            }else{
-              console.log('Chain does not contain block at ', index+1)
-            }
-
-            
-          }
-          
-        }else{
-          socket.emit('nextBlock', {error:'Block not found'})
-        }
-      }
-      
-    })
-
-    socket.on('getBlockFromHash', async(hash)=>{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
-      if(this.chain instanceof Blockchain){
-        if(hash && typeof hash == 'string'){
-        
-          let block = await this.chain.getBlockFromDBByHash(blockIndex);
-            if(block){
-              if(block.error) socket.emit('blockFromHash', {error:block.error})
-              else socket.emit('blockFromHash', block)
-              
-            }else{
-              socket.emit('blockFromHash', {error:'Block not found'})
-            }
-          
-        }
-      }
-    })
-
-    }
   }
 
-  /**
-   * @desc Connects to all known peer addresses
-   */  
-  joinPeers(){
+  async getBlockHeader(socket, blockNumber){
+    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
+      if(blockNumber && typeof blockNumber == 'number'){
+        let header = await this.chain.getBlockHeader(blockNumber);
+        if(header){
+          socket.emit('blockHeader', header)
+        }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
+          socket.emit('blockHeader', {end:'End of header chain'})
+        }else{
+          socket.emit('blockHeader', {error:'Header not found'})
+        }
+      }
+  }
+
+  async getBlockchainStatus(socket, peerStatus){
+    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
     try{
-      if(this.nodeList.addresses){
-        this.nodeList.addresses.forEach((peer)=>{
-          this.peerManager.connectToPeer(peer);
-        })
+      let status = {
+        totalDifficultyHex: this.chain.getTotalDifficulty(),
+        bestBlockHeader: this.chain.getLatestBlock(),
+        length: this.chain.chain.length
       }
-    }catch(e){
-      console.log(chalk.red(e))
-    }
 
-  }
-
-  findPeers(){
-    logger('Finding new peers...')
-    let peerAddresses = Object.keys(this.connectionsToPeers);
-    let peerNumber = peerAddresses.length;
-    if(peerNumber > 0){
-      let randomPeerIndex = Math.floor(Math.random() * peerNumber)
-      let randomPeerAddress = peerAddresses[randomPeerIndex]
+      socket.emit('blockchainStatus', status);
+      let peer = this.connectionsToPeers[peerAddress];
+      if(!peer) this.peerManager.connectToPeer(peerAddress)
       
-      let randomPeer = this.connectionsToPeers[randomPeerAddress];
-      if(randomPeer){
-        logger('Requesting new peer addresses from', randomPeerAddress)
-        randomPeer.emit('getPeers');
-        setTimeout(()=>{
-          this.joinPeers()
-        }, 2000)
-      }
-    }else{
-      //Reconnect to other node addresses stored in nodeList
+      let updated = await this.receiveBlockchainStatus(peer, peerStatus)
+      if(updated && updated.error) socket.emit('blockchainStatus', { error:updated.error })
+      
+    }catch(e){
+      console.log(e)
     }
   }
 
@@ -669,14 +523,7 @@ class Node {
   getNumberOfConnectionsToPeers(){
     let connections = Object.keys(this.connectionsToPeers);
     return connections.length
-  }
-
-  seekOtherPeers(){
-    let activePeersAddresses = this.getNumberOfConnectionsToPeers()
-    if(activePeersAddresses.length < this.minimumNumberOfPeers){
-      this.findPeers()
-    }
-  }
+  } 
 
   downloadGenesisBlock(peer){
     return new Promise((resolve)=>{
@@ -736,7 +583,7 @@ class Node {
     })
   }
 
-  downloadBlockchain(peer, lastHeader){
+  downloadBlockchain(peer){
     return new Promise(async (resolve)=>{
       if(peer){
         let startHash = this.chain.getLatestBlock().hash;
@@ -863,7 +710,7 @@ class Node {
                   logger(downloaded.error)
                   resolve({ error:'ERROR: Could not download blockchain' })
                 }else{
-                  this.updated = true
+                  // this.updated = true
                   resolve(true)
                 }
                
@@ -894,7 +741,9 @@ class Node {
   getMostUpToDatePeer(){
     return new Promise(async (resolve)=>{
       try{
-        if(Object.keys(this.connectionsToPeers).length > 0){
+        if(Object.keys(this.connectionsToPeers).length === 0){
+          resolve(false)
+        }else{
           let highestTotalDifficulty = '0x001'
           let mostUpdateToDatePeer = false
           for await(let address of Object.keys(this.connectionsToPeers)){
@@ -911,14 +760,8 @@ class Node {
             
           }
   
-          if(mostUpdateToDatePeer){
-            resolve(mostUpdateToDatePeer)
-          }else{
-            resolve(false)
-          }
-          
-        }else{
-          resolve(false)
+          if(mostUpdateToDatePeer) resolve(mostUpdateToDatePeer)
+          else resolve(false)
         }
       }catch(e){
         resolve({error:e.message})
@@ -1097,7 +940,7 @@ class Node {
       socket.on('error', (err)=> logger(chalk.red(err)))
 
       socket.on('connectionRequest', (address)=>{
-        this.peerManager.connectToPeer(address, (peer)=>{});
+        this.peerManager.connectToPeer(address);
       });
 
       socket.on('getMessageBuffer', ()=>{
@@ -1281,18 +1124,6 @@ class Node {
         console.log('Block', require('json-size')(block))
       })
 
-      socket.on('showBalanceHistory', async ()=>{
-        let history = {}
-        for(var block of this.chain.chain){
-          let state = await this.chain.balance.stateDB.get(block.blockNumber.toString())
-          if(state && !state.error){
-            history[block.blockNumber] = state.blockState.states
-          }
-        }
-
-        console.log(history)
-      })
-
       socket.on('verbose', ()=>{
         
         if(this.verbose){
@@ -1326,10 +1157,6 @@ class Node {
       socket.on('stopMining', ()=>{
         logger('Stopping miner')
         this.minerChannel.emit('stopMining')
-      })
-
-      socket.on('requestPeers', ()=>{
-        this.findPeers()
       })
 
       socket.on('getSnapshot', ()=>{
@@ -1394,6 +1221,11 @@ class Node {
    
   }
 
+  /**
+   * @desc Starts an socket server for either block miners, validators or producers
+   * to interact with the node
+   * @param {Socket} socket 
+   */
   async startMinerAPI(socket){
     logger('Miner connected')
     
@@ -1434,7 +1266,6 @@ class Node {
         try{
             if(typeof data == 'object')
             data = JSON.stringify(data);
-            //   var shaInput = (Math.random() * Date.now()).toString()
             
             var message = { 
                 'type':type, 
@@ -1459,9 +1290,10 @@ class Node {
   }
 
   /**
-    @param {String} $type - Peer message type
-    @param {String} $originAddress - IP Address of sender
-    @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
+   * @desc Validates and add peer message to buffer, then route peer message accordingly
+   * @param {String} $type - Peer message type
+   * @param {String} $originAddress - IP Address of sender
+   * @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
   async handlePeerMessage(peerMessage, acknowledge, extend){
     let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
@@ -1481,7 +1313,7 @@ class Node {
         let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
         if(isValidHash){
           if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
-            // this.messageBuffer[peerMessage.messageId] = peerMessage//this.addToMessageBuffer(peerMessage);
+            
             peerMessage.relayPeer = this.address
             this.addToMessageQueue(peerMessage)
             acknowledge({received:messageId})
@@ -1501,6 +1333,10 @@ class Node {
     
   }
 
+  /**
+   * Properly route peer message once is has been validated
+   * @param {Object} peerMessage 
+   */
   async definePeerMessageTypes(peerMessage){
     let { type, data, relayPeer } = peerMessage
     switch(type){
@@ -1520,24 +1356,20 @@ class Node {
         this.broadcast('peerMessage', peerMessage)
           let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
           if(added){
-            if(added.error){
-              logger(chalk.red('REJECTED BLOCK:'), added.error)
-            }else if(added.busy){
-              logger(chalk.yellow('WARNING: Received block but node is busy downloading'))
-            }
-
+            if(added.error) logger(chalk.red('REJECTED BLOCK:'), added.error)
+            else if(added.busy) logger(chalk.yellow('WARNING: Received block but node is busy downloading'))
           }
         break;
       case 'networkEvent':
         await this.handleNetworkEvent(peerMessage)
-        // if(extend) extend(peerMessage)
         break;
       
     }
   }
 
   /**
-    @param {Object} $transaction - New transaction emitted on the network
+   * @desc Receive new transaction
+    @param {Transaction} $transaction - New transaction emitted on the network
   */
   receiveTransaction(transaction){
     return new Promise((resolve)=>{
@@ -1547,7 +1379,7 @@ class Node {
           this.chain.validateTransaction(transaction)
           .then(async (valid) => {
             if(!valid.error){
-              let added = await this.mempool.addTransaction(transaction);
+              await this.mempool.addTransaction(transaction);
               this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
               if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
               resolve(valid)
@@ -1557,14 +1389,14 @@ class Node {
               resolve({error:valid.error})
             }
           })
-          
-  
         }
       }
     })
   }
+
   /**
-    @param {Object} $action - New action emitted on the network
+   * @desc Receive receive new action
+   *@param {Action} $action - New action emitted on the network
   */
   receiveAction(action){
     return new Promise(async (resolve)=>{
@@ -1578,7 +1410,7 @@ class Node {
         //Action will be added to this.mempool only is valid and if corresponds with contract call
         this.UILog('«-'+' Received valid action : '+ action.hash.substr(0, 15)+"...")
         if(this.verbose) logger(chalk.cyan('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
-        let added = await this.mempool.addAction(action)
+        await this.mempool.addAction(action)
         resolve({action:action})
       }
     })
@@ -1600,7 +1432,7 @@ class Node {
   }
 
   /**
-   * Validates than adds peers' new blocks to current blockchain
+   * @desc Validates than adds peers' new blocks to current blockchain
    * If mining, stops miner upon reception and confirmation of validity
    * @param {Object} data 
    * @param {String} fromPeer 
@@ -1633,7 +1465,7 @@ class Node {
                   let added = await this.chain.receiveBlock(block);
 
                   this.minerChannel.emit('nodeEvent','isAvailable')
-                  let handled = await this.handleBlockReception(added, relayPeer)
+                  let handled = await this.handleBlockReception(added)
                   resolve(handled)
     
                 }else{
@@ -1657,7 +1489,11 @@ class Node {
     
   }
 
-  handleBlockReception(reception, relayPeer){
+  /**
+   * @desc Handles the outcome of adding next block
+   * @param {Object} reception 
+   */
+  handleBlockReception(reception){
     return new Promise(async (resolve)=>{
       if(reception.error) resolve({error:reception.error})
       else if(reception.requestUpdate){
@@ -1720,7 +1556,7 @@ class Node {
   }
 
   /**
-   * Validates blockchain and, if not valid, rolls back to before the conflicting block
+   * @desc Validates blockchain and, if not valid, rolls back to before the conflicting block
    * @param {Boolean} allowRollback 
    */
   async validateBlockchain(allowRollback){
@@ -1862,16 +1698,13 @@ class Node {
     
             }else if(contractMethod.type == 'set'){
               //'Set' method may modify state.
-              //Could implement a way to protect contract state from arbitrary
-              //modifications while still allowing authorized accounts to modifiy it
-              //legitimately.
               if(test){
                 let result = await this.chain.testCall(call)
               
                 if(result.error) resolve({error:result.error})
                 else{
                   //Transactions added to pool for confirmation by peers blocks or by this
-                  //node's miner's blocks. 
+                  //node's blocks. 
                   let added = await this.mempool.addTransaction(transaction);
                   if(added.error){
                     resolve({error:added.error})
@@ -1903,6 +1736,8 @@ class Node {
           //Validate stake and broadcast or reject
         }else if(transaction.type == 'stake'){
           //Validate stake and broadcast or reject
+        }else if(transaction.type == 'payable'){
+          resolve({error:'ERROR: Payables may only be created from within a contract'})
         }else if(transaction.type == 'Contract Action'){
           resolve({error:'ERROR: Contract actions may only be created from within a contract'})
         }else{
@@ -2066,6 +1901,11 @@ DHT_PORT=${this.peerDiscoveryPort}
     
   }
 
+  /**
+   * @desc Add new peer messages to queue and removes older ones when it reaches it
+   * maximum size
+   * @param {Object} peerMessage 
+   */
   addToMessageQueue(peerMessage){
     this.messageBuffer[peerMessage.messageId] = peerMessage
     let messageIds = Object.keys(this.messageBuffer)
@@ -2080,9 +1920,7 @@ DHT_PORT=${this.peerDiscoveryPort}
     @desc Routine tasks go here. The heartbeat's delay is adjusted in nodeconfig
   */
   heartbeat(){
-    var that = this;
     setInterval(async ()=>{
-      // that.messageBuffer = {};
       this.chain.save()
       this.housekeeping()
       this.broadcast('getChainSnapshot')

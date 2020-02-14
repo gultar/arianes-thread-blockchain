@@ -3,48 +3,23 @@ const ContractVM = require('./ContractVM')
 
 let vm = new ContractVM()
 
-vm.signals.on('saved', (state)=>{
-    vm.sandbox.stateStorage = state
-})
-
-vm.signals.on('saveState', ({ state, contractName })=>{
-// console.log('Saved state:', state.tokens)
-    vm.sandbox.contractStates[contractName] = state
-})
-
-vm.signals.on('failed', (failure)=>{
-    parentPort.postMessage({error:failure.error, hash:failure.hash})
-})
-
-vm.signals.on('getState', (contractName)=>{
-    parentPort.postMessage({ getState:contractName })
-})
-
-vm.signals.on('getContract', (contractName)=>{
-    parentPort.postMessage({ getContract:contractName })
-})
-
-vm.signals.on('getAccount', (reference)=>{
-    parentPort.postMessage({ getAccount:reference.name, contractName:reference.contractName })
-})
-
-vm.signals.on('getCurrentBlock', ()=>{
-    parentPort.postMessage({ getCurrentBlock:true })
-})
-
-vm.signals.on('defer', (contractAction)=>{
-    parentPort.postMessage({ defer:JSON.stringify(contractAction) })
-})
-
-vm.signals.on('emitContractAction', (contractAction)=>{
-    parentPort.postMessage({ emitContractAction:JSON.stringify(contractAction) })
-})
+vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
+vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)
+vm.signals.on('failed', (failure)=> parentPort.postMessage({error:failure.error, hash:failure.hash}))
+vm.signals.on('getState', (contractName)=> parentPort.postMessage({ getState:contractName }))
+vm.signals.on('getContract', (contractName)=> parentPort.postMessage({ getContract:contractName }))
+vm.signals.on('getAccount', (reference)=> parentPort.postMessage({ getAccount:reference.name, contractName:reference.contractName }))
+vm.signals.on('getCurrentBlock', ()=> parentPort.postMessage({ getCurrentBlock:true }))
+vm.signals.on('deferContractAction', (contractAction)=> parentPort.postMessage({ deferContractAction:JSON.stringify(contractAction) }))
+vm.signals.on('deferPayable', (payable)=> parentPort.postMessage({ deferPayable:JSON.stringify(payable) }))
+vm.signals.on('emitContractAction', (contractAction)=> parentPort.postMessage({ emitContractAction:JSON.stringify(contractAction) }))
+vm.signals.on('emitPayable', (payable)=> parentPort.postMessage({ emitPayable:JSON.stringify(payable) }))
+vm.signals.on('getBalance', (accountName)=> parentPort.postMessage({ getBalance:accountName }))
 
 parentPort.on('message', async (message)=>{
         if(message.run){
 
             try{
-                
                 let result = await vm.run(message.run)
                 
 
@@ -88,19 +63,12 @@ parentPort.on('message', async (message)=>{
             }
             
 
-        }else if(message.state){
-            vm.signals.emit('state', message.state)
-        }else if(message.currentBlock){
-            vm.signals.emit('currentBlock', message.currentBlock)
-        }else if(message.contract){
-            vm.signals.emit('contract', message.contract)
-        }else if(message.account){
-            vm.signals.emit('account', message.account)
-        }else if(message.deferred){
-            vm.signals.emit('deferred', message.deferred)
-        }else if(message.emittedContractAction){
-            vm.signals.emit('emittedContractAction', message.emittedContractAction)
-        }else if(message.ping){
-            parentPort.postMessage({pong:true})
-        }
+        }else if(message.state) vm.signals.emit('state', message.state)
+        else if(message.currentBlock) vm.signals.emit('currentBlock', message.currentBlock)
+        else if(message.contract) vm.signals.emit('contract', message.contract)
+        else if(message.account) vm.signals.emit('account', message.account)
+        else if(message.deferred) vm.signals.emit('deferred', message.deferred)
+        else if(message.emitted) vm.signals.emit('emitted', message.emitted)
+        else if(message.balance) vm.signals.emit('balance', message.balance)
+        else if(message.ping) parentPort.postMessage({pong:true})
 })

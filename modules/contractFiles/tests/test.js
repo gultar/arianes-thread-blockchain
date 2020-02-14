@@ -1,7 +1,10 @@
 const makeExternal = require('makeExternal')
 const getCurrentBlock = require('getCurrentBlock')
 const ContractAction = require('ContractAction')
-const deferExecution = require("deferExecution")
+const ContractPayable = require('ContractPayable')
+const deferContractAction = require("deferContractAction")
+const deferPayable = require('deferPayable')
+const emitPayable = require('emitPayable')
 class FuckUp{
     constructor(fuck){
         this.contractAccount = fuck.contractAccount
@@ -41,26 +44,39 @@ class FuckUp{
 
     async testDefer(params){
         
-        let callingAction = params.callingAction
-        console.log('Calling action', callingAction)
-        let currentBlock = await getCurrentBlock()
+        // let callingAction = params.callingAction
+        // console.log('Calling action', callingAction)
+        // let currentBlock = await getCurrentBlock()
         
-        console.log('Contract Account', this.contractAccount)
-        let contractAction = new ContractAction({ 
-            fromAccount:this.contractAccount, 
-            data:{
-                contractName:this.contractAccount,//Self executing action is simply a deferred execution
-                method:'test',
-                params:{},
-                cpuTime:60,
-            },
-            task:'call',
-            delayToBlock:currentBlock.blockNumber + 2,
-            actionReference:params.callingAction
+        // console.log('Contract Account', this.contractAccount)
+        // let contractAction = new ContractAction({ 
+        //     fromAccount:this.contractAccount, 
+        //     data:{
+        //         contractName:this.contractAccount,//Self executing action is simply a deferred execution
+        //         method:'test',
+        //         params:{},
+        //         cpuTime:60,
+        //     },
+        //     task:'call',
+        //     delayToBlock:currentBlock.blockNumber + 2,
+        //     actionReference:params.callingAction
+        // })
+        // console.log('Contract Action', contractAction)
+        // let deferred = await deferContractAction(contractAction)
+        // console.log('Deferred: ',deferred)
+        // return deferred
+        let call = params.callingAction.transaction
+        let currentBlock = await getCurrentBlock()
+        let payable = new ContractPayable({
+            fromAddress:call.fromAddress,
+            toAddress:'jane',
+            amount:400,
+            reference:call,
+            fromContract:this.contractAccount,
+            delayToBlock:currentBlock.blockNumber + 50
         })
-        console.log('Contract Action', contractAction)
-        let deferred = await deferExecution(contractAction)
-        console.log('Deferred: ',deferred)
+        // let sent = await emitPayable(payable)
+        let deferred = await deferPayable(payable)
         return deferred
     }
 

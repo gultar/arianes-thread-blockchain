@@ -89,7 +89,7 @@ program
   .description('Starts blockchain node')
   .action(async ()=>{
 
-
+      let lanHost = await getIP()
     
       if(!program.ipaddress){
         
@@ -109,6 +109,7 @@ program
       if(program.localhost){
         program.ipaddress = '127.0.0.1'
         program.allowLocalhost = true
+        lanHost = '127.0.0.1'
       }
 
       let configs = await loadNodeConfig();
@@ -151,7 +152,7 @@ program
           }
         }
       }
-      let lanHost = await getIP()
+      
       node = new Node({
         host:program.ipaddress ? program.ipaddress : configs.host,
         lanHost:lanHost,

@@ -79,6 +79,15 @@ class Blockchain{
       contractTable:this.contractTable,
       accountTable:this.accountTable,
       buildCode:this.factory.createSingleCode,
+      getBalance:async (accountName)=>{
+        if(!accountName) return { error:'ERROR: Undefined account name' }
+        let account = await this.accountTable.getAccount(accountName)
+        if(account.error) return { error:account.error }
+
+        let balance = this.balance.getBalance(account.ownerKey)
+        if(balance.error) return { error:balance.error }
+        else return balance
+      },
       deferContractAction:async(contractAction)=>{
         let deferred = await this.mempool.deferContractAction(contractAction)
         if(deferred){
@@ -87,11 +96,31 @@ class Blockchain{
           return false
         }
       },
-      emitcastContractAction:async(contractAction)=>{
+      deferPayable:async(payable)=>{
+        let deferred = await this.mempool.deferPayable(payable)
+        if(deferred){
+          return deferred
+        }else{
+          return false
+        }
+      },
+      emitContractAction:async(contractAction)=>{
         let isValidContractAction = await this.validateContractAction(contractAction)
         if(isValidContractAction.error) return { error:isValidContractAction.error }
         else{
           let added = await this.mempool.addAction(contractAction)
+          if(added.error) return { error:added.error }
+          else{
+            return added
+          }
+        }
+      },
+      emitPayable:async(payable)=>{
+        let isValidPayable = await this.validatePayable(payable)
+        console.log('Is valid payable', isValidPayable)
+        if(isValidPayable.error) return { error:isValidPayable.error }
+        else{
+          let added = await this.mempool.addTransaction(payable)
           if(added.error) return { error:added.error }
           else{
             return added
@@ -1461,6 +1490,7 @@ class Blockchain{
         var isTransactionCall = transaction.type == 'call'
         var isStake = transaction.type == 'stake'
         var isResourceAllocation = transaction.type == 'allocation'
+        var isPayable = transaction.type == 'payable'
 
         let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
         if(alreadyExistsInBlockchain) resolve({error:'Transaction already exists in blockchain'})
@@ -1481,6 +1511,11 @@ class Blockchain{
           if(isValidCoinbaseTransaction && !isValidCoinbaseTransaction.error){
             resolve(true)
           }
+
+        }else if(isPayable){
+          
+          let isValidPayable = await this.validatePayable(transaction)
+          resolve(isValidPayable)
 
         }else if(isStake){
           //validateStakeTransaction
@@ -1615,6 +1650,85 @@ class Blockchain{
 
   }
 
+  async validatePayable(transaction){
+    return new Promise(async (resolve, reject)=>{
+      if(transaction){
+        try{
+
+            let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+            if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
+            else{
+
+              let isSignatureValid = await this.validateActionSignature(transaction.reference, fromAccount.ownerKey)
+              let toAccount = await this.accountTable.getAccount(transaction.toAddress) 
+              let fromContract = await this.contractTable.getContract(transaction.fromContract)
+              var isChecksumValid = this.validateChecksum(transaction);
+              var amountHigherOrEqualToZero = transaction.amount >= 0;
+              let hasMiningFee = true//transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
+              var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
+              let isNotCircular = fromAccount.name !== toAccount.name
+              var balanceOfSendingAddr = await this.checkBalance(fromAccount.ownerKey) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+              let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
+              let hasValidReference = await this.validatePayableReference(transaction.reference, transaction, fromAccount, fromContract)
+
+              if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
+              if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+              if(!amountHigherOrEqualToZero) resolve({error:'REJECTED: Amount needs to be higher than or equal to zero'});
+              if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
+              if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
+              if(!isSignatureValid) resolve({error:'REJECTED: Payable reference signature is invalid'});
+              if(!fromContract || fromContract.error) resolve({error: 'REJECTED: Payable must be made within contract calls'})
+              if(!isNotCircular) resolve({error:"REJECTED: Sending account can't be the same as receiving account"}); 
+              if(!hasEnoughFunds) resolve({error: 'REJECTED: Sender does not have sufficient funds'})
+              if(hasValidReference.error) resolve({error:hasValidReference.error})
+
+            }
+            
+
+            resolve(true)
+
+        }catch(err){
+          resolve({error:err.message})
+        }
+  
+      }else{
+        logger('ERROR: Transaction is undefined');
+        resolve({error:'ERROR: Transaction is undefined'})
+      }
+  
+    })
+    
+
+  }
+
+  async validatePayableReference(reference, transaction, sendingAccount, fromContract){
+
+    // let isValidTransaction = await this.validateTransactionCall(reference);
+    // let isValidAction = await this.validateAction(reference)
+
+    // if(isValidTransaction.error && isValidAction.error) return { error:'ERROR: Reference is not a valid transaction call or action' }
+
+    let fromAccount = await this.accountTable.getAccount(reference.fromAddress)
+    if(!fromAccount || fromAccount.error) return { error:`ERROR: Could not find account ${reference.fromAddress} of payable reference` }
+
+    let isSameAddress = fromAccount.name === sendingAccount.name && fromAccount.ownerKey === sendingAccount.ownerKey
+    if(!isSameAddress) return { error:'ERROR: Payables must be sent by the same account who sent the reference' }
+
+    let isSignatureValid = await this.validateActionSignature(reference, fromAccount.ownerKey)
+    if(!isSignatureValid) return { error:'ERROR: Payable reference signature is not valid' }
+
+    let referenceContract = await this.contractTable.getContract(reference.toAddress)
+    if(!referenceContract || referenceContract.error) return { error:'ERROR: Payable reference must be made to contract account' }
+
+    let isSameContract = reference.toAddress === transaction.fromContract
+    if(!isSameContract) return { error:'ERROR: Payable reference must be sent to same contract as payable' }
+
+    return true
+
+    
+  }
+
+
   async validateCoinbaseTransaction(transaction, block){
     return new Promise(async (resolve, reject)=>{
       if(transaction && transaction.blockNumber){
@@ -1639,9 +1753,7 @@ class Blockchain{
         resolve({error:'ERROR: Coinbase transaction is undefined'})
       }
   
-    })
-    
-
+    }) 
   }
 
   
@@ -1664,7 +1776,8 @@ class Blockchain{
           memory:payload.memory,
           cpuTime:payload.cpuTime
         },
-        hash:transaction.hash
+        hash:transaction.hash,
+        transaction:transaction
       }
 
       resolve(call)
@@ -1750,7 +1863,7 @@ class Blockchain{
     })
   }
 
-  handleAction(action, blockNumber){
+  handleAction(action){
     return new Promise(async (resolve)=>{
       switch(action.type){
         case 'account':
@@ -1826,7 +1939,7 @@ class Blockchain{
     })
   }
 
-  testHandleAction(action, blockNumber){
+  testHandleAction(action){
     return new Promise(async (resolve)=>{
       switch(action.type){
         case 'account':
@@ -2034,8 +2147,6 @@ class Blockchain{
         }else{
           resolve({ error:'ERROR: VM did not result any results' })
         }
-        
-         
     })
   }
 
@@ -2109,33 +2220,33 @@ class Blockchain{
       })
   }
 
-  validateContractAction(action){
-    return new Promise(async (resolve, reject)=>{
-      if(action){
-          let account = await this.accountTable.getAccount(action.fromAccount)
+  // validateContractAction(action){
+  //   return new Promise(async (resolve, reject)=>{
+  //     if(action){
+  //         let account = await this.accountTable.getAccount(action.fromAccount)
           
 
-          let isExistingAccount = ( account? true : false )
-          let isChecksumValid = await this.validateActionChecksum(action);
-          let actionIsNotTooBig = (Transaction.getTransactionSize(action) / 1024) < this.transactionSizeLimit;
-          let isLinkedToWallet = validatePublicKey(account.ownerKey);
+  //         let isExistingAccount = ( account? true : false )
+  //         let isChecksumValid = await this.validateActionChecksum(action);
+  //         let actionIsNotTooBig = (Transaction.getTransactionSize(action) / 1024) < this.transactionSizeLimit;
+  //         let isLinkedToWallet = validatePublicKey(account.ownerKey);
           
-          if(!hasValidActionRef) resolve({error:'ERROR: Invalid action reference passed'})
-          if(!isExistingAccount) resolve({error:'ERROR: Account does not exist'})
-          if(!isChecksumValid) resolve({error:"ERROR: Action checksum is invalid"})
-          if(!isLinkedToWallet) resolve({error:"ERROR: Action ownerKey is invalid"})
-          if(!actionIsNotTooBig) resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+  //         if(!hasValidActionRef) resolve({error:'ERROR: Invalid action reference passed'})
+  //         if(!isExistingAccount) resolve({error:'ERROR: Account does not exist'})
+  //         if(!isChecksumValid) resolve({error:"ERROR: Action checksum is invalid"})
+  //         if(!isLinkedToWallet) resolve({error:"ERROR: Action ownerKey is invalid"})
+  //         if(!actionIsNotTooBig) resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
           
-          resolve(true);
+  //         resolve(true);
 
-      }else{
-        resolve({error:'Account or Action is undefined'})
-      }
+  //     }else{
+  //       resolve({error:'Account or Action is undefined'})
+  //     }
       
       
-    })
+  //   })
     
-  }
+  // }
 
   validateAction(action){
     return new Promise(async (resolve, reject)=>{
