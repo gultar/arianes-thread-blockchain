@@ -432,7 +432,7 @@ class Node {
   }
 
   async getBlockchainStatus(socket, peerStatus){
-    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
+    // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
     try{
       let status = {
         totalDifficultyHex: this.chain.getTotalDifficulty(),
@@ -1334,40 +1334,41 @@ class Node {
   */
   async handlePeerMessage(peerMessage, acknowledge, extend){
     
-    console.log('Is valid peer message', isValidPeerMessageJSON(peerMessage))
-    let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
-    if(data){
-      try{
-
-        var originalMessage = { 
-            'type':type, 
-            'messageId':'', 
-            'originAddress':originAddress, 
-            'data':data,
-            'relayPeer':originAddress,
-            'timestamp':timestamp,
-            'expiration':expiration// 30 seconds
-        }
-
-        let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
-        if(isValidHash){
-          if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
-            
-            peerMessage.relayPeer = this.address
-            this.addToMessageQueue(peerMessage)
-            acknowledge({received:messageId})
-            await this.definePeerMessageTypes(peerMessage)
-              
-          }else{
-            logger(`Peer ${originAddress} sent an outdated peer message`)
+    if(isValidPeerMessageJSON(peerMessage)){
+      let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
+      if(data){
+        try{
+  
+          var originalMessage = { 
+              'type':type, 
+              'messageId':'', 
+              'originAddress':originAddress, 
+              'data':data,
+              'relayPeer':originAddress,
+              'timestamp':timestamp,
+              'expiration':expiration// 30 seconds
           }
-        }else{
-          logger(`Peer message from ${originAddress} has an invalid hash`)
-        }
-        
-      }catch(e){
-        console.log(e)
-      }  
+  
+          let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
+          if(isValidHash){
+            if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
+              
+              peerMessage.relayPeer = this.address
+              this.addToMessageQueue(peerMessage)
+              acknowledge({received:messageId})
+              await this.definePeerMessageTypes(peerMessage)
+                
+            }else{
+              logger(`Peer ${originAddress} sent an outdated peer message`)
+            }
+          }else{
+            logger(`Peer message from ${originAddress} has an invalid hash`)
+          }
+          
+        }catch(e){
+          console.log(e)
+        }  
+      }
     }
     
   }
