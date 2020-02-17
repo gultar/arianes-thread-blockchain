@@ -94,9 +94,9 @@ class PeerManager{
                         if(!this.connectionsToPeers[address]){
                             let password = false
                             if(genesis.passwordHash){
-                                password = 
+                                password = this.networkPassword
                             }
-                            peer.emit('authentication', networkConfig);
+                            peer.emit('authentication', networkConfig, password);
                             peer.on('authenticated',async  (response)=>{
                                 // console.log(JSON.stringify(response, null, 2))
                                 if(response.success){
