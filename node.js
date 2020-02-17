@@ -308,7 +308,7 @@ class Node {
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
       socket.on('getNextBlock', async (hash)=> await this.getNextBlock(socket, hash))
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
-      socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
+      socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus, peerAddress))
       
       socket.on('error', async(err)=> logger('Socket error:',err))
 
@@ -387,7 +387,7 @@ class Node {
   }
 
   async getBlockFromHash(socket, hash){
-    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
+    // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
       if(hash && typeof hash == 'string'){
         
         let block = await this.chain.getBlockFromDBByHash(blockIndex);
@@ -403,7 +403,7 @@ class Node {
   }
 
   async getBlock(socket, blockNumber, hash){
-    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlock' events") });
+    // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlock' events") });
       if(blockNumber && typeof blockNumber == 'number'){
         let block = await this.chain.getBlockFromDB(blockNumber);
         if(block){
@@ -418,7 +418,7 @@ class Node {
   }
 
   async getBlockHeader(socket, blockNumber){
-    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
+    // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
       if(blockNumber && typeof blockNumber == 'number'){
         let header = await this.chain.getBlockHeader(blockNumber);
         if(header){
@@ -431,7 +431,7 @@ class Node {
       }
   }
 
-  async getBlockchainStatus(socket, peerStatus){
+  async getBlockchainStatus(socket, peerStatus, peerAddress){
     // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
     try{
       let status = {
