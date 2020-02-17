@@ -75,32 +75,22 @@ class MinerAPI{
         })
         
         this.mempool.events.on('newAction', async (action)=>{
-
             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                 await this.sendNewBlock()
             }
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
              if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
-                 
                 await this.sendNewBlock()
             }
         })
     }
 
     async addMinedBlock(block){
-        // console.log('Adding', block)
         let isValid = await this.chain.validateBlock(block)
         
         if(isValid){
-          if(isValid.error){
-            //   let blockFromDB = await this.chain.getBlockbyHash(block.blockNumber)
-            //   console.log('Received block', block.blockNumber)
-            //   console.log('Hash', block.hash)
-            //   console.log('Exists block', blockFromDB.blockNumber)
-            //   console.log('of Hash', blockFromDB.hash)
-              logger('INVALID BLOCK', isValid.error)
-          }
+          if(isValid.error) logger('INVALID BLOCK', isValid.error)
           else{
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
@@ -110,6 +100,7 @@ class MinerAPI{
             if(!exists && !headerExists && isNextBlock){
                 //Broadcast new block found
                 this.sendPeerMessage('newBlockFound', block);
+
                 //Sync it with current blockchain, skipping the extended validation part
                 let added = await this.chain.receiveBlock(block)
                 if(added.error)logger('MINEDBLOCK:',added.error)
@@ -127,7 +118,7 @@ class MinerAPI{
     }
 
     async sendNewBlock(forceSend=false){
-        //Render busy to avoid send a hundred raw blocks to the miner
+        //Render busy to avoid sending a hundred raw blocks to the miner
         this.isAPIBusy = true
         let latestBlock = await this.getLatestFullBlock()
         let newRawBlock = await this.createRawBlock(latestBlock, forceSend)
@@ -151,7 +142,7 @@ class MinerAPI{
         if(transactions.error) return { error:transactions.error }
         //Validate all transactions to be mined, delete those that are invalid
         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
-        if(Object.keys(transactions).length > 0) console.log(transactions)
+        
         //Checks for actions deferred to next block
         let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
         if(deferredActionsManaged.error) console.log({ error:deferredActionsManaged.error })
@@ -176,12 +167,6 @@ class MinerAPI{
         
         return rawBlock
     }
-
-    // async getBlock({blockNumber}){
-    //     let block = await this.chain.getBlockFromDB(blockNumber)
-    //     if(!block || block.error) return false;
-    //     else return block
-    // }
 
     async getLatestFullBlock(){
         //Get the current header

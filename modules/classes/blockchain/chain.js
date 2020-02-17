@@ -13,7 +13,7 @@ const {
   validatePublicKey,
   merkleRoot, 
   readFile, } = require('../../tools/utils');
-const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON, isValidTransactionJSON } = require('../../tools/jsonvalidator');
+const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON, isValidTransactionJSON, isValidActionJSON } = require('../../tools/jsonvalidator');
 const Transaction = require('../transactions/transaction');
 const BalanceTable = require('../tables/balanceTable');
 const AccountTable = require('../tables/accountTable');
@@ -96,13 +96,22 @@ class Blockchain{
           return false
         }
       },
-      deferPayable:async(payable)=>{
-        let deferred = await this.mempool.deferPayable(payable)
-        if(deferred){
-          return deferred
-        }else{
-          return false
+      deferPayable:async(payable, test=false)=>{
+        let isValidPayable = await this.validatePayable(payable)
+        if(isValidPayable.error) return { error:isValidPayable.error }
+        else{
+          if(!test){
+            let deferred = await this.mempool.deferPayable(payable)
+            if(deferred){
+              return deferred
+            }else{
+              return false
+            }
+          }else{
+            return { deferred:true }
+          }
         }
+        
       },
       emitContractAction:async(contractAction)=>{
         let isValidContractAction = await this.validateContractAction(contractAction)
@@ -115,21 +124,28 @@ class Blockchain{
           }
         }
       },
-      emitPayable:async(payable)=>{
+      emitPayable:async(payable, test=false)=>{
         let isValidPayable = await this.validatePayable(payable)
-        console.log('Is valid payable', isValidPayable)
         if(isValidPayable.error) return { error:isValidPayable.error }
         else{
-          let added = await this.mempool.addTransaction(payable)
-          if(added.error) return { error:added.error }
-          else{
-            return added
+          if(!test){
+            let added = await this.mempool.addTransaction(payable)
+            if(added.error) return { error:added.error }
+            else{
+              return added
+            }
+          }else{
+            return { emitted:true }
           }
         }
       },
       getCurrentBlock:async ()=>{
         return this.getLatestBlock()
+      },
+      validatePayable:async (payable)=>{
+        return await this.validatePayable(payable)
       }
+      
     })
     this.spentTransactionHashes = {}
     this.spentActionHashes = {}
@@ -427,7 +443,14 @@ class Blockchain{
     if(actionsDeleted.error) return { error:actionsDeleted.error }
 
     for await(let hash of newHeader.txHashes){
-      this.spentTransactionHashes[hash] = newHeader.blockNumber//{ spent:newHeader.blockNumber }
+      let transaction = newBlock.transactions[hash]
+      if(transaction.type == 'payable'){
+        this.spentTransactionHashes[hash] = newHeader.blockNumber
+        this.spentTransactionHashes[transaction.reference.hash] = { referenceTo:hash }
+      }else{
+        this.spentTransactionHashes[hash] = newHeader.blockNumber
+      }
+      //{ spent:newHeader.blockNumber }
     }
 
     if(newHeader.actionsHashes){
@@ -1654,7 +1677,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       if(transaction){
         try{
-
+          
             let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
             if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
@@ -1702,30 +1725,40 @@ class Blockchain{
   }
 
   async validatePayableReference(reference, transaction, sendingAccount, fromContract){
+    try{
+      // let isValidTransaction = await this.validateTransactionCall(reference);
+      // let isValidAction = await this.validateAction(reference)
 
-    // let isValidTransaction = await this.validateTransactionCall(reference);
-    // let isValidAction = await this.validateAction(reference)
+      // if(isValidTransaction.error && isValidAction.error) return { error:'ERROR: Reference is not a valid transaction call or action' }
+  
+      let fromAccount = await this.accountTable.getAccount(reference.fromAddress)
+      if(!fromAccount || fromAccount.error) return { error:`ERROR: Could not find account ${reference.fromAddress} of payable reference` }
 
-    // if(isValidTransaction.error && isValidAction.error) return { error:'ERROR: Reference is not a valid transaction call or action' }
+      let isSameAddress = fromAccount.name === sendingAccount.name && fromAccount.ownerKey === sendingAccount.ownerKey
+      if(!isSameAddress) return { error:'ERROR: Payables must be sent by the same account who sent the reference' }
 
-    let fromAccount = await this.accountTable.getAccount(reference.fromAddress)
-    if(!fromAccount || fromAccount.error) return { error:`ERROR: Could not find account ${reference.fromAddress} of payable reference` }
+      let isSignatureValid = await this.validateActionSignature(reference, fromAccount.ownerKey)
+      if(!isSignatureValid) return { error:'ERROR: Payable reference signature is not valid' }
 
-    let isSameAddress = fromAccount.name === sendingAccount.name && fromAccount.ownerKey === sendingAccount.ownerKey
-    if(!isSameAddress) return { error:'ERROR: Payables must be sent by the same account who sent the reference' }
+      let referenceContract = await this.contractTable.getContract(reference.toAddress)
+      
+      if(!referenceContract || referenceContract.error) return { error:'ERROR: Payable reference must be made to contract account' }
 
-    let isSignatureValid = await this.validateActionSignature(reference, fromAccount.ownerKey)
-    if(!isSignatureValid) return { error:'ERROR: Payable reference signature is not valid' }
+      let contractAPI = referenceContract.contractAPI
+      let method = contractAPI[reference.data.method]
+      let referenceEmitsPayable = method.emits === 'Payable'
+      if(!referenceEmitsPayable) return { error:'ERROR: Invoked contract method must emit payable' }
 
-    let referenceContract = await this.contractTable.getContract(reference.toAddress)
-    if(!referenceContract || referenceContract.error) return { error:'ERROR: Payable reference must be made to contract account' }
+      let wasAlreadyUsed = this.spentTransactionHashes[reference.hash].referenceTo
+      if(wasAlreadyUsed) return { error:`ERROR: Transaction ${reference.hash.substr(0,10)}... is already a reference` }
 
-    let isSameContract = reference.toAddress === transaction.fromContract
-    if(!isSameContract) return { error:'ERROR: Payable reference must be sent to same contract as payable' }
+      let isSameContract = reference.toAddress === transaction.fromContract
+      if(!isSameContract) return { error:'ERROR: Payable reference must be sent to same contract as payable' }
 
-    return true
-
-    
+      return true
+    }catch(e){
+      return { error:e.message }
+    }
   }
 
 
@@ -2466,7 +2499,7 @@ class Blockchain{
   */
   validateActionSignature(action, ownerKey){
     return new Promise(async (resolve, reject)=>{
-      if(action && ownerKey){
+      if(action && ownerKey && (isValidActionJSON(action) || isValidTransactionJSON(action))){
         if(validatePublicKey(ownerKey)){
           const publicKey = await ECDSA.fromCompressedPublicKey(ownerKey);
           if(publicKey){
@@ -2673,7 +2706,14 @@ class Blockchain{
                   let txHashes = Object.keys(block.transactions)
                   let actionHashes = Object.keys(block.actions)
                   for await(let hash of txHashes){
-                    this.spentTransactionHashes[hash] = block.blockNumber//{ spent:block.blockNumber }
+                    let transaction = block.transactions[hash]
+                    if(transaction.type === 'payable' && transaction.reference){
+                      this.spentTransactionHashes[hash] = block.blockNumber
+                      this.spentTransactionHashes[transaction.reference.hash] = { referenceTo:hash }
+                    }else{
+                      this.spentTransactionHashes[hash] = block.blockNumber
+                    }
+                    //{ spent:block.blockNumber }
                   }
                   for await(let hash of actionHashes){
                     this.spentActionHashes[hash] = block.blockNumber//{ spent:block.blockNumber }

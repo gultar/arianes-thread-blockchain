@@ -13,7 +13,8 @@ class VMController{
         emitContractAction, 
         emitPayable, 
         getCurrentBlock,
-        getBalance }){
+        getBalance,
+        validatePayable }){
 
         this.getBalance = getBalance
         this.contractConnector = new ContractConnector({
@@ -26,6 +27,7 @@ class VMController{
         this.getCurrentBlock = getCurrentBlock
         this.accountTable = accountTable
         this.buildCode = buildCode
+        this.validatePayable = validatePayable
         this.vmBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
             accountTable:accountTable,
@@ -49,11 +51,13 @@ class VMController{
             emitContractAction: ()=>{
                 return { emitted:true }
             },
-            emitPayable:()=>{
-                return { emitted:true }
+            emitPayable:async (payable)=>{
+                let valid = await this.emitPayable(payable, { isTest:true })
+                return valid
             },
-            deferPayable:()=>{
-                return { deferred:true }
+            deferPayable:async (payable)=>{
+                let valid = await this.deferPayable(payable, { isTest:true })
+                return valid
             }
         });
         this.testChannel = this.testBootstrap.startVM()
@@ -131,7 +135,6 @@ class VMController{
                             newState:state,
                         })
                         if(updated.error) return { error:updated.error}
-
                         let terminated = await this.vmBootstrap.terminateVM(contractName)
                         if(terminated.error) return { error:terminated.error }
                         
@@ -196,9 +199,9 @@ class VMController{
                     if(stateAdded.error) resolve({ error:stateAdded.error })
                     timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
                     this.testChannel.on(code.hash, async (result)=>{
-                        console.log('Result:', result)
-                        // let terminated = await this.vmBootstrap.terminateVM(contractName)
-                        // if(terminated.error) resolve({ error:terminated.error })
+                        
+                        let terminated = await this.testBootstrap.terminateVM(contractName)
+                        if(terminated.error) resolve({ error:terminated.error })
 
                         if(result && !result.error && result.value){
                             clearTimeout(timer)

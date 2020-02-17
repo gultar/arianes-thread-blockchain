@@ -177,7 +177,7 @@ class Database{
                 this.configSet = await this.init()
                 if(this.configSet.error) return {error:this.configSet.error}
             }
-    
+            
             let deleted = await this.database.delete(this.name)
             return deleted
         }catch(e){

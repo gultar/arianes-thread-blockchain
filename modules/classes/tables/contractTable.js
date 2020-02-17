@@ -253,7 +253,8 @@ class ContractTable{
             let storage = this.stateStorage[contractName]
             if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
             else{
-                
+                this.stateMemory[contractName] = {}
+                delete this.stateMemory[contractName]
                 let removedState = await storage.destroyStorage()
                 if(removedState.error) return { error:removedState.error }
                 return removedState

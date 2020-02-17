@@ -156,6 +156,37 @@ program
 })
 
 program
+.command('getblocksize <blockNumber>')
+.description('Requests some general information about the blockchain')
+.action((blockNumber)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('getBlockSize', blockNumber);
+                socket.on('blockSize', (size)=>{
+                    console.log('Size:', size)
+                    socket.close()
+                })
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
+.command('testpayable')
+.description('test')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('testPayable');
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('getheader <blockNumber>')
 .description('Requests some general information about the blockchain')
 .action((blockNumber)=>{

@@ -421,7 +421,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                     let signature = await wallet.sign(action.hash)
                                     if(signature){
                                         action.signature = signature;
-                                        
+
                                         axios.post(`${address}/action`, action)
                                         .then( response => {
                                             if(response.data.action){

@@ -389,11 +389,15 @@ class ContractVM{
                 const createTimer = (time, resolve) =>{
                     return setTimeout(()=>{
                         this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
-                        resolve({
-                            error:"ERROR: VM timed out",
-                            hash:call.hash,
-                            contractName:call.contractName
-                        })
+                        // resolve({
+                        //     error:"ERROR: VM timed out",
+                        //     hash:call.hash,
+                        //     contractName:call.contractName
+                        // })
+                        let err = new Error("ERROR: VM timed out")
+                        err.hash = call.hash
+                        err.contractName = call.contractName
+                        throw err
                     }, time)
                 }
         
@@ -453,7 +457,6 @@ class ContractVM{
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
                 execute(async (result, state)=>{
-                    
                     if(result){
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state

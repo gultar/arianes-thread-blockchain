@@ -57,7 +57,6 @@ class Escrow{
 
         //Would maybe be better to get balance of callingAccount directly
         let walletBalance = await getBalance(callingAccount.name)
-        console.log('Balance:',walletBalance)
         if(walletBalance.balance < amount) throw new Error(`ERROR: ${callingAccount.name} does not have sufficient funds to deposit`)
         
         //Check balance first
@@ -69,7 +68,7 @@ class Escrow{
 
     }
 
-    async accept({ id }, callingAccount){
+    async accept({ id, callingAction }, callingAccount){
         if(!id) throw new Error('ERROR: Must provide id')
 
         let escrow = this.state[id]
@@ -83,41 +82,44 @@ class Escrow{
             throw new Error('ERROR: Buyer needs to deposit an amount before accepting')
         }
 
-        if(isAuthorizedBuyer) escrow.buyerAccepts = true
-        else if(isAuthorizedSeller) escrow.sellerAccepts = true
+        if(isAuthorizedBuyer){
+            escrow.buyerAccepts = true
+            escrow.reference = callingAction.transaction
+        }
+        if(isAuthorizedSeller) escrow.sellerAccepts = true
 
+        this.state[id] = escrow
         if(escrow.buyerAccepts && escrow.sellerAccepts){
-            return await this.pay(escrow)
+            let payable = await this.pay(escrow)
+            
+            this.state[id] = {}
+            delete this.state[id]
+            if(escrow.delayToBlock) deferPayable(payable)
+            else  emitPayable(payable)
+
+            return { paid:true }
+            
         }else{
             return { accepted:true }
         }
     }
 
     async pay(escrow){
-        let currentBlock = await getCurrentBlock()
-        let deposit = escrow.deposit
-
+        let delay = false
+        if(escrow.delayToBlock){
+            let currentBlock = await getCurrentBlock()
+            delay = currentBlock.blockNumber = escrow.delayToBlock
+        }
         let payable = new Payable({
             fromAddress:escrow.buyer,
             toAddress:escrow.seller,
             amount:escrow.amount,
-            reference:deposit,
+            reference:escrow.reference,
             fromContract:this.contractAccount,
-            delayToBlock: (escrow.delayToBlock ? currentBlock + escrow.delayToBlock : false )
+            delayToBlock: delay
         })
-
-        delete this.state[escrow.id]
         
-        if(escrow.delayToBlock){
-            let deferred = await deferPayable(payable)
-            if(deferred.error) throw new Error(deferred.error)
-        }else {
-            let emitted = await emitPayable(payable)
-            if(emitted.error) throw new Error(emitted.error)
-        }
-
-        
-        return { paid:`Escrow account ${escrow.id} will pay ${escrow.seller} ${escrow.amount} coins from ${escrow.buyer}${(escrow.delayToBlock ? 'in '+escrow.delayToBlock+' blocks':'')}` }
+        return payable
     }
 
     cancel({ id }, callingAccount){
@@ -156,6 +158,7 @@ class Escrow{
             accept:{
                 type:'set',
                 args:["id"],
+                emits:'Payable',
                 description:'Accept the conditions and payments of the escrow. Both parties must accept'
             },
             getEscrow:{
@@ -173,72 +176,3 @@ class Escrow{
         return api
     }
 }
-
-/** 
- * pragma solidity ^0.4.11;
-contract Escrow {
-    uint balance;
-    address public buyer;
-    address public seller;
-    address private escrow;
-    uint private start;
-    bool buyerOk;
-    bool sellerOk;
-function Escrow(address buyer_address, address seller_address) public {
-        // this is the constructor function that runs ONCE upon initialization
-        buyer = buyer_address;
-        seller = seller_address;
-        escrow = msg.sender;
-        start = now; //now is an alias for block.timestamp, not really "now"
-    }
-    
-    function accept() public {
-        if (msg.sender == buyer){
-            buyerOk = true;
-        } else if (msg.sender == seller){
-            sellerOk = true;
-        }
-        if (buyerOk && sellerOk){
-            payBalance();
-        } else if (buyerOk && !sellerOk && now > start + 30 days) {
-            // Freeze 30 days before release to buyer. The customer has to remember to call this method after freeze period.
-            selfdestruct(buyer);
-        }
-    }
-    
-    function payBalance() private {
-        // we are sending ourselves (contract creator) a fee
-        escrow.transfer(this.balance / 100);
-        // send seller the balance
-        if (seller.send(this.balance)) {
-            balance = 0;
-        } else {
-            throw;
-        }
-    }
-    
-    function deposit() public payable {
-        if (msg.sender == buyer) {
-            balance += msg.value;
-        }
-    }
-    
-    function cancel() public {
-        if (msg.sender == buyer){
-            buyerOk = false;
-        } else if (msg.sender == seller){
-            sellerOk = false;
-        }
-        // if both buyer and seller would like to cancel, money is returned to buyer 
-        if (!buyerOk && !sellerOk){
-            selfdestruct(buyer);
-        }
-    }
-    
-    function kill() public constant {
-        if (msg.sender == escrow) {
-            selfdestruct(buyer);
-        }
-    }
-}
-*/

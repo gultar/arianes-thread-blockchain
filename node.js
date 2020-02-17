@@ -36,7 +36,8 @@ const {
   isValidTransactionCallJSON,
   isValidCallPayloadJSON,
   isValidActionJSON,
-  isValidBlockJSON
+  isValidBlockJSON,
+  isValidPeerMessageJSON
 } = require('./modules/tools/jsonvalidator');
 const sha256 = require('./modules/tools/sha256');
 const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
@@ -1121,7 +1122,8 @@ class Node {
 
       socket.on('getBlockSize', async (blockNumber)=>{
         let block = await this.chain.getBlockFromDB(blockNumber)
-        console.log('Block', require('json-size')(block))
+        socket.emit('blockSize', require('json-size')(block))
+        
       })
 
       socket.on('verbose', ()=>{
@@ -1170,13 +1172,47 @@ class Node {
       })
 
       socket.on('getTransactionFromDB', async (hash)=>{
+        // let start = process.hrtime()
         let transaction = await this.chain.getTransactionFromDB(hash)
+        // let hrend = process.hrtime(start)
+        // console.info('Transaction from db: %ds %dms', hrend[0], hrend[1] / 1000000)
         socket.emit('transactionFromDB', transaction)
       })
 
       socket.on('getActionFromDB', async (hash)=>{
+        
         let action = await this.chain.getActionFromDB(hash)
+        
         socket.emit('actionFromDB', action)
+      })
+
+      socket.on('testPayable', async ()=>{
+        const Payable = require('./modules/classes/transactions/payable')
+        
+        let ref = {
+          fromAddress: 'tuor',
+          toAddress: 'Escrow',
+          type: 'call',
+          data: { method: 'accept', cpuTime: 15, params: { id: 'muppet' } },
+          timestamp: 1581864778853,
+          amount: 0,
+          nonce: 0,
+          hash: '77f3c6cbc0c468d89b25d614cbdc4ace3827975472e2b0073111e84389e7e07d',
+          miningFee: 0.0148,
+          delayToBlock: 0,
+          signature: 'LrV+M1fxX0jrTgQDI0stpVIZelt6Q2xZQu/IWiUjVfEg6rwSy6fl0LWIgsoXKMh1GEO+zc3xCaU2sPbnJxHFGQ=='
+        }
+
+        let payable = new Payable({
+          fromAddress:ref.fromAddress,
+          toAddress:'huor',
+          fromContract:'Escrow',
+          reference:ref,
+          amount:10000
+        })
+        
+        let added = await this.mempool.addTransaction(payable)
+        
       })
 
       socket.on('disconnect', ()=>{
@@ -1265,7 +1301,7 @@ class Node {
     if(type){
         try{
             if(typeof data == 'object')
-            data = JSON.stringify(data);
+                data = JSON.stringify(data);
             
             var message = { 
                 'type':type, 
@@ -1276,6 +1312,7 @@ class Node {
                 'timestamp':Date.now(),
                 'expiration':Date.now() + this.peerMessageExpiration// 30 seconds
             }
+
             let messageId = sha1(JSON.stringify(message));
             message.messageId = messageId
             this.messageBuffer[messageId] = messageId;
@@ -1296,6 +1333,8 @@ class Node {
    * @param {Object} $data - Various data (transactions to blockHash). Contains messageId for logging peer messages
   */
   async handlePeerMessage(peerMessage, acknowledge, extend){
+    
+    console.log('Is valid peer message', isValidPeerMessageJSON(peerMessage))
     let { type, originAddress, messageId, data, relayPeer, timestamp, expiration } = peerMessage
     if(data){
       try{

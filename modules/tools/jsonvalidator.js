@@ -204,7 +204,7 @@ const isValidActionJSON = (action)=>{
         if(valid.errors.length == 0){
             return true
         }else{
-            console.log(valid.errors)
+            // console.log(valid.errors)
             return false;
         }
         
@@ -493,6 +493,55 @@ const isValidBlockJSON = (header)=>{
     }
 }
 
+var originalMessage = { 
+    'type':type, 
+    'messageId':'', 
+    'originAddress':originAddress, 
+    'data':data,
+    'relayPeer':originAddress,
+    'timestamp':timestamp,
+    'expiration':expiration// 30 seconds
+}
+
+const isValidPeerMessageJSON = (peerMessage)=>{
+    var v = new Validator();
+    var peerMessageSchema = {
+        "id":"/peerMessage",
+        "type":"object",
+        "header":{"type":"object"},
+            "properties":{
+                "type":{"type":"string"},
+                "timestamp":{"type":"number"},
+                "messageId":{"type":"string"},
+                "originAddress":{"type":"string"},
+                "data":{"type":"string"},
+                "expiration":{"type":"number"},
+                "relayPeer":{"type":"string"},
+            },
+        "required": [
+            "type", 
+            "timestamp", 
+            "messageId",
+            "originAddress", 
+            "data", 
+            "expiration", 
+            "relayPeer",
+        ]
+    }
+
+    if(peerMessage){
+        v.addSchema(peerMessageSchema, "/peerMessage")
+        let valid = v.validate(peerMessage, peerMessageSchema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            console.log(valid.errors)
+            return false;
+        }
+        
+    }
+}
+
 const isValidGenesisBlockJSON = (header)=>{
     var v = new Validator();
     var headerSchema = {
@@ -554,4 +603,5 @@ module.exports = {
     isValidGenesisBlockJSON,
     isValidContractActionJSON,
     isValidPayableJSON,
+    isValidPeerMessageJSON
  };
