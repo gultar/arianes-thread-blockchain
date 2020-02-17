@@ -1,5 +1,4 @@
 /**
- TFLB | Thousandfold Blockchain
  @author: Sacha-Olivier Dulac
 */
 
@@ -104,6 +103,8 @@ class Node {
     this.isDownloading = false;
     this.autoRollback = true || options.autoRollback || false;
     this.maximumAutoRollback = 30
+    this.networkPassword = options.networkPassword
+    //Peer Manager
     this.peerManager = new PeerManager({
       address:this.address,
       host:this.host,
@@ -113,6 +114,7 @@ class Node {
       networkManager:this.networkManager,
       nodeList:this.nodeList,
       noLocalhost:this.noLocalhost,
+      networkPassword:this.networkPassword,
       receiveBlockchainStatus:(peer, status)=>{
         return this.receiveBlockchainStatus(peer, status)
       },
@@ -123,6 +125,7 @@ class Node {
         return await this.buildBlockchainStatus()
       }
     })
+
     //APIs
     this.httpAPI = new HttpAPI({
       chain:this.chain,
@@ -215,8 +218,8 @@ class Node {
               
               if(socket){
                 
-                    socket.on('authentication', (config)=>{
-                      let verified = this.verifyNetworkConfig(config)
+                    socket.on('authentication', (config, password)=>{
+                      let verified = this.verifyNetworkConfig(config, password)
                       if(verified && !verified.error){
                         socket.emit('authenticated', { success:this.networkManager.getNetwork() })
                         socket.on('message', (msg) => { logger('Client:', msg); });
@@ -271,12 +274,20 @@ class Node {
     })
   }
 
-  verifyNetworkConfig(networkConfig){
+  verifyNetworkConfig(networkConfig, password){
     if(networkConfig && typeof networkConfig == 'object'){
       let genesisConfigHash = getGenesisConfigHash()
       let peerGenesisConfigHash = sha256(JSON.stringify(networkConfig.genesisConfig))
       let isValidPeerGenesisHash = peerGenesisConfigHash === networkConfig.genesisConfigHash
       if(!isValidPeerGenesisHash) return { error:'ERROR: Peer genesis config hash is not valid' }
+
+      if(password && this.genesis.passwordHash){
+        let isValid = sha256(sha256(networkConfig.password)) === sha256(this.genesis.passwordHash)
+        console.log('Is valid', recalculated)
+        console.log('This', sha256(this.genesis.passwordHash))
+        console.log('Peer', sha256(sha256(networkConfig.password)))
+      }
+
       let matchesOwnGenesisConfigHash = peerGenesisConfigHash === genesisConfigHash
       if(!matchesOwnGenesisConfigHash){
         console.log('Peer',peerGenesisConfigHash)

@@ -80,6 +80,7 @@ program
   .option('-k, --password <password>', 'Password needed to unlock wallet')
   .option('-x, --exposeHTTP', 'Expose HTTP API to allow external interaction with blockchain node')
   .option('-n, --network <network>', 'Blockchain network to join')
+  .option('-N, --networkPassword <networkPassword>', 'Password required to join network')
   .option('-a, --allowLocalhost', 'Allow connections on the same machine. Default: false')
   .option('-L, --localhost', 'Run on localhost only')
 
@@ -168,7 +169,8 @@ program
         genesis:genesis,
         minerWorker:false,
         clusterMiner:program.clusterMiner,
-        keychain:program.keychain
+        keychain:program.keychain,
+        networkPassword:program.networkPassword
       })
 
      node.startServer()

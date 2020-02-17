@@ -4,7 +4,7 @@ const compareSnapshots = require('./snapshotHandler')
 const chalk = require('chalk')
 
 class PeerManager{
-    constructor({ address, host, lanHost, lanAddress, connectionsToPeers, networkManager, nodeList, receiveBlockchainStatus, buildBlockchainStatus, UILog, verbose, noLocalhost }){
+    constructor({ address, host, lanHost, lanAddress, connectionsToPeers, networkManager, nodeList, receiveBlockchainStatus, buildBlockchainStatus, UILog, verbose, noLocalhost, networkPassword }){
         this.address = address
         this.host = host
         this.lanHost = lanHost
@@ -18,6 +18,7 @@ class PeerManager{
         this.verbose = verbose
         this.noLocalhost = noLocalhost
         this.peerSnapshots = {}
+        this.networkPassword = networkPassword || false
     }
 
     /**
@@ -91,7 +92,10 @@ class PeerManager{
 
                     peer.on('connect', async () =>{
                         if(!this.connectionsToPeers[address]){
-                            
+                            let password = false
+                            if(genesis.passwordHash){
+                                password = 
+                            }
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
                                 // console.log(JSON.stringify(response, null, 2))
