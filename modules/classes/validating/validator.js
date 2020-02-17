@@ -158,7 +158,7 @@ class Validator extends Miner{
     async orderValidatorKeys(){
         let order = []
 
-        for await(let key of this.validatorOrder){
+        for await(let key of Object.keys(genesis.validators)){
             if(this.validators[key]){
                 order.push(key)
             }
