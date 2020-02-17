@@ -164,7 +164,6 @@ class Validator extends Miner{
             }
         }
         this.validatorOrder = order
-        console.log('Order',order)
     }
 
     async prepareBlockForMining(rawBlock){
