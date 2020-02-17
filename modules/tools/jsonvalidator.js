@@ -493,16 +493,6 @@ const isValidBlockJSON = (header)=>{
     }
 }
 
-var originalMessage = { 
-    'type':type, 
-    'messageId':'', 
-    'originAddress':originAddress, 
-    'data':data,
-    'relayPeer':originAddress,
-    'timestamp':timestamp,
-    'expiration':expiration// 30 seconds
-}
-
 const isValidPeerMessageJSON = (peerMessage)=>{
     var v = new Validator();
     var peerMessageSchema = {
