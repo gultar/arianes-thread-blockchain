@@ -60,7 +60,7 @@ class Validator extends Miner{
                     this.validators[event.publicKey] = { connected:true }
                     this.validatorKeys = Object.keys(this.validators)
                     this.turnCounter = 0
-                    this.orderValidatorKeys()
+                    await this.orderValidatorKeys()
                     this.generateBlocks()
                     break;
                 case 'validatorConnected':
@@ -69,7 +69,7 @@ class Validator extends Miner{
                     this.validatorKeys = Object.keys(this.validators)
                     this.turnCounter = 0
                     this.sendPeerMessage('networkEvent', { type:'discoverValidator', publicKey:this.wallet.publicKey })
-                    this.orderValidatorKeys()
+                    await this.orderValidatorKeys()
                     this.generateBlocks()
                     break;
                 case 'validatorDisconnected':
@@ -77,7 +77,7 @@ class Validator extends Miner{
                     delete this.validators[event.publicKey]
                     this.validatorKeys = Object.keys(this.validators)
                     this.turnCounter = 0
-                    this.orderValidatorKeys()
+                    await this.orderValidatorKeys()
                     this.generateBlocks()
                     break;
                 case 'nextTurn':
