@@ -16,7 +16,7 @@ class Difficulty{
 
   setNewDifficulty(previousBlock, newBlock){
     const minimumDifficulty = BigInt(this.minimumDifficulty);
-    const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
+    const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp));
     const timeAdjustment = (this.blockTime - mineTime >= -99? (this.blockTime - mineTime) : -99)
     const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / this.difficultyDivider) * BigInt(timeAdjustment)
     const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / this.difficultyBomb)-2)))

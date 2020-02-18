@@ -160,10 +160,11 @@ class HttpAPI{
         
       })
 
-      app.get('/getBlockHeader',(req, res)=>{
+      app.get('/getBlockHeader',async (req, res)=>{
         var blockNumber = req.query.hash;
         if(blockNumber){
-          res.json(this.chain.getBlockHeader(blockNumber)).end()
+          let header = await this.chain.getBlockHeader(blockNumber)
+          res.json(header).end()
         }
       })
 
@@ -183,8 +184,9 @@ class HttpAPI{
         if(publicKey){
           let isAccount = await this.chain.accountTable.getAccount(publicKey);
           if(isAccount) publicKey = isAccount.ownerKey
-
+          
           let state = await this.chain.balance.getBalance(publicKey);
+          
           res.json(state).end()
         }else{
           res.json({error:'ERROR: must provide publicKey'}).end()
@@ -228,10 +230,10 @@ class HttpAPI{
       }
     })
 
-    app.get('/getBlockHeader', (req, res)=>{
+    app.get('/getBlockHeader', async (req, res)=>{
       let blockNumber = req.query.blockNumber;
       if(blockNumber && typeof blockNumber == number){
-        let header = this.chain.getBlockHeader(blockNumber)
+        let header = await this.chain.getBlockHeader(blockNumber)
         if(header){
           res.json(header).end()
         }else{

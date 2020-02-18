@@ -13,7 +13,7 @@ class Validator extends Miner{
     constructor({ keychain, numberOfCores, miningReward, verbose, broadcast }){
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
-        this.generationSpeed = genesis.blockTime * 1000 || 2000//generationSpeed 
+        this.generationSpeed = genesis.blockTime || 2000//generationSpeed 
         this.generator = {}
         this.validators = {}
         this.validatorKeys = [this.wallet.publicKey]

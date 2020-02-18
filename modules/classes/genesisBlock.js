@@ -71,7 +71,7 @@ function createGenesisBlock(){
       genesisBlock.difficulty = '0x1024'//'0x100000';//'0x2A353F';
       genesisBlock.totalDifficulty = genesisBlock.difficulty
       genesisBlock.challenge = setNewChallenge(genesisBlock)
-      genesisBlock.blockTime = 10
+      genesisBlock.blockTime = 10000
       genesisBlock.consensus = "Proof of Work" //Possible values : Proof of Work, Permissioned, Proof of Stake, Proof of Importance
       genesisBlock.network = "mainnet"
       genesisBlock.maxCoinSupply = Math.pow(10, 10);

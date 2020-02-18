@@ -10,7 +10,12 @@ const ContractAction = require('../../actions/contractAction')
 const ContractPayable = require('../../transactions/payable')
 const makeExternal = require('../toolbox/makeExternal')
 const EventEmitter = require('events')
-const { isValidActionJSON, isValidAccountJSON, isValidContractActionJSON, isValidPayableJSON, isValidCallPayloadJSON } = require('../../../tools/jsonvalidator')
+const { 
+    isValidActionJSON, 
+    isValidAccountJSON, 
+    isValidContractActionJSON, 
+    isValidPayableJSON, 
+    isValidCallPayloadJSON } = require('../../../tools/jsonvalidator')
 
 //Kind of useless
 class Signals extends EventEmitter{
