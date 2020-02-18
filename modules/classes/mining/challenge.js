@@ -11,13 +11,13 @@ class Difficulty{
     this.difficultyBomb = genesisConfig.difficultyBomb || 100 * 1000;
     this.minimumDifficulty = genesisConfig.difficulty
     this.difficultyBoundDivider = genesisConfig.difficultyBoundDivider || 512
-    this.difficultyDivider = BigInt(384) //Has to be a big int
+    this.difficultyDivider = (genesisConfig.difficultyBoundDivider ? BigInt(genesisConfig.difficultyBoundDivider) : BigInt(384)) //Has to be a big int
   }
 
   setNewDifficulty(previousBlock, newBlock){
     const minimumDifficulty = BigInt(this.minimumDifficulty);
     const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp));
-    const timeAdjustment = (this.blockTime - mineTime >= -99? (this.blockTime - mineTime) : -99)
+    const timeAdjustment = (Math.floor((this.blockTime - mineTime)/1000) >= -99? Math.floor((this.blockTime - mineTime)/1000) : -99)
     const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / this.difficultyDivider) * BigInt(timeAdjustment)
     const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / this.difficultyBomb)-2)))
     let blockDiff = BigInt(parseInt(previousBlock.difficulty, 16)) + modifier + difficultyBomb

@@ -149,8 +149,8 @@ class Node {
   }
 
   displaySplashScreen(){
-    // let figlet = require('figlet')
-    // console.log(chalk.green(figlet.textSync('HydraChain.js')))
+    let figlet = require('figlet')
+    console.log(chalk.green(figlet.textSync('Wampum.js')))
   }
 
   /**
@@ -159,7 +159,7 @@ class Node {
   startServer(){
 
     return new Promise(async (resolve, reject)=>{
-      
+      // this.displaySplashScreen()
       console.log(chalk.cyan('\n*************************************************'))
       console.log(chalk.cyan('*')+' Starting node at '+this.address+chalk.cyan("   *"));
       console.log(chalk.cyan('*************************************************\n'))

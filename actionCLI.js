@@ -53,7 +53,7 @@ program
 .description(`
 Creates an account to send contract call actions
 
-Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
+Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd] -k [accountType]
 `)
 .action(async ()=>{
 
@@ -61,13 +61,13 @@ Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
     let accountName = program.accountName
     let walletName = program.walletName
     let password = program.password
-
-    let accountType = program.accountType || 'user'
+    let accountType = program.accountType
 
     if(!address) throw new Error('ERROR: URL of receiving node is required')
     if(!accountName) throw new Error('ERROR: Name of sending account is required')
     if(!walletName) throw new Error('ERROR: Name of owner wallet is required')
     if(!password) throw new Error('ERROR: Password of owner wallet is required')
+    if(!accountType) throw new Error('ERROR: Account type is required')
 
 
     if(!nodeAddress){
@@ -85,6 +85,70 @@ Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
             type:'account',
             task:'create',
             data:newAccount
+        });
+        
+        walletManager.unlockWallet(walletName, password)
+        .then(async (unlocked)=>{
+            
+            if(unlocked){
+                let signature = await wallet.sign(action.hash)
+                if(signature){
+                    action.signature = signature;
+                    axios.post(`${address}/action`, action)
+                    .then( response => {
+                        console.log(response.data);
+                    })
+                    .catch(e => console.log(e))
+                }else{
+                    console.log('ERROR: Could not sign action')
+                }
+                
+
+            }else{
+                console.log('ERROR: Could not unlock wallet')
+            }
+        })
+    }
+})
+
+program
+.command('deleteaccount')
+.option('-a, --accountName <accountName>', "Name of the account's owner wallet")
+.option('-w, --walletName <walletName>', "Name of the account's owner wallet")
+.option('-p, --password <password>', 'Password of owner wallet')
+.description(`
+Deletes an existing account
+
+Synthax : node actionCLI.js deleteaccount -a [account] -w [wallet] -p [passwd]
+`)
+.action(async ()=>{
+
+    let address = nodeAddress || nodeAddress;
+    let accountName = program.accountName
+    let walletName = program.walletName
+    let password = program.password
+
+    if(!address) throw new Error('ERROR: URL of receiving node is required')
+    if(!accountName) throw new Error('ERROR: Name of sending account is required')
+    if(!walletName) throw new Error('ERROR: Name of owner wallet is required')
+    if(!password) throw new Error('ERROR: Password of owner wallet is required')
+
+
+    if(!nodeAddress){
+        throw new Error('URL of blockchain node is required');
+            
+    }else{
+        let address = nodeAddress;
+        let walletManager = new WalletManager();
+        let wallet = await walletManager.loadWallet(`./wallets/${walletName}-${sha1(walletName)}.json`);
+ 
+        let action = new Action({
+            fromAccount:accountName,
+            type:'account',
+            task:'delete',
+            data:{
+                name:accountName
+            }
         });
         
         walletManager.unlockWallet(walletName, password)

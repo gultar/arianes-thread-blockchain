@@ -1,5 +1,6 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger, readFile, writeToFile } = require('../../tools/utils.js') 
+const { isValidActionJSON } = require('../../tools/jsonvalidator')
 const fs = require('fs')
 // const Database = require('./database')
 const Database = require('../database/db')
@@ -77,15 +78,15 @@ class AccountTable{
       }
 
       //Deprecated
-      deleteAccount({ name, signature }){
+      deleteAccount({ name, action }, ){
           return new Promise(async(resolve, reject)=>{
             try{
-                if(name && signature && typeof signature == 'string'){
+                if(name && action && isValidActionJSON(action)){
                     let account = await this.getAccount(name)
                     if(account){
                         if(account.error) resolve({error:account.error})
                         const publicKey = ECDSA.fromCompressedPublicKey(account.ownerKey);
-                        let isOwner = await publicKey.verify(account.hash, signature);
+                        let isOwner = await publicKey.verify(action.hash, action.signature);
                         if(isOwner){
                             let deleted = await this.accountsDB.deleteId(account.name)
                             if(deleted.error) resolve({error:deleted.error})

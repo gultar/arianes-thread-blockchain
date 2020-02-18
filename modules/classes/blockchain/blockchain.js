@@ -179,7 +179,7 @@ class Blockchain{
     genesisBlock.difficulty = '0x1024'//'0x100000';//'0x2A353F';
     genesisBlock.totalDifficulty = genesisBlock.difficulty
     genesisBlock.challenge = setNewChallenge(genesisBlock)
-    genesisBlock.blockTime = 10
+    genesisBlock.blockTime = 10 * 1000
     genesisBlock.consensus = "Proof of Work" //Possible values : Proof of Work, Permissioned, Proof of Stake, Proof of Importance
     genesisBlock.network = "mainnet"
     genesisBlock.maxCoinSupply = Math.pow(10, 10);
@@ -433,8 +433,13 @@ class Blockchain{
     let saved = await this.balance.saveBalances(newBlock)
     if(saved.error) return { error:saved.error }
     
-    let callsExecuted = await this.runTransactionCalls(newBlock);
-    if(callsExecuted.error) return { error:callsExecuted.error }
+    /**
+     * Will ship transaction calls to vm server
+     * and wait for results
+     * 
+     */
+    // let callsExecuted = await this.runTransactionCalls(newBlock);
+    // if(callsExecuted.error) return { error:callsExecuted.error }
 
     let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
     if(transactionsDeleted.error) return { error:transactionsDeleted.error }
@@ -1308,7 +1313,7 @@ class Blockchain{
                 
               }else if(action.type == 'account'){
                 let account = action.data
-                let removed = await this.accountTable.deleteAccount({ name:account.name, action:action });
+                let removed = await this.accountTable.deleteAccount({ name:account.name, signature:account.ownerSignature });
                 if(removed.error) errors[hash] = removed.error
               }
             }
@@ -1791,83 +1796,83 @@ class Blockchain{
 
   
 
-  convertTransactionToCall(transaction){
-    return new Promise(async (resolve)=>{
-      let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
-      if(fromAccount.error) resolve({error:fromAccount.error})
-      let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
-      if(toAccount.error) resolve({error:toAccount})
+//   convertTransactionToCall(transaction){
+//     return new Promise(async (resolve)=>{
+//       let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+//       if(fromAccount.error) resolve({error:fromAccount.error})
+//       let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+//       if(toAccount.error) resolve({error:toAccount})
 
-      let payload = transaction.data
+//       let payload = transaction.data
 
-      let call = {
-        fromAccount: fromAccount.name,
-        data:{
-          contractName: toAccount.name,
-          method: payload.method,
-          params: payload.params,
-          memory:payload.memory,
-          cpuTime:payload.cpuTime
-        },
-        hash:transaction.hash,
-        transaction:transaction
-      }
+//       let call = {
+//         fromAccount: fromAccount.name,
+//         data:{
+//           contractName: toAccount.name,
+//           method: payload.method,
+//           params: payload.params,
+//           memory:payload.memory,
+//           cpuTime:payload.cpuTime
+//         },
+//         hash:transaction.hash,
+//         transaction:transaction
+//       }
 
-      resolve(call)
-    })
-  }
+//       resolve(call)
+//     })
+//   }
 
-  runTransactionCalls(block){
-    return new Promise(async (resolve)=>{
-      let transactions = block.transactions;
-      let txHashes = Object.keys(block.transactions);
-      let errors = {}
-      let calls = {}
-      for await(var hash of txHashes){
-        let transaction = transactions[hash];
+//   runTransactionCalls(block){
+//     return new Promise(async (resolve)=>{
+//       let transactions = block.transactions;
+//       let txHashes = Object.keys(block.transactions);
+//       let errors = {}
+//       let calls = {}
+//       for await(var hash of txHashes){
+//         let transaction = transactions[hash];
         
-        if(transaction.type == 'call'){
-          let call = await this.convertTransactionToCall(transaction)
-          if(call.error) resolve({error:call.error})
-          else calls[call.hash] = call
-        }
+//         if(transaction.type == 'call'){
+//           let call = await this.convertTransactionToCall(transaction)
+//           if(call.error) resolve({error:call.error})
+//           else calls[call.hash] = call
+//         }
 
         
-      }
+//       }
 
-      if(Object.keys(calls).length > 0){
-        if(Object.keys(calls).length == 1){
-          let hash = Object.keys(calls)[0];
+//       if(Object.keys(calls).length > 0){
+//         if(Object.keys(calls).length == 1){
+//           let hash = Object.keys(calls)[0];
 
-          let call = calls[hash]
+//           let call = calls[hash]
 
-          let result = await this.executeSingleCall(call)
-          if(result.error) resolve({error:result.error})
-          else{
-            resolve(result)
-          }
-        }else{
-          let results = await this.executeManyCalls(calls)
-          if(results){
-            if(results.error) resolve({error:results.error})
-            else if(Object.keys(results).length > 0){
-              resolve(results)
+//           let result = await this.executeSingleCall(call)
+//           if(result.error) resolve({error:result.error})
+//           else{
+//             resolve(result)
+//           }
+//         }else{
+//           let results = await this.executeManyCalls(calls)
+//           if(results){
+//             if(results.error) resolve({error:results.error})
+//             else if(Object.keys(results).length > 0){
+//               resolve(results)
                 
-            }else{
-              resolve({error:'ERROR: Call execution returned an empty result object'})
-            }
-          }else{
-            resolve({error:'ERROR: Call execution did not return any result'})
-          }
-        }
+//             }else{
+//               resolve({error:'ERROR: Call execution returned an empty result object'})
+//             }
+//           }else{
+//             resolve({error:'ERROR: Call execution did not return any result'})
+//           }
+//         }
  
-      }else{
-        resolve(true)
-      }
+//       }else{
+//         resolve(true)
+//       }
        
       
-    })
-  }
+//     })
+//   }
 
   executeActionBlock(actions){
     return new Promise(async (resolve)=>{
@@ -1910,25 +1915,6 @@ class Blockchain{
             }
           }
 
-          if(action.task == 'delete'){
-            let account = await this.accountTable.getAccount(action.data.name)
-            if(!account || account.error) resolve({error:`ERROR: Could not delete account. Account ${action.data.name} not found`})
-            else{
-              let deleted = await this.accountTable.deleteAccount({
-                name:action.data.name,
-                action:action,
-              }, action);
-            
-              if(deleted && !deleted.error){
-                resolve(true)
-              }else if(deleted.error){
-                resolve({error:deleted.error})
-              }else{
-                resolve({error:'ERROR: Account already exists'})
-              }
-            }
-          }
-
           break;
         case 'contract':
           if(action.task == 'deploy'){
@@ -1942,19 +1928,19 @@ class Blockchain{
             
           }
 
-          if(action.task == 'call'){
-            let executed = await this.executeSingleCall(action)
-            if(executed){
-              if(executed.error){
-                resolve({error:executed.error})
-              }else{
-                resolve(executed)
-              }
-            }else{
-              resolve({error:'Function has returned nothing'})
-            }
+        //   if(action.task == 'call'){
+        //     let executed = await this.executeSingleCall(action)
+        //     if(executed){
+        //       if(executed.error){
+        //         resolve({error:executed.error})
+        //       }else{
+        //         resolve(executed)
+        //       }
+        //     }else{
+        //       resolve({error:'Function has returned nothing'})
+        //     }
             
-          }
+        //   }
 
           if(action.task == 'destroy'){
            let destroyed = await this.destroyContract(action);
@@ -1967,21 +1953,21 @@ class Blockchain{
           }
           resolve({error:'ERROR: Unknown contract task'})
           break;
-        case 'contract action':
-          if(action.task == 'call'){
-            let executed = await this.executeSingleCall(action)
-            if(executed){
-              if(executed.error){
-                resolve({error:executed.error})
-              }else{
-                resolve(executed)
-              }
-            }else{
-              resolve({error:'Function has returned nothing'})
-            }
+        // case 'contract action':
+        //   if(action.task == 'call'){
+        //     let executed = await this.executeSingleCall(action)
+        //     if(executed){
+        //       if(executed.error){
+        //         resolve({error:executed.error})
+        //       }else{
+        //         resolve(executed)
+        //       }
+        //     }else{
+        //       resolve({error:'Function has returned nothing'})
+        //     }
             
-          }
-          break;
+        //   }
+        //   break;
         default:
           console.log(action)
           resolve({error:'ERROR: Invalid contract call'})
@@ -2005,17 +1991,7 @@ class Blockchain{
               resolve({error:'ERROR: Account already exists'})
             }
           }
-          if(action.task == 'delete'){
-            let account = action.data
-            let existing = await this.accountTable.accountsDB.get(account.name)
-            if(existing){
-              resolve(true)
-            }else{
-              if(existing.error) resolve({error:existing.error})
-              resolve({error:`ERROR: Could not delete account ${account.name}`})
-            }
-          }
-          resolve({ error:'ERROR: Unkown account action task' })
+
           break;
         case 'contract':
           if(action.task == 'deploy'){
@@ -2039,19 +2015,19 @@ class Blockchain{
             
           }
 
-          if(action.task == 'call'){
-            let executed = await this.executeSingleCall(action)
-            if(executed){
-              if(executed.error){
-                resolve({error:executed.error})
-              }else{
-                resolve(executed)
-              }
-            }else{
-              resolve({error:'Function has returned nothing'})
-            }
+        //   if(action.task == 'call'){
+        //     let executed = await this.executeSingleCall(action)
+        //     if(executed){
+        //       if(executed.error){
+        //         resolve({error:executed.error})
+        //       }else{
+        //         resolve(executed)
+        //       }
+        //     }else{
+        //       resolve({error:'Function has returned nothing'})
+        //     }
             
-          }
+        //   }
           resolve({error:'ERROR: Unknown contract task'})
           break;
         default:
@@ -2181,54 +2157,54 @@ class Blockchain{
 
  
 
-  async executeManyCalls(calls){
-    for await(let hash of Object.keys(calls)){
-      let call = calls[hash]
-      this.factory.addCall(call, call.data.contractName)
-    }
+//   async executeManyCalls(calls){
+//     for await(let hash of Object.keys(calls)){
+//       let call = calls[hash]
+//       this.factory.addCall(call, call.data.contractName)
+//     }
 
-    let codes = await this.factory.buildCode()
-    if(codes.error) return {error:codes.error}
+//     let codes = await this.factory.buildCode()
+//     if(codes.error) return {error:codes.error}
     
-    let results = await this.vmController.executeCalls(codes)
-    if(results.error) return { error:results.error }
-    else return results
-  }
+//     let results = await this.vmController.executeCalls(codes)
+//     if(results.error) return { error:results.error }
+//     else return results
+//   }
 
-  executeSingleCall(call){
-    return new Promise(async (resolve)=>{
-        this.factory.addCall(call, call.data.contractName)
-        let code = await this.factory.buildCode()
-        if(code.error) resolve({error:code.error})
+//   executeSingleCall(call){
+//     return new Promise(async (resolve)=>{
+//         this.factory.addCall(call, call.data.contractName)
+//         let code = await this.factory.buildCode()
+//         if(code.error) resolve({error:code.error})
         
-        let result = await this.vmController.executeCalls(code)
+//         let result = await this.vmController.executeCalls(code)
         
-        if(result){
-          if(result.error) resolve({error:result.error})
-          else resolve(result)
-        }else{
-          resolve({ error:'ERROR: VM did not result any results' })
-        }
-    })
-  }
+//         if(result){
+//           if(result.error) resolve({error:result.error})
+//           else resolve(result)
+//         }else{
+//           resolve({ error:'ERROR: VM did not result any results' })
+//         }
+//     })
+//   }
 
-  testCall(call){
-    return new Promise(async (resolve)=>{
+//   testCall(call){
+//     return new Promise(async (resolve)=>{
       
-      let code = await this.factory.createSingleCode(call)
-      if(code.error) resolve({error:code.error})
+//       let code = await this.factory.createSingleCode(call)
+//       if(code.error) resolve({error:code.error})
       
-      let result = await this.vmController.test(code)
+//       let result = await this.vmController.test(code)
       
-      if(result){
-        if(result.error) resolve({error:result.error})
-        else resolve(result)
-      }else{
-        resolve({ error:'ERROR: VM did not result any results' })
-      }
+//       if(result){
+//         if(result.error) resolve({error:result.error})
+//         else resolve(result)
+//       }else{
+//         resolve({ error:'ERROR: VM did not result any results' })
+//       }
           
-    })
-  }
+//     })
+//   }
 
   rollbackActionBlock(actions){
       return new Promise(async (resolve)=>{
@@ -2256,7 +2232,7 @@ class Blockchain{
               let account = await this.accountTable.getAccount(accountData.name)
               if(account){
                 if(account.error) resolve({error:account.error})
-                let deleted = await this.accountTable.deleteAccount({ name:account.name, action:action })
+                let deleted = await this.accountTable.deleteAccount(accountData)
                 if(deleted.error) resolve({error:deleted.error})
                 else resolve(deleted)
               }else{
