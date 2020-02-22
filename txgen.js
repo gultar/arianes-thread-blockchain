@@ -10,6 +10,8 @@ const activePort = require('dotenv').config({ path: './config/.env' })
 if (activePort.error) throw activePort.error
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
+let total = 0
+
 const parseDataArgument = (dataString) =>{
     return new Promise((resolve)=>{
         if(typeof dataString == 'string'){
@@ -59,6 +61,7 @@ const txgen = (program) =>{
                         let signature = await wallet.sign(transaction.hash);
                         if(signature){
                             transaction.signature = signature;
+                            
                             socket.emit('transaction', transaction)
                            
                         }else{
@@ -75,9 +78,14 @@ const txgen = (program) =>{
             socket.on('transactionEmitted', (result)=>{
                 if(result.error) console.log(result)//clearInterval(generator)
                 // else if(result.result) console.log(result.result)
-                else console.log(result)
+                else{
+                    console.log(result)
+                    total += result.amount
+                }
+                
             })
             socket.on('disconnect', ()=>{
+                console.log('Total sent:', total)
                 console.log('Stopping txgen')
                 process.exit(0)
             })
@@ -121,3 +129,8 @@ program
 })
 
 program.parse(process.argv)
+
+process.on('SIGINT', ()=>{
+    console.log('Total sent', total)
+    process.exit(0)
+})

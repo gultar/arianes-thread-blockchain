@@ -2,6 +2,7 @@ const ioClient = require('socket.io-client')
 const { logger } = require('../tools/utils')
 const BalanceTable = require('../classes/tables/balanceTable')
 const AccountTable = require('../classes/tables/accountTable')
+const ContractTable = require('../classes/tables/contractTable')
 
 class ChainAPIClient{
     constructor(port){
@@ -11,15 +12,21 @@ class ChainAPIClient{
         this.connected = false
         this.accountTable = new AccountTable()
         this.balance = new BalanceTable(this.accountTable)
-        
+        this.contractTable = {}
     }
 
-    async connect(address){
-        
+    connect(address){
+       return new Promise((resolve)=>{
+            this.client = ioClient(address)
+            this.client.on('connect', async()=>{
+                await this.start()
+                resolve({connected:true})
+            })
+       })
+    }
 
-        this.client = ioClient(address)
-        this.client.on('connect', async ()=>{
-            logger('Chain client connected')
+    async start(){
+        logger('Chain client connected')
             this.client.emit('getChain')
             this.client.once('chain', (chain)=> { this.chain = chain })
             
@@ -30,7 +37,25 @@ class ChainAPIClient{
             let latestBlock = await this.getLatestBlock()
             let savedBalances = await this.balance.loadBalances(latestBlock.blockNumber)
             if(savedBalances.error) throw new Error(savedBalances.error)
-        })
+
+            this.contractTable = new ContractTable({
+                getCurrentBlock:()=>{
+                    return this.chain[this.chain.length - 1]
+                },
+                getBlockFromHash:(hash)=>{
+                    this.chain.forEach(block => {
+                        if(block.hash === hash) return block
+                    })
+
+                    return false
+                },
+                getBlock:(blockNubmer)=>{
+                    return this.chain[blockNumber]
+                }
+            })
+            await this.contractTable.init()
+
+            return { started:true }
     }
 
     getLatestBlock(){
@@ -181,25 +206,3 @@ class ChainAPIClient{
 }
 
 module.exports = ChainAPIClient
-
-/**
- * 
- * * getGenesisBlockFromDB()
- * getLatestBlock().hash
- * getIndexOfBlockHashInChain(hash)
- * getNextBlockbyHash(hash)
- * getBlockFromDB(nextBlock.blockNumber)
- * getBlockFromDBByHash(blockIndex);
- * getBlockHeader(blockNumber);
- * getTotalDifficulty()
- * this.chain.chain.length
- * rollbackToBlock(blockNumber - 1)
- * receiveBlock(block)
- * extractHeader(latestFullBlock)
- * validateBlockHeader(bestBlockHeader);
- * getIndexOfBlockHash(block.previousHash)
- * validateTransaction(transaction)
- * validateAction(action)
- * getBlockbyHash(block.hash)
- * isChainValid()
- */

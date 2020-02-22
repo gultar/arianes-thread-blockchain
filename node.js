@@ -18,9 +18,15 @@ const WalletManager = require('./modules/classes/wallets/walletManager');
 const AccountCreator = require('./modules/classes/accounts/accountCreator');
 const PeerDiscovery = require('./modules/network/peerDiscovery');
 const SSLHandler = require('./modules/network/sslHandler')
-const Mempool = require('./modules/classes/mempool/pool');
 const PeerManager = require('./modules/network/peerManager')
 const NetworkManager = require('./modules/network/networkManager')
+
+let { mempool } = require('./modules/instances/mempool')
+let { balance } = require('./modules/instances/tables')
+let { blockchain } = require('./modules/instances/blockchain')
+let { blockRuntime } = require('./modules/instances/blockRuntime')
+
+
 /****************** APIs ********************* */
 const MinerAPI = require('./modules/api/minerApi')
 const HttpAPI = require('./modules/api/httpApi')
@@ -52,8 +58,10 @@ const compareSnapshots = require('./modules/network/snapshotHandler')
 */
 
 class Node {
+
   constructor(options){
     //Genesis Configs
+
     this.genesis = options.genesis
     //Network tools
     this.ssl = new SSLHandler()
@@ -84,12 +92,11 @@ class Node {
     this.dhtLookupTime = options.dhtLookupTime || 5 * 60 * 1000;
     this.noLocalhost = options.noLocalhost || false;
     
-    //Parts of Node
-    this.mempool = new Mempool()
     this.nodeList = new NodeList();
     this.walletManager = new WalletManager();
     this.accountCreator = new AccountCreator();
-    this.chain = new Blockchain([], this.mempool);
+    // blockchain = new Blockchain();
+    this.chain = blockchain
     //Network related parameters
     this.ioServer = {};
     this.userInterfaces = [];
@@ -128,8 +135,8 @@ class Node {
 
     //APIs
     this.httpAPI = new HttpAPI({
-      chain:this.chain,
-      mempool:this.mempool,
+      chain:blockchain,
+      mempool:mempool,
       channel:this.minerChannel,
       nodeList:this.nodeList,
       broadcastAction:async (action)=>{
@@ -148,10 +155,6 @@ class Node {
     
   }
 
-  displaySplashScreen(){
-    let figlet = require('figlet')
-    console.log(chalk.green(figlet.textSync('Wampum.js')))
-  }
 
   /**
     Boots up Node's Websocket Server and local HTTP and Wesocket APIs
@@ -159,116 +162,108 @@ class Node {
   startServer(){
 
     return new Promise(async (resolve, reject)=>{
-      // this.displaySplashScreen()
-      console.log(chalk.cyan('\n*************************************************'))
-      console.log(chalk.cyan('*')+' Starting node at '+this.address+chalk.cyan("   *"));
-      console.log(chalk.cyan('*************************************************\n'))
-
         let networkConfigLoaded = await this.networkManager.init()
         if(networkConfigLoaded.error) logger("NETWORK INIT ERROR", networkConfigLoaded.error)
         let token = this.networkManager.getNetwork()
         let joined = await this.networkManager.joinNetwork(token)
+        
         if(joined.error) logger('NETWORK ERROR', joined.error)
+
+        let nodeListLoaded = await this.nodeList.loadNodeList();
+        let mempoolLoaded = await mempool.loadMempool();
+        let contractTableStarted = await blockRuntime.contractTable.init()
         
-        this.chain.init()
-        .then(async ()=>{
+        if(!nodeListLoaded) reject('Could not load node list')
+        if(!mempoolLoaded) reject('Could not load mempool');
+
+        logger('Loaded Blockchain'); 
+        logger('Loaded peer node list');
+        logger('Loaded transaction mempool');
+        logger('Number of transactions in pool: '+ await mempool.sizeOfPool());
+        logger('Number of actions in pool: '+ await mempool.sizeOfActionPool());
+        logger('Loaded network configurations')
+        logger('Attempting to connect to network: '+this.networkManager.currentNetwork)
+
+        if(this.httpsEnabled){
+          let sslConfig = await this.ssl.getCertificateAndPrivateKey()
+          this.server = https.createServer(sslConfig);
+        }else{
+          this.server = http.createServer();
+        }
+        
+        this.server.listen(this.port);
+        process.env.PORT = this.port;
+        let savedPort = await this.savePortConfig();
+        if(savedPort) logger('Saved port to .env config file')
+        else logger('WARNING: Could not save port to .env file')
+
+        logger(chalk.cyan(`Started Blockchain node port: ${this.address}`));
+
+        this.heartbeat();
+        this.initAPIs();
+        
+        if(this.enableLocalPeerDiscovery){
+          this.findPeersThroughDNSSD()
+        }
+
+        if(this.enableDHTDiscovery){
+          this.findPeersThroughBittorrentDHT()
+        }
+        
+        this.ioServer = socketIo(this.server, { 'pingInterval': 200, 'pingTimeout': 10000, 'forceNew':true });
+  
+        this.ioServer.on('connection', (socket) => {
           
-            let nodeListLoaded = await this.nodeList.loadNodeList();
-            let mempoolLoaded = await this.mempool.loadMempool();
+          let token = socket.handshake.query.token;
+          
+          if(socket){
             
-            if(!nodeListLoaded) reject('Could not load node list')
-            if(!mempoolLoaded) reject('Could not load mempool');
+                socket.on('authentication', (config, password)=>{
+                  let verified = this.verifyNetworkConfig(config, password)
+                  if(verified && !verified.error){
+                    socket.emit('authenticated', { success:this.networkManager.getNetwork() })
+                    socket.on('message', (msg) => { logger('Client:', msg); });
 
-            logger('Loaded Blockchain'); 
-            logger('Loaded peer node list');
-            logger('Loaded transaction mempool');
-            logger('Number of transactions in pool: '+this.mempool.sizeOfPool());
-            logger('Number of actions in pool: '+this.mempool.sizeOfActionPool());
-            logger('Loaded network configurations')
-            logger('Attempting to connect to network: '+this.networkManager.currentNetwork)
-
-            if(this.httpsEnabled){
-              let sslConfig = await this.ssl.getCertificateAndPrivateKey()
-              this.server = https.createServer(sslConfig);
-            }else{
-              this.server = http.createServer();
-            }
-            
-            this.server.listen(this.port);
-            process.env.PORT = this.port;
-            let savedPort = await this.savePortConfig();
-            if(savedPort) logger('Saved port to .env config file')
-            else logger('WARNING: Could not save port to .env file')
-            this.heartbeat();
-            this.initAPIs();
-            
-            if(this.enableLocalPeerDiscovery){
-              this.findPeersThroughDNSSD()
-            }
-
-            if(this.enableDHTDiscovery){
-              this.findPeersThroughBittorrentDHT()
-            }
-            
-            this.ioServer = socketIo(this.server, { 'pingInterval': 200, 'pingTimeout': 10000, 'forceNew':true });
-      
-            this.ioServer.on('connection', (socket) => {
-              
-              let token = socket.handshake.query.token;
-              
-              if(socket){
-                
-                    socket.on('authentication', (config, password)=>{
-                      let verified = this.verifyNetworkConfig(config, password)
-                      if(verified && !verified.error){
-                        socket.emit('authenticated', { success:this.networkManager.getNetwork() })
-                        socket.on('message', (msg) => { logger('Client:', msg); });
-
-                        if(token && token != undefined){
-                          token = JSON.parse(token)
-                          let peerAddress = token.address
-                          
-                          if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
-                            
-                            if(!this.peersConnected[peerAddress]){
-
-                              this.peersConnected[peerAddress] = socket;
-                              this.nodeList.addNewAddress(peerAddress);
-                              this.nodeEventHandlers(socket, peerAddress);
-
-                            }
-
-                          }else{
-                            socket.emit('message', 'Connected to local node');
-                            this.externalEventHandlers(socket);
-                          } 
-                        }else{
-                          socket.emit('message', 'Connected to local node');
-                          this.externalEventHandlers(socket);
-                        }
-                      }else{
-                        socket.emit('authenticated', { error:verified.error, network:this.networkManager.getNetwork() })
-                        socket.disconnect()
-                      }
+                    if(token && token != undefined){
+                      token = JSON.parse(token)
+                      let peerAddress = token.address
                       
-                    })
-                
-              }else{
-                logger(chalk.red('ERROR: Could not create socket'))
-              }
-        
-            });
-        
-            this.ioServer.on('disconnect', ()=>{ })
-        
-            this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
-        
-            resolve(true)
-        })
-        .catch(e =>{
-          console.log(e)
-          throw new Error(e)
-        })
+                      if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
+                        
+                        if(!this.peersConnected[peerAddress]){
+
+                          this.peersConnected[peerAddress] = socket;
+                          this.nodeList.addNewAddress(peerAddress);
+                          this.nodeEventHandlers(socket, peerAddress);
+
+                        }
+
+                      }else{
+                        socket.emit('message', 'Connected to local node');
+                        this.externalEventHandlers(socket);
+                      } 
+                    }else{
+                      socket.emit('message', 'Connected to local node');
+                      this.externalEventHandlers(socket);
+                    }
+                  }else{
+                    socket.emit('authenticated', { error:verified.error, network:this.networkManager.getNetwork() })
+                    socket.disconnect()
+                  }
+                  
+                })
+            
+          }else{
+            logger(chalk.red('ERROR: Could not create socket'))
+          }
+    
+        });
+    
+        this.ioServer.on('disconnect', ()=>{ })
+    
+        this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
+    
+        resolve(true)
 
         
     })
@@ -336,7 +331,7 @@ class Node {
 
       socket.on('getChainSnapshot', async ()=>{
         await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getChainSnapshot' events") }); // consume 1 point per event from IP
-        socket.emit('chainSnapshot', this.chain.chainSnapshot)
+        socket.emit('chainSnapshot', blockchain.chainSnapshot)
       })
 
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
@@ -351,7 +346,7 @@ class Node {
         await rateLimiter.consume(socket.handshake.address).catch(e => { 
           // console.log("Peer sent too many 'getNextBlock' events") 
         }); // consume 1 point per event from IP
-        let genesisBlock = await this.chain.getGenesisBlockFromDB()
+        let genesisBlock = await blockchain.getGenesisBlockFromDB()
         socket.emit('genesisBlock', genesisBlock)
       })
 
@@ -363,21 +358,21 @@ class Node {
       // await rateLimiter.consume(socket.handshake.address).catch(e => { 
       //   // console.log("Peer sent too many 'getNextBlock' events") 
       // }); // consume 1 point per event from IP
-      let index = await this.chain.getIndexOfBlockHashInChain(hash)
+      let index = await blockchain.getIndexOfBlockHashInChain(hash)
       let isGenesis = this.genesis.hash == hash
       
       if(!index && !isGenesis) socket.emit('nextBlock', {error:'Block not found'})
       else{
-        if(hash == this.chain.getLatestBlock().hash){
+        if(hash == blockchain.getLatestBlock().hash){
           socket.emit('nextBlock', {end:'End of blockchain'})
         }else{
           
-          let nextBlock = await this.chain.getNextBlockbyHash(hash)
-          let latestBlock = this.chain.getLatestBlock()
+          let nextBlock = await blockchain.getNextBlockbyHash(hash)
+          let latestBlock = blockchain.getLatestBlock()
           if(!nextBlock) socket.emit('nextBlock', { error:'ERROR: Next block not found' })
           else{
-            let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
-            if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
+            let block = await blockchain.getBlockFromDB(nextBlock.blockNumber)
+            if(!block) setTimeout(async()=>{ block = await blockchain.getBlockFromDB(nextBlock.blockNumber) }, 500)
             if(block && !block.error){
               socket.emit('nextBlock', block)
             }else{
@@ -401,7 +396,7 @@ class Node {
     // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
       if(hash && typeof hash == 'string'){
         
-        let block = await this.chain.getBlockFromDBByHash(blockIndex);
+        let block = await blockchain.getBlockFromDBByHash(blockIndex);
           if(block){
             if(block.error) socket.emit('blockFromHash', {error:block.error})
             else socket.emit('blockFromHash', block)
@@ -416,10 +411,10 @@ class Node {
   async getBlock(socket, blockNumber, hash){
     // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlock' events") });
       if(blockNumber && typeof blockNumber == 'number'){
-        let block = await this.chain.getBlockFromDB(blockNumber);
+        let block = await blockchain.getBlockFromDB(blockNumber);
         if(block){
           socket.emit('block', block)
-        }else if(blockNumber >= this.chain.getLatestBlock().blockNumber + 1){
+        }else if(blockNumber >= blockchain.getLatestBlock().blockNumber + 1){
           socket.emit('block', {end:'End of block chain'})
         }else{
           socket.emit('block', {error:'Block not found'})
@@ -431,10 +426,10 @@ class Node {
   async getBlockHeader(socket, blockNumber){
     // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockHeader' events") });
       if(blockNumber && typeof blockNumber == 'number'){
-        let header = await this.chain.getBlockHeader(blockNumber);
+        let header = await blockchain.getBlockHeader(blockNumber);
         if(header){
           socket.emit('blockHeader', header)
-        }else if(blockNumber == this.chain.getLatestBlock().blockNumber + 1){
+        }else if(blockNumber == blockchain.getLatestBlock().blockNumber + 1){
           socket.emit('blockHeader', {end:'End of header chain'})
         }else{
           socket.emit('blockHeader', {error:'Header not found'})
@@ -446,9 +441,9 @@ class Node {
     // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
     try{
       let status = {
-        totalDifficultyHex: this.chain.getTotalDifficulty(),
-        bestBlockHeader: this.chain.getLatestBlock(),
-        length: this.chain.chain.length
+        totalDifficultyHex: blockchain.getTotalDifficulty(),
+        bestBlockHeader: blockchain.getLatestBlock(),
+        length: blockchain.chain.length
       }
 
       socket.emit('blockchainStatus', status);
@@ -501,6 +496,7 @@ class Node {
       }
     }
     if(!this.peerDiscovery){
+      logger(chalk.cyan(`DHT Discovery service listening on port: ${this.httpPrefix}://${this.host}:${this.peerDiscoveryPort}`))
       logger('Looking for peers on swarm channel:', this.networkManager.currentNetwork)
       this.peerDiscovery = new PeerDiscovery({
         channel:this.networkManager.currentNetwork,
@@ -598,7 +594,7 @@ class Node {
   downloadBlockchain(peer){
     return new Promise(async (resolve)=>{
       if(peer){
-        let startHash = this.chain.getLatestBlock().hash;
+        let startHash = blockchain.getLatestBlock().hash;
         this.isDownloading = true;
         let unansweredRequests = 0;
         let maxRetryNumber = 3
@@ -609,7 +605,7 @@ class Node {
           if(unansweredRequests <= maxRetryNumber){
             this.retrySending = setTimeout(()=>{
               
-              peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
+              peer.emit('getNextBlock', blockchain.getLatestBlock().hash)
               unansweredRequests++
               awaitRequest()
             }, 5000)
@@ -639,9 +635,9 @@ class Node {
 
             if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
               rolledBack++
-              let blockNumber = this.chain.getLatestBlock().blockNumber
-              let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
-              let latestHash = this.chain.getLatestBlock().hash
+              let blockNumber = blockchain.getLatestBlock().blockNumber
+              let rolledback = await blockchain.rollbackToBlock(blockNumber - 1)
+              let latestHash = blockchain.getLatestBlock().hash
               peer.emit('getNextBlock', latestHash)
             }else{
               closeConnection({ error:true })
@@ -649,13 +645,13 @@ class Node {
             }
             
           }else{
-            let added = await this.chain.receiveBlock(block)
+            let added = await this.addBlock(block)
             if(added.error){
               logger('DOWNLOAD', added.error)
               closeConnection()
             }else if(added.extended){
-              let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
-              let latestHash = this.chain.getLatestBlock().hash
+              let rolledback = await blockchain.rollbackToBlock(blockchain.getLatestBlock().blockNumber - 1)
+              let latestHash = blockchain.getLatestBlock().hash
               peer.emit('getNextBlock', latestHash)
               awaitRequest()
             }else{
@@ -678,9 +674,9 @@ class Node {
     let latestFullBlock = await this.getLatestFullBlock()
 
     let status = {
-      totalDifficultyHex: this.chain.getTotalDifficulty(),
-      bestBlockHeader: this.chain.extractHeader(latestFullBlock),
-      length: this.chain.chain.length
+      totalDifficultyHex: blockchain.getTotalDifficulty(),
+      bestBlockHeader: blockchain.extractHeader(latestFullBlock),
+      length: blockchain.chain.length
     }
 
     return status
@@ -704,14 +700,14 @@ class Node {
           if(totalDifficultyHex && bestBlockHeader && length){
             
             this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
-            let thisTotalDifficultyHex = await this.chain.getTotalDifficulty();
+            let thisTotalDifficultyHex = await blockchain.getTotalDifficulty();
             // Possible major bug, will not sync if chain is longer but has different block at a given height
             let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
             let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
             if(thisTotalDifficulty < totalDifficulty){
               logger('Attempting to download blocks from peer')
               
-              let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+              let isValidHeader = await blockchain.validateBlockHeader(bestBlockHeader);
               if(isValidHeader){
 
                 this.isDownloading = true
@@ -781,83 +777,6 @@ class Node {
     })
   }
 
-  
-  // //Heavy WIP
-  // getMissingBlocksToSyncBranch(unsyncedBlockHash){
-  //   return new Promise(async (resolve)=>{
-  //     if(!unsyncedBlockHash){
-  //       resolve({error:'ERROR: Need to provide block hash of missing branch block'})
-  //     }else{
-  //       let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
-  //       let missingBlocks = []
-  //       let peer = await this.getMostUpToDatePeer()
-  //       // console.log('Up to date peer is of type ', typeof peer)
-  //       if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
-  //       else if(peer.error) resolve({error:peer.error})
-  //       else{
-          
-  //         peer.emit('getPreviousBlock', unsyncedBlockHash)
-  //         peer.on('previousBlock', async (block)=>{
-  //           if(block.end){
-  //             peer.off('previousBlock')
-  //             clearTimeout(timeout)
-  //             resolve({error:block.end})
-  //           }else if(block.error){
-  //             peer.off('previousBlock')
-  //             clearTimeout(timeout)
-  //             resolve({error:block.error})
-  //           }else if(block.branch){
-
-  //             missingBlocks = [ ...block.branch, ...missingBlocks ]
-  //             let firstBlock = missingBlocks[0]
-  //             let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(firstBlock.previousHash)
-  //             if(isLinkedToChain){
-  //               peer.off('previousBlock')
-  //               clearTimeout(timeout)
-  //               resolve(missingBlocks)
-  //             }else{
-  //               peer.emit('getPreviousBlock', firstBlock.hash)
-  //             } 
-              
-  //           }else if(block.pool){
-
-  //             let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(block.pool.previousHash)
-  //             missingBlocks = [ block.pool, ...missingBlocks ]
-  //             if(isLinkedToChain){
-  //               peer.off('previousBlock')
-  //               clearTimeout(timeout)
-  //               resolve(missingBlocks)
-  //             }else{
-  //               peer.emit('getPreviousBlock', block.pool.hash)
-  //             }
-              
-  //           }else if(block){
-              
-              
-  //             let isLinkedToChain = this.chain.getIndexOfBlockHash(block.previousHash)
-  //             missingBlocks = [ block, ...missingBlocks ]
-
-  //             if(isLinkedToChain){
-  //               peer.off('previousBlock')
-  //               clearTimeout(timeout)
-  //               resolve(missingBlocks)
-  //             }
-              
-  //             else{
-  //               peer.emit('getPreviousBlock', block.hash)
-  //             }
-
-              
-  //           }
-  //         })
-  //       }
-  //     }
-
-
-      
-  //   })
-  // }
-
   /**
     Broadcast only to this node's connected peers. Does not send peer messages
     @param {string} $eventType - Type of node event
@@ -901,7 +820,6 @@ class Node {
 
   }
 
-  
   /**
     Relays certain console logs to the web UI
     @param {string} $message - Console log to be sent
@@ -1003,17 +921,17 @@ class Node {
       })
 
       socket.on('getContract', async (name)=>{
-          let contract = await this.chain.contractTable.getContract(name)
+          let contract = await blockRuntime.contractTable.getContract(name)
           console.log(contract)
       })
 
       socket.on('getContractState', async (blockNumber, contractName)=>{
-        let storage = await this.chain.contractTable.stateStorage[contractName]
+        let storage = await blockRuntime.contractTable.stateStorage[contractName]
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          if(!blockNumber) blockNumber = this.chain.getLatestBlock().blockNumber;
-          let block = this.chain.chain[blockNumber]
+          if(!blockNumber) blockNumber = blockchain.getLatestBlock().blockNumber;
+          let block = blockchain.chain[blockNumber]
           let timestamp = block.timestamp
           let state = await storage.getClosestState(timestamp)
           socket.emit('contractState', state)
@@ -1022,7 +940,7 @@ class Node {
 
       socket.on('getCurrentContractState', async (contractName)=>{
         
-        let storage = await this.chain.contractTable.stateStorage[contractName]
+        let storage = await blockRuntime.contractTable.stateStorage[contractName]
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
@@ -1035,7 +953,7 @@ class Node {
 
       socket.on('getClosestContractState', async (blockNumber, contractName)=>{
         
-        let storage = await this.chain.contractTable.stateStorage[contractName]
+        let storage = await blockRuntime.contractTable.stateStorage[contractName]
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
@@ -1047,11 +965,11 @@ class Node {
 
       socket.on('getLatestContractState', async (contractName, blockNumber)=>{
         
-        let storage = await this.chain.contractTable.stateStorage[contractName]
+        let storage = await blockRuntime.contractTable.stateStorage[contractName]
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          let block = this.chain.chain[blockNumber]
+          let block = blockchain.chain[blockNumber]
           if(!block) socket.emit('contractState', { error:`Block ${blockNumber} not found` })
           else{
             let timestamp = block.timestamp
@@ -1062,7 +980,7 @@ class Node {
       })
 
       socket.on('getContractAPI', async (name)=>{
-          let contract = await this.chain.contractTable.getContract(name)
+          let contract = await blockRuntime.contractTable.getContract(name)
           if(contract){
             let api = contract.contractAPI;
             socket.emit('api', api)
@@ -1074,7 +992,7 @@ class Node {
 
       socket.on('getAccount', async (name)=>{
         try{
-          let result = await this.chain.accountTable.getAccount(name)
+          let result = await blockchain.accountTable.getAccount(name)
           socket.emit('account', result)
           console.log(result)
         }catch(e){
@@ -1084,7 +1002,7 @@ class Node {
 
       socket.on('getAllAccounts', async (ownerKey)=>{
         try{
-          let allAccounts = await this.chain.accountTable.getAccountsOfKey(ownerKey)
+          let allAccounts = await blockchain.accountTable.getAccountsOfKey(ownerKey)
           if(allAccounts){
             socket.emit('accounts', allAccounts)
           }else{
@@ -1099,12 +1017,12 @@ class Node {
       })
 
       socket.on('getBlockHeader', (blockNumber)=>{
-        let block = this.chain.chain[blockNumber];
+        let block = blockchain.chain[blockNumber];
         socket.emit('header', { header:block })
       })
 
       socket.on('getBlock', async(blockNumber)=>{
-        let block = await this.chain.getBlockFromDB(blockNumber)
+        let block = await blockchain.getBlockFromDB(blockNumber)
         if(block){
           socket.emit('block', block)
         }
@@ -1118,7 +1036,7 @@ class Node {
       })
 
       socket.on('getBlockSize', async (blockNumber)=>{
-        let block = await this.chain.getBlockFromDB(blockNumber)
+        let block = await blockchain.getBlockFromDB(blockNumber)
         socket.emit('blockSize', require('json-size')(block))
         
       })
@@ -1149,8 +1067,8 @@ class Node {
         this.update = true
       })
 
-      socket.on('getMempool', ()=>{
-        socket.emit('mempool', { transactions:this.mempool.txReceipts, actions:this.mempool.actionReceipts });
+      socket.on('getMempool', async ()=>{
+        socket.emit('mempool', { transactions:mempool.txReceipts, actions:mempool.actionReceipts });
       })
 
       socket.on('stopMining', ()=>{
@@ -1159,18 +1077,18 @@ class Node {
       })
 
       socket.on('getSnapshot', ()=>{
-        socket.emit('chainSnapshot', this.chain.chainSnapshot)
+        socket.emit('chainSnapshot', blockchain.chainSnapshot)
       })
 
       socket.on('rollback', async (number)=>{
-        let rolledback = await this.chain.rollbackToBlock(number)
+        let rolledback = await blockchain.rollbackToBlock(number)
         
         socket.emit('rollbackResult', rolledback)
       })
 
       socket.on('getTransactionFromDB', async (hash)=>{
         // let start = process.hrtime()
-        let transaction = await this.chain.getTransactionFromDB(hash)
+        let transaction = await blockchain.getTransactionFromDB(hash)
         // let hrend = process.hrtime(start)
         // console.info('Transaction from db: %ds %dms', hrend[0], hrend[1] / 1000000)
         socket.emit('transactionFromDB', transaction)
@@ -1178,38 +1096,27 @@ class Node {
 
       socket.on('getActionFromDB', async (hash)=>{
         
-        let action = await this.chain.getActionFromDB(hash)
+        let action = await blockchain.getActionFromDB(hash)
         
         socket.emit('actionFromDB', action)
       })
 
-      socket.on('testPayable', async ()=>{
-        const Payable = require('./modules/classes/transactions/payable')
-        
-        let ref = {
-          fromAddress: 'tuor',
-          toAddress: 'Escrow',
-          type: 'call',
-          data: { method: 'accept', cpuTime: 15, params: { id: 'muppet' } },
-          timestamp: 1581864778853,
-          amount: 0,
-          nonce: 0,
-          hash: '77f3c6cbc0c468d89b25d614cbdc4ace3827975472e2b0073111e84389e7e07d',
-          miningFee: 0.0148,
-          delayToBlock: 0,
-          signature: 'LrV+M1fxX0jrTgQDI0stpVIZelt6Q2xZQu/IWiUjVfEg6rwSy6fl0LWIgsoXKMh1GEO+zc3xCaU2sPbnJxHFGQ=='
+      socket.on('checkDoubleSpend', async ()=>{
+        let txHashes = {}
+        let doubleSpend = {}
+        for await(let block of blockchain.chain){
+          if(block.blockNumber !== 0){
+            for await(let hash of block.txHashes){
+              if(txHashes[hash]){
+                doubleSpend[hash] = block.blockNumber
+              }
+              else txHashes[hash] = block.blockNumber
+            }
+          }
         }
 
-        let payable = new Payable({
-          fromAddress:ref.fromAddress,
-          toAddress:'huor',
-          fromContract:'Escrow',
-          reference:ref,
-          amount:10000
-        })
-        
-        let added = await this.mempool.addTransaction(payable)
-        
+        console.log('Contains those double spent transactions:')
+        console.log(doubleSpend)
       })
 
       socket.on('disconnect', ()=>{
@@ -1239,7 +1146,7 @@ class Node {
     server.listen(this.minerPort, (this.exposeHTTP ? '' : 'localhost'));
     this.localServer = socketIo(server);
 
-    logger('Local API accessible on ',this.minerPort)
+    logger(chalk.cyan(`Local API accessible on port: ${this.httpPrefix}://${this.host}:${this.minerPort}`))
     this.localServer.on('connection',(socket)=>{
 
       let token = socket.handshake.query.token;
@@ -1263,8 +1170,11 @@ class Node {
     logger('Miner connected')
     
     this.minerAPI = new MinerAPI({
-      chain:this.chain,
-      mempool:this.mempool,
+      chain:blockchain,
+      addBlock:async (newBlock)=>{
+        return await this.addBlock(newBlock)
+      },
+      mempool:mempool,
       channel: this.minerChannel,
       sendPeerMessage:(type, data)=>{
         this.sendPeerMessage(type, data)
@@ -1410,13 +1320,13 @@ class Node {
   */
   receiveTransaction(transaction){
     return new Promise((resolve)=>{
-      if(transaction && this.chain instanceof Blockchain){
+      if(transaction && blockchain instanceof Blockchain){
         if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
   
-          this.chain.validateTransaction(transaction)
+          blockchain.validateTransaction(transaction)
           .then(async (valid) => {
             if(!valid.error){
-              await this.mempool.addTransaction(transaction);
+              await mempool.addTransaction(transaction);
               this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
               if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
               resolve(valid)
@@ -1439,15 +1349,15 @@ class Node {
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
 
-      let isValid = await this.chain.validateAction(action)
+      let isValid = await blockchain.validateAction(action)
       if(!isValid || isValid.error){
         if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
         resolve({error:isValid.error})
       }else{
-        //Action will be added to this.mempool only is valid and if corresponds with contract call
+        //Action will be added to mempool only is valid and if corresponds with contract call
         this.UILog('«-'+' Received valid action : '+ action.hash.substr(0, 15)+"...")
         if(this.verbose) logger(chalk.cyan('«-')+' Received valid action : '+ action.hash.substr(0, 15)+"...")
-        await this.mempool.addAction(action)
+        await mempool.addAction(action)
         resolve({action:action})
       }
     })
@@ -1458,12 +1368,12 @@ class Node {
   */
   getChainInfo(){
     let info = {
-      chainLength:this.chain.chain.length,
-      headBlockNumber:this.chain.getLatestBlock().blockNumber,
-      headBlockHash:this.chain.getLatestBlock().hash,
-      lastBlockTime:displayDate(new Date(this.chain.getLatestBlock().timestamp)),
-      totalDifficulty:this.chain.getTotalDifficulty(),
-      minedBy:this.chain.getLatestBlock().minedBy,
+      chainLength:blockchain.chain.length,
+      headBlockNumber:blockchain.getLatestBlock().blockNumber,
+      headBlockHash:blockchain.getLatestBlock().hash,
+      lastBlockTime:displayDate(new Date(blockchain.getLatestBlock().timestamp)),
+      totalDifficulty:blockchain.getTotalDifficulty(),
+      minedBy:blockchain.getLatestBlock().minedBy,
     }
     return info
   }
@@ -1477,17 +1387,17 @@ class Node {
    */
   handleNewBlockFound(data, relayPeer, peerMessage){
     return new Promise( async (resolve)=>{
-      if(this.chain instanceof Blockchain && data){
+      if(blockchain instanceof Blockchain && data){
         if(!this.isDownloading){
           try{
 
             let block = JSON.parse(data);
             if(!isValidBlockJSON(block)) resolve({error:'ERROR: Block is of invalid format'})
             else{
-              let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
+              let alreadyReceived = await blockchain.getBlockbyHash(block.hash)
     
               if(!alreadyReceived){
-                if(this.chain.validateBlockHeader(block)){
+                if(blockchain.validateBlockHeader(block)){
                   //Retransmit block
                   this.broadcast('peerMessage', peerMessage)
                   //Become peer's most recent block
@@ -1498,10 +1408,12 @@ class Node {
                   this.minerChannel.emit('nodeEvent','stopMining')
                   this.minerChannel.emit('nodeEvent','isBusy')
                   //Validates than runs the block
-                  let added = await this.chain.receiveBlock(block);
+                  let added = await this.addBlock(block);
 
                   this.minerChannel.emit('nodeEvent','isAvailable')
                   let handled = await this.handleBlockReception(added)
+                  let executed = await this.executeBlock()
+                  
                   resolve(handled)
     
                 }else{
@@ -1535,7 +1447,7 @@ class Node {
       else if(reception.requestUpdate){
         
         let peer = await this.getMostUpToDatePeer()
-        let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
+        let updated = await this.downloadBlockchain(peer, blockchain.getLatestBlock())
         if(updated.error) resolve({error:updated.error})
         else resolve(updated)
         resolve({ updating:true })
@@ -1544,9 +1456,9 @@ class Node {
       else if(reception.rollback){
 
         let peer = await this.getMostUpToDatePeer()
-        let rolledBack = await this.chain.rollbackToBlock(reception.rollback)
+        let rolledBack = await blockchain.rollbackToBlock(reception.rollback)
         if(rolledBack.error) resolve({error:rolledBack.error})
-        let lastHeader = this.chain.getLatestBlock()
+        let lastHeader = blockchain.getLatestBlock()
         let downloaded = await this.downloadBlockchain(peer, lastHeader)
         resolve(downloaded)
         
@@ -1558,22 +1470,22 @@ class Node {
         if(peer){
           let snapshot = this.peerManager.getSnapshot(peer.address)
           
-          let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
+          let comparison = await compareSnapshots(blockchain.chainSnapshot, snapshot)
           if(comparison.rollback){
             logger('Peer chain has a longer branch than this node')
-            let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)
+            let rolledBack = await blockchain.rollbackToBlock(comparison.rollback)
             if(rolledBack.error) resolve({error:rolledBack.error})
 
-            let lastHeader = this.chain.getLatestBlock()
+            let lastHeader = blockchain.getLatestBlock()
             let downloaded = await this.downloadBlockchain(peer, lastHeader)
             resolve(downloaded)
           }else if(comparison.merge){
             logger("Need to merge peer's branched block")
             let blockNumber = comparison.merge.hash
-            let rolledBack = await this.chain.rollbackToBlock(blockNumber - 1)
+            let rolledBack = await blockchain.rollbackToBlock(blockNumber - 1)
             if(rolledBack.error) resolve({error:rolledBack.error})
 
-            let lastHeader = this.chain.getLatestBlock()
+            let lastHeader = blockchain.getLatestBlock()
             let downloaded = await this.downloadBlockchain(peer, lastHeader)
             resolve(downloaded)
           }else{
@@ -1591,17 +1503,29 @@ class Node {
     })
   }
 
+  async addBlock(newBlock){
+    let received = await blockchain.receiveBlock(newBlock)
+    if(received.readyToExecute){
+      let executed = await blockRuntime.executeBlock(newBlock)
+      if(executed.error) return { error:executed.error }
+
+      return { blockAdded:true }
+    }else{
+      return received
+    }
+  }
+
   /**
    * @desc Validates blockchain and, if not valid, rolls back to before the conflicting block
    * @param {Boolean} allowRollback 
    */
   async validateBlockchain(allowRollback){
-    if(this.chain instanceof Blockchain){
-      let isValid = this.chain.isChainValid();
+    if(blockchain instanceof Blockchain){
+      let isValid = await blockchain.isChainValid();
       if(isValid.conflict){
         let atBlockNumber = isValid.conflict;
         if(allowRollback){
-          let rolledback = await this.chain.rollbackToBlock(atBlockNumber-1);
+          let rolledback = await blockchain.rollbackToBlock(atBlockNumber-1);
           logger('Rolled back chain up to block number ', atBlockNumber-1)
           return true;
         }else{
@@ -1618,10 +1542,10 @@ class Node {
    */
   showBlockTime(number){
      try{
-       if(this.chain instanceof Blockchain){
-         var latestBlock = this.chain.chain[number];
+       if(blockchain instanceof Blockchain){
+         var latestBlock = blockchain.chain[number];
          var indexBeforeThat = latestBlock.blockNumber-1;
-         var blockBeforeThat = this.chain.chain[indexBeforeThat];
+         var blockBeforeThat = blockchain.chain[indexBeforeThat];
          return ((latestBlock.timestamp - blockBeforeThat.timestamp)/1000)
        }
      }catch(e){
@@ -1640,41 +1564,37 @@ class Node {
    broadcastTransaction(transaction, test){
     return new Promise(async (resolve)=>{
       try{
-          if(this.chain instanceof Blockchain){
-            if(!transaction.signature){
-              logger('Transaction signature failed. Missing signature')
-              resolve({error:'Transaction signature failed. Missing signature'})
-            }else{
-              
-              this.chain.createTransaction(transaction)
-                .then( async (valid) =>{
-                  if(!valid.error){
+        if(!transaction.signature){
+          logger('Transaction signature failed. Missing signature')
+          resolve({error:'Transaction signature failed. Missing signature'})
+        }else{
+          
+          blockchain.createTransaction(transaction)
+            .then( async (valid) =>{
+              if(!valid.error){
+                let txBroadcasted = await this.handleTransactionType(transaction, test)
+                if(txBroadcasted.error){
+                  this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                  resolve({error:txBroadcasted.error});
+                }else if(txBroadcasted.isReadOnly){
+                  //Is a transaction call linked to read only method
+                  resolve({ value: txBroadcasted.isReadOnly });
+                }else{
+                  this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); 
+                  this.UILog('->'+' Emitted transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) logger(chalk.cyan('->'+' Emitted transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                  resolve(txBroadcasted);
+                }
 
-                    let txBroadcasted = await this.handleTransactionType(transaction, test)
-                    if(txBroadcasted.error){
-                      this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                      resolve({error:txBroadcasted.error});
-                    }else if(txBroadcasted.isReadOnly){
-                      //Is a transaction call linked to read only method
-                      resolve({ value: txBroadcasted.isReadOnly });
-                    }else{
-                      this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); 
-                      this.UILog('->'+' Emitted transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.cyan('->'+' Emitted transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                      resolve(txBroadcasted);
-                    }
+              }else{
+                this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                resolve({error:valid.error});
 
-                  }else{
-                    this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
-                    if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                    resolve({error:valid.error});
-  
-                  }
-                })
-            }
-          }
-         
+              }
+            })
+        }
       }catch(e){
         console.log(chalk.red(e));
         resolve({error:e.message})
@@ -1715,7 +1635,7 @@ class Node {
           let call = this.convertTransactionCallToAction(transaction)
           
           if(!isValidCallPayloadJSON(call.data)) resolve({error:'ERROR: Must provide valid call structure'})
-          let contract = await this.chain.contractTable.getContract(call.data.contractName)
+          let contract = await blockRuntime.contractTable.getContract(call.data.contractName)
           //Checking if the method invoked is open to external execution
           let contractAPI = contract.contractAPI
           if(!contractAPI) resolve({ error:'ERROR: Contract does not have an API' })
@@ -1726,7 +1646,7 @@ class Node {
           else{
             if(contractMethod.type == 'get'){
               //'Get' methods dont modify contract state, obviously
-              let result = await this.chain.testCall(call)
+              let result = await blockRuntime.testCall(call)
               if(result.error) resolve({error:result.error})
               else if(result){
                 resolve({ isReadOnly:result , call:call} )
@@ -1735,13 +1655,13 @@ class Node {
             }else if(contractMethod.type == 'set'){
               //'Set' method may modify state.
               if(test){
-                let result = await this.chain.testCall(call)
+                let result = await blockRuntime.testCall(call)
               
                 if(result.error) resolve({error:result.error})
                 else{
                   //Transactions added to pool for confirmation by peers blocks or by this
                   //node's blocks. 
-                  let added = await this.mempool.addTransaction(transaction);
+                  let added = await mempool.addTransaction(transaction);
                   if(added.error){
                     resolve({error:added.error})
                   }else{
@@ -1753,7 +1673,7 @@ class Node {
                   }
                 }
               }else{
-                let added = await this.mempool.addTransaction(transaction);
+                let added = await mempool.addTransaction(transaction);
                   if(added.error){
                     resolve({error:added.error})
                   }else{
@@ -1778,7 +1698,7 @@ class Node {
           resolve({error:'ERROR: Contract actions may only be created from within a contract'})
         }else{
           //Simple transaction
-          let added = await this.mempool.addTransaction(transaction);
+          let added = await mempool.addTransaction(transaction);
             if(added.error){
               resolve({error:added.error})
             }else{
@@ -1799,22 +1719,22 @@ class Node {
       let isContractAction = action.type == 'contract action'
       if(isContractAction) resolve({error:'ERROR: Contract actions may only be created from within a contract'})
       else{
-        let isValid = await this.chain.validateAction(action)
+        let isValid = await blockchain.validateAction(action)
         if(!isValid || isValid.error){
           if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
           resolve({error:isValid.error})
         }else{
           //Handler will redirect action according to its type
-          let success = await this.chain.testHandleAction(action)
+          let success = await blockRuntime.testHandleAction(action)
           if(success.error) resolve({error:success.error})
           else if(!success.error){
             if(success.isReadOnly){
               resolve({isReadOnly:true, action:action, success:success.isReadOnly})
             }else{
               this.sendPeerMessage('action', JSON.stringify(action, null, 2)); //Propagate action
-              //Action will be added to this.mempool only is valid and if corresponds with contract call
+              //Action will be added to mempool only is valid and if corresponds with contract call
               if(this.verbose) logger(chalk.blue('-»')+' Emitted action: '+ action.hash.substr(0, 15)+"...")
-              let added = await  this.mempool.addAction(action)
+              let added = await  mempool.addAction(action)
               resolve({action:action, success:success})
             }
             
@@ -1835,11 +1755,11 @@ class Node {
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
 
-      let isValid = await this.chain.validateAction(action)
+      let isValid = await blockchain.validateAction(action)
       if(!isValid || isValid.error){
         resolve({error:isValid.error})
       }else{
-        let result = await this.chain.testHandleAction(action)
+        let result = await blockRuntime.testHandleAction(action)
         if(result.error) resolve({error:result.error})
         else resolve({action:action, result:result})
       }
@@ -1851,10 +1771,10 @@ class Node {
    * @desc Helper function to get the latest full block, not just the header
    */
   async getLatestFullBlock(){
-    let latestHeader = this.chain.getLatestBlock()
-    let block = await this.chain.getBlockFromDB(latestHeader.blockNumber)
+    let latestHeader = blockchain.getLatestBlock()
+    let block = await blockchain.getBlockFromDB(latestHeader.blockNumber)
     if(!block || block.error){
-      block = await this.chain.getBlockFromDB(latestHeader.blockNumber - 1)
+      block = await blockchain.getBlockFromDB(latestHeader.blockNumber - 1)
     }
 
     return block
@@ -1868,11 +1788,11 @@ class Node {
   save(){
     return new Promise(async (resolve, reject)=>{
       try{
-        let blockchainSaved = await this.chain.save()
-        let savedStates = await this.chain.balance.saveBalances(this.chain.getLatestBlock());
+        let blockchainSaved = await blockchain.save()
+        let savedStates = await balance.saveBalances(blockchain.getLatestBlock());
         let savedNodeList = await this.nodeList.saveNodeList();
         let savedNetworkConfig = await this.networkManager.save()
-        let savedMempool = await this.mempool.saveMempool();
+        let savedMempool = await mempool.saveMempool();
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();
         if( 
@@ -1957,10 +1877,10 @@ DHT_PORT=${this.peerDiscoveryPort}
   */
   heartbeat(){
     setInterval(async ()=>{
-      this.chain.save()
+      blockchain.save()
       this.housekeeping()
       this.broadcast('getChainSnapshot')
-      let backUp = await this.chain.saveLastKnownBlockToDB()
+      let backUp = await blockchain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
   }

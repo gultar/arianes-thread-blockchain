@@ -1,6 +1,7 @@
 const http = require('http')
 const socketIo = require('socket.io')
 const { logger } = require('../tools/utils')
+const { mempool } = require('../instances/mempool')
 
 /**
  * An api that links the miner process and the node and gathers transactions for it
@@ -13,9 +14,9 @@ const { logger } = require('../tools/utils')
  * @param {Socket} params.socket - Server socket on which the miner will connect
  */
 class MinerAPI{
-    constructor({ chain, mempool, channel, sendPeerMessage, socket }){
+    constructor({ chain, addBlock, channel, sendPeerMessage, socket }){
         this.chain = chain
-        this.mempool = mempool
+        this.addBlock = addBlock
         this.channel = channel
         this.sendPeerMessage = sendPeerMessage
         this.isMinerBusy = false;
@@ -38,8 +39,8 @@ class MinerAPI{
         this.socket.on('isPreparing', ()=>{ this.isMinerBusy = true })
         this.socket.on('disconnect', ()=>{
             this.channel.removeAllListeners('nodeEvent')
-            this.mempool.events.removeAllListeners('newAction')
-            this.mempool.events.removeAllListeners('newTransaction')
+            mempool.events.removeAllListeners('newAction')
+            mempool.events.removeAllListeners('newTransaction')
         })
         //This is for when node is syncing a block or busy doing something else
         this.channel.on('nodeEvent', (event)=>{
@@ -74,12 +75,12 @@ class MinerAPI{
             this.sendPeerMessage(type, data)
         })
         
-        this.mempool.events.on('newAction', async (action)=>{
+        mempool.events.on('newAction', async (action)=>{
             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                 await this.sendNewBlock()
             }
         })
-        this.mempool.events.on('newTransaction', async (transaction)=>{
+        mempool.events.on('newTransaction', async (transaction)=>{
              if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                 await this.sendNewBlock()
             }
@@ -88,9 +89,11 @@ class MinerAPI{
 
     async addMinedBlock(block){
         let isValid = await this.chain.validateBlock(block)
-        
         if(isValid){
-          if(isValid.error) logger('INVALID BLOCK', isValid.error)
+          if(isValid.error){
+            logger('INVALID BLOCK', isValid.error)
+            await this.unwrapBlock(block)
+          }
           else{
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
@@ -102,10 +105,14 @@ class MinerAPI{
                 this.sendPeerMessage('newBlockFound', block);
 
                 //Sync it with current blockchain, skipping the extended validation part
-                let added = await this.chain.receiveBlock(block)
-                if(added.error)logger('MINEDBLOCK:',added.error)
+                let added = await this.addBlock(block)
+                if(added.error){
+                    logger('MINEDBLOCK:',added.error)
+                    await this.unwrapBlock(block)
+                }
                 else return block
             }else{
+                await this.unwrapBlock(block)
                 return false
             }
           }
@@ -135,19 +142,19 @@ class MinerAPI{
         
         let latest = await this.getLatestFullBlock()
         //Checks for tx deferred to next block
-        let deferredTxManaged = await this.mempool.manageDeferredTransactions(latest)
+        let deferredTxManaged = await mempool.manageDeferredTransactions(latest)
         if(deferredTxManaged.error) console.log({ error:deferredTxManaged.error })
 
-        let transactions = await this.mempool.gatherTransactionsForBlock()
+        let transactions = await mempool.gatherTransactionsForBlock()
         if(transactions.error) return { error:transactions.error }
         //Validate all transactions to be mined, delete those that are invalid
         transactions = await this.chain.validateTransactionsBeforeMining(transactions)
         
         //Checks for actions deferred to next block
-        let deferredActionsManaged = await this.mempool.manageDeferredActions(latest)
+        let deferredActionsManaged = await mempool.manageDeferredActions(latest)
         if(deferredActionsManaged.error) console.log({ error:deferredActionsManaged.error })
 
-        let actions = await this.mempool.gatherActionsForBlock()
+        let actions = await mempool.gatherActionsForBlock()
         if(actions.error) return { error:actions.error }
 
         //Validate all actions to be mined, delete those that are invalid
@@ -193,10 +200,10 @@ class MinerAPI{
     //In case another peer finds a block, unwrap discarded block to add back transactions and actions
     async unwrapBlock(block){
         if(block){
-          let putback = await this.mempool.putbackTransactions(block)
+          let putback = await mempool.putbackTransactions(block)
           if(putback.error) return {error:putback.error}
           if(block.actions){
-            let actionsPutback = await this.mempool.putbackActions(block)
+            let actionsPutback = await mempool.putbackActions(block)
             if(actionsPutback.error) return {error:actionsPutback.error}
           }
           return { transactions:putback, actions:putback }

@@ -174,12 +174,12 @@ program
 })
 
 program
-.command('testpayable')
+.command('checkDoubleSpend')
 .description('test')
 .action(()=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-                socket.emit('testPayable');
+                socket.emit('checkDoubleSpend');
         })
     }else{
         console.log('ERROR: Missing node address')

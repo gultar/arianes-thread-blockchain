@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 
-const Node = require('./node');
+
 const program = require('commander');
 const { logger, readFile } = require('./modules/tools/utils');
 const fs = require('fs')
 const genesis = require('./modules/tools/getGenesis')
 const publicIP = require('public-ip')
 const activePort = require('dotenv').config({ path: './config/.env' })
+
+
 
 if (activePort.error) {
     throw activePort.error
@@ -153,7 +155,30 @@ program
           }
         }
       }
+
+      let figlet = require('figlet')
+      let chalk = require('chalk')
+      console.log(chalk.green(figlet.textSync('Tisserand.js')))
+
+      let network = program.network || 'mainnet'
+
+      global.NETWORK = network
+
       
+      let mempoolInstanciated = require('./modules/instances/mempool')
+      let tablesInstanciated = require('./modules/instances/tables')
+      let blockchainInstanciated = require('./modules/instances/blockchain')
+
+      let { blockchain } = blockchainInstanciated
+      let { mempool } = mempoolInstanciated
+      
+      let mempoolStarted = await mempool.init()
+      let blockchainStarted  = await blockchain.init()
+
+      let blockRuntimeInstanciated = require('./modules/instances/blockRuntime')
+      const Node = require('./node');
+
+
       node = new Node({
         host:program.ipaddress ? program.ipaddress : configs.host,
         lanHost:lanHost,
@@ -164,7 +189,7 @@ program
         enableLocalPeerDiscovery:discovery.local,
         enableDHTDiscovery:discovery.dht,
         peerDiscoveryPort:activePort.parsed.DHT_PORT||parseInt(configs.port) - 2000,
-        network:program.network || 'mainnet',
+        network:network,
         noLocalhost:(program.allowLocalhost ? false : true),
         genesis:genesis,
         minerWorker:false,
@@ -175,68 +200,68 @@ program
 
      node.startServer()
      .then( started =>{
-      if(started.error) throw new Error(started.error)
+        if(started.error) throw new Error(started.error)
 
-      if(program.mine){
-        let walletName = program.walletName;
-        let walletPassword = program.password;
-        if(!walletName || !walletPassword){
-          console.log('Could not start miner process: missing walletName or password')
-        }else{
-          const { Worker } = require('worker_threads');
-          let worker = new Worker(`
-          let Miner = require(__dirname+'/modules/classes/mining/miner/miner')
-          let miner = new Miner({
-              publicKey:'',
-              verbose:false,
-              keychain:{ name:"${program.walletName}", password:"${program.password}" }
-          })
-          miner.connect("${'http://localhost:'+node.minerPort}")`, { eval: true })
-          
-          worker.on('error', error => {
-            console.log(error)
-          })
-          worker.on('exit', (message)=> logger('Miner closed with node'))
-        }
-
-        
-      }
-
-      if(program.generate){
-        let walletName = program.walletName;
-        let walletPassword = program.password;
-        if(!walletName || !walletPassword){
-          console.log('Could not start miner process: missing walletName or password')
-        }else{
-          const { Worker } = require('worker_threads');
-          let worker = new Worker('./modules/classes/validating/launchValidator.js', { 
-            workerData: {
-              walletName:walletName,
-              password:walletPassword,
-              nodeAddress:`${'http://localhost:'+node.minerPort}`,
-              verbose:program.verbose
-            } 
-          })
-          
-          worker.on('error', error => {
-            console.log(error)
-          })
-          worker.on('exit', (message)=> logger('Miner closed with node'))
-        }
-
-        
-      }
-  
-      if(program.seeds){
-        if(program.seeds.includes(';')){
-          let seeds = program.seeds.split(';')
-          for(let seed of seeds){
-            node.connectToPeer(seed);
+        if(program.mine){
+          let walletName = program.walletName;
+          let walletPassword = program.password;
+          if(!walletName || !walletPassword){
+            console.log('Could not start miner process: missing walletName or password')
+          }else{
+            const { Worker } = require('worker_threads');
+            let worker = new Worker(`
+            let Miner = require(__dirname+'/modules/classes/mining/miner/miner')
+            let miner = new Miner({
+                publicKey:'',
+                verbose:false,
+                keychain:{ name:"${program.walletName}", password:"${program.password}" }
+            })
+            miner.connect("${'http://localhost:'+node.minerPort}")`, { eval: true })
+            
+            worker.on('error', error => {
+              console.log(error)
+            })
+            worker.on('exit', (message)=> logger('Miner closed with node'))
           }
-        }else{
-          node.connectToPeer(program.seeds)
+
+          
         }
-      }
+
+        if(program.generate){
+          let walletName = program.walletName;
+          let walletPassword = program.password;
+          if(!walletName || !walletPassword){
+            console.log('Could not start miner process: missing walletName or password')
+          }else{
+            const { Worker } = require('worker_threads');
+            let worker = new Worker('./modules/classes/producing/launchProducer.js', { 
+              workerData: {
+                walletName:walletName,
+                password:walletPassword,
+                nodeAddress:`${'http://localhost:'+node.minerPort}`,
+                verbose:program.verbose
+              } 
+            })
+            
+            worker.on('error', error => {
+              console.log(error)
+            })
+            worker.on('exit', (message)=> logger('Miner closed with node'))
+          }
+
+          
+        }
+    
+        if(program.seeds){
+          if(program.seeds.includes(';')){
+            let seeds = program.seeds.split(';')
+            for(let seed of seeds){
+              node.connectToPeer(seed);
+            }
+          }else{
+            node.connectToPeer(program.seeds)
+          }
+        }
      })
      
       
@@ -244,19 +269,27 @@ program
 
 program.parse(process.argv)
 
+let timesPressed = 0
+
 process.on('SIGINT', async () => {
   if(!node.chain.isLoadingBlocks){
     logger('Shutting down node and saving state');
-  
-
+    let { vmBox } = require('./modules/instances/vmbox')
+    timesPressed++
+    if(timesPressed == 2) process.exit(0)
 
     if(process.MINER){
       logger('Stopping miner');
       process.ACTIVE_MINER.kill()
     }
   
-    node.chain.vmController.stop()
-    
+    if(node.chain.worker){
+      node.chain.stopVmController()
+    }
+    else{
+      vmBox.stop()
+    }
+
     let saved = await node.save()
     .catch(e=>{
        console.log(e)

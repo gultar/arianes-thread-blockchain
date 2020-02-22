@@ -9,6 +9,7 @@ const Action = require('../../actions/action')
 const ContractAction = require('../../actions/contractAction')
 const ContractPayable = require('../../transactions/payable')
 const makeExternal = require('../toolbox/makeExternal')
+const vmLog = require('debug')('vm')
 const EventEmitter = require('events')
 const { 
     isValidActionJSON, 
@@ -98,16 +99,24 @@ class ContractVM{
                                 if(!contractName) resolve({error:'ERROR: Contract name is undefined'})
                                 if(!hash) resolve({error:'ERROR: Call hash is undefined'})
 
+                                vmLog('Code requested contract code of ', name)
                                 let thread = this.contractCallThreads[hash]
                                 if(thread){
+                                    vmLog('Request thread fetched for', hash)
                                     let isDepthBelowLimit = thread.depth < this.contractCallDepthLimit
+                                    vmLog('Depth of thread is below limit', isDepthBelowLimit)
                                     if(isDepthBelowLimit){
                                         this.contractCallThreads[hash].depth++
                                         if(this.contractClasses[contractName]){
+                                            vmLog('Contract class '+contractName+' is already loaded in VM')
+                                            vmLog('Class '+contractName+' has been sent to code')
                                             let contractClass = this.sandbox.context.require.mock[contractName]
                                             resolve(contractClass)
                                         }else{
+                                            vmLog('Contract class '+contractName+' not loaded')
                                             this.signals.once('contract', async (contract)=>{
+
+                                                vmLog('Received contract code', (contract?true:false))
                                                 if(contract && Object.keys(contract).length > 0){
                                                     let isSet = await this.setContractClass(contractName, contract)
                                                     let exported = await this.exportContractToSandbox(contractName)
@@ -118,6 +127,7 @@ class ContractVM{
                                                     resolve(false)
                                                 }
                                             })
+                                            vmLog('Requesting contract code of '+contractName+' from controller')
                                             this.signals.emit('getContract', contractName)
                                         }
                                     }else{
@@ -131,11 +141,13 @@ class ContractVM{
                         "getState":(contractName)=>{
                             //Promise is necessary here because of the event listener call back
                             return new Promise((resolve)=>{
+                                vmLog('Requested state of', contractName)
                                 if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
+                                    vmLog('State already loaded in VM')
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
                                     this.signals.once('state', (state)=>{
-                                    
+                                        vmLog('Received state of '+contractName+' from controller', state)
                                         if(state && Object.keys(state).length > 0){
                                             resolve(state) 
                                         }else{
@@ -152,7 +164,7 @@ class ContractVM{
                             //Promise is necessary here because of the event listener call back
                             return new Promise((resolve)=>{
                                 this.signals.once('balance', (balance)=>{
-                                    
+                                    vmLog('Received balance of '+accountName+' balance: ', balance)
                                     if(balance && !balance.error){
                                         resolve(balance) 
                                     }else{
@@ -160,12 +172,13 @@ class ContractVM{
                                     }
                                 })
                                 this.signals.emit('getBalance', accountName)
-                                
+                                vmLog('Requested balance of account', accountName)
                             })
                             
                         },
                         "getCurrentBlock":()=>{
                             return new Promise((resolve)=>{
+                                vmLog('Requested current block')
                                 this.signals.emit('getCurrentBlock')
                                 this.signals.once('currentBlock', block => resolve(block))
                             })
@@ -174,7 +187,9 @@ class ContractVM{
                             return new Promise((resolve)=>{
                                 if(contractAction){ //&& isValidContractActionJSON(contractAction)
                                     this.signals.emit('deferContractAction', contractAction)
+                                    vmLog('Deferring contract action', contractAction.hash)
                                     this.signals.once('deferred', (isDeferred)=>{
+                                        vmLog('Successfully deferred contract action', isDeferred)
                                         resolve(isDeferred)
                                     })
                                 }else{
@@ -186,7 +201,9 @@ class ContractVM{
                             return new Promise((resolve)=>{
                                 if(payable){ //&& isValidContractActionJSON(contractAction)
                                     this.signals.emit('deferPayable', payable)
+                                    vmLog('Deferring payable', payable.hash)
                                     this.signals.once('deferred', (isDeferred)=>{
+                                        vmLog('Successfully deferred payable', isDeferred)
                                         resolve(isDeferred)
                                     })
                                 }else{
@@ -199,7 +216,10 @@ class ContractVM{
                                 if(isValidContractActionJSON(contractAction)){
                                     if(isValidActionloadJSON(contractAction.actionReference) || isValidTransactionCallJSON(contractAction)){
                                         this.signals.emit('emitContractAction', contractAction)
+                                        vmLog('Emitting contract action', contractAction.hash)
+
                                         this.signals.once('emitted', (broadcasted)=>{
+                                            vmLog('Successfully emitted contract action', broadcasted)
                                             if(broadcasted.error) resolve({error:broadcasted.error})
                                             else resolve(broadcasted)
                                         })
@@ -215,7 +235,9 @@ class ContractVM{
                             return new Promise((resolve)=>{
                                 if(isValidPayableJSON(payable)){
                                     this.signals.emit('emitPayable', payable)
+                                    vmLog('Emitting payable', payable.hash)
                                     this.signals.once('emitted', (broadcasted)=>{
+                                        vmLog('Successfully emitted payable', broadcasted)
                                         if(broadcasted.error) resolve({error:broadcasted.error})
                                         else resolve(broadcasted)
                                     })
@@ -393,12 +415,8 @@ class ContractVM{
                 
                 const createTimer = (time, resolve) =>{
                     return setTimeout(()=>{
+                        vmLog('VM Timer kicked in! Throwing error for call', call.hash)
                         this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
-                        // resolve({
-                        //     error:"ERROR: VM timed out",
-                        //     hash:call.hash,
-                        //     contractName:call.contractName
-                        // })
                         let err = new Error("ERROR: VM timed out")
                         err.hash = call.hash
                         err.contractName = call.contractName
@@ -460,8 +478,10 @@ class ContractVM{
                 }
                 
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
-                
+                vmLog('Running call code', call.hash)
                 execute(async (result, state)=>{
+                    vmLog('Result received', result)
+                    vmLog('State received', state)
                     if(result){
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
@@ -499,6 +519,7 @@ class ContractVM{
     
             }catch(e){
                 console.log(e)
+                vmLog('Some error happened while running the code', e)
                 resolve({
                     error:e.message,
                     hash:call.hash,

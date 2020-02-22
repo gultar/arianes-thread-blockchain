@@ -6,11 +6,11 @@ const { logger } = require('../../tools/utils')
 
 
 class Mempool{
-    constructor(){
-        this.transactions = new Database('transactionsPool')
-        this.actions = new Database('actionsPool')
-        this.deferredTransactions = new Database('deferredTransactionsPool')
-        this.deferredActions = new Database('deferredActionsPool')
+    constructor(dataFolder=false){
+        this.transactions = new Database('transactionsPool', false, dataFolder)
+        this.actions = new Database('actionsPool', false, dataFolder)
+        this.deferredTransactions = new Database('deferredTransactionsPool', false, dataFolder)
+        this.deferredActions = new Database('deferredActionsPool', false, dataFolder)
         this.txReceipts = {}
         this.delayedTransactions = {}
         this.delayedActions = {}

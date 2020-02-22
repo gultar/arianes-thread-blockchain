@@ -2,18 +2,19 @@ const store = require('rocket-store')
 const genesis = require('../../tools/getGenesis')
 
 class Database{
-    constructor(dbName, options){
+    constructor(dbName, options, dataFolder){
+        
         this.database = store;
         this.name = dbName;
         this.configSet = null;
         this.options = options
-        this.dataFolder = (process.NETWORK && process.NETWORK !== '' ? "./data/"+process.NETWORK+"/" : "./data/mainnet/")
+        this.dataFolder = dataFolder || (global.NETWORK && global.NETWORK !== '' ? "./data/"+global.NETWORK+"/" : "./data/mainnet/")
     }
 
     async init(){
+        
         try{
             if(!this.options){
-                
                 await this.database.options({
                     data_storage_area :this.dataFolder,
                     data_format       : this.database._FORMAT_JSON,

@@ -9,7 +9,8 @@ const { logger } = require('../tools/utils')
 let CHAINAPI_PORT = 8500
 
 class ChainAPI{
-    constructor(options){
+    constructor(port){
+        this.port = port || CHAINAPI_PORT
         this.mempool = new Mempool()
         this.chain = new Blockchain([], this.mempool)
         this.app = express()
@@ -21,8 +22,8 @@ class ChainAPI{
         let started = await this.chain.init()
         if(started.error) throw new Error(started.error)
 
-        logger('Chain API listening on port ', CHAINAPI_PORT)
-        this.httpServer.listen(CHAINAPI_PORT, 'localhost')
+        logger('Chain API listening on port ', this.port)
+        this.httpServer.listen(this.port, 'localhost')
         this.server.on('connection',(socket)=>{
             logger('Chain API connected')
             this.methods(socket)

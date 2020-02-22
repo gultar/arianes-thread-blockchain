@@ -3,13 +3,15 @@ const Database = require('../database/db')
 const { isValidTransactionJSON, isValidActionJSON } = require('../../tools/jsonvalidator');
 const { readFile, writeToFile, logger } = require('../../tools/utils');
 const fs = require('fs')
+const AccountTable = require('./accountTable')
+// let { this.accountTable } = require('../instances')
 
 class BalanceTable{
-    constructor(accountTable){
+    constructor(){
+        this.accountTable = new AccountTable()
         this.states = {}
         this.history = {}
         this.stateDB = new Database('balances') //./data/balanceDB
-        this.accountTable = accountTable
     }
 
     extractTransactionCalls(transactions){

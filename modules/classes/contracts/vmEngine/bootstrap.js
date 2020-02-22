@@ -1,11 +1,12 @@
 const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
-let start = process.hrtime()
+const bootstrapLog = require('debug')('bootstrap')
+
+let { accountTable } = require('../../instances')
+
 class Bootstrap{
     constructor({ 
         contractConnector, 
-        accountTable, 
-        buildCode, 
         deferContractAction, 
         deferPayable, 
         emitContractAction, 
@@ -14,8 +15,6 @@ class Bootstrap{
         getBalance, }){
         this.getBalance = getBalance
         this.contractConnector = contractConnector
-        this.accountTable = accountTable
-        this.buildCode = buildCode
         this.deferContractAction = deferContractAction
         this.deferPayable = deferPayable
         this.emitContractAction = emitContractAction
@@ -31,8 +30,9 @@ class Bootstrap{
 
     startVM(){
         this.events.on('run', async (code)=>{
-            start = process.hrtime()
+            bootstrapLog('Received a call to execute', code.hash)
             let worker = await this.getWorker(code.contractName)
+            bootstrapLog('Loaded worker for', code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
             this.calls[code.hash] = code
         })
@@ -40,7 +40,9 @@ class Bootstrap{
     }
 
     createVMTimer(contractName){
+        bootstrapLog('Timer created for ', contractName)
         this.timers[contractName] = setTimeout(async ()=>{
+            bootstrapLog('Timer kicked in, killing VM ', contractName)
             let terminated = await this.terminateVM(contractName)
         }, this.workerLifetime)
         return true
@@ -85,15 +87,17 @@ class Bootstrap{
 
     async addContract(contractName){
         let contractCode = await this.contractConnector.getContractCode(contractName)
+        bootstrapLog('Contract code loaded', (contractCode?true:false))
         if(contractCode){
             
             let worker = await this.getWorker(contractName)
             worker.postMessage({contractName:contractName, contractCode:contractCode})
-            
+            bootstrapLog('Sent contract code to worker')
             this.workerMemory[contractName] = {
                 contract:contractCode,
                 state: {}
             }
+            bootstrapLog('Contract code for '+ contractName +' stored in worker memory')
             
 
             return { sent: true }
@@ -106,7 +110,7 @@ class Bootstrap{
         if(contractName && state){
             let worker = await this.getWorker(contractName)
             worker.postMessage({setState:state, contractName:contractName})
-
+            bootstrapLog('State of '+contractName+' sent to worker and added to its memory')
             let memory = this.workerMemory[contractName]
             memory.state = state
 
@@ -125,18 +129,22 @@ class Bootstrap{
                     maxOldGenerationSizeMb:128
                 }
            })
-           
+
+           bootstrapLog('Build VM worker', (worker?true:false))
            
            this.workers[contractName] = worker
 
            if(this.workerMemory[contractName] && Object.keys(this.workerMemory[contractName]).length > 0){
                 worker.postMessage({ contractName:contractName, contractCode:this.workerMemory[contractName].contract })
+                bootstrapLog('Sending contract code of '+contractName+' stored in memory to worker')
                 if(this.workerMemory[contractName].state && Object.keys(this.workerMemory[contractName].state) > 0) {
+                    bootstrapLog('Sending contract state of '+contractName+' code stored in memory to worker')
                     worker.postMessage({ contractName:contractName, setState:this.workerMemory[contractName].state })
                 }
            }
 
            worker.on('error', err => {
+               bootstrapLog('Received a worker error', err)
                this.events.emit(err.hash, {
                    error:err.message,
                    contractName:err.contractName,
@@ -156,13 +164,14 @@ class Bootstrap{
                     if(result.error){
                         //VM Returned an error
                         
+                        bootstrapLog('Result error received', result.error)
                         this.events.emit(result.hash, {
                             error:result.error,
                             contractName:result.contractName,
                             hash:result.hash
                         })
                     }else{
-                        
+                        bootstrapLog('Single result received', result)
                         this.events.emit(result.hash, {
                             value:result.value,
                             contractName:result.contractName,
@@ -173,11 +182,11 @@ class Bootstrap{
                     
                 }else if(message.getState){
 
-                    console.log('VM Request state because its loaded state is empty')
+                    
                     let state = await this.contractConnector.getState(message.getState);
                     let contractName = message.getState
-                    let worker = await this.getWorker(contractName)
-                    
+
+                    bootstrapLog('Worker requested contract state for', contractName)
                     if(state && Object.keys(state).length > 0){
 
                         if(state.error) worker.postMessage({error:state.error})
@@ -190,7 +199,7 @@ class Bootstrap{
 
                 }else if(message.getContract){
                     let contract = await this.contractConnector.getContractCode(message.getContract);
-                    
+                    bootstrapLog('Worker requested contract code for', contractName)
                     if(contract && Object.keys(contract).length > 0){
                         if(contract.error) worker.postMessage({error:contract.error})
                         else{
@@ -203,8 +212,8 @@ class Bootstrap{
                 }else if(message.getAccount){
 
                     let { name, contractName } = message.getAccount
-                    let account = await this.accountTable.getAccount(name);
-
+                    let account = await accountTable.getAccount(name);
+                    bootstrapLog('VM requested account', name)
                     // let worker = await this.getWorker(contractName)
 
                     if(account && Object.keys(account).length > 0){
@@ -220,6 +229,7 @@ class Bootstrap{
 
                     let name = message.getBalance
                     let balance = await this.getBalance(name);
+                    bootstrapLog('VM requested balance of account', name, '- balance:', balance)
 
                     if(balance.error) worker.postMessage({error:balance.error})
                     else worker.postMessage({ balance:balance })
@@ -232,6 +242,7 @@ class Bootstrap{
                     let contractAction = JSON.parse(message.deferContractAction)
                     if(contractAction){
                         let deferred = await this.deferContractAction(contractAction);
+                        bootstrapLog('Deferred contract action', deferred)
                         if(deferred){
                             if(deferred.error) worker.postMessage({error:deferred.error})
                             else{
@@ -247,6 +258,7 @@ class Bootstrap{
                     let payable = JSON.parse(message.deferPayable)
                     if(payable){
                         let deferred = await this.deferPayable(payable);
+                        bootstrapLog('Deferred payable', deferred)
                         if(deferred){
                             if(deferred.error) worker.postMessage({error:deferred.error})
                             else{
@@ -262,6 +274,7 @@ class Bootstrap{
                     let contractAction = JSON.parse(message.emitContractAction)
                     if(contractAction){
                         let emitted = await this.emitContractAction(contractAction);
+                        bootstrapLog('Emitted contract action', emitted)
                         if(emitted){
                             if(emitted.error) worker.postMessage({error:emitted.error})
                             else{
@@ -277,6 +290,7 @@ class Bootstrap{
                     let payable = JSON.parse(message.emitPayable)
                     if(payable){
                         let emitted = await this.emitPayable(payable);
+                        bootstrapLog('Emitted payable', emitted)
                         if(emitted){
                             if(emitted.error) worker.postMessage({error:emitted.error})
                             else{
@@ -290,6 +304,7 @@ class Bootstrap{
                 }else if(message.error){
 
                     // console.log('VM ERROR:',message)
+                    bootstrapLog('VM Error', message)
                     this.events.emit(message.hash, {
                         error:message.error,
                         contractName:message.contractName

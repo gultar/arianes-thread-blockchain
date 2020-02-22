@@ -1,13 +1,11 @@
-
-
 class ContractConnector{
     constructor({ contractTable }){
-        this.contactTable = contractTable
+        this.contractTable = contractTable
     }
 
     async getContractCode(contractName){
         if(contractName){
-            let contract = await this.contactTable.getContract(contractName)
+            let contract = await this.contractTable.getContract(contractName)
             if(contract.error) return { error:contract.error }
             else if(contract){
                 return contract.code
@@ -23,7 +21,7 @@ class ContractConnector{
     getState(contractName){
        return new Promise(async (resolve)=>{
         if(contractName){
-            let state = await this.contactTable.getState(contractName)
+            let state = await this.contractTable.getState(contractName)
             if(state.error) resolve({ error:state.error })
             else if(state){
                 resolve(state)
@@ -42,7 +40,7 @@ class ContractConnector{
         else if(!newState || typeof newState !== 'object') return { error:'ERROR: Need to provide valid state object' }
         else{
             
-            let updated = await this.contactTable.updateContractState(name, newState)
+            let updated = await this.contractTable.updateContractState(name, newState)
             if(updated.error) return { error:updated.error }
             else{
                 return updated

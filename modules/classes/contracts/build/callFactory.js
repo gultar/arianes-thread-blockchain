@@ -5,9 +5,10 @@ class ExecutionSignal extends EventEmitter{
     super()
   }
 }
+let { accountTable } = require('../../../instances/tables')
 
 class Factory{
-    constructor({ contractTable, accountTable, getBlockNumber }){
+    constructor({ contractTable, getBlockNumber }){
         this.factory = []
         this.queue = {}
         this.contractTable = contractTable

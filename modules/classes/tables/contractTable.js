@@ -18,7 +18,6 @@ class ContractTable{
         let contractNames = await this.getAllContractNames()
 
         for await(let name of contractNames){
-            
             this.stateStorage[name] = new StateStorage({
                 name:name,
                 getCurrentBlock:async ()=>{
@@ -190,11 +189,11 @@ class ContractTable{
     }
 
 
-    saveStates(block){
+    saveStates(){
         return new Promise(async (resolve)=>{
             for await(let contractName of Object.keys(this.stateStorage)){
                 if(this.stateStorage[contractName]){
-                    let saved = await this.stateStorage[contractName].save(block)
+                    let saved = await this.stateStorage[contractName].save()
                 
                     if(saved.error) resolve({error:saved.error})
                 }

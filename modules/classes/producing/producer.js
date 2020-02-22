@@ -9,7 +9,7 @@ const Mempool = require('../mempool/pool')
 const genesis = require('../../tools/getGenesis')
 const ioClient = require('socket.io-client')
 
-class Validator extends Miner{
+class BlockProducer extends Miner{
     constructor({ keychain, numberOfCores, miningReward, verbose, broadcast }){
         super({ keychain, numberOfCores, miningReward, verbose })
         this.mempool = new Mempool()
@@ -202,7 +202,9 @@ class Validator extends Miner{
 
         let pubKey = ECDSA.fromCompressedPublicKey(this.wallet.publicKey)
         let isValid = pubKey.verify(hash, signature)
-        if(!isValid) this.createSignature(hash)
+        if(!isValid){
+            return await this.createSignature(hash)
+        }
         else return signature
     }
 
@@ -261,4 +263,4 @@ class Validator extends Miner{
     
 }
 
-module.exports = Validator
+module.exports = BlockProducer

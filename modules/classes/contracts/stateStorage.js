@@ -15,6 +15,7 @@ class StateStorage{
     async update(state){
         if(state && Object.keys(state).length > 0 && !state.error){
             let currentBlock = await this.getCurrentBlock();
+            
             let timestamp = currentBlock.timestamp
             
             if(state && Object.keys(state).length > 0) this.state = state;

@@ -1,6 +1,6 @@
 # Hydracoin.js
 
-A Nodejs + Socket.io + Rocket-Store Blockchain platform with support for smart contracts written in Nodejs and pluggable consensus protocol. The platform is shipped with Proof of Work and Permissioned capabilities. It's still a WIP and will likely remain so for a while but feel free to reach out or contribute to this project as I would like to see it put to good use eventually
+A Nodejs + Socket.io + Rocket-Store Blockchain platform with support for smart contracts written in Nodejs and pluggable consensus protocols. The platform is shipped with Proof of Work and Permissioned capabilities. It's still a WIP and will likely remain so for a while but feel free to reach out or contribute to this project as I would like to see it put to good use eventually
 
 ### Prerequisites
 
@@ -31,7 +31,7 @@ npm install
 Almost all configurations for the generation of blocks are found in the
 ./config/genesis.json. 
 
-You can set the balances of your account for the ICO.
+You can set the initial balances of your accounts in the genesis block.
 Other configurations like block times, initial/minimum difficulty and much more 
 can be set in this file. Default configurations are those of the main network.
 
@@ -45,7 +45,7 @@ Then you can either instantiate the class by using
 
 ```
 let myNode = new Node({
-  host: "123.123.123.123", //If dht peer discovery is enable, is public ip of network
+  host: "123.123.123.123", //If dht peer discovery is enabled, is public ip
   lanHost: "192.168.1.1", //Internal IP, optional
   port: "8000",  //ioServer port
   verbose: false, //Displays more info like transactions sent

@@ -5,6 +5,8 @@
 
 
 /////////////////////Blockchain///////////////////////
+const chainLog = require('debug')('chain')
+const contractLog = require('debug')('contract')
 const sha256 = require('../../tools/sha256');
 const {  
   logger, 
@@ -15,12 +17,13 @@ const {
   readFile, } = require('../../tools/utils');
 const { isValidAccountJSON, isValidHeaderJSON, isValidBlockJSON, isValidTransactionJSON, isValidActionJSON } = require('../../tools/jsonvalidator');
 const Transaction = require('../transactions/transaction');
-const BalanceTable = require('../tables/balanceTable');
-const AccountTable = require('../tables/accountTable');
 const ContractTable = require('../tables/contractTable');
 const Factory = require('../contracts/build/callFactory')
 const VMController = require('../contracts/vmController')
 /******************************************** */
+
+let { accountTable, balance } = require('../../instances/tables')
+let { mempool } = require('../../instances/mempool')
 
 const Block = require('./block');
 const Consensus = require('./consensus')
@@ -38,15 +41,12 @@ const Database = require('../database/db')
 */
 class Blockchain{
 
-  constructor(chain=[], mempool, consensusMode){
+  constructor(chain=[]){
     this.chain = chain
     this.blockPool = {}
     this.chainSnapshot = {}
     this.chainDB = new Database('blockchain');
-    this.mempool = mempool
-    this.accountTable = new AccountTable();
-    this.balance = new BalanceTable(this.accountTable)
-    this.consensusMode = consensusMode || genesis.consensus
+    this.consensusMode = genesis.consensus
     this.difficulty = new Difficulty(genesis)
     this.consensus = new Consensus({
       consensusMode:this.consensusMode,
@@ -55,7 +55,7 @@ class Blockchain{
         return await this.getBlockFromDB(blockNumber)
       },
       difficulty:this.difficulty,
-      accountTable:this.accountTable
+      accountTable:accountTable
     })
     this.contractTable = new ContractTable({
       getCurrentBlock:async ()=>{
@@ -64,44 +64,40 @@ class Blockchain{
       getBlock:(number)=>{
         return this.chain[number]
       },
-      getBlockFromHash:(hash)=>{
-          return this.getBlockFromHash(hash)
-      }
     })
+    
     this.factory = new Factory({
-      accountTable:this.accountTable,
+      accountTable:accountTable,
       contractTable:this.contractTable,
       getBlockNumber:()=>{
         return this.getLatestBlock()
       }
     })
-    this.vmController = new VMController({
+    this.vmBox = new VMController({
       contractTable:this.contractTable,
-      accountTable:this.accountTable,
-      buildCode:this.factory.createSingleCode,
       getBalance:async (accountName)=>{
         if(!accountName) return { error:'ERROR: Undefined account name' }
-        let account = await this.accountTable.getAccount(accountName)
+        let account = await accountTable.getAccount(accountName)
         if(account.error) return { error:account.error }
 
-        let balance = this.balance.getBalance(account.ownerKey)
+        let balance = balance.getBalance(account.ownerKey)
         if(balance.error) return { error:balance.error }
         else return balance
-      },
-      deferContractAction:async(contractAction)=>{
-        let deferred = await this.mempool.deferContractAction(contractAction)
+    },
+    deferContractAction:async(contractAction)=>{
+        let deferred = await mempool.deferContractAction(contractAction)
         if(deferred){
           return deferred
         }else{
           return false
         }
-      },
-      deferPayable:async(payable, test=false)=>{
+    },
+    deferPayable:async(payable, test=false)=>{
         let isValidPayable = await this.validatePayable(payable)
         if(isValidPayable.error) return { error:isValidPayable.error }
         else{
           if(!test){
-            let deferred = await this.mempool.deferPayable(payable)
+            let deferred = await mempool.deferPayable(payable)
             if(deferred){
               return deferred
             }else{
@@ -117,7 +113,7 @@ class Blockchain{
         let isValidContractAction = await this.validateContractAction(contractAction)
         if(isValidContractAction.error) return { error:isValidContractAction.error }
         else{
-          let added = await this.mempool.addAction(contractAction)
+          let added = await mempool.addAction(contractAction)
           if(added.error) return { error:added.error }
           else{
             return added
@@ -129,7 +125,7 @@ class Blockchain{
         if(isValidPayable.error) return { error:isValidPayable.error }
         else{
           if(!test){
-            let added = await this.mempool.addTransaction(payable)
+            let added = await mempool.addTransaction(payable)
             if(added.error) return { error:added.error }
             else{
               return added
@@ -145,8 +141,79 @@ class Blockchain{
       validatePayable:async (payable)=>{
         return await this.validatePayable(payable)
       }
-      
     })
+    // this.vmBox = new VMController({
+    //   this.contractTable:this.contractTable,
+    //   accountTable:accountTable,
+    //   buildCode:this.factory.createSingleCode,
+    //   getBalance:async (accountName)=>{
+    //     if(!accountName) return { error:'ERROR: Undefined account name' }
+    //     let account = await accountTable.getAccount(accountName)
+    //     if(account.error) return { error:account.error }
+
+    //     let balance = balance.getBalance(account.ownerKey)
+    //     if(balance.error) return { error:balance.error }
+    //     else return balance
+    //   },
+    //   deferContractAction:async(contractAction)=>{
+    //     let deferred = await mempool.deferContractAction(contractAction)
+    //     if(deferred){
+    //       return deferred
+    //     }else{
+    //       return false
+    //     }
+    //   },
+    //   deferPayable:async(payable, test=false)=>{
+    //     let isValidPayable = await this.validatePayable(payable)
+    //     if(isValidPayable.error) return { error:isValidPayable.error }
+    //     else{
+    //       if(!test){
+    //         let deferred = await mempool.deferPayable(payable)
+    //         if(deferred){
+    //           return deferred
+    //         }else{
+    //           return false
+    //         }
+    //       }else{
+    //         return { deferred:true }
+    //       }
+    //     }
+        
+    //   },
+    //   emitContractAction:async(contractAction)=>{
+    //     let isValidContractAction = await this.validateContractAction(contractAction)
+    //     if(isValidContractAction.error) return { error:isValidContractAction.error }
+    //     else{
+    //       let added = await mempool.addAction(contractAction)
+    //       if(added.error) return { error:added.error }
+    //       else{
+    //         return added
+    //       }
+    //     }
+    //   },
+    //   emitPayable:async(payable, test=false)=>{
+    //     let isValidPayable = await this.validatePayable(payable)
+    //     if(isValidPayable.error) return { error:isValidPayable.error }
+    //     else{
+    //       if(!test){
+    //         let added = await mempool.addTransaction(payable)
+    //         if(added.error) return { error:added.error }
+    //         else{
+    //           return added
+    //         }
+    //       }else{
+    //         return { emitted:true }
+    //       }
+    //     }
+    //   },
+    //   getCurrentBlock:async ()=>{
+    //     return this.getLatestBlock()
+    //   },
+    //   validatePayable:async (payable)=>{
+    //     return await this.validatePayable(payable)
+    //   }
+      
+    // })
     this.spentTransactionHashes = {}
     this.spentActionHashes = {}
     this.isSyncingBlocks = false
@@ -313,6 +380,7 @@ class Blockchain{
       //Is none of the above, carry on with routing the block
       //to its proper place, either in the chain or in the pool
       let success = await this.routeBlock(newBlock)
+      chainLog('New Block '+newBlock.blockNumber+' routed:', success)
       return success
       
     }else{
@@ -322,6 +390,7 @@ class Blockchain{
 
   async routeBlock(newBlock){
     let isValidBlock = await this.validateBlock(newBlock)
+    chainLog('New block is valid ', isValidBlock)
     if(isValidBlock.error) return { error:isValidBlock.error }
     else{
 
@@ -330,9 +399,15 @@ class Blockchain{
       if(isNextBlock && isLinked) return await this.addBlock(newBlock)
       else{
 
+        chainLog('New block not add to chain')
+        chainLog('Is next block?', isNextBlock)
+        chainLog('Is linked?', isLinked)
+
         let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 5
         if(isTenBlocksAhead){
           //In case of a major fork
+          chainLog('Is ten blocks ahead, rolling back')
+
           let rollback = await this.rollbackToBlock(this.getLatestBlock().blockNumber - 20)
           if(rollback.error) return { error:rollback.error }
           else return { requestUpdate:true }
@@ -342,10 +417,16 @@ class Blockchain{
         if(isLinkedToBlockInPool){
           let blockFromPool = isLinkedToBlockInPool
           let branch = [ blockFromPool, newBlock ]
+
+          chainLog('Block direct to block pool but is linked')
+          chainLog('Checking if both blocks have more work than this latest block')
+
           let isValidCandidate = await this.validateBranch(newBlock, branch)
+          chainLog('Is valid Candidate:', isValidCandidate)
           if(isValidCandidate) return { rollback:blockFromPool.blockNumber - 1 }
           else return { stay:true }
         }else{
+          chainLog('Block is sent to block pool')
           return await this.addBlockToPool(newBlock)
         }
 
@@ -357,14 +438,15 @@ class Blockchain{
   async addBlock(newBlock){
     let newHeader = this.extractHeader(newBlock)
     this.chain.push(newHeader);
-
     let executed = await this.runBlock(newBlock)
+    chainLog('Block executed:', executed)
     if(executed.error){
       this.chain.pop()
       return { error:executed.error }
     }
     else {
       let added = await this.addBlockToDB(newBlock)
+      chainLog('Block added to DB', added)
       if(added.error){
         this.chain.pop()
         return { error:added.error }
@@ -423,31 +505,43 @@ class Blockchain{
   async runBlock(newBlock){
     let newHeader = this.extractHeader(newBlock)
 
-    let executed = await this.balance.runBlock(newBlock)
+    let executed = await balance.runBlock(newBlock)
+    chainLog('Balances executed', executed)
     if(executed.error) return { error:executed.error }
     
+
     let actions = newBlock.actions || {}
     let allActionsExecuted = await this.executeActionBlock(actions)
+    chainLog('All actions executed', allActionsExecuted)
     if(allActionsExecuted.error) return { error:allActionsExecuted.error }
+
     
-    let saved = await this.balance.saveBalances(newBlock)
+    let saved = await balance.saveBalances(newBlock)
+    chainLog('Balances saved', saved)
     if(saved.error) return { error:saved.error }
     
     let callsExecuted = await this.runTransactionCalls(newBlock);
+    chainLog('Call executed', callsExecuted)
     if(callsExecuted.error) return { error:callsExecuted.error }
 
-    let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+    let transactionsDeleted = await mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+    chainLog('Transactions deleted from pool', transactionsDeleted)
     if(transactionsDeleted.error) return { error:transactionsDeleted.error }
 
-    let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
+    let actionsDeleted = await mempool.deleteActionsFromMinedBlock(actions)
+    chainLog('Actions deleted from pool', actionsDeleted)
     if(actionsDeleted.error) return { error:actionsDeleted.error }
 
     for await(let hash of newHeader.txHashes){
+
       let transaction = newBlock.transactions[hash]
       if(transaction.type == 'payable'){
+        chainLog('Payable spent', hash)
         this.spentTransactionHashes[hash] = newHeader.blockNumber
+        chainLog('Linked to ', hash)
         this.spentTransactionHashes[transaction.reference.hash] = { referenceTo:hash }
       }else{
+        chainLog('Transaction spent', hash)
         this.spentTransactionHashes[hash] = newHeader.blockNumber
       }
       //{ spent:newHeader.blockNumber }
@@ -455,14 +549,17 @@ class Blockchain{
 
     if(newHeader.actionsHashes){
       for await(let hash of newHeader.actionHashes){
+        chainLog('Action spent', hash)
         this.spentActionHashes[hash] = newHeader.blockNumber//{ spent:newHeader.blockNumber }
       }
     }
 
     let statesSaved = await this.contractTable.saveStates(newHeader)
+    chainLog('Contract states saved', statesSaved)
     if(statesSaved.error) return { error:statesSaved.error }
 
     let savedLastBlock = await this.saveLastKnownBlockToDB()
+    chainLog('Saved last known block', savedLastBlock)
     if(savedLastBlock.error) return { error:savedLastBlock.error }
 
     return true
@@ -814,7 +911,7 @@ class Blockchain{
 
 
   checkBalance(publicKey){
-    let walletState = this.balance.getBalance(publicKey)
+    let walletState = balance.getBalance(publicKey)
     if(walletState) return walletState.balance;
     else return 0
     
@@ -1098,6 +1195,17 @@ class Blockchain{
         var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       
+
+        chainLog('Block already in chain:', typeof chainAlreadyContainsBlock)
+        chainLog('Does not contain double spent', doesNotContainDoubleSpend)
+        chainLog('All transactions are valid', (areValidTx? true:false))
+        chainLog('Has a valid hash', isValidHash)
+        chainLog('Has a valid timestamp', isValidTimestamp)
+        chainLog('Has a single coinbase transaction', (singleCoinbase? true:false))
+        chainLog('Meets the consensus rules', isValidConsensus)
+        chainLog('Coinbase is linked to block', coinbaseIsAttachedToBlock)
+        chainLog('Merkle root is valid', merkleRootIsValid)
+
         // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
         if(!doesNotContainDoubleSpend) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
         if(areValidTx.error) return { error:areValidTx.error} 
@@ -1308,7 +1416,7 @@ class Blockchain{
                 
               }else if(action.type == 'account'){
                 let account = action.data
-                let removed = await this.accountTable.deleteAccount({ name:account.name, action:action });
+                let removed = await accountTable.deleteAccount({ name:account.name, action:action });
                 if(removed.error) errors[hash] = removed.error
               }
             }
@@ -1321,7 +1429,7 @@ class Blockchain{
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
 
       let lastBlock = this.getLatestBlock()
-      let rolledBack = await this.balance.rollback(lastBlock.blockNumber.toString())
+      let rolledBack = await balance.rollback(lastBlock.blockNumber.toString())
       if(rolledBack.error) resolve({error:rolledBack.error})
 
       
@@ -1398,7 +1506,7 @@ class Blockchain{
     }
 
     if(Object.keys(rejectedTransactions).length >0){
-      let deleted = await this.mempool.deleteTransactionsOfBlock(rejectedTransactions);
+      let deleted = await mempool.deleteTransactionsOfBlock(rejectedTransactions);
       if(deleted.error) return { error:deleted.error }
     }
 
@@ -1427,7 +1535,7 @@ class Blockchain{
     }
 
     if(Object.keys(rejectedActions).length > 0){
-      let deleted = await this.mempool.deleteActionsOfBlock(actions)
+      let deleted = await mempool.deleteActionsOfBlock(actions)
       if(deleted.error) return { error:deleted.error }
     }
 
@@ -1573,8 +1681,8 @@ class Blockchain{
         let fromAddress = transaction.fromAddress;
         let toAddress = transaction.toAddress;
 
-        let fromAddressIsAccount = await this.accountTable.getAccount(fromAddress);
-        let toAddressIsAccount = await this.accountTable.getAccount(toAddress);
+        let fromAddressIsAccount = await accountTable.getAccount(fromAddress);
+        let toAddressIsAccount = await accountTable.getAccount(toAddress);
 
         if(fromAddressIsAccount){
           fromAddress = fromAddressIsAccount.ownerKey
@@ -1629,12 +1737,12 @@ class Blockchain{
       if(transaction){
         try{
 
-            let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+            let fromAccount = await accountTable.getAccount(transaction.fromAddress)
             if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
 
               let isSignatureValid = await this.validateActionSignature(transaction, fromAccount.ownerKey)
-              let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+              let toAccount = await accountTable.getAccount(transaction.toAddress) //Check if is contract
               let toAccountIsContract = await this.contractTable.getContract(transaction.toAddress)
               var isChecksumValid = this.validateChecksum(transaction);
               var amountHigherOrEqualToZero = transaction.amount >= 0;
@@ -1678,12 +1786,12 @@ class Blockchain{
       if(transaction){
         try{
           
-            let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+            let fromAccount = await accountTable.getAccount(transaction.fromAddress)
             if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
 
               let isSignatureValid = await this.validateActionSignature(transaction.reference, fromAccount.ownerKey)
-              let toAccount = await this.accountTable.getAccount(transaction.toAddress) 
+              let toAccount = await accountTable.getAccount(transaction.toAddress) 
               let fromContract = await this.contractTable.getContract(transaction.fromContract)
               var isChecksumValid = this.validateChecksum(transaction);
               var amountHigherOrEqualToZero = transaction.amount >= 0;
@@ -1731,7 +1839,7 @@ class Blockchain{
 
       // if(isValidTransaction.error && isValidAction.error) return { error:'ERROR: Reference is not a valid transaction call or action' }
   
-      let fromAccount = await this.accountTable.getAccount(reference.fromAddress)
+      let fromAccount = await accountTable.getAccount(reference.fromAddress)
       if(!fromAccount || fromAccount.error) return { error:`ERROR: Could not find account ${reference.fromAddress} of payable reference` }
 
       let isSameAddress = fromAccount.name === sendingAccount.name && fromAccount.ownerKey === sendingAccount.ownerKey
@@ -1793,9 +1901,9 @@ class Blockchain{
 
   convertTransactionToCall(transaction){
     return new Promise(async (resolve)=>{
-      let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+      let fromAccount = await accountTable.getAccount(transaction.fromAddress)
       if(fromAccount.error) resolve({error:fromAccount.error})
-      let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
+      let toAccount = await accountTable.getAccount(transaction.toAddress) //Check if is contract
       if(toAccount.error) resolve({error:toAccount})
 
       let payload = transaction.data
@@ -1901,7 +2009,7 @@ class Blockchain{
       switch(action.type){
         case 'account':
           if(action.task == 'create'){
-            let added = await this.accountTable.addAccount(action.data);
+            let added = await accountTable.addAccount(action.data);
             
             if(added){
               resolve(true)
@@ -1911,10 +2019,10 @@ class Blockchain{
           }
 
           if(action.task == 'delete'){
-            let account = await this.accountTable.getAccount(action.data.name)
+            let account = await accountTable.getAccount(action.data.name)
             if(!account || account.error) resolve({error:`ERROR: Could not delete account. Account ${action.data.name} not found`})
             else{
-              let deleted = await this.accountTable.deleteAccount({
+              let deleted = await accountTable.deleteAccount({
                 name:action.data.name,
                 action:action,
               }, action);
@@ -1997,7 +2105,7 @@ class Blockchain{
         case 'account':
           if(action.task == 'create'){
             let account = action.data
-            let existing = await this.accountTable.accountsDB.get(account.name)
+            let existing = await accountTable.accountsDB.get(account.name)
             if(!existing){
               resolve(true)
             }else{
@@ -2007,7 +2115,7 @@ class Blockchain{
           }
           if(action.task == 'delete'){
             let account = action.data
-            let existing = await this.accountTable.accountsDB.get(account.name)
+            let existing = await accountTable.accountsDB.get(account.name)
             if(existing){
               resolve(true)
             }else{
@@ -2066,7 +2174,7 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       let contractName = action.data.name;
       
-      let account = await this.accountTable.getAccount(action.fromAccount);
+      let account = await accountTable.getAccount(action.fromAccount);
       let contract = await this.contractTable.getContract(contractName);
       if(contract){
         if(contract.error) resolve({error:contract.error})
@@ -2099,7 +2207,7 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       let contractName = action.data.name;
       
-      let account = await this.accountTable.getAccount(action.fromAccount);
+      let account = await accountTable.getAccount(action.fromAccount);
       let contract = await this.contractTable.getContract(contractName);
       if(contract){
         if(contract.error) resolve({error:contract.error})
@@ -2129,7 +2237,7 @@ class Blockchain{
   deployContract(action){
     return new Promise(async (resolve)=>{
       let data = action.data
-      let account = await this.accountTable.getAccount(action.fromAccount)
+      let account = await accountTable.getAccount(action.fromAccount)
       
       if(account){
         //Validate Contract and Contract API
@@ -2161,7 +2269,7 @@ class Blockchain{
   testDeployContract(action){
     return new Promise(async (resolve)=>{
       let data = action.data
-      let account = await this.accountTable.getAccount(action.fromAccount)
+      let account = await accountTable.getAccount(action.fromAccount)
       
       if(account){
         
@@ -2188,9 +2296,11 @@ class Blockchain{
     }
 
     let codes = await this.factory.buildCode()
+    contractLog('Built the code', (codes.error? codes.error:true))
     if(codes.error) return {error:codes.error}
     
-    let results = await this.vmController.executeCalls(codes)
+    let results = await this.vmBox.executeCalls(codes)
+    contractLog('Calls executed:', results)
     if(results.error) return { error:results.error }
     else return results
   }
@@ -2199,10 +2309,11 @@ class Blockchain{
     return new Promise(async (resolve)=>{
         this.factory.addCall(call, call.data.contractName)
         let code = await this.factory.buildCode()
+        contractLog('Built the code', (code.error? code.error:true))
         if(code.error) resolve({error:code.error})
         
-        let result = await this.vmController.executeCalls(code)
-        
+        let result = await this.vmBox.executeCalls(code)
+        contractLog('Call executed:', result)
         if(result){
           if(result.error) resolve({error:result.error})
           else resolve(result)
@@ -2216,10 +2327,11 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       
       let code = await this.factory.createSingleCode(call)
+      contractLog('[TEST] Built the code', (code.error? code.error:true))
       if(code.error) resolve({error:code.error})
       
-      let result = await this.vmController.test(code)
-      
+      let result = await this.vmBox.test(code)
+      contractLog('[TEST] Call executed:', result)
       if(result){
         if(result.error) resolve({error:result.error})
         else resolve(result)
@@ -2253,10 +2365,10 @@ class Blockchain{
           if(action.type == 'account'){
             if(action.task == 'create'){
               let accountData = action.data
-              let account = await this.accountTable.getAccount(accountData.name)
+              let account = await accountTable.getAccount(accountData.name)
               if(account){
                 if(account.error) resolve({error:account.error})
-                let deleted = await this.accountTable.deleteAccount({ name:account.name, action:action })
+                let deleted = await accountTable.deleteAccount({ name:account.name, action:action })
                 if(deleted.error) resolve({error:deleted.error})
                 else resolve(deleted)
               }else{
@@ -2285,7 +2397,7 @@ class Blockchain{
   // validateContractAction(action){
   //   return new Promise(async (resolve, reject)=>{
   //     if(action){
-  //         let account = await this.accountTable.getAccount(action.fromAccount)
+  //         let account = await accountTable.getAccount(action.fromAccount)
           
 
   //         let isExistingAccount = ( account? true : false )
@@ -2314,7 +2426,7 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       if(action){
           let isCreateAccount = action.type == 'account' && action.task == 'create';
-          let account = await this.accountTable.getAccount(action.fromAccount)
+          let account = await accountTable.getAccount(action.fromAccount)
           
           if(isCreateAccount){
 
@@ -2409,7 +2521,7 @@ class Blockchain{
           let hasMiningFee = action.fee > 0; //check if amount is correct
           let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
           let balanceOfSendingAddr = await this.checkBalance(action.fromAccount.ownerKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.ownerKey);
-          let sendingAcccount = await this.accountTable.getAccount(action.fromAccount)
+          let sendingAcccount = await accountTable.getAccount(action.fromAccount)
           let isLinkedToWallet = await validatePublicKey(sendingAcccount.ownerKey);
           let references = action.actionReference;
           
@@ -2681,9 +2793,7 @@ class Blockchain{
         let loaded = await this.loadBlocks()
         this.isLoadingBlocks = false
         if(loaded){
-          let contractTableStarted = await this.contractTable.init()
-          
-          let savedBalances = await this.balance.loadBalances(this.getLatestBlock().blockNumber)
+          let savedBalances = await balance.loadBalances(this.getLatestBlock().blockNumber)
           if(savedBalances.error){
             reject(savedBalances.error)
           }else{
@@ -2772,8 +2882,8 @@ class Blockchain{
           logger('Loaded genesis block from config file')
           if(genesisBlock.error) reject(genesisBlock.error)
 
-          this.balance.states = genesisBlock.states;
-          let saved = await this.balance.saveBalances(genesisBlock)
+          balance.states = genesisBlock.states;
+          let saved = await balance.saveBalances(genesisBlock)
           
           let added = await this.genesisBlockToDB(genesisBlock)
           if(added){

@@ -32,59 +32,85 @@ const sendTx = async () =>{
     //         "name":"hermeticCoin",
     //     }
     // }
-    // let getBalance = {
-    //     method:'getBalanceOfAccount',
-    //     cpuTime:5,
-    //     params:{
-    //         symbol:"HERMETIC",//"GOLD",
-    //         account:"voronwe"
-    //     }
-    // }
-    // let sendCoin = {
-    //     method:'issue',
-    //     cpuTime:5,
-    //     params:{
-    //         symbol:"HERMETIC",
-    //         amount:1,
-    //         receiver:"huor"
-    //     }
-    // }
-    // let transaction = new Transaction
-    // ({
-    //     fromAddress:"tuor",
-    //     toAddress:"Tokens",
-    //     amount:0,
-    //     data:sendCoin,
-    //     type:"call"
-    // });
-
-    // console.log(JSON.stringify(transaction.data))
-    let payload = {}
-    setInterval(async ()=>{
-        let sha256 = require('./modules/tools/sha256')
-
-        let key = Date.now() * 10000000
-        let value = Date.now() * 1000
-        let id = "Chump"
-        payload = {
-            ...payload,
-            [sha256(key.toString())] : sha256((value.toString()))
+    let getBalance = {
+        method:'getBalanceOfAccount',
+        cpuTime:10,
+        params:{
+            symbol:"GOLD",//"GOLD",
+            account:"huor"
         }
-        let transaction = new Transaction
-        ({
-            fromAddress:"tuor",
-            toAddress:"Storage",
-            amount:0,
-            data:{
-                method:'set',
-                cpuTime:5,
-                params:{
-                    id:sha256((id)),
-                    data:payload
+    }
+    let sendCoin = {
+        method:'issue',
+        cpuTime:5,
+        params:{
+            symbol:"GOLD",
+            amount:1,
+            receiver:"huor"
+        }
+    }
+    let tx1 = new Transaction
+    ({
+        fromAddress:"tuor",
+        toAddress:"Tokens",
+        amount:0,
+        data:sendCoin,
+        type:"call"
+    });
+
+    let sha256 = require('./modules/tools/sha256')
+
+    let key = Date.now() * 10000000
+    let value = Date.now() * 1000
+    let id = "muppet"
+    
+    let tx2 = new Transaction
+    ({
+        fromAddress:"tuor",
+        toAddress:"Storage",
+        amount:0,
+        data:{
+            method:'set',
+            cpuTime:5,
+            params:{
+                id:sha256((id)),
+                data:{
+                    [sha256(key.toString())] : sha256((value.toString()))
                 }
-            },
-            type:"call"
-        });
+            }
+        },
+        type:"call"
+    });
+
+    let tx3 = new Transaction
+    ({
+        fromAddress:"tuor",
+        toAddress:"Escrow",
+        amount:0,
+        data:{
+            method:'accept',
+            cpuTime:10,
+            params:{
+                id:'first',
+                buyer:'huor',
+                seller:'tuor',
+            }
+        },
+        type:"call"
+    });
+
+    let tx4 = new Transaction
+    ({
+        fromAddress:"tuor",
+        toAddress:"Tokens",
+        amount:0,
+        data:getBalance,
+        type:"call"
+    });
+
+    let transactions = [tx4,tx1, tx2, tx3, ]
+
+    for await(let transaction of transactions){
         let wallet = await manager.loadByWalletName("8003")
         if(wallet){
             let unlocked = await wallet.unlock("8003")
@@ -114,7 +140,7 @@ const sendTx = async () =>{
         }else{
             console.log('ERROR: Could not find wallet')
         }
-    }, 1000)
+    }
 }
 
-sendTx()
+setInterval(sendTx, 500)

@@ -8,10 +8,15 @@ const { isValidTransactionCallJSON, isValidTransactionJSON, isValidActionJSON } 
 * @description - REST API to broadcast actions and transactions as well as querying for
 *               information about them
 */
+
+// let { accountTable, balance, mempool } = require('../classes/instances')
+
+let { accountTable, balance } = require('../instances/tables')
+let { mempool } = require('../instances/mempool')
+
 class HttpAPI{
-    constructor({ chain, mempool, broadcastAction, broadcastTransaction, testAction, nodeList, getChainInfo }){
+    constructor({ chain, broadcastAction, broadcastTransaction, testAction, nodeList, getChainInfo }){
         this.chain = chain
-        this.mempool = mempool
         this.nodeList = nodeList
         this.broadcastAction = broadcastAction
         this.broadcastTransaction = broadcastTransaction
@@ -54,7 +59,7 @@ class HttpAPI{
             res.json(tx).end()
           }else{
 
-            pendingTx = await this.mempool.getTransaction(hash);
+            pendingTx = await mempool.getTransaction(hash);
             
             if(pendingTx){
               res.json(pendingTx).end()
@@ -182,10 +187,10 @@ class HttpAPI{
     app.get('/getWalletBalance', async(req, res)=>{
         let publicKey = req.query.publicKey;
         if(publicKey){
-          let isAccount = await this.chain.accountTable.getAccount(publicKey);
+          let isAccount = await accountTable.getAccount(publicKey);
           if(isAccount) publicKey = isAccount.ownerKey
           
-          let state = await this.chain.balance.getBalance(publicKey);
+          let state = await balance.getBalance(publicKey);
           
           res.json(state).end()
         }else{
