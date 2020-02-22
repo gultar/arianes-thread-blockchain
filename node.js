@@ -1388,7 +1388,7 @@ class Node {
    */
   handleNewBlockFound(data, relayPeer, peerMessage){
     return new Promise( async (resolve)=>{
-      if(blockchain instanceof Blockchain && data){
+      if(data){
         if(!this.isDownloading){
           try{
 
