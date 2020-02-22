@@ -23,20 +23,20 @@ const sendTx = async () =>{
     
     
     
-    // let createHermetic = {
-    //     method:"createToken",
-    //     cpuTime:5,
-    //     params:{
-    //         'symbol':"HERMETIC",
-    //         'maxSupply':10000000000000,
-    //         "name":"hermeticCoin",
-    //     }
-    // }
+    let createHermetic = {
+        method:"createToken",
+        cpuTime:5,
+        params:{
+            'symbol':"HERMETIC",
+            'maxSupply':10000000000000,
+            "name":"hermeticCoin",
+        }
+    }
     let getBalance = {
         method:'getBalanceOfAccount',
         cpuTime:10,
         params:{
-            symbol:"GOLD",//"GOLD",
+            symbol:"HERMETIC",//"GOLD",
             account:"huor"
         }
     }
@@ -44,12 +44,12 @@ const sendTx = async () =>{
         method:'issue',
         cpuTime:5,
         params:{
-            symbol:"GOLD",
+            symbol:"HERMETIC",
             amount:1,
             receiver:"huor"
         }
     }
-    let tx1 = new Transaction
+    let transaction = new Transaction
     ({
         fromAddress:"tuor",
         toAddress:"Tokens",
@@ -58,60 +58,7 @@ const sendTx = async () =>{
         type:"call"
     });
 
-    let sha256 = require('./modules/tools/sha256')
-
-    let key = Date.now() * 10000000
-    let value = Date.now() * 1000
-    let id = "muppet"
-    
-    let tx2 = new Transaction
-    ({
-        fromAddress:"tuor",
-        toAddress:"Storage",
-        amount:0,
-        data:{
-            method:'set',
-            cpuTime:5,
-            params:{
-                id:sha256((id)),
-                data:{
-                    [sha256(key.toString())] : sha256((value.toString()))
-                }
-            }
-        },
-        type:"call"
-    });
-
-    let tx3 = new Transaction
-    ({
-        fromAddress:"tuor",
-        toAddress:"Escrow",
-        amount:0,
-        data:{
-            method:'accept',
-            cpuTime:10,
-            params:{
-                id:'first',
-                buyer:'huor',
-                seller:'tuor',
-            }
-        },
-        type:"call"
-    });
-
-    let tx4 = new Transaction
-    ({
-        fromAddress:"tuor",
-        toAddress:"Tokens",
-        amount:0,
-        data:getBalance,
-        type:"call"
-    });
-
-    let transactions = [tx4,tx1, tx2, tx3, ]
-
-    for await(let transaction of transactions){
-        let wallet = await manager.loadByWalletName("8003")
+    let wallet = await manager.loadByWalletName("8003")
         if(wallet){
             let unlocked = await wallet.unlock("8003")
             if(unlocked){
@@ -120,7 +67,7 @@ const sendTx = async () =>{
                     transaction.signature = signature;
                     
                     if(!program.offline){
-                        // console.log(transaction.data)
+                        console.log(JSON.stringify(transaction.data))
                         axios.post(`${nodeAddress}/transaction`, transaction)
                         .then( success => {
                             console.log(success.data)
@@ -140,7 +87,7 @@ const sendTx = async () =>{
         }else{
             console.log('ERROR: Could not find wallet')
         }
-    }
+
 }
 
-setInterval(sendTx, 500)
+sendTx()

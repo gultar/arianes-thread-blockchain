@@ -261,15 +261,25 @@ class ContractTable{
     }
 
     async rollback(blockNumber){
+        let chainLog = require('debug')('chain')
         if(blockNumber){
             for await(let contractName of Object.keys(this.stateStorage)){
                 let storage = this.stateStorage[contractName]
+                chainLog(`Got storage for ${contractName}`, typeof storage)
                 if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
                 else{
                     let rolledBack = await storage.rollbackToBlock(blockNumber)
-                    if(rolledBack.error) return { error:rolledBack.error }
-
-                    this.stateMemory[contractName] = rolledBack
+                    chainLog(`Rolled back successfully`, rolledBack)
+                    
+                    
+                    if(rolledBack){
+                        if(rolledBack.error) return { error:rolledBack.error }
+                        else{
+                            this.stateMemory[contractName] = rolledBack
+                        }
+                        
+                    }
+                    
                 }
             }
             return true

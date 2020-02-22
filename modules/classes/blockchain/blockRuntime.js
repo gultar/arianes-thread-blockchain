@@ -651,43 +651,12 @@ class BlockRuntime{
   }
 
   async rollback(blockNumber){
-    let rolledBackChain = await blockchain.rollbackToBlock(blockNumber, blockRuntime.rollbackActions)
+    let that = this
+    let rolledBackChain = await blockchain.rollbackToBlock(blockNumber, this.contractTable)
     if(rolledBackChain.error) return { error:rolledBackChain.error }
+    else return rolledBackChain
   }
 
-  async rollbackActions({ blockNumber, actionHashes }){
-    let stateRolledBack = await this.contractTable.rollback(blockNumber)
-    if(stateRolledBack.error) return {error:stateRolledBack.error}
-
-    if(actionHashes.length > 0){
-        for await(var hash of actionHashes){
-          //Rolling back actions and contracts
-          let action = await blockchain.getActionFromDB(hash);
-          if(action){
-
-            if(action.error) return {error:action.error}
-            else{
-              if(action.type == 'contract' && action.task == 'deploy'){
-
-                let contractName = action.data.name;
-                let deleted = await this.contractTable.removeContract(contractName);
-                if(deleted.error) return { error:deleted.error }
-
-              }else if(action.type == 'account' && action.task == 'create'){
-
-                let account = action.data
-                let removed = await accountTable.deleteAccount({ name:account.name, action:action });
-                if(removed.error) return { error:removed.error }
-
-              }
-            }
-            
-          }
-        }
-    }
-
-    return { rolledback:true }
-  }
     
 }
 

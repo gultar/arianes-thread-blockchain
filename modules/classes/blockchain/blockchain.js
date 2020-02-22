@@ -1169,7 +1169,7 @@ class Blockchain{
       return true;
   }
 
-  rollbackToBlock(number, rollbackState){
+  rollbackToBlock(number, contractTable){
     return new Promise(async (resolve)=>{
 
       const collectActionHashes = async (blocks) =>{
@@ -1180,6 +1180,7 @@ class Blockchain{
               actionHashes = [  ...actionHashes, ...block.actionHashes ]
             }
           }
+          chainLog(`Collected ${actionHashes.length} action hashes`)
           resolve(actionHashes)
         })
       }
@@ -1194,6 +1195,7 @@ class Blockchain{
               txHashes = [  ...txHashes, ...block.txHashes ]
             }
           }
+          chainLog(`Collected ${txHashes.length} transaction hashes`)
           resolve(txHashes)
         })
       }
@@ -1203,42 +1205,92 @@ class Blockchain{
       
       if(number < 0) number = 0
       let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
+      chainLog(`Start removing blocks at ${startNumber}`)
       
       let newLastBlock = this.chain[number];
       let numberOfBlocksToRemove = totalBlockNumber - number;
+      chainLog(`Number of blocks to remove: ${numberOfBlocksToRemove}`)
       
       //Getting a copy of the blocks that will later be removed from the chain
       
       let blocks = this.chain.slice(startNumber + 1, this.chain.length)
+      chainLog(`Took a copy of the last ${blocks.length} of the header chain`)
 
       let newestToOldestBlocks = blocks.reverse()
       let actionHashes = await collectActionHashes(newestToOldestBlocks)
       let txHashes = await collectTransactionHashes(newestToOldestBlocks)
-      
+
       for await(let hash of txHashes){
         if(this.spentTransactionHashes[hash]) delete this.spentTransactionHashes[hash]
       }
+      chainLog(`Unspent ${txHashes.length} transaction hashes`)
 
       for await(let hash of actionHashes){
         if(this.spentActionHashes[hash]) delete this.spentActionHashes[hash]
       }
+      chainLog(`Unspent ${actionHashes.length} action hashes`)
+
+      if(actionHashes.length > 0){
+        chainLog(`Found some action hashes!`)
+        for await(var hash of actionHashes){
+          //Rolling back actions and contracts
+          let action = await this.getActionFromDB(hash);
+          chainLog(`Rolling back action hash ${action.hash.substr(0, 15)}...`)
+          if(action){
+            
+            if(action.error){
+              chainLog(`Error occurred while fetching action: ${action.error}`)
+              resolve({error:action.error})
+            }
+            else{
+              if(action.type == 'contract' && action.task == 'deploy'){
+                chainLog(`Action is of type contract deploy`)
+                let contractName = action.data.name;
+                let deleted = await contractTable.removeContract(contractName);
+                chainLog(`Removed contract ${contractName}: `, deleted)
+                if(deleted.error) resolve({ error:deleted.error })
+
+              }else if(action.type == 'account' && action.task == 'create'){
+
+                let account = action.data
+                let removed = await accountTable.deleteAccount({ name:account.name, action:action });
+                chainLog(`Removed account ${account.name}: `, removed)
+                if(removed.error) resolve({ error:removed.error })
+
+              }
+            }
+            
+          }else{
+            console.log('No action found')
+          }
+        }
+    }else{
+      console.log('No action hashes:', actionHashes)
+    }
+
+    
 
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
+      chainLog(`Header chain is now ${this.chain.length} blocks long`)
+
+      let stateRolledBack = await contractTable.rollback(number)
+      chainLog(`Rolled back state of contracts to block ${number}`, stateRolledBack)
+      if(stateRolledBack.error) resolve({error:stateRolledBack.error})
 
       let lastBlock = this.getLatestBlock()
+      chainLog(`Last block is block ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0, 15)}...`)
+
       let rolledBack = await balance.rollback(lastBlock.blockNumber.toString())
+      chainLog(`Rolled back balance states to block ${lastBlock.blockNumber}`, rolledBack)
       if(rolledBack.error) resolve({error:rolledBack.error})
 
-      rollbackState({
-        blockNumber:blockNumber,
-        actionHashes:actionHashes
-      })
-
+      
 
       for await(let header of removed){
         let deleted = await this.chainDB.deleteId(header.blockNumber.toString())
-        if(deleted.error) return deleted.error
+        chainLog(`Removed block ${header.blockNumber} from DB`, deleted)
+        if(deleted.error) resolve(deleted.error)
       }
 
       await this.createNewSnapshot()

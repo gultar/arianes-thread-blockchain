@@ -590,6 +590,7 @@ class Node {
       }
     })
   }
+  
 
   downloadBlockchain(peer){
     return new Promise(async (resolve)=>{
@@ -636,7 +637,7 @@ class Node {
             if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
               rolledBack++
               let blockNumber = blockchain.getLatestBlock().blockNumber
-              let rolledback = await blockchain.rollbackToBlock(blockNumber - 1)
+              let rolledback = await blockRuntime.rollback(blockNumber - 1)
               let latestHash = blockchain.getLatestBlock().hash
               peer.emit('getNextBlock', latestHash)
             }else{
@@ -650,7 +651,7 @@ class Node {
               logger('DOWNLOAD', added.error)
               closeConnection()
             }else if(added.extended){
-              let rolledback = await blockchain.rollbackToBlock(blockchain.getLatestBlock().blockNumber - 1)
+              let rolledback = await blockRuntime.rollback(blockchain.getLatestBlock().blockNumber - 1)
               let latestHash = blockchain.getLatestBlock().hash
               peer.emit('getNextBlock', latestHash)
               awaitRequest()
@@ -1081,8 +1082,8 @@ class Node {
       })
 
       socket.on('rollback', async (number)=>{
-        let rolledback = await blockchain.rollbackToBlock(number)
-        
+        let rolledback = await blockRuntime.rollback(number)
+      
         socket.emit('rollbackResult', rolledback)
       })
 
@@ -1456,7 +1457,7 @@ class Node {
       else if(reception.rollback){
 
         let peer = await this.getMostUpToDatePeer()
-        let rolledBack = await blockchain.rollbackToBlock(reception.rollback)
+        let rolledBack = await blockRuntime.rollback(reception.rollback)
         if(rolledBack.error) resolve({error:rolledBack.error})
         let lastHeader = blockchain.getLatestBlock()
         let downloaded = await this.downloadBlockchain(peer, lastHeader)
@@ -1473,7 +1474,7 @@ class Node {
           let comparison = await compareSnapshots(blockchain.chainSnapshot, snapshot)
           if(comparison.rollback){
             logger('Peer chain has a longer branch than this node')
-            let rolledBack = await blockchain.rollbackToBlock(comparison.rollback)
+            let rolledBack = await blockRuntime.rollback(comparison.rollback)
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = blockchain.getLatestBlock()
@@ -1482,7 +1483,7 @@ class Node {
           }else if(comparison.merge){
             logger("Need to merge peer's branched block")
             let blockNumber = comparison.merge.hash
-            let rolledBack = await blockchain.rollbackToBlock(blockNumber - 1)
+            let rolledBack = await blockRuntime.rollback(blockNumber - 1)
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = blockchain.getLatestBlock()
@@ -1525,7 +1526,7 @@ class Node {
       if(isValid.conflict){
         let atBlockNumber = isValid.conflict;
         if(allowRollback){
-          let rolledback = await blockchain.rollbackToBlock(atBlockNumber-1);
+          let rolledback = await blockRuntime.rollback(atBlockNumber-1);
           logger('Rolled back chain up to block number ', atBlockNumber-1)
           return true;
         }else{

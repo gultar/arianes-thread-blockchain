@@ -161,28 +161,35 @@ class StateStorage{
             
             let keys = await this.database.getAllKeys();
                 if(keys){
+                    let chainLog = require('debug')('chain')
 
                     let latestTimestamp = await this.getLatestTimestamp()
+                    chainLog(`Latest timestamp`, latestTimestamp)
                     latestTimestamp = parseInt(latestTimestamp)
                     requestedTimestamp = parseInt(requestedTimestamp)
                     let timestamps = await this.parseTimestamps(keys)
 
                     if(requestedTimestamp >= latestTimestamp){
+                        chainLog('Requested timestamp is greater than latestTimestamp')
                         let { state } = await this.database.get(latestTimestamp.toString())
+                        chainLog(`State associated with ${requestedTimestamp}`, state)
                         if(state.error) return { error:state.error }
 
                         return state
                     }else{
-
+                        chainLog('Requested timestamp is lesser than latestTimestamp')
                         let { state, blockNumber } = await this.database.get(requestedTimestamp);
+                        chainLog(`State associated with ${requestedTimestamp}`, state)
                         if(state && Object.keys(state).length && !state.error){
                             console.log('Found exact timestamp', requestedTimestamp, ' at block ', blockNumber)
                             
                             return state
                         }else{
                             let closestTimestamp = await findClosest(requestedTimestamp, timestamps)
+                            chainLog('Found closest timestamp:', closestTimestamp)
                             if(closestTimestamp){
                                 let { state, blockNumber } = await this.database.get(closestTimestamp.toString())
+                                chainLog(`State associated with ${closestTimestamp}`, state)
                                 if(state.error) return { error:state.error }
                                 console.log('Found closest state to blockNumber', blockNumber)
                                 return state
@@ -204,7 +211,12 @@ class StateStorage{
     }
 
     async rollbackToBlock(blockNumber){
+        
+        let chainLog = require('debug')('chain')
+        chainLog('About to rollback state of ', this.name)
+
         let block = await this.getBlock(blockNumber)
+        chainLog('Got block ', typeof block)
         if(!block) return { error:'ERROR: Could not find block '+blockNumber+' during rollback' }
         let timestampString = block.timestamp
         let targetTimestamp = parseInt(timestampString)
@@ -214,11 +226,13 @@ class StateStorage{
         for await(let timestamp of parsedKeys){
             if(timestamp > targetTimestamp){
                 let entry = await this.database.get(timestamp.toString())
+                chainLog(`Found state entry in state db ${timestamp}`, entry)
                 if(!entry) console.log({ error:`ERROR: Could not locate state entry ${timestamp}` })
                 else if(entry.error) return { error:entry.error }
 
                 if(entry && !entry.error){
                     let deleted = await this.database.deleteId(timestamp.toString())
+                    chainLog(`Deleted state entry of timestamp ${timestamp}`, deleted)
                     if(deleted.error) console.log(deleted.error)
                 }
                 
@@ -226,6 +240,7 @@ class StateStorage{
             }
         }
         let latestState = await this.getLatestState()
+        chainLog(`Got latest state`, latestState)
         return latestState
 
     }
@@ -255,6 +270,7 @@ class StateStorage{
     async getLatestTimestamp(){
         try{
             let keys = await this.database.getAllKeys();
+            
                 if(keys){
                     let highestTimestamp = 0
                     for await(let timestamp of keys){
