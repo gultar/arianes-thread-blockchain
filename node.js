@@ -1413,7 +1413,6 @@ class Node {
 
                   this.minerChannel.emit('nodeEvent','isAvailable')
                   let handled = await this.handleBlockReception(added)
-                  let executed = await this.executeBlock()
                   
                   resolve(handled)
     
