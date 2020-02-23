@@ -118,7 +118,7 @@ class PeerManager{
                                         peer.emit('getPeers')
                                         peer.emit('getChainSnapshot')
                                         
-                                    },2000);
+                                    },4000);
                                 }else{
                                     logger('Could not connect to remote node', response)
                                     if(response.network){

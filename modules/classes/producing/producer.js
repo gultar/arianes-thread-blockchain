@@ -25,6 +25,8 @@ class BlockProducer extends Miner{
         this.nextTurnSkipped = setTimeout(()=>{})
         this.blocksToBeSigned = {}
         this.broadcast = broadcast
+        this.numberOfTurnsPassed = 0
+        this.cycle = 30 //turns
     }
 
     connect(url){
@@ -219,7 +221,12 @@ class BlockProducer extends Miner{
             
             this.turn = this.validatorOrder[this.turnCounter]
             if(this.turn == this.wallet.publicKey) this.socket.emit('sendRawBlock');
-                
+            this.numberOfTurnsPassed++
+            if(this.numberOfTurnsPassed >= this.cycle){
+                this.numberOfTurnsPassed = 0
+                clearInterval(this.generator)
+                this.generateBlocks()
+            }
                 
         }, speed)
     }

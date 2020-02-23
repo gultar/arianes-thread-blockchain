@@ -158,7 +158,7 @@ program
 
       let figlet = require('figlet')
       let chalk = require('chalk')
-      console.log(chalk.green(figlet.textSync('Tisserand.js')))
+      console.log(chalk.green(figlet.textSync('BlockQuarry.js')))
 
       let network = program.network || 'mainnet'
 
