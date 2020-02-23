@@ -224,6 +224,7 @@ class BlockProducer extends Miner{
             this.numberOfTurnsPassed++
             if(this.numberOfTurnsPassed >= this.cycle){
                 this.numberOfTurnsPassed = 0
+                this.turnCounter = 0
                 clearInterval(this.generator)
                 this.generateBlocks()
             }

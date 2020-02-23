@@ -1230,14 +1230,14 @@ class Blockchain{
       }
       chainLog(`Unspent ${actionHashes.length} action hashes`)
 
-      if(actionHashes.length > 0){
-        chainLog(`Found some action hashes!`)
-        for await(var hash of actionHashes){
-          //Rolling back actions and contracts
-          let action = await this.getActionFromDB(hash);
-          chainLog(`Rolling back action hash ${action.hash.substr(0, 15)}...`)
-          if(action){
-            
+    if(actionHashes.length > 0){
+      chainLog(`Found some action hashes!`)
+      for await(var hash of actionHashes){
+        //Rolling back actions and contracts
+        let action = await this.getActionFromDB(hash);
+        chainLog(`Rolling back action hash ${action.hash.substr(0, 15)}...`)
+        if(action){
+          
             if(action.error){
               chainLog(`Error occurred while fetching action: ${action.error}`)
               resolve({error:action.error})
@@ -1259,14 +1259,9 @@ class Blockchain{
 
               }
             }
-            
-          }else{
-            console.log('No action found')
           }
         }
-    }else{
-      console.log('No action hashes:', actionHashes)
-    }
+      }
 
     
 

@@ -54,7 +54,7 @@ const sendTx = async () =>{
         fromAddress:"tuor",
         toAddress:"Tokens",
         amount:0,
-        data:sendCoin,
+        data:getBalance,
         type:"call"
     });
 
