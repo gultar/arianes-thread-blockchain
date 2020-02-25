@@ -184,7 +184,7 @@ program
           host:program.ipaddress ? program.ipaddress : configs.host,
           lanHost:lanHost,
           port:program.port ? program.port : configs.port,
-          verbose:configs.verbose,
+          verbose:program.verbose,
           httpsEnabled:true,
           exposeHTTP:program.exposeHTTP || false,
           enableLocalPeerDiscovery:discovery.local,
