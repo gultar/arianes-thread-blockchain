@@ -1149,7 +1149,7 @@ class Blockchain{
       if(!doesNotContainDoubleSpend) return false;
 
       let hasValidTimestamp = await this.validateBlockTimestamp(header)
-      chainLog('Header has a valid timestamp', isValidTimestamp)
+      chainLog('Header has a valid timestamp', hasValidTimestamp)
       if(!hasValidTimestamp) console.log('Invalid timestamp:', hasValidTimestamp)
 
       var chainAlreadyContainsBlock = await this.getBlockbyHash(header.hash);
