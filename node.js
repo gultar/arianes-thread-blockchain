@@ -1325,7 +1325,7 @@ class Node {
   */
   receiveTransaction(transaction){
     return new Promise((resolve)=>{
-      if(transaction && blockchain instanceof Blockchain){
+      if(transaction){
         if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
   
           blockchain.validateTransaction(transaction)
