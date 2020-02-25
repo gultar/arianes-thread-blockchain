@@ -1402,7 +1402,8 @@ class Node {
               let alreadyReceived = await blockchain.getBlockbyHash(block.hash)
     
               if(!alreadyReceived){
-                let isValidHeader = await blockchain.validateBlockHeader(block)
+                let header = blockchain.extractHeader(block)
+                let isValidHeader = await blockchain.validateBlockHeader(header)
                 if(isValidHeader){
                   //Retransmit block
                   this.broadcast('peerMessage', peerMessage)

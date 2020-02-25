@@ -1140,6 +1140,7 @@ class Blockchain{
 
   async validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
+      
       let isValidHash = header.hash === RecalculateHash(header)
       chainLog('Header has a valid hash', isValidHash)
       if(!isValidHash) return false;
