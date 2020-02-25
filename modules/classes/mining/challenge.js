@@ -4,24 +4,41 @@ const { logger } = require('../../tools/utils')
 process.DIFFICULTY_BOMB_DIVIDER = 100000; //blocks
 process.IDEAL_BLOCK_TIME = 10; //seconds
 const MINIMUM_DIFFICULTY = parseInt('0x100000')
+const difficultyLog = require('debug')('difficulty')
 
 class Difficulty{
   constructor(genesisConfig){
     this.blockTime = genesisConfig.blockTime || 20
+    difficultyLog(`Ideal block time:`, this.blockTime)
     this.difficultyBomb = genesisConfig.difficultyBomb || 100 * 1000;
+    difficultyLog(`Difficulty bomb every: ${this.difficultyBomb} blocks`)
     this.minimumDifficulty = genesisConfig.difficulty
+    difficultyLog('Minimum possible difficulty', this.minimumDifficulty)
     this.difficultyBoundDivider = genesisConfig.difficultyBoundDivider || 512
     this.difficultyDivider = (genesisConfig.difficultyBoundDivider ? BigInt(genesisConfig.difficultyBoundDivider) : BigInt(384)) //Has to be a big int
+    difficultyLog('Difficulty bound divider:', this.difficultyDivider)
   }
 
   setNewDifficulty(previousBlock, newBlock){
+    difficultyLog(`Previous block ${previousBlock.blockNumber} has difficulty of ${previousBlock.difficulty}`)
     const minimumDifficulty = BigInt(this.minimumDifficulty);
     const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp));
+    difficultyLog(`Mine time in milliseconds:`, mineTime)
+
     const timeAdjustment = (Math.floor((this.blockTime - mineTime)/1000) >= -99? Math.floor((this.blockTime - mineTime)/1000) : -99)
+    difficultyLog(`Time adjustment:`, timeAdjustment)
+
     const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / this.difficultyDivider) * BigInt(timeAdjustment)
+    difficultyLog(`Modifier value:`, modifier)
+
     const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / this.difficultyBomb)-2)))
+    difficultyLog(`Difficulty bomb:`, difficultyBomb)
+
     let blockDiff = BigInt(parseInt(previousBlock.difficulty, 16)) + modifier + difficultyBomb
+    difficultyLog('Block difficulty', blockDiff.toString(16))
+
     blockDiff = (blockDiff > minimumDifficulty ? blockDiff : minimumDifficulty)
+    difficultyLog(`Was it lower than minimum diff of ${this.minimumDifficulty}? ${blockDiff.toString(16)}`)
     return BigInt(blockDiff).toString(16)
   }
 

@@ -356,13 +356,13 @@ class Blockchain{
     chainLog('Balances saved', saved)
     if(saved.error) return { error:saved.error }
 
-    let transactionsDeleted = await mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-    chainLog('Transactions deleted from pool', transactionsDeleted)
-    if(transactionsDeleted.error) return { error:transactionsDeleted.error }
+    // let transactionsDeleted = await mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
+    // chainLog('Transactions deleted from pool', transactionsDeleted)
+    // if(transactionsDeleted.error) return { error:transactionsDeleted.error }
 
-    let actionsDeleted = await mempool.deleteActionsFromMinedBlock(newBlock.actions)
-    chainLog('Actions deleted from pool', actionsDeleted)
-    if(actionsDeleted.error) return { error:actionsDeleted.error }
+    // let actionsDeleted = await mempool.deleteActionsFromMinedBlock(newBlock.actions)
+    // chainLog('Actions deleted from pool', actionsDeleted)
+    // if(actionsDeleted.error) return { error:actionsDeleted.error }
 
     for await(let hash of newHeader.txHashes){
 
@@ -1013,36 +1013,28 @@ class Blockchain{
   */
   async validateBlock(block){
       try{
-        var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
-        var doesNotContainDoubleSpend = true//await this.blockDoesNotContainDoubleSpend(block)
+        
         var areValidTx = await this.validateBlockTransactions(block)
         var isValidHash = block.hash == RecalculateHash(block);
-        var isValidTimestamp = await this.validateBlockTimestamp(block)
         var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
         var isValidConsensus = await this.consensus.validate(block)
         var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       
 
-        chainLog('Block already in chain:', typeof chainAlreadyContainsBlock)
-        chainLog('Does not contain double spent', doesNotContainDoubleSpend)
         chainLog('All transactions are valid', (areValidTx? true:false))
         chainLog('Has a valid hash', isValidHash)
-        chainLog('Has a valid timestamp', isValidTimestamp)
         chainLog('Has a single coinbase transaction', (singleCoinbase? true:false))
         chainLog('Meets the consensus rules', isValidConsensus)
         chainLog('Coinbase is linked to block', coinbaseIsAttachedToBlock)
         chainLog('Merkle root is valid', merkleRootIsValid)
 
-        // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
-        if(!doesNotContainDoubleSpend) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
         if(areValidTx.error) return { error:areValidTx.error} 
         if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
         if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
         if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
         if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
-        if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
         
         return true
       }catch(e){
@@ -1050,16 +1042,18 @@ class Blockchain{
       }
   }
 
-  async blockDoesNotContainDoubleSpend(block){
-    let txHashes = Object.keys(block.transactions);
-    let actionHashes = Object.keys(block.actions);
+  async blockDoesNotContainDoubleSpend(header){
+    // let txHashes = Object.keys(block.transactions);
+    // let actionHashes = Object.keys(block.actions);
 
-    for await(let hash of txHashes){
+    
+
+    for await(let hash of header.txHashes){
       let exists = this.spentTransactionHashes[hash]
       if(exists) return false
     }
 
-    for await(let hash of actionHashes){
+    for await(let hash of header.actionHashes){
       let exists = this.spentActionHashes[hash]
       if(exists) return false
     }
@@ -1144,10 +1138,26 @@ class Blockchain{
     
   }
 
-  validateBlockHeader(header){
+  async validateBlockHeader(header){
     if(isValidHeaderJSON(header)){
-      if(header.hash == RecalculateHash(header)) return true;
-      else return false;
+      let isValidHash = header.hash === RecalculateHash(header)
+      chainLog('Header has a valid hash', isValidHash)
+      if(!isValidHash) return false;
+
+      let doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(header)
+      chainLog('Header does not contain double spend:', typeof chainAlreadyContainsBlock)
+      if(!doesNotContainDoubleSpend) return false;
+
+      let hasValidTimestamp = await this.validateBlockTimestamp(header)
+      chainLog('Header has a valid timestamp', isValidTimestamp)
+      if(!hasValidTimestamp) console.log('Invalid timestamp:', hasValidTimestamp)
+
+      var chainAlreadyContainsBlock = await this.getBlockbyHash(header.hash);
+      chainLog('Block header already in chain:', typeof chainAlreadyContainsBlock)
+      if(chainAlreadyContainsBlock) return false
+      
+      return true
+      
     }else return false;
   }
 

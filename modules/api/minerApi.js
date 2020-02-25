@@ -27,7 +27,8 @@ class MinerAPI{
 
     init(){
         this.socket.on('success', async(block) => {
-            this.isAPIBusy = true
+            
+            //Toggle off busy flag when block has been synced
             await this.addMinedBlock(block)
             this.isAPIBusy = false
         })
@@ -44,20 +45,25 @@ class MinerAPI{
         })
         //This is for when node is syncing a block or busy doing something else
         this.channel.on('nodeEvent', (event)=>{
+            
             switch(event){
                 case 'isBusy':
                     this.isAPIBusy = true
+                    this.socket.emit('nodeIsBusy', true)
                     break;
                 case 'isAvailable':
                     this.isAPIBusy = false
+                    this.socket.emit('nodeIsBusy', false)
                     break;
                 case 'isSwitchingBranch':
                 case 'isDownloading':
                     this.isNodeWorking = true
+                    this.socket.emit('nodeIsBusy', true)
                     break;
                 case 'finishedSwitchingBranch':
                 case 'finishedDownloading':
                     this.isNodeWorking = false
+                    this.socket.emit('nodeIsBusy', false)
                     break;
                 case 'stopMining':
                     //Stop miner
@@ -105,7 +111,9 @@ class MinerAPI{
                 this.sendPeerMessage('newBlockFound', block);
 
                 //Sync it with current blockchain, skipping the extended validation part
+                this.channel.emit('nodeEvent','isBusy')
                 let added = await this.addBlock(block)
+                this.channel.emit('nodeEvent','isAvailable')
                 if(added.error){
                     logger('MINEDBLOCK:',added.error)
                     await this.unwrapBlock(block)
@@ -126,6 +134,8 @@ class MinerAPI{
 
     async sendNewBlock(forceSend=false){
         //Render busy to avoid sending a hundred raw blocks to the miner
+
+        //Toggle busy flag as long as it takes for producer or miner to send back a new block
         this.isAPIBusy = true
         let latestBlock = await this.getLatestFullBlock()
         let newRawBlock = await this.createRawBlock(latestBlock, forceSend)
@@ -135,7 +145,7 @@ class MinerAPI{
         }else{
             logger('RAW BLOCK ERROR:', newRawBlock)
         }
-        this.isAPIBusy = false
+        // this.isAPIBusy = false
     }
 
     async createRawBlock(nextBlock, forceSend){

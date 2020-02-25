@@ -23,6 +23,7 @@ class BlockProducer extends Miner{
         this.turnCounter = 0
         this.nextTurn = this.validatorKeys[0]
         this.nextTurnSkipped = setTimeout(()=>{})
+        this.nodeIsBusy = false
         this.blocksToBeSigned = {}
         this.broadcast = broadcast
         this.numberOfTurnsPassed = 0
@@ -50,9 +51,13 @@ class BlockProducer extends Miner{
             this.sendPeerMessage('networkEvent', { type:'validatorConnected', publicKey:this.wallet.publicKey })
         })
         this.socket.on('disconnect', async ()=>{
-          this.sendPeerMessage('networkEvent', { type:'validatorDisconnected', publicKey:this.wallet.publicKey })
-          this.socket.close()
-          process.exit()
+            this.sendPeerMessage('networkEvent', { type:'validatorDisconnected', publicKey:this.wallet.publicKey })
+            this.socket.close()
+            process.exit()
+        })
+        this.socket.on('nodeIsBusy', (isBusy)=>{
+            console.log('Node is busy:', isBusy)
+            this.nodeIsBusy = isBusy
         })
         this.socket.on('networkEvent', async (peerMessage)=>{
             let event = JSON.parse(peerMessage.data)
@@ -220,7 +225,9 @@ class BlockProducer extends Miner{
             (this.turnCounter < this.validatorOrder.length -1 ? this.turnCounter++ : this.turnCounter = 0)
             
             this.turn = this.validatorOrder[this.turnCounter]
-            if(this.turn == this.wallet.publicKey) this.socket.emit('sendRawBlock');
+            if(this.turn == this.wallet.publicKey && !this.nodeIsBusy){
+                this.socket.emit('sendRawBlock');
+            }
             this.numberOfTurnsPassed++
             if(this.numberOfTurnsPassed >= this.cycle){
                 this.numberOfTurnsPassed = 0

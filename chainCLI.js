@@ -187,6 +187,19 @@ program
 })
 
 program
+.command('getAllTransactions')
+.description('test')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('getAllTransactions');
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('getheader <blockNumber>')
 .description('Requests some general information about the blockchain')
 .action((blockNumber)=>{

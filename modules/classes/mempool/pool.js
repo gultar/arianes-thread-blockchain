@@ -309,35 +309,49 @@ class Mempool{
         })
     }
 
-    gatherTransactionsForBlock(){
-        return new Promise( async (resolve)=>{
+    // gatherTransactionsForBlock(){
+    //     return new Promise( async (resolve)=>{
             
-            let transactions = {}
-            let hashes = Object.keys(this.txReceipts)
-            let errors = {}
-            let batchSize = 0
+    //         let transactions = {}
+    //         let hashes = Object.keys(this.txReceipts)
+    //         let errors = {}
+    //         let batchSize = 0
             
-            for await(var hash of hashes){
-                batchSize += jsonSize(transactions)
-                if(batchSize < this.maxBatchSize){
-                    let transaction = await this.getTransaction(hash)
-                    if(transaction){
-                        if(transaction.error) errors[hash] = transaction.error
-                        this.usedTxReceipts[hash] = this.createTransactionReceipt(transaction)
-                        let used = await this.removeTransaction(hash)
-                        if(used && !used.error) transactions[transaction.hash] = transaction
-                    }
+    //         for await(var hash of hashes){
+    //             batchSize += jsonSize(transactions)
+    //             if(batchSize < this.maxBatchSize){
+    //                 let transaction = await this.getTransaction(hash)
+    //                 if(transaction){
+    //                     if(transaction.error) errors[hash] = transaction.error
+    //                     this.usedTxReceipts[hash] = this.createTransactionReceipt(transaction)
+    //                     let used = await this.removeTransaction(hash)
+    //                     if(used && !used.error) transactions[transaction.hash] = transaction
+    //                 }
                     
-                }else{
+    //             }else{
                     
-                    resolve(transactions)
-                    break;
-                }
+    //                 resolve(transactions)
+    //                 break;
+    //             }
                 
-            }
+    //         }
 
-            resolve(transactions)
-        })
+    //         resolve(transactions)
+    //     })
+    // }
+
+    async gatherTransactionsForBlock(){
+        let transactions = {}
+
+        let entries = await this.transactions.getAll()
+        for await(let entry of entries){
+            let transaction = entry[entry._id]
+            transactions[transaction.hash] = transaction
+            // this.usedTxReceipts[transaction.hash] = this.createTransactionReceipt(transaction)
+            let used = await this.removeTransaction(transaction.hash)
+        }
+
+        return transactions
     }
 
     putbackTransactions(block){
@@ -396,6 +410,21 @@ class Mempool{
             else resolve(actions)
         })
     }
+
+    async gatherActionsForBlock(){
+        let actions = {}
+
+        let entries = await this.actions.getAll()
+        for await(let entry of entries){
+            let action = entry[entry._id]
+            actions[action.hash] = action
+            // this.usedTxReceipts[action.hash] = this.createActionReceipt(action)
+            let used = await this.removeAction(action.hash)
+        }
+
+        return actions
+    }
+
     putbackActions(block){
         return new Promise(async (resolve)=>{
             let actionHashes = Object.keys(block.actions);

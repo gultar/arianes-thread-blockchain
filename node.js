@@ -26,7 +26,6 @@ let { balance } = require('./modules/instances/tables')
 let { blockchain } = require('./modules/instances/blockchain')
 let { blockRuntime } = require('./modules/instances/blockRuntime')
 
-
 /****************** APIs ********************* */
 const MinerAPI = require('./modules/api/minerApi')
 const HttpAPI = require('./modules/api/httpApi')
@@ -111,6 +110,7 @@ class Node {
     this.autoRollback = true || options.autoRollback || false;
     this.maximumAutoRollback = 30
     this.networkPassword = options.networkPassword
+
     //Peer Manager
     this.peerManager = new PeerManager({
       address:this.address,
@@ -197,7 +197,7 @@ class Node {
         if(savedPort) logger('Saved port to .env config file')
         else logger('WARNING: Could not save port to .env file')
 
-        logger(chalk.cyan(`Started Blockchain node port: ${this.address}`));
+        logger(chalk.cyan(`Started Blockchain node at address: ${this.address}`));
 
         this.heartbeat();
         this.initAPIs();
@@ -496,7 +496,7 @@ class Node {
       }
     }
     if(!this.peerDiscovery){
-      logger(chalk.cyan(`DHT Discovery service listening on port: ${this.httpPrefix}://${this.host}:${this.peerDiscoveryPort}`))
+      logger(chalk.cyan(`DHT Discovery service listening at address: ${this.httpPrefix}://${this.host}:${this.peerDiscoveryPort}`))
       logger('Looking for peers on swarm channel:', this.networkManager.currentNetwork)
       this.peerDiscovery = new PeerDiscovery({
         channel:this.networkManager.currentNetwork,
@@ -1102,6 +1102,10 @@ class Node {
         socket.emit('actionFromDB', action)
       })
 
+      socket.on('getAllTransactions', async ()=>{
+        console.log(await mempool.getAllTransactions())
+      })
+
       socket.on('checkDoubleSpend', async ()=>{
         let txHashes = {}
         let doubleSpend = {}
@@ -1134,7 +1138,7 @@ class Node {
 
     let app = express()
     if(this.exposeControlPanel){
-      if(this.exposeHTTP)logger('WARNING: Exposing control panel to the public')
+      if(this.exposeHTTP) logger('WARNING: Exposing control panel to the public')
       app.use(express.static(__dirname+'/views'));
     }
     express.json({ limit: '300kb' })
@@ -1147,7 +1151,7 @@ class Node {
     server.listen(this.minerPort, (this.exposeHTTP ? '' : 'localhost'));
     this.localServer = socketIo(server);
 
-    logger(chalk.cyan(`Local API accessible on port: ${this.httpPrefix}://${this.host}:${this.minerPort}`))
+    logger(chalk.cyan(`Local API accessible at address: ${this.httpPrefix}://${this.host}:${this.minerPort}`))
     this.localServer.on('connection',(socket)=>{
 
       let token = socket.handshake.query.token;
@@ -1398,7 +1402,8 @@ class Node {
               let alreadyReceived = await blockchain.getBlockbyHash(block.hash)
     
               if(!alreadyReceived){
-                if(blockchain.validateBlockHeader(block)){
+                let isValidHeader = await blockchain.validateBlockHeader(block)
+                if(isValidHeader){
                   //Retransmit block
                   this.broadcast('peerMessage', peerMessage)
                   //Become peer's most recent block
@@ -1842,9 +1847,22 @@ DHT_PORT=${this.peerDiscoveryPort}
         port:this.port,
         id:this.id,
         publicKey:this.publicKey,
-        fastSync:this.fastSync
+        lanHost:this.lanHost,
+        httpsEnabled:this.httpsEnabled,
+        exposeHTTP:this.exposeHTTP,
+        exposeControlPanel:this.exposeControlPanel,
+        minerPort:this.minerPort,
+        verbose:this.verbose,
+        enableDHTDiscovery:this.enableDHTDiscovery,
+        peerDiscoveryPort:this.peerDiscoveryPort,
+        dhtLookupTime:this.dhtLookupTime,
+        noLocalhost:this.noLocalhost,
+        autoRollback:this.autoRollback,
+        maximumAutoRollback:this.maximumAutoRollback,
+        messageBufferSize:this.messageBufferSize,
+        peerMessageExpiration:this.peerMessageExpiration
       }
-  
+      
       let saved = await writeToFile(JSON.stringify(config, null, 2),'./config/nodesconfig.json');
       if(saved){
         logger('Saved node config')
