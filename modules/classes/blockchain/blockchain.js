@@ -1020,7 +1020,7 @@ class Blockchain{
         var isValidConsensus = await this.consensus.validate(block)
         var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
-        var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(header)
+        var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(block)
       
         chainLog('All transactions are valid', (areValidTx? true:false))
         chainLog('Has a valid hash', isValidHash)
@@ -1044,18 +1044,18 @@ class Blockchain{
       }
   }
 
-  async blockDoesNotContainDoubleSpend(header){
-    // let txHashes = Object.keys(block.transactions);
-    // let actionHashes = Object.keys(block.actions);
+  async blockDoesNotContainDoubleSpend(block){
+    let txHashes = Object.keys(block.transactions);
+    let actionHashes = Object.keys(block.actions);
 
     
 
-    for await(let hash of header.txHashes){
+    for await(let hash of txHashes){
       let exists = this.spentTransactionHashes[hash]
       if(exists) return false
     }
 
-    for await(let hash of header.actionHashes){
+    for await(let hash of actionHashes){
       let exists = this.spentActionHashes[hash]
       if(exists) return false
     }
