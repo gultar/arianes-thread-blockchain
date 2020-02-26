@@ -1318,7 +1318,7 @@ class Blockchain{
         for await (let hash of txHashes){
           let transaction = block.transactions[hash];
           let valid = await this.validateTransaction(transaction);
-          if(valid.error) errors[hash] = valid.error
+          if(valid.error) resolve({ error:valid.error })
         }
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else resolve(block);

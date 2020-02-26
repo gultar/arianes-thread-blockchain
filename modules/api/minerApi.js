@@ -98,7 +98,7 @@ class MinerAPI{
         if(isValid){
           if(isValid.error){
             logger('INVALID BLOCK', isValid.error)
-            await this.unwrapBlock(block)
+            // await this.unwrapBlock(block)
           }
           else{
             //To guard against accidentally creating doubles
