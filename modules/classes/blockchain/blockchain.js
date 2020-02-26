@@ -1020,14 +1020,15 @@ class Blockchain{
         var isValidConsensus = await this.consensus.validate(block)
         var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
+        var doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(header)
       
-
         chainLog('All transactions are valid', (areValidTx? true:false))
         chainLog('Has a valid hash', isValidHash)
         chainLog('Has a single coinbase transaction', (singleCoinbase? true:false))
         chainLog('Meets the consensus rules', isValidConsensus)
         chainLog('Coinbase is linked to block', coinbaseIsAttachedToBlock)
         chainLog('Merkle root is valid', merkleRootIsValid)
+        chainLog('Block does not contain double spend:', typeof doesNotContainDoubleSpend)
 
         if(areValidTx.error) return { error:areValidTx.error} 
         if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
@@ -1035,6 +1036,7 @@ class Blockchain{
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
         if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
         if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
+        if(!doesNotContainDoubleSpend) return { error:'ERROR: Block contains double spend' }
         
         return true
       }catch(e){
@@ -1143,11 +1145,10 @@ class Blockchain{
       
       let isValidHash = header.hash === RecalculateHash(header)
       chainLog('Header has a valid hash', isValidHash)
-      if(!isValidHash) return false;
-
-      let doesNotContainDoubleSpend = await this.blockDoesNotContainDoubleSpend(header)
-      chainLog('Header does not contain double spend:', typeof chainAlreadyContainsBlock)
-      if(!doesNotContainDoubleSpend) return false;
+      if(!isValidHash){
+        console.log('Invalid hash')
+        return false;
+      }
 
       let hasValidTimestamp = await this.validateBlockTimestamp(header)
       chainLog('Header has a valid timestamp', hasValidTimestamp)
