@@ -2,6 +2,7 @@
 const Database = require('../database/db')
 const sha256 = require('../../tools/sha256')
 const StateStorage = require('../contracts/stateStorage')
+const stateLog = require('debug')('state')
 
 class ContractTable{
     constructor({ getCurrentBlock, getBlock, getBlockFromHash }){
@@ -209,7 +210,7 @@ class ContractTable{
             if(name && newState){
                 
                 if(this.stateStorage[name]){
-                    
+                    stateLog('New state', newState)
                     let updated = await this.stateStorage[name].update(newState)
                     if(updated.error) resolve({error:updated.error})
                     else{

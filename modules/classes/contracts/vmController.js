@@ -4,6 +4,7 @@ const ContractConnector = require('./contractConnector')
 const { getDirectorySize } = require('../../tools/utils')
 const controllerLog = require('debug')('controller')
 
+
 let { accountTable } = require('../instances')
 
 class VMController{
@@ -174,6 +175,7 @@ class VMController{
                         delete callsPending[hash]
                         if(Object.keys(callsPending).length == 0){
                             let updated = await updateStates(states)
+                            
                             if(updated.error) resolve({error:updated.error})
                             else resolve({ results:results, state:states, updated:updated })
                         }

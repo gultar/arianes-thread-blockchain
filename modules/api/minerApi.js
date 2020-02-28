@@ -2,6 +2,7 @@ const http = require('http')
 const socketIo = require('socket.io')
 const { logger } = require('../tools/utils')
 const { mempool } = require('../instances/mempool')
+const apiLog = require('debug')('minerAPI')
 
 /**
  * An api that links the miner process and the node and gathers transactions for it
@@ -14,7 +15,8 @@ const { mempool } = require('../instances/mempool')
  * @param {Socket} params.socket - Server socket on which the miner will connect
  */
 class MinerAPI{
-    constructor({ chain, addBlock, channel, sendPeerMessage, socket }){
+    constructor({ mode, chain, addBlock, channel, sendPeerMessage, socket }){
+        this.mode = mode
         this.chain = chain
         this.addBlock = addBlock
         this.channel = channel
@@ -28,9 +30,7 @@ class MinerAPI{
     init(){
         this.socket.on('success', async(block) => {
             
-            //Toggle off busy flag when block has been synced
             await this.addMinedBlock(block)
-            this.isAPIBusy = false
         })
         this.socket.on('generate', ()=>{
             this.generate = true
@@ -45,7 +45,7 @@ class MinerAPI{
         })
         //This is for when node is syncing a block or busy doing something else
         this.channel.on('nodeEvent', (event)=>{
-            
+            apiLog('Received node event', event)
             switch(event){
                 case 'isBusy':
                     this.isAPIBusy = true
@@ -74,20 +74,23 @@ class MinerAPI{
 
         this.socket.on('sendRawBlock', async ()=>{
             await this.sendNewBlock({ generate:true })
-            this.sendPeerMessage('networkEvent', { test:true })
         })
 
         this.socket.on('sendPeerMessage', async (type, data)=>{
             this.sendPeerMessage(type, data)
         })
+
+        this.channel.on('pushedBlock', ()=>{
+            this.socket.emit('pushedBlock')
+        })
         
         mempool.events.on('newAction', async (action)=>{
-            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
+            if(!this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && this.mode !== 'generator'){
                 await this.sendNewBlock()
             }
         })
         mempool.events.on('newTransaction', async (transaction)=>{
-             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
+             if(!this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && this.mode !== 'generator'){
                 await this.sendNewBlock()
             }
         })
@@ -114,6 +117,7 @@ class MinerAPI{
                 this.channel.emit('nodeEvent','isBusy')
                 let added = await this.addBlock(block)
                 this.channel.emit('nodeEvent','isAvailable')
+                
                 if(added.error){
                     logger('MINEDBLOCK:',added.error)
                     await this.unwrapBlock(block)
@@ -145,7 +149,7 @@ class MinerAPI{
         }else{
             logger('RAW BLOCK ERROR:', newRawBlock)
         }
-        // this.isAPIBusy = false
+        this.isAPIBusy = false
     }
 
     async createRawBlock(nextBlock, forceSend){

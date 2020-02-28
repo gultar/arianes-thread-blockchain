@@ -900,6 +900,11 @@ class Node {
         }
       })
 
+      socket.on('getMedianBlockTime', async ()=>{
+        let medianBlockTime = await blockchain.getMedianBlockTime()
+        console.log('Median Block Time:',medianBlockTime)
+      })
+
       socket.on('getAddress', (address)=>{
         this.requestKnownPeers(address);
       })
@@ -1155,9 +1160,10 @@ class Node {
     this.localServer.on('connection',(socket)=>{
 
       let token = socket.handshake.query.token;
+      let mode = socket.handshake.query.mode;
 
       if(token && token == 'InitMiner'){
-        this.startMinerAPI(socket)
+        this.startMinerAPI(socket, mode)
       }else{
         socket.emit('message', 'Connected to local node');
         this.externalEventHandlers(socket)
@@ -1171,10 +1177,11 @@ class Node {
    * to interact with the node
    * @param {Socket} socket 
    */
-  async startMinerAPI(socket){
+  async startMinerAPI(socket, mode){
     logger('Miner connected')
     
     this.minerAPI = new MinerAPI({
+      mode:mode,
       chain:blockchain,
       addBlock:async (newBlock)=>{
         return await this.addBlock(newBlock)
@@ -1514,11 +1521,11 @@ class Node {
     if(received.readyToExecute){
       let executed = await blockRuntime.executeBlock(newBlock)
       if(executed.error) return { error:executed.error }
-
       return { blockAdded:true }
     }else{
       return received
     }
+    
   }
 
   /**

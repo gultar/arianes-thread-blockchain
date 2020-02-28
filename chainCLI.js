@@ -187,6 +187,19 @@ program
 })
 
 program
+.command('getMedianBlockTime')
+.description('test')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('getMedianBlockTime');
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('getAllTransactions')
 .description('test')
 .action(()=>{

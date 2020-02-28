@@ -115,12 +115,6 @@ class BlockRuntime{
         }
         else {
     
-          
-          // if(executed.error){
-          //   blockchain.chain.pop()
-          //   return { error:executed.error }
-          // }
-    
           let added = await blockchain.addBlockToDB(newBlock)
           chainLog('Block added to DB', added)
           if(added.error){
@@ -132,6 +126,7 @@ class BlockRuntime{
             
             await blockchain.manageChainSnapshotQueue(newBlock)
             logger(`${chalk.green('[] Added new block')} ${newBlock.blockNumber} ${chalk.green('to chain:')} ${newBlock.hash.substr(0, 20)}...`)
+            global.minerChannel.emit('pushedBlock')
             return added
           }
         }

@@ -278,6 +278,7 @@ class Blockchain{
     }
   }
 
+  //deprecated
   async addBlock(newBlock){
     let newHeader = this.extractHeader(newBlock)
     this.chain.push(newHeader);
@@ -297,6 +298,7 @@ class Blockchain{
       else{
         await this.manageChainSnapshotQueue(newBlock)
         logger(`${chalk.green('[] Added new block')} ${newBlock.blockNumber} ${chalk.green('to chain:')} ${newBlock.hash.substr(0, 20)}...`)
+        
         return added
       }
     }
@@ -314,7 +316,8 @@ class Blockchain{
         let firstBlockHash = blockPoolHashes[0]
         delete this.blockPool[firstBlockHash]
       }
-      logger(`${chalk.cyan('[] Added block')}  ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
+      logger(`${chalk.cyan('[] Added block')} ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
+      
       return  { pooled:true }
     }
     
@@ -356,16 +359,7 @@ class Blockchain{
     chainLog('Balances saved', saved)
     if(saved.error) return { error:saved.error }
 
-    // let transactionsDeleted = await mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
-    // chainLog('Transactions deleted from pool', transactionsDeleted)
-    // if(transactionsDeleted.error) return { error:transactionsDeleted.error }
-
-    // let actionsDeleted = await mempool.deleteActionsFromMinedBlock(newBlock.actions)
-    // chainLog('Actions deleted from pool', actionsDeleted)
-    // if(actionsDeleted.error) return { error:actionsDeleted.error }
-
     for await(let hash of newHeader.txHashes){
-
       let transaction = newBlock.transactions[hash]
       if(transaction.type == 'payable'){
         chainLog('Payable spent', hash)
@@ -376,7 +370,6 @@ class Blockchain{
         chainLog('Transaction spent', hash)
         this.spentTransactionHashes[hash] = newHeader.blockNumber
       }
-      //{ spent:newHeader.blockNumber }
     }
 
     if(newHeader.actionsHashes){
@@ -391,12 +384,19 @@ class Blockchain{
     if(savedLastBlock.error) return { error:savedLastBlock.error }
 
     return true
-
-
   }
 
+  async getMedianBlockTime(){
+    let totalBlockTime = 0
+    for await(let header of this.chain){
+      if(header.blockNumber > 0){
+        let block = await this.getBlockFromDB(header.blockNumber)
+        totalBlockTime += (( block.endMineTime - block.startMineTime ) / 1000)
+      }
+    }
 
-
+    return (totalBlockTime / this.chain.length)
+  }
 
   getLastKnownBlockFromDB(){
     return new Promise(async (resolve)=>{
@@ -1275,8 +1275,6 @@ class Blockchain{
         }
       }
 
-    
-
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
       chainLog(`Header chain is now ${this.chain.length} blocks long`)
@@ -1291,8 +1289,6 @@ class Blockchain{
       let rolledBack = await balance.rollback(lastBlock.blockNumber.toString())
       chainLog(`Rolled back balance states to block ${lastBlock.blockNumber}`, rolledBack)
       if(rolledBack.error) resolve({error:rolledBack.error})
-
-      
 
       for await(let header of removed){
         let deleted = await this.chainDB.deleteId(header.blockNumber.toString())
