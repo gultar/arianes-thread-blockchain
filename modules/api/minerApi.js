@@ -29,7 +29,7 @@ class MinerAPI{
 
     init(){
         this.socket.on('success', async(block) => {
-            
+            this.isAPIBusy = false;
             await this.addMinedBlock(block)
         })
         this.socket.on('generate', ()=>{
@@ -149,7 +149,7 @@ class MinerAPI{
         }else{
             logger('RAW BLOCK ERROR:', newRawBlock)
         }
-        this.isAPIBusy = false
+        // this.isAPIBusy = false
     }
 
     async createRawBlock(nextBlock, forceSend){
