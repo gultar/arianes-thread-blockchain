@@ -64,9 +64,7 @@ class BlockGenerator extends Miner{
         
         this.socket.on('pushedBlock', ()=>{
             generatorLog('Received pushed block event')
-            setTimeout(()=>{
-                this.nextTurn()
-            }, genesis.blockTime)
+            this.nextTurn()
         })
         this.socket.on('networkEvent', async (peerMessage)=>{
             let event = JSON.parse(peerMessage.data)
