@@ -336,7 +336,7 @@ class Node {
 
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
         if(!this.messageBuffer[peerMessage.messageId]){
-          await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
+          // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
           
           this.handlePeerMessage(peerMessage, acknowledge);
         }
@@ -1905,7 +1905,7 @@ DHT_PORT=${this.peerDiscoveryPort}
     setInterval(async ()=>{
       blockchain.save()
       this.housekeeping()
-      this.broadcast('getChainSnapshot')
+      // this.broadcast('getChainSnapshot')
       let backUp = await blockchain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
