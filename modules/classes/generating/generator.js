@@ -103,7 +103,7 @@ class BlockGenerator extends Miner{
                 case 'requestSignature':
                     let header = event.header;
                     let publicKey = event.publicKey
-                    if(this.turn = publicKey){
+                    if(this.turn == publicKey){
                         generatorLog('Received block header. About to validate and sign')
                         this.cancelReceptionTimer(publicKey)
                         let isValidHeader = this.validateBlockHeader(header)
