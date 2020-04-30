@@ -48,7 +48,8 @@
     "socket.io-client": "^2.2.0",
     "socketio-auth": "^0.1.1",
     "utf8": "^3.0.0",
-    "vm2": "^3.8.2"
+    "vm2": "^3.8.2",
+    "snyk": "^1.316.1"
   },
   "devDependencies": {},
   "bin": {
@@ -64,7 +65,9 @@
   "scripts": {
     "test": "node test.js",
     "push": "git add * && git commit -m && git push origin master",
-    "pull": "git stash && git pull & git rebase"
+    "pull": "git stash && git pull & git rebase",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "repository": {
     "type": "git",
@@ -75,5 +78,6 @@
   "bugs": {
     "url": "https://github.com/gultar/terminal_app/issues"
   },
-  "homepage": "https://github.com/gultar/terminal_app#readme"
+  "homepage": "https://github.com/gultar/terminal_app#readme",
+  "snyk": true
 }
