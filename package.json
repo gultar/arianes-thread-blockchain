@@ -51,9 +51,8 @@
   },
   "devDependencies": {},
   "bin": {
-    "blockchain": "command.js",
+    "blockchain": "blockchainCLI.js",
     "wallet": "walletCLI.js",
-    "keyserver": "keyServer.js",
     "chain": "chainCLI.js",
     "action": "actionCLI.js",
     "txgen": "txgen.js",

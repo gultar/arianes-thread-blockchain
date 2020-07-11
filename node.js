@@ -431,7 +431,7 @@ class Node {
   }
 
   async getBlockchainStatus(socket, peerStatus){
-    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
+    //await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
     try{
       let status = {
         totalDifficultyHex: this.chain.getTotalDifficulty(),
@@ -640,7 +640,7 @@ class Node {
             let added = await this.chain.receiveBlock(block)
             if(added.error){
               logger('DOWNLOAD', added.error)
-              closeConnection()
+              closeConnection({ error:true })
             }else if(added.extended){
               let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
               let latestHash = this.chain.getLatestBlock().hash
