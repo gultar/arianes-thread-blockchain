@@ -1331,6 +1331,11 @@ class Blockchain{
           let transaction = block.transactions[hash];
           let valid = await this.validateTransaction(transaction);
           if(valid.error) errors[hash] = valid.error
+          if(valid.exists){
+            let txLocatedInBlockNumber = valid.blockNumber
+            let isPartOfForkedBlock = block.blockNumber == txLocatedInBlockNumber
+            if(!isPartOfForkedBlock) errors[hash] = valid.exists
+          }
         }
         if(Object.keys(errors).length > 0) resolve({error:errors})
         else resolve(block);
@@ -1340,6 +1345,8 @@ class Blockchain{
       
     })
   }
+
+  
   //Redundant with the above method ^
   validateTransactionsOfBlock(block){
     return new Promise(async (resolve, reject)=>{
@@ -1493,7 +1500,7 @@ class Blockchain{
         var isPayable = transaction.type == 'payable'
 
         let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
-        if(alreadyExistsInBlockchain) resolve({error:'Transaction already exists in blockchain'})
+        if(alreadyExistsInBlockchain) resolve({exists:'Transaction already exists in blockchain', blockNumber:alreadyExistsInBlockchain})
 
         if(isTransactionCall){
 
