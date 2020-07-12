@@ -440,6 +440,8 @@ class Node {
       }
 
       socket.emit('blockchainStatus', status);
+      let token = JSON.parse(socket.handshake.query.token)
+      let peerAddress = token.address
       let peer = this.connectionsToPeers[peerAddress];
       if(!peer) this.peerManager.connectToPeer(peerAddress)
       
