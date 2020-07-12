@@ -52,12 +52,15 @@ class MinerAPI{
                     break;
                 case 'isSwitchingBranch':
                 case 'isDownloading':
+                    this.socket.emit('stopMining')
                     this.isNodeWorking = true
                     break;
                 case 'finishedSwitchingBranch':
                 case 'finishedDownloading':
                     this.isNodeWorking = false
                     break;
+                case 'resumeMining':
+                    this.socket.emit('')
                 case 'stopMining':
                     //Stop miner
                     this.socket.emit('stopMining')
@@ -75,7 +78,6 @@ class MinerAPI{
         })
         
         this.mempool.events.on('newAction', async (action)=>{
-
             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
                 await this.sendNewBlock()
             }
@@ -97,7 +99,7 @@ class MinerAPI{
             //   console.log('Hash', block.hash)
             //   console.log('Exists block', blockFromDB.blockNumber)
             //   console.log('of Hash', blockFromDB.hash)
-              logger('INVALID BLOCK', isValid.error)
+            //   logger('INVALID BLOCK', isValid.error)
           }
           else{
             //To guard against accidentally creating doubles

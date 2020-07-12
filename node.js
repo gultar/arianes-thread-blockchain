@@ -603,7 +603,7 @@ class Node {
             }, 5000)
           }else{
             logger('Blockchain download failed. No answer')
-            closeConnection()
+            closeConnection({ error:true })
           }
         }
 

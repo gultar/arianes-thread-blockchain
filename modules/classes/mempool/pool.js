@@ -188,14 +188,16 @@ class Mempool{
 
     getTransaction(hash){
         return new Promise(async (resolve)=>{
-            let entry = await this.transactions.get(hash)
+            if(!this.usedTxReceipts[hash]){
+                let entry = await this.transactions.get(hash)
+            
+                if(entry){
+                    if(entry.error) resolve({error:entry.error})
 
-            if(entry){
-                if(entry.error) resolve({error:entry.error})
-
-                resolve(entry[hash])
-            }else{
-                resolve(false)
+                    resolve(entry[hash])
+                }else{
+                    resolve(false)
+                }
             }
         })
     }

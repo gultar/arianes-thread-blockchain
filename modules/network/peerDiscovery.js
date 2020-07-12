@@ -84,6 +84,7 @@ class PeerDiscovery{
             
             this.swarm.listen(this.port)
             this.swarm.on('connection', (connection, peer) => {
+                console.log('Peer discovery',peer)
                 if(peer.channel){
                     let channel = peer.channel.toString()
                     if(channel === this.channel){

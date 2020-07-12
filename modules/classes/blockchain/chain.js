@@ -1066,7 +1066,8 @@ class Blockchain{
   async validateBlock(block){
       try{
         var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
-        var doesNotContainDoubleSpend = true//await this.blockDoesNotContainDoubleSpend(block)
+        var isFork = this.getLatestBlock().blockNumber == block.blockNumber || this.getLatestBlock().blockNumber + 1 == block.blockNumber
+        var doesNotContainDoubleSpend = this.blockDoesNotContainDoubleSpend(block)
         var areValidTx = await this.validateBlockTransactions(block)
         var isValidHash = block.hash == RecalculateHash(block);
         var isValidTimestamp = await this.validateBlockTimestamp(block)
@@ -1075,9 +1076,8 @@ class Blockchain{
         var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       
-        // if(!isValidTimestamp) resolve({error:'ERROR: Is not valid timestamp'})
-        if(!doesNotContainDoubleSpend) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
-        if(areValidTx.error) return { error:areValidTx.error} 
+        if(doesNotContainDoubleSpend && doesNotContainDoubleSpend < block.blockNumber - 1) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
+        if(areValidTx.error && !isFork) return { error:areValidTx.error} 
         if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
         if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
@@ -1097,15 +1097,15 @@ class Blockchain{
 
     for await(let hash of txHashes){
       let exists = this.spentTransactionHashes[hash]
-      if(exists) return false
+      if(exists) return exists
     }
 
     for await(let hash of actionHashes){
       let exists = this.spentActionHashes[hash]
-      if(exists) return false
+      if(exists) return exists
     }
 
-    return true
+    return false
 
   }
 
