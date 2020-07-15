@@ -682,9 +682,8 @@ class Node {
     let topPeer = await this.getMostUpToDatePeer()
     if(topPeer){
       let currentStatus = await this.buildBlockchainStatus()
-      let peerStatus = this.peersLatestBlocks[topPeer.address]
-      if(peerStatus){
-        let peerLatestHeader = peerStatus.bestBlockHeader
+      let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
+      if(peerLatestHeader){
         let latestHeader = this.chain.getLatestBlock()
         if(peerLatestHeader.blockNumber > latestHeader.blockNumber + this.tolerableBlockGap){
           this.minerChannel.emit('nodeEvent','outOfSync')
