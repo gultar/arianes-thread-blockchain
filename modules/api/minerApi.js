@@ -52,7 +52,6 @@ class MinerAPI{
                     break;
                 case 'isSwitchingBranch':
                 case 'isDownloading':
-                    this.socket.emit('stopMining')
                     this.isNodeWorking = true
                     break;
                 case 'finishedSwitchingBranch':
