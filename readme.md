@@ -141,34 +141,6 @@ The basic structure of a transaction is as follows:
 ## Interacting with smart contracts
 There are two ways to use contracts: Actions and Transaction calls. To build those, you can either use the CLI tools provided for that purpose or manually send the data to your local node. 
 
-### Actions
-
-Actions are usually less expensive than transaction calls because they do not get mined straight away but are instead added to a block after transactions. Simply put, transaction calls trigger mining but actions don't. Action would then be more suited for non urgent or less operation-critical interactions with contracts. 
-
-```
-{
-    fromAccount: <Sending account name>,
-    type: <Type of action>,
-    task: <Selected task to perform according to type>,
-    data: { //Data payload contains sending account details
-      name: <Sending account name>,
-      ownerKey: <ECDSA Public Key of Owner Wallet>,
-      hash: <SHA256 Hash>,
-      ownerSignature: <Signature>,
-      type: <>
-    },
-    timestamp: <Unix Timestamp>,
-    contractRef: {},
-    fee: <Enough mining fee to equate size of transaction>,
-    hash: <SHA256 hash of the action>,
-    signature: <ECDSA signature of the hash from a private key>
-
-}
-
-
-```
-
-
 
 ### Transaction Calls
 
@@ -214,7 +186,7 @@ Here is an example:
 ```
  receipt: {
     fromAddress: 'tuor',   //Name of the sending account
-    toAddress: 'Token',   //Name of the Contract
+    toAddress: 'Tokens',   //Name of the Contract
     type: 'call',         //Type of transaction
     data: { 
       method: 'issue',    //Method to be called from the contract
@@ -230,6 +202,33 @@ Here is an example:
     signature: 'hkNKNUdT4DnbDVRKaodVg8wYEjkRHSzcMjLyRL/5k1KgDWhcxLolm7vjBEXlnu7A
 ckL7qrOkdhXgxSxHVTLHow=='
   }
+
+
+```
+
+### Actions
+
+Actions are usually less expensive than transaction calls. 
+
+```
+{
+    fromAccount: <Sending account name>,
+    type: <Type of action>,
+    task: <Selected task to perform according to type>,
+    data: { //Data payload contains sending account details
+      name: <Sending account name>,
+      ownerKey: <ECDSA Public Key of Owner Wallet>,
+      hash: <SHA256 Hash>,
+      ownerSignature: <Signature>,
+      type: <>
+    },
+    timestamp: <Unix Timestamp>,
+    contractRef: {},
+    fee: <Enough mining fee to equate size of transaction>,
+    hash: <SHA256 hash of the action>,
+    signature: <ECDSA signature of the hash from a private key>
+
+}
 
 
 ```

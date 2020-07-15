@@ -1077,7 +1077,7 @@ class Blockchain{
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       
         if(doesNotContainDoubleSpend && doesNotContainDoubleSpend < block.blockNumber - 1) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
-        if(areValidTx.error && !isFork) return { error:areValidTx.error} 
+        if(areValidTx.error && !isFork) return { error:"ERROR: Block contains spent transactions"} 
         if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
         if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}

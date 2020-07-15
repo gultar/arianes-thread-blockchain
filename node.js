@@ -98,6 +98,7 @@ class Node {
     this.peersLatestBlocks = {}
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
+    this.synchronizeDelay = 10 * 1000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
     this.isDownloading = false;
@@ -196,6 +197,7 @@ class Node {
             if(savedPort) logger('Saved port to .env config file')
             else logger('WARNING: Could not save port to .env file')
             this.heartbeat();
+            this.syncHeartBeat();
             this.initAPIs();
             
             if(this.enableLocalPeerDiscovery){
@@ -431,7 +433,6 @@ class Node {
   }
 
   async getBlockchainStatus(socket, peerStatus){
-    //await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockchainStatus' events") }); // consume 1 point per event from IP
     try{
       let status = {
         totalDifficultyHex: this.chain.getTotalDifficulty(),
@@ -674,6 +675,15 @@ class Node {
     }
 
     return status
+  }
+
+  async synchronize(){
+    let topPeer = await this.getMostUpToDatePeer()
+    if(topPeer){
+      let currentStatus = await this.buildBlockchainStatus()
+      if(this.verbose) logger('Syncing chain with most up to date peer')
+      topPeer.emit('getBlockchainStatus', currentStatus)
+    }
   }
 
 /**
@@ -1179,6 +1189,10 @@ class Node {
       socket.on('getActionFromDB', async (hash)=>{
         let action = await this.chain.getActionFromDB(hash)
         socket.emit('actionFromDB', action)
+      })
+
+      socket.on('sync', ()=>{
+        this.synchronize()
       })
 
       socket.on('disconnect', ()=>{
@@ -1929,6 +1943,15 @@ DHT_PORT=${this.peerDiscoveryPort}
       let backUp = await this.chain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
+  }
+
+   /**
+      @desc Routine tasks go here. The heartbeat's delay is adjusted in nodeconfig
+    */
+  syncHeartBeat(){
+    setInterval(async ()=>{
+        this.synchronize()
+    }, this.synchronizeDelay)
   }
 
   housekeeping(){}

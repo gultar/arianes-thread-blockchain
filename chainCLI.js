@@ -125,7 +125,7 @@ program
 .action(()=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('testFastDownload');
+            socket.emit('sync');
             setTimeout(()=>{
                 socket.close()
             }, 400)
