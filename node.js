@@ -680,7 +680,7 @@ class Node {
 
   async synchronize(){
     let topPeer = await this.getMostUpToDatePeer()
-    if(topPeer){
+    if(topPeer && topPeer.connected){
       let currentStatus = await this.buildBlockchainStatus()
       let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
       if(peerLatestHeader){
