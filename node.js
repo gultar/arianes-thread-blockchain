@@ -103,6 +103,7 @@ class Node {
     this.peerMessageExpiration = 30 * 1000
     this.isDownloading = false;
     this.autoRollback = true || options.autoRollback || false;
+    this.tolerableBlockGap = 3 // blocks
     this.maximumAutoRollback = 30
     this.peerManager = new PeerManager({
       address:this.address,
@@ -681,6 +682,16 @@ class Node {
     let topPeer = await this.getMostUpToDatePeer()
     if(topPeer){
       let currentStatus = await this.buildBlockchainStatus()
+      let peerStatus = this.peersLatestBlocks[topPeer.address]
+
+      let peerLatestHeader = peerStatus.bestBlockHeader
+      let latestHeader = this.getLatestBlock()
+      if(peerLatestHeader.blockNumber > latestHeader.blockNumber + this.tolerableBlockGap){
+        this.minerChannel.emit('nodeEvent','outOfSync')
+        if(!this.isDownloading) logger('Node is currently out of sync with top peer')
+      }else{
+        this.minerChannel.emit('nodeEvent','inSync')
+      }
       if(this.verbose) logger('Syncing chain with most up to date peer')
       topPeer.emit('getBlockchainStatus', currentStatus)
     }
@@ -736,7 +747,8 @@ class Node {
             
   
           }else{
-            resolve({ error:'ERROR: Status object is missing parameters' })
+            //{ error:'ERROR: Status object is missing parameters' }
+            resolve(false)
           }
         }
         

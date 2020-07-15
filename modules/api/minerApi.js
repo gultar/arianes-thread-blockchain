@@ -59,8 +59,11 @@ class MinerAPI{
                 case 'finishedDownloading':
                     this.isNodeWorking = false
                     break;
-                case 'resumeMining':
-                    this.socket.emit('')
+                case 'outOfSync':
+                    this.nodeOutOfSync = true
+                    break;
+                case 'inSync':
+                    this.nodeOutOfSync = false
                 case 'stopMining':
                     //Stop miner
                     this.socket.emit('stopMining')
