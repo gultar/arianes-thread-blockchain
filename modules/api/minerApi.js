@@ -43,6 +43,7 @@ class MinerAPI{
         })
         //This is for when node is syncing a block or busy doing something else
         this.channel.on('nodeEvent', (event)=>{
+            console.log(event)
             switch(event){
                 case 'isBusy':
                     this.isAPIBusy = true
@@ -59,10 +60,12 @@ class MinerAPI{
                     this.isNodeWorking = false
                     break;
                 case 'outOfSync':
+                    this.socket.emit('stopMining')
                     this.nodeOutOfSync = true
                     break;
                 case 'inSync':
                     this.nodeOutOfSync = false
+                    break;
                 case 'stopMining':
                     //Stop miner
                     this.socket.emit('stopMining')
