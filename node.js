@@ -685,7 +685,7 @@ class Node {
       let peerStatus = this.peersLatestBlocks[topPeer.address]
 
       let peerLatestHeader = peerStatus.bestBlockHeader
-      let latestHeader = this.getLatestBlock()
+      let latestHeader = this.chain.getLatestBlock()
       if(peerLatestHeader.blockNumber > latestHeader.blockNumber + this.tolerableBlockGap){
         this.minerChannel.emit('nodeEvent','outOfSync')
         if(!this.isDownloading) logger('Node is currently out of sync with top peer')
