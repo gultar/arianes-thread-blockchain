@@ -980,6 +980,14 @@ class Blockchain{
 
       return total.toString(16);
   }
+ 
+   getDifficultyTotal(){
+      let latestBlock = this.getLatestBlock()
+
+      let total = latestBlock.totalDifficulty
+
+      return total.toString(16);
+  }
 
   async getMedianBlockTimestamp(numBlocks){
     let currentBlockNumber = this.getLatestBlock().blockNumber
