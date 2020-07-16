@@ -82,12 +82,12 @@ class MinerAPI{
         })
         
         this.mempool.events.on('newAction', async (action)=>{
-            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
+            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync){
                 await this.sendNewBlock()
             }
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
-             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking){
+             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync){
                  
                 await this.sendNewBlock()
             }
