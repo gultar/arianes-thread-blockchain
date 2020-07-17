@@ -701,7 +701,7 @@ class Node {
 
           peer.emit('getNextBlockInChain', this.chain.chain[goingBackInChainCounter - 1])
           goingBackInChainCounter--
-
+          console.log('Trying again')
         }
 
         
