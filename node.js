@@ -649,6 +649,7 @@ class Node {
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
       
+      this.minerChannel.emit('nodeEvent','outOfSync')
       this.isDownloading = true;
       let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber
 
@@ -664,6 +665,7 @@ class Node {
         //next unknown and previous unknown: reask with previous block
         //no known block on chain? Probably not using same genesis
         if(block.end){
+          this.minerChannel.emit('nodeEvent','inSync')
           logger('Blockchain updated successfully!')
           closeConnection()
           resolve(true)

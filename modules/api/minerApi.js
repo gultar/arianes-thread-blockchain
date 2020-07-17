@@ -59,6 +59,7 @@ class MinerAPI{
                     this.isNodeWorking = false
                     break;
                 case 'outOfSync':
+                    logger('Node is out of sync. Stopped mining')
                     this.socket.emit('stopMining')
                     this.nodeOutOfSync = true
                     break;
