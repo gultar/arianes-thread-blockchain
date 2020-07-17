@@ -308,7 +308,7 @@ class Node {
 
       socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
-      socket.on('getNextBlock', async (hash)=> await this.getNextBlock(socket, hash))
+      socket.on('getNextBlock', async (hash, blockNumber)=> await this.getNextBlock(socket, hash, blockNumber))
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       
@@ -349,7 +349,7 @@ class Node {
     }
   }
 
-  async getNextBlock(socket, hash){
+  async getNextBlock(socket, hash, blockNumber){
     if(hash){
       // await rateLimiter.consume(socket.handshake.address).catch(e => { 
       //   // console.log("Peer sent too many 'getNextBlock' events") 
@@ -357,7 +357,17 @@ class Node {
       let index = await this.chain.getIndexOfBlockHashInChain(hash)
       let isGenesis = this.genesis.hash == hash
       
-      if(!index && !isGenesis) socket.emit('nextBlock', {error:'Block not found'})
+      if(!index && !isGenesis){
+        let isKnownBlockNumber = blockNumber <= this.chain.getLatestBlock().blockNumber;
+        if(isKnownBlockNumber){
+          let block = await this.chain.getBlockFromDB(blockNumber - 1)
+          if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(blockNumber - 1) }, 500)
+          socket.emit('nextBlock', { try:block })
+        }else{
+          socket.emit('nextBlock', {error:'Block not found'})
+        }
+
+      }
       else{
         if(hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlock', {end:'End of blockchain'})
@@ -591,6 +601,7 @@ class Node {
     return new Promise(async (resolve)=>{
       if(peer){
         let startHash = this.chain.getLatestBlock().hash;
+        let startBlockNumber = this.chain.getLatestBlock().blockNumber
         this.isDownloading = true;
         let retried = false;
         this.retrySending = null;
@@ -600,7 +611,7 @@ class Node {
           if(!retried){
             this.retrySending = setTimeout(()=>{
               retried = true
-              peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
+              peer.emit('getNextBlock', this.chain.getLatestBlock().hash, )
             }, 5000)
           }else{
             logger('Blockchain download failed. No answer')
@@ -621,6 +632,14 @@ class Node {
             logger('Blockchain updated successfully!')
             closeConnection()
             resolve(true)
+          }else if(block.try){
+            
+            let potentialBlock = block.try;
+            let rolledback = await this.chain.rollbackToBlock(potentialBlock.blockNumber - 1)
+            let latestHash = this.chain.getLatestBlock()
+            let latestBlockNumber = this.chain.getLatestBlock().blockNumber
+            peer.emit('getNextBlock', latestHash, latestBlockNumber)
+
           }else if(block.error && block.error !== 'Block not found'){
             closeConnection({ error:true })
             resolve({ error: block.error })
@@ -628,11 +647,12 @@ class Node {
 
             if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
               rolledBack++
-              let blockNumber = this.chain.getLatestBlock().blockNumber
+              
               let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
               console.log('Rollback during download',rolledBack)
               let latestHash = this.chain.getLatestBlock().hash
-              peer.emit('getNextBlock', latestHash)
+              let latestBlockNumber = this.chain.getLatestBlock().blockNumber
+              peer.emit('getNextBlock', latestHash, latestBlockNumber)
             }else{
               closeConnection({ error:true })
               resolve({ error: block.error })
@@ -646,16 +666,17 @@ class Node {
             }else if(added.extended){
               let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
               let latestHash = this.chain.getLatestBlock().hash
-              peer.emit('getNextBlock', latestHash)
+              let latestBlockNumber = this.chain.getLatestBlock().blockNumber
+              peer.emit('getNextBlock', latestHash, latestBlockNumber)
               awaitRequest()
             }else{
-              peer.emit('getNextBlock', block.hash)
+              peer.emit('getNextBlock', block.hash, block.blockNumber)
               awaitRequest()
             }
           }
         })
         
-        peer.emit('getNextBlock', startHash);
+        peer.emit('getNextBlock', startHash, startBlockNumber);
       }else{
         resolve(true)
       }
