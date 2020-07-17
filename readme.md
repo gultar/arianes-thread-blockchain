@@ -45,7 +45,7 @@ Then you can either instantiate the class by using
 
 ```
 let myNode = new Node({
-  host: "123.123.123.123", //If dht peer discovery is enable, is public ip of network
+  host: "123.123.123.123", //If dht peer discovery is enabled, is public ip of network
   lanHost: "192.168.1.1", //Internal IP, optional
   port: "8000",  //ioServer port
   verbose: false, //Displays more info like transactions sent
