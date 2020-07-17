@@ -1681,10 +1681,10 @@ class Node {
 
       }
       else if(reception.rollback){
-
+        console.log('Need to rollback to ', reception.rollback)
         let peer = await this.getMostUpToDatePeer()
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback)
-        if(rolledBack.error) resolve({error:rolledBack.error})
+        //if(rolledBack.error) resolve({error:rolledBack.error})
         let lastHeader = this.chain.getLatestBlock()
         let downloaded = await this.downloadBlocks(peer, lastHeader)
         resolve(downloaded)
