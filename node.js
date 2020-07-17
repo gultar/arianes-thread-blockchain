@@ -1668,7 +1668,7 @@ class Node {
       else if(reception.requestUpdate){
         
         let peer = await this.getMostUpToDatePeer()
-        let updated = await this.downloadBlockchain(peer, this.chain.getLatestBlock())
+        let updated = await this.downloadBlocks(peer, this.chain.getLatestBlock())
         if(updated.error) resolve({error:updated.error})
         else resolve(updated)
         resolve({ updating:true })
@@ -1680,7 +1680,7 @@ class Node {
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback)
         if(rolledBack.error) resolve({error:rolledBack.error})
         let lastHeader = this.chain.getLatestBlock()
-        let downloaded = await this.downloadBlockchain(peer, lastHeader)
+        let downloaded = await this.downloadBlocks(peer, lastHeader)
         resolve(downloaded)
         
       }
@@ -1698,7 +1698,7 @@ class Node {
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = this.chain.getLatestBlock()
-            let downloaded = await this.downloadBlockchain(peer, lastHeader)
+            let downloaded = await this.downloadBlocks(peer, lastHeader)
             resolve(downloaded)
           }else if(comparison.merge){
             logger("Need to merge peer's branched block")
@@ -1707,7 +1707,7 @@ class Node {
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = this.chain.getLatestBlock()
-            let downloaded = await this.downloadBlockchain(peer, lastHeader)
+            let downloaded = await this.downloadBlocks(peer, lastHeader)
             resolve(downloaded)
           }else{
             logger("This chain snapshot is longer")
