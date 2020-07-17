@@ -692,10 +692,6 @@ class Node {
           //Represents a fork
           let fork = block.previousFound
           let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 1)
-          if(rolledback.error){
-            logger('ROLLBACK ERROR:',rolledback.error)
-            closeConnection({ error:true })
-          }
           peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
 
         }else if(block.previousNotFound){
