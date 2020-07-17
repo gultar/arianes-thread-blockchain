@@ -310,7 +310,7 @@ class Node {
       socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
       socket.on('getNextBlock', async (hash, blockNumber)=> await this.getNextBlock(socket, hash, blockNumber))
-      socket.on('getNextBlockInChain', async (hash, blockNumber)=> await this.getNextBlock(socket, header))
+      socket.on('getNextBlockInChain', async (header)=> await this.getNextBlockInChain(socket, header))
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       
@@ -402,7 +402,7 @@ class Node {
   }
 
   async getNextBlockInChain(socket, header){
-    if(header && isValidHeaderJSON(header)){
+    if(header){
       // await rateLimiter.consume(socket.handshake.address).catch(e => { 
       //   // console.log("Peer sent too many 'getNextBlock' events") 
       // }); // consume 1 point per event from IP
@@ -426,7 +426,7 @@ class Node {
             if(block && !block.error){
               socket.emit('nextBlockInChain', block)
             }else{
-              
+
               let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
               if(isBeforeLastBlock){
                 socket.emit('nextBlockInChain', { end:'End of blockchain' })
@@ -443,6 +443,8 @@ class Node {
         }
       }
       
+    }else{
+      console.log('Is not valid header')
     }
   }
 
@@ -647,7 +649,7 @@ class Node {
 
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
-      let startHeader = this.chain.getLatestBlock()
+      
       this.isDownloading = true;
       let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber
 
@@ -859,7 +861,7 @@ class Node {
               if(isValidHeader){
 
                 this.isDownloading = true
-                let downloaded = await this.downloadBlockchain(peer, bestBlockHeader)
+                let downloaded = await this.downloadBlocks(peer, bestBlockHeader)
                 this.isDownloading = false
                 if(downloaded.error){
                   logger('Could not download blockchain')
