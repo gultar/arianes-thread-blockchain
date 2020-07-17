@@ -982,7 +982,6 @@ class Blockchain{
   }
  
    getDifficultyTotal(){
-      console.log('Total Difficulty returned',this.getLatestBlock().totalDifficulty)
       return this.getLatestBlock().totalDifficulty
   }
 
