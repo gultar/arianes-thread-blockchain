@@ -663,7 +663,6 @@ class Node {
       }
       
       peer.on('nextBlockInChain', async (block)=>{
-        console.log('Block',block)
         //next known : OK
         //next unknown found but previous yes: ask for forked block, rollback and add new block
         //next unknown and previous unknown: reask with previous block
@@ -676,8 +675,8 @@ class Node {
           console.log(block.error)
 
         }else if(block.found){
-
-          let added = await this.chain.receiveBlock(block)
+          let nextBlock = block.found
+          let added = await this.chain.receiveBlock(nextBlock)
           if(added.error){
             logger('DOWNLOAD', added.error)
             closeConnection({ error:true })
