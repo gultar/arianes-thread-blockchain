@@ -659,7 +659,7 @@ class Node {
         if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
         this.isDownloading = false;
       }
-
+      peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
       peer.on('nextBlockInChain', async (block)=>{
         //next known : OK
         //next unknown found but previous yes: ask for forked block, rollback and add new block
@@ -703,7 +703,7 @@ class Node {
 
         }
 
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+        
       })
     })
   }
@@ -862,7 +862,7 @@ class Node {
               if(isValidHeader){
 
                 this.isDownloading = true
-                let downloaded = await this.downloadBlocks(peer, bestBlockHeader)
+                let downloaded = await this.downloadBlocks(peer)
                 this.isDownloading = false
                 if(downloaded.error){
                   logger('Could not download blockchain')
