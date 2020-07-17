@@ -411,11 +411,9 @@ class Node {
       let isGenesis = this.genesis.hash == header.hash
       
       if(!index && !previousIsKnown){
-        console.log('Hash is not known and neither is previous')
         socket.emit('nextBlockInChain', { previousNotFound:'Block not found'})
       }
       else if(index && previousIsKnown){
-        console.log('Hash is known and previous also')
         if(header.hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlockInChain', {end:'End of blockchain'})
         }else{
@@ -425,7 +423,6 @@ class Node {
           let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
           if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
           if(block && !block.error){
-            console.log('Sending next block', block)
             socket.emit('nextBlockInChain', { found:block })
           }else{
 
@@ -439,7 +436,6 @@ class Node {
           }
         }
       }else if(!index && previousIsKnown){
-        console.log('Hash is not known but previous yes')
         let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
         socket.emit('nextBlockInChain', { previousFound:forkedBlock })
       }else if(!index && !previousIsKnown){
@@ -447,7 +443,7 @@ class Node {
       }
       
     }else{
-      console.log('Is not valid header')
+      //Invalid header JSON
     }
   }
 
@@ -703,7 +699,7 @@ class Node {
 
         }else if(block.previousNotFound){
 
-          peer.emit('getNextBlockInChain', goingBackInChainCounter - 1)
+          peer.emit('getNextBlockInChain', this.chain.chain[goingBackInChainCounter - 1])
           goingBackInChainCounter--
 
         }
@@ -854,15 +850,14 @@ class Node {
           let { totalDifficultyHex, bestBlockHeader, length } = status;
           
           if(totalDifficultyHex && bestBlockHeader && length){
-            console.log('Has received peer status, now seeing if download or not')
+            
             this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
             let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
 
             // Possible major bug, will not sync if chain is longer but has different block at a given height
             let totalDifficulty = BigInt(parseInt(bestBlockHeader.totalDifficulty, 16))
             let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
-            console.log('This', thisTotalDifficulty)
-            console.log('Total', totalDifficulty)
+            
             if(thisTotalDifficulty < totalDifficulty){
               logger('Attempting to download blocks from peer')
               
