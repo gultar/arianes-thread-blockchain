@@ -592,14 +592,14 @@ class Node {
       if(peer){
         let startHash = this.chain.getLatestBlock().hash;
         this.isDownloading = true;
-        let unansweredRequests = 0;
-        let maxRetryNumber = 3
+        let retried = false;
         this.retrySending = null;
         let rolledBack = 0
         
         const awaitRequest = () =>{
-          if(unansweredRequests <= maxRetryNumber){
+          if(!retried){
             this.retrySending = setTimeout(()=>{
+              retried = true
               peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
             }, 5000)
           }else{
@@ -615,7 +615,7 @@ class Node {
         }
 
         peer.on('nextBlock', async (block)=>{
-          unansweredRequests = 0
+          retried = false
           clearTimeout(this.retrySending)
           if(block.end){
             logger('Blockchain updated successfully!')
@@ -630,6 +630,7 @@ class Node {
               rolledBack++
               let blockNumber = this.chain.getLatestBlock().blockNumber
               let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
+              console.log('Rollback during download',rolledBack)
               let latestHash = this.chain.getLatestBlock().hash
               peer.emit('getNextBlock', latestHash)
             }else{
