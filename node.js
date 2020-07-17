@@ -1348,7 +1348,7 @@ class Node {
       })
 
       socket.on('sync', ()=>{
-        this.synchronize()
+        console.log(this.chain.chain)
       })
 
       socket.on('disconnect', ()=>{
