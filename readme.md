@@ -31,7 +31,7 @@ npm install
 Almost all configurations for the generation of blocks are found in the
 ./config/genesis.json. 
 
-You can set the balances of your account for the ICO.
+You can set the balances of accounts for the ICO.
 Other configurations like block times, initial/minimum difficulty and much more 
 can be set in this file. Default configurations are those of the main network.
 
