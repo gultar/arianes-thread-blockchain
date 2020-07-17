@@ -682,8 +682,10 @@ class Node {
           peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
 
         }else if(block.previousNotFound){
+
           console.log('Block not found')
-          peer.emit('getNextBlockInChain', this.chain.chain[goingBackInChainCounter - 1])
+          console.log(this.chain.chain[goingBackInChainCounter - 1])
+          peer.emit('getNextBlockInChain', this.chain.getBlockHeader(goingBackInChainCounter))
           goingBackInChainCounter--
           
         }else if(block.found){
