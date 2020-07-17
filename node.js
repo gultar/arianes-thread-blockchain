@@ -411,7 +411,7 @@ class Node {
       let isGenesis = this.genesis.hash == header.hash
       
       if(!index && !previousIsKnown){
-        socket.emit('nextBlockInChain', { previousNotFound:'Block not found'})
+        socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Block not found'})
       }
       else if(index && previousIsKnown){
         if(header.hash == this.chain.getLatestBlock().hash){
@@ -439,7 +439,7 @@ class Node {
         let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
         socket.emit('nextBlockInChain', { previousFound:forkedBlock })
       }else if(!index && !previousIsKnown){
-        socket.emit('nextBlockInChain', { previousNotFound:'Could not locate current block in chain' })
+        socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Could not locate current block in chain' })
       }
       
     }else{
