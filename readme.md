@@ -1,4 +1,4 @@
-# Kheops.js Blockchain framework
+# Gizeh.js Blockchain framework
 
 A Nodejs + Socket.io + Rocket-Store Blockchain platform with support for smart contracts written in Nodejs and pluggable consensus protocol. The platform is shipped with Proof of Work and Permissioned capabilities. It's still a WIP and will likely remain so for a while but feel free to reach out or contribute to this project as I would like to see it put to good use eventually
 
