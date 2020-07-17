@@ -425,6 +425,7 @@ class Node {
           let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
           if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
           if(block && !block.error){
+            console.log('Sending next block', block.hash)
             socket.emit('nextBlockInChain', block)
           }else{
 
@@ -660,8 +661,9 @@ class Node {
         if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
         this.isDownloading = false;
       }
-      peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+      
       peer.on('nextBlockInChain', async (block)=>{
+        console.log('Block',block)
         //next known : OK
         //next unknown found but previous yes: ask for forked block, rollback and add new block
         //next unknown and previous unknown: reask with previous block
@@ -709,7 +711,9 @@ class Node {
 
         
       })
+      peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
     })
+    
   }
 
   downloadBlockchain(peer){
