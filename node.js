@@ -600,10 +600,7 @@ class Node {
         const awaitRequest = () =>{
           if(unansweredRequests <= maxRetryNumber){
             this.retrySending = setTimeout(()=>{
-              
               peer.emit('getNextBlock', this.chain.getLatestBlock().hash)
-              unansweredRequests++
-              awaitRequest()
             }, 5000)
           }else{
             logger('Blockchain download failed. No answer')
