@@ -650,6 +650,7 @@ class Node {
     return new Promise(async (resolve)=>{
       
       this.minerChannel.emit('nodeEvent','outOfSync')
+      this.isOutOfSync = true
       this.isDownloading = true;
       let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber
 
@@ -665,6 +666,7 @@ class Node {
         //next unknown and previous unknown: reask with previous block
         //no known block on chain? Probably not using same genesis
         if(block.end){
+          this.isOutOfSync = false
           this.minerChannel.emit('nodeEvent','inSync')
           logger('Blockchain updated successfully!')
           closeConnection()
@@ -1612,38 +1614,42 @@ class Node {
       if(this.chain instanceof Blockchain && data){
         if(!this.isDownloading){
           try{
-
-            let block = JSON.parse(data);
-            if(!isValidBlockJSON(block)) resolve({error:'ERROR: Block is of invalid format'})
-            else{
-              let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
-              let alreadyIsInActiveBranch = this.chain.branches[block.hash];
-    
-              if(!alreadyReceived && !alreadyIsInActiveBranch){
-                if(this.chain.validateBlockHeader(block)){
-                  //Retransmit block
-                  this.broadcast('peerMessage', peerMessage)
-                  //Become peer's most recent block
-                  this.peersLatestBlocks[relayPeer] = block
-
-                  //Tells the miner to stop mining and stand by
-                  //While node is push next block
-                  this.minerChannel.emit('nodeEvent','stopMining')
-                  this.minerChannel.emit('nodeEvent','isBusy')
-                  //Validates than runs the block
-                  let added = await this.chain.receiveBlock(block);
-
-                  this.minerChannel.emit('nodeEvent','isAvailable')
-                  let handled = await this.handleBlockReception(added)
-                  resolve(handled)
-    
+            if(!this.isOutOfSync){
+              let block = JSON.parse(data);
+              if(!isValidBlockJSON(block)) resolve({error:'ERROR: Block is of invalid format'})
+              else{
+                let alreadyReceived = await this.chain.getBlockbyHash(block.hash)
+                let alreadyIsInActiveBranch = this.chain.branches[block.hash];
+      
+                if(!alreadyReceived && !alreadyIsInActiveBranch){
+                  if(this.chain.validateBlockHeader(block)){
+                    //Retransmit block
+                    this.broadcast('peerMessage', peerMessage)
+                    //Become peer's most recent block
+                    this.peersLatestBlocks[relayPeer] = block
+  
+                    //Tells the miner to stop mining and stand by
+                    //While node is push next block
+                    this.minerChannel.emit('nodeEvent','stopMining')
+                    this.minerChannel.emit('nodeEvent','isBusy')
+                    //Validates than runs the block
+                    let added = await this.chain.receiveBlock(block);
+  
+                    this.minerChannel.emit('nodeEvent','isAvailable')
+                    let handled = await this.handleBlockReception(added)
+                    resolve(handled)
+      
+                  }else{
+                    resolve({error:'ERROR:New block header is invalid'})
+                  }
                 }else{
-                  resolve({error:'ERROR:New block header is invalid'})
+                  resolve({error:`ERROR: Block ${block.blockNumber} already received`})
                 }
-              }else{
-                resolve({error:`ERROR: Block ${block.blockNumber} already received`})
               }
+            }else{
+              resolve({busy:'ERROR: Node is out of sync'})
             }
+            
             
           }catch(e){
             resolve({error:e.message})
