@@ -683,10 +683,12 @@ class Node {
           }else if(added.extended){
             //Should not happen since already checked if higher difficulty and if linked
             let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
-            
+            peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+          }else{
+            peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
           }
 
-          peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+          
 
         }else if(block.previousFound){
           //Represents a fork
@@ -1676,7 +1678,7 @@ class Node {
       else if(reception.rollback){
         console.log('Need to rollback to ', reception.rollback)
         let peer = await this.getMostUpToDatePeer()
-        let rolledBack = await this.chain.rollbackToBlock(reception.rollback)
+        let rolledBack = await this.chain.rollbackToBlock(reception.rollback -1)
         //if(rolledBack.error) resolve({error:rolledBack.error})
         let lastHeader = this.chain.getLatestBlock()
         let downloaded = await this.downloadBlocks(peer, lastHeader)
