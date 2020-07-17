@@ -652,7 +652,7 @@ class Node {
       this.minerChannel.emit('nodeEvent','outOfSync')
       this.isOutOfSync = true
       this.isDownloading = true;
-      let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber
+      let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
 
       const closeConnection = (error=false) =>{
         peer.off('nextBlockInChain')
