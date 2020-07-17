@@ -686,6 +686,7 @@ class Node {
           console.log('Block not found')
           console.log('Counter', goingBackInChainCounter)
           console.log('Block', this.chain.getBlockHeader(goingBackInChainCounter))
+          console.log('Length of chain', this.chain.chain.length)
           peer.emit('getNextBlockInChain', this.chain.getBlockHeader(goingBackInChainCounter))
           goingBackInChainCounter--
           
