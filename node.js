@@ -411,6 +411,7 @@ class Node {
       let isGenesis = this.genesis.hash == header.hash
       
       if(!index && !previousIsKnown){
+        console.log('Hash is not known and neither is previous')
         socket.emit('nextBlockInChain', { previousNotFound:'Block not found'})
       }
       else if(index && previousIsKnown){
@@ -441,7 +442,6 @@ class Node {
         let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
         socket.emit('nextBlockInChain', { previousFound:forkedBlock })
       }else if(!index && !previousIsKnown){
-        console.log('Hash is not known and neither is previous')
         socket.emit('nextBlockInChain', { previousNotFound:'Could not locate current block in chain' })
       }
       
