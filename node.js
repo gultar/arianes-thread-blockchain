@@ -675,6 +675,17 @@ class Node {
         }else if(block.error){
           console.log(block.error)
 
+        }else if(block.previousFound){
+          //Represents a fork
+          let fork = block.previousFound
+          let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
+          peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+
+        }else if(block.previousNotFound){
+          console.log('Block not found')
+          peer.emit('getNextBlockInChain', this.chain.chain[goingBackInChainCounter - 1])
+          goingBackInChainCounter--
+          
         }else if(block.found){
           let nextBlock = block.found
           let added = await this.chain.receiveBlock(nextBlock)
@@ -691,17 +702,6 @@ class Node {
 
           
 
-        }else if(block.previousFound){
-          //Represents a fork
-          let fork = block.previousFound
-          let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
-          peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-
-        }else if(block.previousNotFound){
-
-          peer.emit('getNextBlockInChain', this.chain.chain[goingBackInChainCounter - 1])
-          goingBackInChainCounter--
-          console.log('Trying again')
         }
 
         
