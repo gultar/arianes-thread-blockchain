@@ -403,11 +403,12 @@ class Node {
 
   async getNextBlockInChain(socket, header){
     if(header){
+      console.log('Okay has received a header', header)
       // await rateLimiter.consume(socket.handshake.address).catch(e => { 
       //   // console.log("Peer sent too many 'getNextBlock' events") 
       // }); // consume 1 point per event from IP
       let index = await this.chain.getIndexOfBlockHashInChain(header.hash)
-      let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousFound)
+      let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousHash)
       let isGenesis = this.genesis.hash == header.hash
       
       if(!index && !previousIsKnown && !isGenesis){
