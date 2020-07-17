@@ -670,7 +670,7 @@ class Node {
     let latestFullBlock = await this.getLatestFullBlock()
 
     let status = {
-      totalDifficultyHex: this.chain.getTotalDifficulty(),
+      totalDifficultyHex: this.chain.getDifficultyTotal(),
       bestBlockHeader: this.chain.extractHeader(latestFullBlock),
       length: this.chain.chain.length
     }
@@ -720,6 +720,8 @@ class Node {
             // Possible major bug, will not sync if chain is longer but has different block at a given height
             let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
             let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
+            console.log('this total', thisTotalDifficulty)
+            console.log('total from peer', totalDifficulty)
             if(thisTotalDifficulty < totalDifficulty){
               logger('Attempting to download blocks from peer')
               
