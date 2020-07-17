@@ -683,10 +683,7 @@ class Node {
           }else if(added.extended){
             //Should not happen since already checked if higher difficulty and if linked
             let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
-            if(rolledback.error){
-              logger('ROLLBACK ERROR:',rolledback.error)
-              closeConnection({ error:true })
-            }
+            
           }
 
           peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
