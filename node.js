@@ -670,6 +670,9 @@ class Node {
           logger('Blockchain updated successfully!')
           closeConnection()
           resolve(true)
+        }else if(block.error){
+          console.log(block.error)
+
         }else if(block.found){
 
           let added = await this.chain.receiveBlock(block)
