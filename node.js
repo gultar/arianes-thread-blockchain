@@ -436,7 +436,7 @@ class Node {
   async getBlockchainStatus(socket, peerStatus){
     try{
       let status = {
-        totalDifficultyHex: this.chain.getTotalDifficulty(),
+        totalDifficultyHex: this.chain.getDifficultyTotal(),
         bestBlockHeader: this.chain.getLatestBlock(),
         length: this.chain.chain.length
       }
@@ -717,11 +717,10 @@ class Node {
             
             this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
             let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
+
             // Possible major bug, will not sync if chain is longer but has different block at a given height
             let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
-            let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
-            console.log('this total', thisTotalDifficulty)
-            console.log('total from peer', totalDifficulty)
+            let thisTotalDifficulty =  BigInt(parseInt(bestBlockHeader.totalDifficulty, 16))
             if(thisTotalDifficulty < totalDifficulty){
               logger('Attempting to download blocks from peer')
               

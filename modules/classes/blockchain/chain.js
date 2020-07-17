@@ -982,11 +982,8 @@ class Blockchain{
   }
  
    getDifficultyTotal(){
-      let latestBlock = this.getLatestBlock()
-
-      let total = latestBlock.totalDifficulty
-
-      return total.toString(16);
+      console.log('Total Difficulty returned',this.getLatestBlock().totalDifficulty)
+      return this.getLatestBlock().totalDifficulty
   }
 
   async getMedianBlockTimestamp(numBlocks){
