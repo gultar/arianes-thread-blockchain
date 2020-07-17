@@ -410,38 +410,39 @@ class Node {
       let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousHash)
       let isGenesis = this.genesis.hash == header.hash
       
-      if(!index && !previousIsKnown && !isGenesis){
+      if(!index && !previousIsKnown){
         socket.emit('nextBlockInChain', { previousNotFound:'Block not found'})
       }
-      else{
+      else if(index && previousIsKnown){
+        console.log('Hash is known and previous also')
         if(header.hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlockInChain', {end:'End of blockchain'})
         }else{
           
           let nextBlock = await this.chain.getNextBlockbyHash(header.hash)
-          let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
           let latestBlock = this.chain.getLatestBlock()
-          if(nextBlock){
-            let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
-            if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
-            if(block && !block.error){
-              socket.emit('nextBlockInChain', block)
-            }else{
+          let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+          if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
+          if(block && !block.error){
+            socket.emit('nextBlockInChain', block)
+          }else{
 
-              let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
-              if(isBeforeLastBlock){
-                socket.emit('nextBlockInChain', { end:'End of blockchain' })
-              }else{
-                socket.emit('nextBlockInChain', { error:`ERROR: Block ${block.blockNumber} of hash ${block.hash.substr(0, 8)} not found` })
-              }
-              
+            let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
+            if(isBeforeLastBlock){
+              socket.emit('nextBlockInChain', { end:'End of blockchain' })
+            }else{
+              socket.emit('nextBlockInChain', { error:`ERROR: Block ${nextBlock.blockNumber} of hash ${nextBlock.hash.substr(0, 8)} not found` })
             }
-          }else if(!nextBlock && previousIsKnown){
-              socket.emit('nextBlockInChain', { previousFound: forkedBlock })
-          }else if(!nextBlock && !previousIsKnown){
-              socket.emit('nextBlockInChain', { previousNotFound:'Could not locate current block in chain' })
+            
           }
         }
+      }else if(!index && previousIsKnown){
+        console.log('Hash is not known but previous yes')
+        let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
+        socket.emit('nextBlockInChain', { previousFound:forkedBlock })
+      }else if(!index && !previousIsKnown){
+        console.log('Hash is not known and neither is previous')
+        socket.emit('nextBlockInChain', { previousNotFound:'Could not locate current block in chain' })
       }
       
     }else{
