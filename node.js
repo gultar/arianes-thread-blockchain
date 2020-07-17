@@ -403,7 +403,6 @@ class Node {
 
   async getNextBlockInChain(socket, header){
     if(header){
-      console.log('Okay has received a header', header)
       // await rateLimiter.consume(socket.handshake.address).catch(e => { 
       //   // console.log("Peer sent too many 'getNextBlock' events") 
       // }); // consume 1 point per event from IP
@@ -417,9 +416,10 @@ class Node {
       else{
         if(header.hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlockInChain', {end:'End of blockchain'})
-        }else if(index){
+        }else{
           
           let nextBlock = await this.chain.getNextBlockbyHash(header.hash)
+          let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
           let latestBlock = this.chain.getLatestBlock()
           if(nextBlock){
             let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
@@ -437,7 +437,7 @@ class Node {
               
             }
           }else if(!nextBlock && previousIsKnown){
-              socket.emit('nextBlockInChain', { previousFound: previousIsKnown })
+              socket.emit('nextBlockInChain', { previousFound: forkedBlock })
           }else if(!nextBlock && !previousIsKnown){
               socket.emit('nextBlockInChain', { previousNotFound:'Could not locate current block in chain' })
           }
