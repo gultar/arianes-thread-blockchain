@@ -2691,6 +2691,7 @@ class Blockchain{
                   }
                   await this.manageChainSnapshotQueue(block)
                   this.chain.push(this.extractHeader(block))
+                  console.log(`Chain is ${block.blockNumber} blocks long`)
                   bar1.update(block.blockNumber);
                   if(blockNumber == lastBlock.blockNumber){
                     bar1.stop();
