@@ -1348,8 +1348,10 @@ class Node {
       })
 
       socket.on('sync', async()=>{
+        let previous = this.chain.chain[0]
         for await(let block of this.chain.chain){
-          console.log(block)
+
+          console.log('Follows', block.blockNumber - 1 == previous.blockNumber)
         }
       })
 
