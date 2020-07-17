@@ -1347,8 +1347,10 @@ class Node {
         socket.emit('actionFromDB', action)
       })
 
-      socket.on('sync', ()=>{
-        console.log(this.chain.chain)
+      socket.on('sync', async()=>{
+        for await(let block of this.chain.chain){
+          console.log(block)
+        }
       })
 
       socket.on('disconnect', ()=>{
