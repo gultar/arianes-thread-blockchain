@@ -36,7 +36,8 @@ const {
   isValidTransactionCallJSON,
   isValidCallPayloadJSON,
   isValidActionJSON,
-  isValidBlockJSON
+  isValidBlockJSON,
+  isValidHeaderJSON
 } = require('./modules/tools/jsonvalidator');
 const sha256 = require('./modules/tools/sha256');
 const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
@@ -309,6 +310,7 @@ class Node {
       socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
       socket.on('getNextBlock', async (hash, blockNumber)=> await this.getNextBlock(socket, hash, blockNumber))
+      socket.on('getNextBlockInChain', async (hash, blockNumber)=> await this.getNextBlock(socket, header))
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       
@@ -362,6 +364,7 @@ class Node {
         if(isKnownBlockNumber){
           let block = await this.chain.getBlockFromDB(blockNumber - 1)
           if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(blockNumber - 1) }, 500)
+          console.log('Peer should try', block)
           socket.emit('nextBlock', { try:block })
         }else{
           socket.emit('nextBlock', {error:'Block not found'})
@@ -391,6 +394,51 @@ class Node {
               }
               
             }
+          }
+        }
+      }
+      
+    }
+  }
+
+  async getNextBlockInChain(socket, header){
+    if(header && isValidHeaderJSON(header)){
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { 
+      //   // console.log("Peer sent too many 'getNextBlock' events") 
+      // }); // consume 1 point per event from IP
+      let index = await this.chain.getIndexOfBlockHashInChain(header.hash)
+      let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousFound)
+      let isGenesis = this.genesis.hash == header.hash
+      
+      if(!index && !previousIsKnown && !isGenesis){
+        socket.emit('nextBlockInChain', { previousNotFound:'Block not found'})
+      }
+      else{
+        if(header.hash == this.chain.getLatestBlock().hash){
+          socket.emit('nextBlockInChain', {end:'End of blockchain'})
+        }else if(index){
+          
+          let nextBlock = await this.chain.getNextBlockbyHash(header.hash)
+          let latestBlock = this.chain.getLatestBlock()
+          if(nextBlock){
+            let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+            if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
+            if(block && !block.error){
+              socket.emit('nextBlockInChain', block)
+            }else{
+              
+              let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
+              if(isBeforeLastBlock){
+                socket.emit('nextBlockInChain', { end:'End of blockchain' })
+              }else{
+                socket.emit('nextBlockInChain', { error:`ERROR: Block ${block.blockNumber} of hash ${block.hash.substr(0, 8)} not found` })
+              }
+              
+            }
+          }else if(!nextBlock && previousIsKnown){
+              socket.emit('nextBlockInChain', { previousFound: previousIsKnown })
+          }else if(!nextBlock && !previousIsKnown){
+              socket.emit('nextBlockInChain', { previousNotFound:'Could not locate current block in chain' })
           }
         }
       }
@@ -597,6 +645,66 @@ class Node {
     })
   }
 
+  downloadBlocks(peer){
+    return new Promise(async (resolve)=>{
+      let startHeader = this.chain.getLatestBlock()
+      this.isDownloading = true;
+      let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber
+
+      const closeConnection = (error=false) =>{
+        peer.off('nextBlockInChain')
+        if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+        this.isDownloading = false;
+      }
+
+      peer.on('nextBlockInChain', async (block)=>{
+        //next known : OK
+        //next unknown found but previous yes: ask for forked block, rollback and add new block
+        //next unknown and previous unknown: reask with previous block
+        //no known block on chain? Probably not using same genesis
+        if(block.end){
+          logger('Blockchain updated successfully!')
+          closeConnection()
+          resolve(true)
+        }else if(block.found){
+
+          let added = await this.chain.receiveBlock(block)
+          if(added.error){
+            logger('DOWNLOAD', added.error)
+            closeConnection({ error:true })
+          }else if(added.extended){
+            //Should not happen since already checked if higher difficulty and if linked
+            let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
+            if(rolledback.error){
+              logger('ROLLBACK ERROR:',rolledback.error)
+              closeConnection({ error:true })
+            }
+          }
+
+          peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+
+        }else if(block.previousFound){
+          //Represents a fork
+          let fork = block.previousFound
+          let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 1)
+          if(rolledback.error){
+            logger('ROLLBACK ERROR:',rolledback.error)
+            closeConnection({ error:true })
+          }
+          peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+
+        }else if(block.previousNotFound){
+
+          peer.emit('getNextBlockInChain', goingBackInChainCounter - 1)
+          goingBackInChainCounter--
+
+        }
+
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+      })
+    })
+  }
+
   downloadBlockchain(peer){
     return new Promise(async (resolve)=>{
       if(peer){
@@ -633,12 +741,16 @@ class Node {
             closeConnection()
             resolve(true)
           }else if(block.try){
+            if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
+              rolledBack++
+              let potentialBlock = block.try;
+              //If no validation, dangerous
+              let rolledback = await this.chain.rollbackToBlock(potentialBlock.blockNumber - 2)
+              let latestHash = this.chain.getLatestBlock()
+              let latestBlockNumber = this.chain.getLatestBlock().blockNumber
+              peer.emit('getNextBlock', latestHash, latestBlockNumber)
+            }
             
-            let potentialBlock = block.try;
-            let rolledback = await this.chain.rollbackToBlock(potentialBlock.blockNumber - 1)
-            let latestHash = this.chain.getLatestBlock()
-            let latestBlockNumber = this.chain.getLatestBlock().blockNumber
-            peer.emit('getNextBlock', latestHash, latestBlockNumber)
 
           }else if(block.error && block.error !== 'Block not found'){
             closeConnection({ error:true })
