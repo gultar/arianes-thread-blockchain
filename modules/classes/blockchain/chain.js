@@ -782,7 +782,6 @@ class Blockchain{
   }
 
   async getNextBlockbyHash(hash){
-    console.log('Trying to get next block by hash')
     for await(let block of this.chain){
       if(block.previousHash === hash) return block
     }

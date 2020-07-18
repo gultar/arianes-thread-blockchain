@@ -28,7 +28,6 @@ class MinerAPI{
         this.socket.on('success', async(block) => {
             this.isAPIBusy = true
             let result = await this.addMinedBlock(block)
-            console.log(result)
             this.isAPIBusy = false
         })
         this.socket.on('generate', ()=>{
