@@ -402,6 +402,7 @@ class Node {
   }
 
   async getNextBlockInChain(socket, header){
+    console.log('Header', header)
     if(header){
       // await rateLimiter.consume(socket.handshake.address).catch(e => { 
       //   // console.log("Peer sent too many 'getNextBlock' events") 
@@ -409,7 +410,7 @@ class Node {
       let index = await this.chain.getIndexOfBlockHashInChain(header.hash)
       let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousHash)
       let isGenesis = this.genesis.hash == header.hash
-
+      console.log('Okay got header', header)
 
       if(!index && !previousIsKnown && !isGenesis){
         console.log('Is not genesis and is unkown', header)
@@ -719,6 +720,13 @@ class Node {
       })
 
       setTimeout(()=>{
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
         peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
       }, 100)
     })
