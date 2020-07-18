@@ -425,6 +425,9 @@ class Node {
           if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
           if(block && !block.error){
             socket.emit('nextBlockInChain', { found:block })
+            if(block.blockNumber === this.chain.getLatestBlock().blockNumber){
+              socket.emit('nextBlockInChain', {end:'End of blockchain'})
+            }
           }else{
 
             let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
