@@ -866,6 +866,7 @@ class Node {
               logger('Attempting to download blocks from peer')
               
               let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+              console.log('Isvalid', isValidHeader)
               if(isValidHeader){
 
                 this.isDownloading = true
