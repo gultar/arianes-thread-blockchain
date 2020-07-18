@@ -859,7 +859,6 @@ class Node {
             this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
             let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
             // Possible major bug, will not sync if chain is longer but has different block at a given height
-            console.log('Best Block header',bestBlockHeader)
             let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
             let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
             
