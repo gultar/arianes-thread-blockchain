@@ -27,7 +27,8 @@ class MinerAPI{
     init(){
         this.socket.on('success', async(block) => {
             this.isAPIBusy = true
-            await this.addMinedBlock(block)
+            let result = await this.addMinedBlock(block)
+            console.log(result)
             this.isAPIBusy = false
         })
         this.socket.on('generate', ()=>{
@@ -104,7 +105,7 @@ class MinerAPI{
             //   console.log('Hash', block.hash)
             //   console.log('Exists block', blockFromDB.blockNumber)
             //   console.log('of Hash', blockFromDB.hash)
-            //   logger('INVALID BLOCK', isValid.error)
+              logger('INVALID BLOCK', isValid.error)
           }
           else{
             //To guard against accidentally creating doubles

@@ -8,10 +8,12 @@ class ProofOfWork{
     }
 
     async validate(block){
-      
+        console.log('Block', block)
+        console.log('Genesis', genesis)
         let difficultyIsAboveMinimum = BigInt(parseInt(block.difficulty, 16)) >= BigInt(parseInt(genesis.difficulty, 16))
         if(!difficultyIsAboveMinimum) return false
         let isValidChallenge = this.validateChallenge(block)
+        console.log('Is valid challenge', isValidChallenge)
         if(!isValidChallenge) return false
         return true
     }
