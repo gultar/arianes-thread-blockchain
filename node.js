@@ -402,56 +402,65 @@ class Node {
   }
 
   async getNextBlockInChain(socket, header){
-    console.log('Header', header)
+    // console.log('Header', header)
     if(header){
       // await rateLimiter.consume(socket.handshake.address).catch(e => { 
       //   // console.log("Peer sent too many 'getNextBlock' events") 
       // }); // consume 1 point per event from IP
       let index = await this.chain.getIndexOfBlockHashInChain(header.hash)
       let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousHash)
+      if(previousIsKnown === 0 || previousIsKnown === '0'){
+        previousIsKnown = true
+      }
       let isGenesis = this.genesis.hash == header.hash
-      console.log('Okay got header', header)
+      // console.log('Okay got header', header)
 
       if(!index && !previousIsKnown && !isGenesis){
-        console.log('Is not genesis and is unkown', header)
+        // console.log('Is not genesis and is unkown', header)
         socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Block not found'})
       }
       else if(index && previousIsKnown || isGenesis){
-        console.log('Is known or is genesis')
+        // console.log('Is known or is genesis')
         if(header.hash == this.chain.getLatestBlock().hash){
-          console.log('Is end of blockchain')
+          // console.log('Is end of blockchain')
           socket.emit('nextBlockInChain', {end:'End of blockchain'})
         }else{
-          console.log('Okay found block')
+          // console.log('Okay found block')
           let nextBlock = await this.chain.getNextBlockbyHash(header.hash)
-          console.log('Next block is number', nextBlock.blockNumber)
+          // console.log('Next block is number', nextBlock.blockNumber)
           let latestBlock = this.chain.getLatestBlock()
           let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
           if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
           if(block && !block.error){
-            console.log('Sending next block')
+            // console.log('Sending next block')
             socket.emit('nextBlockInChain', { found:block })
             
           }else{
-            console.log('No block but is it block before last?')
+            // console.log('No block but is it block before last?')
             let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
             if(isBeforeLastBlock){
-              console.log('Block before last?')
+              // console.log('Block before last?')
               socket.emit('nextBlockInChain', { end:'End of blockchain' })
             }else{
-              console.log('Could not find it')
+              // console.log('Could not find it')
               socket.emit('nextBlockInChain', { error:`ERROR: Block ${nextBlock.blockNumber} of hash ${nextBlock.hash.substr(0, 8)} not found` })
             }
             
           }
         }
       }else if(!index && previousIsKnown){
-        console.log('Previous found but not block')
+        // console.log('Previous found but not block')
         let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
         socket.emit('nextBlockInChain', { previousFound:forkedBlock })
       }else if(!index && !previousIsKnown){
-        console.log('Block not found at all')
+        // console.log('Block not found at all')
         socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Could not locate current block in chain' })
+      }else{
+        console.log("wtf")
+        console.log('index', index)
+        console.log('Previous known', previousIsKnown)
+        console.log('Genesis', isGenesis)
+
       }
       
     }else{
@@ -696,13 +705,12 @@ class Node {
       }
 
       const request = (payload) =>{
-        console.log('Requesting', payload)
         peer.emit('getNextBlockInChain', payload)
         awaitResend()
       }
       
       peer.on('nextBlockInChain', async (block)=>{
-        console.log(block)
+        // console.log(block)
         cancelTimers()
 
         //next known : OK
