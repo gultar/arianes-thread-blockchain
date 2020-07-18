@@ -411,7 +411,7 @@ class Node {
       let isGenesis = this.genesis.hash == header.hash
 
 
-      if(!index && !previousIsKnown){
+      if(!index && !previousIsKnown && !isGenesis){
         socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Block not found'})
       }
       else if(index && previousIsKnown || isGenesis){
