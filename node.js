@@ -696,6 +696,7 @@ class Node {
       }
 
       const request = (payload) =>{
+        console.log('Requesting', payload)
         peer.emit('getNextBlockInChain', payload)
         awaitResend()
       }
