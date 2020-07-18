@@ -670,7 +670,7 @@ class Node {
         if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
         this.isDownloading = false;
       }
-      
+      console.log('Latest block', this.chain.getLatestBlock())
       peer.on('nextBlockInChain', async (block)=>{
         console.log(block)
         //next known : OK
