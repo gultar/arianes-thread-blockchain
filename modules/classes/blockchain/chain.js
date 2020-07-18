@@ -1123,7 +1123,7 @@ class Blockchain{
     if(typeof blockNumber == 'number' && blockNumber >= 0){
 
       var block = this.chain[blockNumber];
-
+      console.log('Block', block)
       if(block){
         
         var header = {
