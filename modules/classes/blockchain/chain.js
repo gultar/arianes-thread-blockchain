@@ -1120,10 +1120,11 @@ class Blockchain{
   */
 
   getBlockHeader(blockNumber){
+    console.log('Block number', blockNumber, typeof blockNumber)
     if(typeof blockNumber == 'number' && blockNumber >= 0){
 
       var block = this.chain[blockNumber];
-      console.log('Block', block)
+      console.log('Header', block)
       if(block){
         
         var header = {
