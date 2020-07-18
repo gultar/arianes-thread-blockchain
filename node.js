@@ -677,6 +677,7 @@ class Node {
 
         }else if(block.previousFound){
           //Represents a fork
+          console.log('Previous Block found', block.blockNumber)
           let fork = block.previousFound
           let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
           if(rolledback.error) console.log(rolledback.error)
@@ -684,10 +685,10 @@ class Node {
 
         }else if(block.previousNotFound){
 
-          console.log('Block not found')
-          console.log('Counter', goingBackInChainCounter)
-          console.log('Block', this.chain.getBlockHeader(goingBackInChainCounter))
-          console.log('Length of chain', this.chain.chain.length)
+          // console.log('Block not found')
+          // console.log('Counter', goingBackInChainCounter)
+          // console.log('Block', this.chain.getBlockHeader(goingBackInChainCounter))
+          // console.log('Length of chain', this.chain.chain.length)
           peer.emit('getNextBlockInChain', this.chain.getBlockHeader(goingBackInChainCounter))
           goingBackInChainCounter--
           

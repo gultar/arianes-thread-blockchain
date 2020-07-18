@@ -1120,35 +1120,34 @@ class Blockchain{
   */
 
   getBlockHeader(blockNumber){
-    console.log('Block number', blockNumber, typeof blockNumber)
+    
     if(typeof blockNumber == 'number' && blockNumber >= 0){
 
-      var block = this.chain[blockNumber];
-      console.log('Header', block)
-      if(block){
+      return this.chain[blockNumber];
+      // if(block){
         
-        var header = {
-          blockNumber:block.blockNumber,
-          timestamp:block.timestamp,
-          previousHash:block.previousHash,
-          hash:block.hash,
-          nonce:block.nonce,
-          merkleRoot:block.merkleRoot,
-          actionMerkleRoot:block.actionMerkleRoot,
-          difficulty:block.difficulty,
-          totalDifficulty:block.totalDifficulty,
-          challenge:block.challenge,
-          txHashes:Object.keys(block.transactions),
-          minedBy:block.minedBy,
-          signatures:block.signatures
-        }
+        // var header = {
+        //   blockNumber:block.blockNumber,
+        //   timestamp:block.timestamp,
+        //   previousHash:block.previousHash,
+        //   hash:block.hash,
+        //   nonce:block.nonce,
+        //   merkleRoot:block.merkleRoot,
+        //   actionMerkleRoot:block.actionMerkleRoot,
+        //   difficulty:block.difficulty,
+        //   totalDifficulty:block.totalDifficulty,
+        //   challenge:block.challenge,
+        //   txHashes:Object.keys(),
+        //   minedBy:block.minedBy,
+        //   signatures:block.signatures
+        // }
 
-        if(block.actions){
-          header.actionHashes = Object.keys(block.actions)
-        }
+        // if(block.actions){
+        //   header.actionHashes = Object.keys(block.actions)
+        // }
 
-        return header
-      }
+        // return header
+      // }
 
     }
 
