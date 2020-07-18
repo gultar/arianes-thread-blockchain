@@ -9,7 +9,7 @@ class Difficulty{
   constructor(genesisConfig){
     this.blockTime = genesisConfig.blockTime || 20
     this.difficultyBomb = genesisConfig.difficultyBomb || 100 * 1000;
-    this.minimumDifficulty = genesisConfig.difficulty
+    this.minimumDifficulty = (typeof genesisConfig.difficulty == 'string' ? parseInt(genesisConfig.difficulty, 16) : genesisConfig.difficulty)
     this.difficultyBoundDivider = genesisConfig.difficultyBoundDivider || 512
     this.difficultyDivider = BigInt(384) //Has to be a big int
   }
