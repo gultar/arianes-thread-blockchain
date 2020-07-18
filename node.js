@@ -674,21 +674,18 @@ class Node {
           resolve(true)
         }else if(block.error){
           console.log(block.error)
-
+          closeConnection({ error:true })
+          resolve(true)
         }else if(block.previousFound){
           //Represents a fork
-          console.log('Previous Block found', block.blockNumber)
+          
           let fork = block.previousFound
           let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
-          if(rolledback.error) console.log(rolledback.error)
+          if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
           peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
 
         }else if(block.previousNotFound){
 
-          // console.log('Block not found')
-          // console.log('Counter', goingBackInChainCounter)
-          // console.log('Block', this.chain.getBlockHeader(goingBackInChainCounter))
-          // console.log('Length of chain', this.chain.chain.length)
           peer.emit('getNextBlockInChain', this.chain.getBlockHeader(goingBackInChainCounter))
           goingBackInChainCounter--
           
@@ -698,9 +695,11 @@ class Node {
           if(added.error){
             logger('DOWNLOAD', added.error)
             closeConnection({ error:true })
+            resolve({error:added.error})
           }else if(added.extended){
             //Should not happen since already checked if higher difficulty and if linked
             let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
+            if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
             peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
           }else{
             peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
@@ -859,9 +858,9 @@ class Node {
             
             this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
             let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
-
             // Possible major bug, will not sync if chain is longer but has different block at a given height
-            let totalDifficulty = BigInt(parseInt(bestBlockHeader.totalDifficulty, 16))
+            console.log('Best Block header',bestBlockHeader)
+            let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
             let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
             
             if(thisTotalDifficulty < totalDifficulty){
@@ -1686,7 +1685,7 @@ class Node {
 
       }
       else if(reception.rollback){
-        console.log('Need to rollback to ', reception.rollback)
+        
         let peer = await this.getMostUpToDatePeer()
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback -1)
         //if(rolledBack.error) resolve({error:rolledBack.error})
