@@ -412,10 +412,13 @@ class Node {
 
 
       if(!index && !previousIsKnown && !isGenesis){
+        console.log('Is not genesis and is unkown', header)
         socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Block not found'})
       }
       else if(index && previousIsKnown || isGenesis){
+        console.log('Is known or is genesis')
         if(header.hash == this.chain.getLatestBlock().hash){
+          console.log('Is end of blockchain')
           socket.emit('nextBlockInChain', {end:'End of blockchain'})
         }else{
           console.log('Okay found block')
@@ -425,23 +428,28 @@ class Node {
           let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
           if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
           if(block && !block.error){
+            console.log('Sending next block')
             socket.emit('nextBlockInChain', { found:block })
             
           }else{
-
+            console.log('No block but is it block before last?')
             let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
             if(isBeforeLastBlock){
+              console.log('Block before last?')
               socket.emit('nextBlockInChain', { end:'End of blockchain' })
             }else{
+              console.log('Could not find it')
               socket.emit('nextBlockInChain', { error:`ERROR: Block ${nextBlock.blockNumber} of hash ${nextBlock.hash.substr(0, 8)} not found` })
             }
             
           }
         }
       }else if(!index && previousIsKnown){
+        console.log('Previous found but not block')
         let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
         socket.emit('nextBlockInChain', { previousFound:forkedBlock })
       }else if(!index && !previousIsKnown){
+        console.log('Block not found at all')
         socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Could not locate current block in chain' })
       }
       
