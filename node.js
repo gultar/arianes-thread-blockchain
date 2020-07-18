@@ -418,16 +418,15 @@ class Node {
         if(header.hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlockInChain', {end:'End of blockchain'})
         }else{
-          
+          console.log('Okay found block')
           let nextBlock = await this.chain.getNextBlockbyHash(header.hash)
+          console.log('Next block is number', nextBlock.blockNumber)
           let latestBlock = this.chain.getLatestBlock()
           let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
           if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
           if(block && !block.error){
             socket.emit('nextBlockInChain', { found:block })
-            if(block.blockNumber === this.chain.getLatestBlock().blockNumber){
-              socket.emit('nextBlockInChain', {end:'End of blockchain'})
-            }
+            
           }else{
 
             let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
