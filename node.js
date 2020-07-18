@@ -409,11 +409,12 @@ class Node {
       let index = await this.chain.getIndexOfBlockHashInChain(header.hash)
       let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousHash)
       let isGenesis = this.genesis.hash == header.hash
-      
+
+
       if(!index && !previousIsKnown){
         socket.emit('nextBlockInChain', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Block not found'})
       }
-      else if(index && previousIsKnown){
+      else if(index && previousIsKnown || isGenesis){
         if(header.hash == this.chain.getLatestBlock().hash){
           socket.emit('nextBlockInChain', {end:'End of blockchain'})
         }else{
