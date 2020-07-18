@@ -664,6 +664,9 @@ class Node {
       this.minerChannel.emit('nodeEvent','outOfSync')
       this.isOutOfSync = true
       this.isDownloading = true;
+      
+      let resendTimer = {}
+      let timeoutTimer = {}
       let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
 
       const closeConnection = (error=false) =>{
@@ -671,9 +674,36 @@ class Node {
         if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
         this.isDownloading = false;
       }
+
+      const awaitResend = (payload) =>{
+        resendTimer = setTimeout(()=>{
+          peer.emit('getNextBlockInChain', payload)
+          awaitTimeout()
+        }, 2000)
+      }
+
+      const awaitTimeout = () =>{
+        timeoutTimer = setTimeout(()=>{
+          logger('Could not complete download. Peer unavailable')
+          closeConnection({ error:true })
+          resolve(true)
+        }, 6000)
+      }
+
+      const cancelTimers = () =>{
+        clearTimeout(timeoutTimer)
+        clearTimeout(resendTimer)
+      }
+
+      const request = (payload) =>{
+        peer.emit('getNextBlockInChain', payload)
+        awaitResend()
+      }
       
       peer.on('nextBlockInChain', async (block)=>{
         console.log(block)
+        cancelTimers()
+
         //next known : OK
         //next unknown found but previous yes: ask for forked block, rollback and add new block
         //next unknown and previous unknown: reask with previous block
@@ -694,11 +724,11 @@ class Node {
           let fork = block.previousFound
           let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
           if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
-          peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+          request(this.chain.getLatestBlock())
 
         }else if(block.previousNotFound){
 
-          peer.emit('getNextBlockInChain', this.chain.getBlockHeader(goingBackInChainCounter))
+          request(this.chain.getBlockHeader(goingBackInChainCounter))
           goingBackInChainCounter--
           
         }else if(block.found){
@@ -712,23 +742,14 @@ class Node {
             //Should not happen since already checked if higher difficulty and if linked
             let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
             if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
-            peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+            request(this.chain.getLatestBlock())
           }else{
-            peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
+            request(this.chain.getLatestBlock())
           }
         }
       })
 
-      setTimeout(()=>{
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-        peer.emit('getNextBlockInChain', this.chain.getLatestBlock())
-      }, 100)
+      request(this.chain.getLatestBlock())
     })
     
   }
