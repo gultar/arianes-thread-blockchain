@@ -669,7 +669,9 @@ class Node {
 
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
-      console.log(peer)
+      if(!peer || !peer.connected){
+        resolve({ error:true })
+      }
 
       this.minerChannel.emit('nodeEvent','outOfSync')
       this.isOutOfSync = true
