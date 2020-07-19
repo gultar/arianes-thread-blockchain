@@ -674,13 +674,14 @@ class Node {
         this.isOutOfSync = true
         this.isDownloading = true;
         
-        let resendTimer = {}
-        let timeoutTimer = {}
+        let resendTimer = false
+        let timeoutTimer = false
         let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
   
         const closeConnection = (error=false) =>{
           peer.off('nextBlockInChain')
           if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+          cancelTimers()
           this.isDownloading = false;
         }
   
@@ -703,6 +704,12 @@ class Node {
           clearTimeout(timeoutTimer)
           clearTimeout(resendTimer)
         }
+
+        const resetTimers = () =>{
+          clearTimeout(timeoutTimer)
+          if(resendTimer) clearTimeout(resendTimer)
+          awaitTimeout()
+        }
   
         const request = (payload) =>{
           peer.emit('getNextBlockInChain', payload)
@@ -711,7 +718,7 @@ class Node {
         
         peer.on('nextBlockInChain', async (block)=>{
           // console.log(block)
-          cancelTimers()
+          resetTimers()
   
           //next known : OK
           //next unknown found but previous yes: ask for forked block, rollback and add new block
@@ -724,15 +731,14 @@ class Node {
             closeConnection()
             resolve(true)
           }else if(block.error){
-            console.log(block.error)
             closeConnection({ error:true })
-            resolve(true)
+            resolve({ error:block.error })
           }else if(block.previousFound){
             //Represents a fork
             
             let fork = block.previousFound
-            let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
-            if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
+            let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 1)
+            if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
             request(this.chain.getLatestBlock())
   
           }else if(block.previousNotFound){
@@ -750,7 +756,7 @@ class Node {
             }else if(added.extended){
               //Should not happen since already checked if higher difficulty and if linked
               let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
-              if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
+              if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
               request(this.chain.getLatestBlock())
             }else{
               request(this.chain.getLatestBlock())
@@ -768,97 +774,97 @@ class Node {
     
   }
 
-  downloadBlockchain(peer){
-    return new Promise(async (resolve)=>{
-      if(peer){
-        let startHash = this.chain.getLatestBlock().hash;
-        let startBlockNumber = this.chain.getLatestBlock().blockNumber
-        this.isDownloading = true;
-        let retried = false;
-        this.retrySending = null;
-        let rolledBack = 0
+  // downloadBlockchain(peer){
+  //   return new Promise(async (resolve)=>{
+  //     if(peer){
+  //       let startHash = this.chain.getLatestBlock().hash;
+  //       let startBlockNumber = this.chain.getLatestBlock().blockNumber
+  //       this.isDownloading = true;
+  //       let retried = false;
+  //       this.retrySending = null;
+  //       let rolledBack = 0
         
-        const awaitRequest = () =>{
-          if(!retried){
-            this.retrySending = setTimeout(()=>{
-              retried = true
-              peer.emit('getNextBlock', this.chain.getLatestBlock().hash, )
-            }, 5000)
-          }else{
-            logger('Blockchain download failed. No answer')
-            closeConnection({ error:true })
-          }
-        }
+  //       const awaitRequest = () =>{
+  //         if(!retried){
+  //           this.retrySending = setTimeout(()=>{
+  //             retried = true
+  //             peer.emit('getNextBlock', this.chain.getLatestBlock().hash, )
+  //           }, 5000)
+  //         }else{
+  //           logger('Blockchain download failed. No answer')
+  //           closeConnection({ error:true })
+  //         }
+  //       }
 
-        const closeConnection = (error=false) =>{
-          peer.off('nextBlock')
-          if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-          this.isDownloading = false;
-        }
+  //       const closeConnection = (error=false) =>{
+  //         peer.off('nextBlock')
+  //         if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+  //         this.isDownloading = false;
+  //       }
 
-        peer.on('nextBlock', async (block)=>{
-          retried = false
-          clearTimeout(this.retrySending)
-          if(block.end){
-            logger('Blockchain updated successfully!')
-            closeConnection()
-            resolve(true)
-          }else if(block.try){
-            if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
-              rolledBack++
-              let potentialBlock = block.try;
-              //If no validation, dangerous
-              let rolledback = await this.chain.rollbackToBlock(potentialBlock.blockNumber - 2)
-              let latestHash = this.chain.getLatestBlock()
-              let latestBlockNumber = this.chain.getLatestBlock().blockNumber
-              peer.emit('getNextBlock', latestHash, latestBlockNumber)
-            }
+  //       peer.on('nextBlock', async (block)=>{
+  //         retried = false
+  //         clearTimeout(this.retrySending)
+  //         if(block.end){
+  //           logger('Blockchain updated successfully!')
+  //           closeConnection()
+  //           resolve(true)
+  //         }else if(block.try){
+  //           if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
+  //             rolledBack++
+  //             let potentialBlock = block.try;
+  //             //If no validation, dangerous
+  //             let rolledback = await this.chain.rollbackToBlock(potentialBlock.blockNumber - 2)
+  //             let latestHash = this.chain.getLatestBlock()
+  //             let latestBlockNumber = this.chain.getLatestBlock().blockNumber
+  //             peer.emit('getNextBlock', latestHash, latestBlockNumber)
+  //           }
             
 
-          }else if(block.error && block.error !== 'Block not found'){
-            closeConnection({ error:true })
-            resolve({ error: block.error })
-          }else if(block.error && block.error == 'Block not found'){
+  //         }else if(block.error && block.error !== 'Block not found'){
+  //           closeConnection({ error:true })
+  //           resolve({ error: block.error })
+  //         }else if(block.error && block.error == 'Block not found'){
 
-            if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
-              rolledBack++
+  //           if(this.autoRollback && rolledBack <= this.maximumAutoRollback){
+  //             rolledBack++
               
-              let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
-              console.log('Rollback during download',rolledBack)
-              let latestHash = this.chain.getLatestBlock().hash
-              let latestBlockNumber = this.chain.getLatestBlock().blockNumber
-              peer.emit('getNextBlock', latestHash, latestBlockNumber)
-            }else{
-              closeConnection({ error:true })
-              resolve({ error: block.error })
-            }
+  //             let rolledback = await this.chain.rollbackToBlock(blockNumber - 1)
+  //             console.log('Rollback during download',rolledBack)
+  //             let latestHash = this.chain.getLatestBlock().hash
+  //             let latestBlockNumber = this.chain.getLatestBlock().blockNumber
+  //             peer.emit('getNextBlock', latestHash, latestBlockNumber)
+  //           }else{
+  //             closeConnection({ error:true })
+  //             resolve({ error: block.error })
+  //           }
             
-          }else{
-            let added = await this.chain.receiveBlock(block)
-            if(added.error){
-              logger('DOWNLOAD', added.error)
-              closeConnection({ error:true })
-            }else if(added.extended){
-              let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
-              let latestHash = this.chain.getLatestBlock().hash
-              let latestBlockNumber = this.chain.getLatestBlock().blockNumber
-              peer.emit('getNextBlock', latestHash, latestBlockNumber)
-              awaitRequest()
-            }else{
-              peer.emit('getNextBlock', block.hash, block.blockNumber)
-              awaitRequest()
-            }
-          }
-        })
+  //         }else{
+  //           let added = await this.chain.receiveBlock(block)
+  //           if(added.error){
+  //             logger('DOWNLOAD', added.error)
+  //             closeConnection({ error:true })
+  //           }else if(added.extended){
+  //             let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
+  //             let latestHash = this.chain.getLatestBlock().hash
+  //             let latestBlockNumber = this.chain.getLatestBlock().blockNumber
+  //             peer.emit('getNextBlock', latestHash, latestBlockNumber)
+  //             awaitRequest()
+  //           }else{
+  //             peer.emit('getNextBlock', block.hash, block.blockNumber)
+  //             awaitRequest()
+  //           }
+  //         }
+  //       })
         
-        peer.emit('getNextBlock', startHash, startBlockNumber);
-      }else{
-        resolve(true)
-      }
+  //       peer.emit('getNextBlock', startHash, startBlockNumber);
+  //     }else{
+  //       resolve(true)
+  //     }
 
-    })
+  //   })
     
-  }
+  // }
 
   async buildBlockchainStatus(){
     let latestFullBlock = await this.getLatestFullBlock()
@@ -921,16 +927,25 @@ class Node {
               if(isValidHeader){
 
                 this.isDownloading = true
-                let downloaded = await this.downloadBlocks(peer)
+                let updated = await this.updateBlockchain()
                 this.isDownloading = false
-                if(downloaded.error){
-                  logger('Could not download blockchain')
-                  logger(downloaded.error)
-                  resolve({ error:'ERROR: Could not download blockchain' })
-                }else{
-                  // this.updated = true
-                  resolve(true)
+                if(updated.error){
+                  logger(updated.error)
+                  resolve({error:updated.error})
                 }
+                else {
+                  this.updated = true
+                  resolve(updated)
+                }
+                
+                // if(downloaded.error){
+                //   logger('Could not download blockchain')
+                //   logger(downloaded.error)
+                //   resolve({ error:'ERROR: Could not download blockchain' })
+                // }else{
+                //   // this.updated = true
+                //   resolve(true)
+                // }
                
               }else{
                 resolve({ error:'ERROR: Last block header from peer is invalid' })
@@ -954,10 +969,29 @@ class Node {
     
   }
 
+  async updateBlockchain(exceptPeers=[]){
+    let peer = await this.getMostUpToDatePeer(exceptPeers)
+    console.log('Found peer', peer.address)
+    if(peer && !peer.error){
+
+      let updated = await this.downloadBlocks(peer)
+      if(updated.error){
+        exceptPeers = [...exceptPeers, peer.address]
+        console.log(`Peer ${peer.address} is excluded`)
+        return this.updateBlockchain(exceptPeers)
+      }else{
+        return { updated:true }
+      }
+      
+    }else{
+      return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
+    }
+  }
+
   /**
    * @desc Checks for the peer that has the highest difficulty containing header
    */
-  getMostUpToDatePeer(){
+  getMostUpToDatePeer(exceptPeerAddresses=[]){
     return new Promise(async (resolve)=>{
       try{
         if(Object.keys(this.connectionsToPeers).length === 0){
@@ -966,14 +1000,16 @@ class Node {
           let highestTotalDifficulty = '0x001'
           let mostUpdateToDatePeer = false
           for await(let address of Object.keys(this.connectionsToPeers)){
-            let peer = this.connectionsToPeers[address]
+            if(!exceptPeerAddresses.includes(address)){
+              let peer = this.connectionsToPeers[address]
   
-            let peerLatestBlock = this.peersLatestBlocks[address]
-            if(peerLatestBlock){
-              let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
-              if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
-                highestTotalDifficulty = peerLatestBlock.totalDifficulty
-                mostUpdateToDatePeer = peer
+              let peerLatestBlock = this.peersLatestBlocks[address]
+              if(peerLatestBlock){
+                let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
+                if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
+                  highestTotalDifficulty = peerLatestBlock.totalDifficulty
+                  mostUpdateToDatePeer = peer
+                }
               }
             }
             
@@ -990,80 +1026,80 @@ class Node {
 
   
   //Heavy WIP
-  getMissingBlocksToSyncBranch(unsyncedBlockHash){
-    return new Promise(async (resolve)=>{
-      if(!unsyncedBlockHash){
-        resolve({error:'ERROR: Need to provide block hash of missing branch block'})
-      }else{
-        let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
-        let missingBlocks = []
-        let peer = await this.getMostUpToDatePeer()
-        // console.log('Up to date peer is of type ', typeof peer)
-        if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
-        else if(peer.error) resolve({error:peer.error})
-        else{
+  // getMissingBlocksToSyncBranch(unsyncedBlockHash){
+  //   return new Promise(async (resolve)=>{
+  //     if(!unsyncedBlockHash){
+  //       resolve({error:'ERROR: Need to provide block hash of missing branch block'})
+  //     }else{
+  //       let timeout = setTimeout(()=> resolve({error:'ERROR: Could not find missing blocks to fix unlinked branch'}), 3000)
+  //       let missingBlocks = []
+  //       let peer = await this.getMostUpToDatePeer()
+  //       // console.log('Up to date peer is of type ', typeof peer)
+  //       if(!peer) resolve({error:'ERROR: Could not resolve sync issue. Could not find peer connection'})
+  //       else if(peer.error) resolve({error:peer.error})
+  //       else{
           
-          peer.emit('getPreviousBlock', unsyncedBlockHash)
-          peer.on('previousBlock', async (block)=>{
-            if(block.end){
-              peer.off('previousBlock')
-              clearTimeout(timeout)
-              resolve({error:block.end})
-            }else if(block.error){
-              peer.off('previousBlock')
-              clearTimeout(timeout)
-              resolve({error:block.error})
-            }else if(block.branch){
+  //         peer.emit('getPreviousBlock', unsyncedBlockHash)
+  //         peer.on('previousBlock', async (block)=>{
+  //           if(block.end){
+  //             peer.off('previousBlock')
+  //             clearTimeout(timeout)
+  //             resolve({error:block.end})
+  //           }else if(block.error){
+  //             peer.off('previousBlock')
+  //             clearTimeout(timeout)
+  //             resolve({error:block.error})
+  //           }else if(block.branch){
 
-              missingBlocks = [ ...block.branch, ...missingBlocks ]
-              let firstBlock = missingBlocks[0]
-              let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(firstBlock.previousHash)
-              if(isLinkedToChain){
-                peer.off('previousBlock')
-                clearTimeout(timeout)
-                resolve(missingBlocks)
-              }else{
-                peer.emit('getPreviousBlock', firstBlock.hash)
-              } 
+  //             missingBlocks = [ ...block.branch, ...missingBlocks ]
+  //             let firstBlock = missingBlocks[0]
+  //             let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(firstBlock.previousHash)
+  //             if(isLinkedToChain){
+  //               peer.off('previousBlock')
+  //               clearTimeout(timeout)
+  //               resolve(missingBlocks)
+  //             }else{
+  //               peer.emit('getPreviousBlock', firstBlock.hash)
+  //             } 
               
-            }else if(block.pool){
+  //           }else if(block.pool){
 
-              let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(block.pool.previousHash)
-              missingBlocks = [ block.pool, ...missingBlocks ]
-              if(isLinkedToChain){
-                peer.off('previousBlock')
-                clearTimeout(timeout)
-                resolve(missingBlocks)
-              }else{
-                peer.emit('getPreviousBlock', block.pool.hash)
-              }
+  //             let isLinkedToChain = await this.chain.getIndexOfBlockHashInChain(block.pool.previousHash)
+  //             missingBlocks = [ block.pool, ...missingBlocks ]
+  //             if(isLinkedToChain){
+  //               peer.off('previousBlock')
+  //               clearTimeout(timeout)
+  //               resolve(missingBlocks)
+  //             }else{
+  //               peer.emit('getPreviousBlock', block.pool.hash)
+  //             }
               
-            }else if(block){
+  //           }else if(block){
               
               
-              let isLinkedToChain = this.chain.getIndexOfBlockHash(block.previousHash)
-              missingBlocks = [ block, ...missingBlocks ]
+  //             let isLinkedToChain = this.chain.getIndexOfBlockHash(block.previousHash)
+  //             missingBlocks = [ block, ...missingBlocks ]
 
-              if(isLinkedToChain){
-                peer.off('previousBlock')
-                clearTimeout(timeout)
-                resolve(missingBlocks)
-              }
+  //             if(isLinkedToChain){
+  //               peer.off('previousBlock')
+  //               clearTimeout(timeout)
+  //               resolve(missingBlocks)
+  //             }
               
-              else{
-                peer.emit('getPreviousBlock', block.hash)
-              }
+  //             else{
+  //               peer.emit('getPreviousBlock', block.hash)
+  //             }
 
               
-            }
-          })
-        }
-      }
+  //           }
+  //         })
+  //       }
+  //     }
 
 
       
-    })
-  }
+  //   })
+  // }
 
   /**
     Broadcast only to this node's connected peers. Does not send peer messages
@@ -1684,7 +1720,7 @@ class Node {
                     this.peersLatestBlocks[relayPeer] = block
   
                     //Tells the miner to stop mining and stand by
-                    //While node is push next block
+                    //While node is pushing next block
                     this.minerChannel.emit('nodeEvent','stopMining')
                     this.minerChannel.emit('nodeEvent','isBusy')
                     //Validates than runs the block
@@ -1728,21 +1764,27 @@ class Node {
       if(reception.error) resolve({error:reception.error})
       else if(reception.requestUpdate){
         
-        let peer = await this.getMostUpToDatePeer()
-        let updated = await this.downloadBlocks(peer, this.chain.getLatestBlock())
+        let updated = await this.updateBlockchain()
         if(updated.error) resolve({error:updated.error})
         else resolve(updated)
-        resolve({ updating:true })
+        // let peer = await this.getMostUpToDatePeer()
+        // let updated = await this.downloadBlocks(peer, this.chain.getLatestBlock())
+        // if(updated.error) resolve({error:updated.error})
+        // else resolve(updated)
+        // resolve({ updating:true })
 
       }
       else if(reception.rollback){
         
-        let peer = await this.getMostUpToDatePeer()
+        // let peer = await this.getMostUpToDatePeer()
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback -1)
         //if(rolledBack.error) resolve({error:rolledBack.error})
-        let lastHeader = this.chain.getLatestBlock()
-        let downloaded = await this.downloadBlocks(peer, lastHeader)
-        resolve(downloaded)
+        // let lastHeader = this.chain.getLatestBlock()
+        // let downloaded = await this.downloadBlocks(peer, lastHeader)
+        // resolve(downloaded)
+        let updated = await this.updateBlockchain()
+        if(updated.error) resolve({error:updated.error})
+        else resolve(updated)
         
       }
       else if(reception.extended){
@@ -1759,8 +1801,11 @@ class Node {
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = this.chain.getLatestBlock()
-            let downloaded = await this.downloadBlocks(peer, lastHeader)
-            resolve(downloaded)
+            let updated = await this.updateBlockchain()
+            if(updated.error) resolve({error:updated.error})
+            else resolve(updated)
+            // let downloaded = await this.downloadBlocks(peer, lastHeader)
+            // resolve(downloaded)
           }else if(comparison.merge){
             logger("Need to merge peer's branched block")
             let blockNumber = comparison.merge.hash
@@ -1768,8 +1813,11 @@ class Node {
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = this.chain.getLatestBlock()
-            let downloaded = await this.downloadBlocks(peer, lastHeader)
-            resolve(downloaded)
+            // let downloaded = await this.downloadBlocks(peer, lastHeader)
+            // resolve(downloaded)
+            let updated = await this.updateBlockchain()
+            if(updated.error) resolve({error:updated.error})
+            else resolve(updated)
           }else{
             logger("This chain snapshot is longer")
             resolve(comparison)
