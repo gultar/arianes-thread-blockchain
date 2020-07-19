@@ -669,99 +669,101 @@ class Node {
 
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
-      if(!peer || !peer.connected){
-        resolve({ error:true })
-      }
-
-      this.minerChannel.emit('nodeEvent','outOfSync')
-      this.isOutOfSync = true
-      this.isDownloading = true;
-      
-      let resendTimer = {}
-      let timeoutTimer = {}
-      let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
-
-      const closeConnection = (error=false) =>{
-        peer.off('nextBlockInChain')
-        if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-        this.isDownloading = false;
-      }
-
-      const awaitResend = (payload) =>{
-        resendTimer = setTimeout(()=>{
-          peer.emit('getNextBlockInChain', payload)
-          awaitTimeout()
-        }, 2000)
-      }
-
-      const awaitTimeout = () =>{
-        timeoutTimer = setTimeout(()=>{
-          logger('Could not complete download. Peer unavailable')
-          closeConnection({ error:true })
-          resolve(true)
-        }, 6000)
-      }
-
-      const cancelTimers = () =>{
-        clearTimeout(timeoutTimer)
-        clearTimeout(resendTimer)
-      }
-
-      const request = (payload) =>{
-        peer.emit('getNextBlockInChain', payload)
-        awaitResend()
-      }
-      
-      peer.on('nextBlockInChain', async (block)=>{
-        // console.log(block)
-        cancelTimers()
-
-        //next known : OK
-        //next unknown found but previous yes: ask for forked block, rollback and add new block
-        //next unknown and previous unknown: reask with previous block
-        //no known block on chain? Probably not using same genesis
-        if(block.end){
-          this.isOutOfSync = false
-          this.minerChannel.emit('nodeEvent','inSync')
-          logger('Blockchain updated successfully!')
-          closeConnection()
-          resolve(true)
-        }else if(block.error){
-          console.log(block.error)
-          closeConnection({ error:true })
-          resolve(true)
-        }else if(block.previousFound){
-          //Represents a fork
-          
-          let fork = block.previousFound
-          let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
-          if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
-          request(this.chain.getLatestBlock())
-
-        }else if(block.previousNotFound){
-
-          request(this.chain.getBlockHeader(goingBackInChainCounter))
-          goingBackInChainCounter--
-          
-        }else if(block.found){
-          let nextBlock = block.found
-          let added = await this.chain.receiveBlock(nextBlock)
-          if(added.error){
-            logger('DOWNLOAD', added.error)
+      if(peer && peer.connected){
+        this.minerChannel.emit('nodeEvent','outOfSync')
+        this.isOutOfSync = true
+        this.isDownloading = true;
+        
+        let resendTimer = {}
+        let timeoutTimer = {}
+        let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
+  
+        const closeConnection = (error=false) =>{
+          peer.off('nextBlockInChain')
+          if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+          this.isDownloading = false;
+        }
+  
+        const awaitResend = (payload) =>{
+          resendTimer = setTimeout(()=>{
+            peer.emit('getNextBlockInChain', payload)
+            awaitTimeout()
+          }, 2000)
+        }
+  
+        const awaitTimeout = () =>{
+          timeoutTimer = setTimeout(()=>{
+            logger('Could not complete download. Peer unavailable')
             closeConnection({ error:true })
-            resolve({error:added.error})
-          }else if(added.extended){
-            //Should not happen since already checked if higher difficulty and if linked
-            let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
+            resolve(true)
+          }, 6000)
+        }
+  
+        const cancelTimers = () =>{
+          clearTimeout(timeoutTimer)
+          clearTimeout(resendTimer)
+        }
+  
+        const request = (payload) =>{
+          peer.emit('getNextBlockInChain', payload)
+          awaitResend()
+        }
+        
+        peer.on('nextBlockInChain', async (block)=>{
+          // console.log(block)
+          cancelTimers()
+  
+          //next known : OK
+          //next unknown found but previous yes: ask for forked block, rollback and add new block
+          //next unknown and previous unknown: reask with previous block
+          //no known block on chain? Probably not using same genesis
+          if(block.end){
+            this.isOutOfSync = false
+            this.minerChannel.emit('nodeEvent','inSync')
+            logger('Blockchain updated successfully!')
+            closeConnection()
+            resolve(true)
+          }else if(block.error){
+            console.log(block.error)
+            closeConnection({ error:true })
+            resolve(true)
+          }else if(block.previousFound){
+            //Represents a fork
+            
+            let fork = block.previousFound
+            let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
             if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
             request(this.chain.getLatestBlock())
-          }else{
-            request(this.chain.getLatestBlock())
+  
+          }else if(block.previousNotFound){
+  
+            request(this.chain.getBlockHeader(goingBackInChainCounter))
+            goingBackInChainCounter--
+            
+          }else if(block.found){
+            let nextBlock = block.found
+            let added = await this.chain.receiveBlock(nextBlock)
+            if(added.error){
+              logger('DOWNLOAD', added.error)
+              closeConnection({ error:true })
+              resolve({error:added.error})
+            }else if(added.extended){
+              //Should not happen since already checked if higher difficulty and if linked
+              let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
+              if(rolledback.error) console.log('ROLLBACK ERROR:',rolledback.error)
+              request(this.chain.getLatestBlock())
+            }else{
+              request(this.chain.getLatestBlock())
+            }
           }
-        }
-      })
+        })
+  
+        request(this.chain.getLatestBlock())
+      }else{
+        resolve({ switchPeers:true })
+      }
 
-      request(this.chain.getLatestBlock())
+      
     })
     
   }
