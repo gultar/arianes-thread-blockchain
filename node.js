@@ -737,7 +737,7 @@ class Node {
             //Represents a fork
             
             let fork = block.previousFound
-            let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 1)
+            let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
             if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
             request(this.chain.getLatestBlock())
   
@@ -755,7 +755,7 @@ class Node {
               resolve({error:added.error})
             }else if(added.extended){
               //Should not happen since already checked if higher difficulty and if linked
-              let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 1)
+              let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 2)
               if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
               request(this.chain.getLatestBlock())
             }else{
