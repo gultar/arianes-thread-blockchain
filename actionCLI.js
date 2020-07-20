@@ -21,6 +21,7 @@ const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
 const openSocket = async (address, runFunction) =>{
     let socket = ioClient(address, {'timeout':1000, 'connect_timeout': 1000});
+    console.log('Opened socket?',socket.connected)
     setTimeout(()=>{
         socket.close()
     },1000)
