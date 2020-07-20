@@ -556,10 +556,10 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                         socket.on("testResult",(testResult)=>{
                                             console.log(testResult)
                                             if(testResult){
-                                                let sentAction = testResult;
-                                                let result = testResult.contractAPI
-                                                let API = testResult.contractAPI
-                                                let state = testResult.state
+                                                let sentAction = testResult.action;
+                                                let result = testResult.result
+                                                let API = sentAction.contractAPI
+                                                let state = sentAction.state
                                                 console.log(`Successfully Deployed contract ${contractName}\n`)
                                                 console.log('Contract API:\n',API)
                                                 console.log('\nInitial state of contract:', state)
