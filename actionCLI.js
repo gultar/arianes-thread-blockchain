@@ -553,10 +553,10 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                     if(signature){
                                         action.signature = signature;
                                         
-                                        socket.on("testResult",(result)=>{
-                                            if(result.action){
-                                                let sentAction = result.action;
-                                                let result = result.contractAPI
+                                        socket.on("testResult",(testResult)=>{
+                                            if(testResult.action){
+                                                let sentAction = testResult.action;
+                                                let result = testResult.contractAPI
                                                 let API = sentAction.data.contractAPI
                                                 let state = sentAction.data.state
                                                 console.log(`Successfully Deployed contract ${contractName}\n`)
@@ -564,7 +564,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                                 console.log('\nInitial state of contract:', state)
                                                 console.log('\nResult of deployment:', result)
                                             }else{
-                                                console.log(result.data)
+                                                console.log(testResult)
                                             }
                                             socket.close()
                                         })
@@ -634,12 +634,22 @@ Synthax : node actionCLI.js destroy -c [ContractName] -a [account] -w [wallet] -
                         if(signature){
                             action.signature = signature;
                             
-                            axios.post(`${address}/action`, action)
-                            .then( response => {
-                                console.log(response.data)
-                                
+                            socket.on("result",(deployResult)=>{
+                                if(deployResult.action){
+                                    let sentAction = deployResult.action;
+                                    let result = deployResult.contractAPI
+                                    let API = sentAction.data.contractAPI
+                                    let state = sentAction.data.state
+                                    console.log(`Successfully Deployed contract ${contractName}\n`)
+                                    console.log('Contract API:\n',API)
+                                    console.log('\nInitial state of contract:', state)
+                                    console.log('\nResult of deployment:', result)
+                                }else{
+                                    console.log(deployResult)
+                                }
+                                socket.close()
                             })
-                            .catch(e => console.log(e))
+                        socket.emit(`testAction`, action)
                             socket.close()
                         }else{
                             console.log('ERROR: Could not sign action')
