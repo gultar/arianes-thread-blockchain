@@ -1249,12 +1249,12 @@ class Node {
      
            
      socket.on('testAction',async (action)=>{
-      console.log(action)
        try{
           if(isValidActionJSON(action)){
             
             
             let actionEmitted = await this.testAction(action)
+            console.log('Result of test', actionEmitted)
             if(!actionEmitted.error){
                 socket.emit('testResult', actionEmitted);
               }else{
