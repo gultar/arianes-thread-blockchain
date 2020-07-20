@@ -1230,6 +1230,7 @@ class Node {
             
             
             let actionEmitted = await this.broadcastAction(action)
+            console.log('Result of action broadcast')
             if(!actionEmitted.error){
                 socket.emit('result', actionEmitted);
               }else{
