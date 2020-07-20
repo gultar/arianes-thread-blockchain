@@ -491,6 +491,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
             if(!password) throw new Error('ERROR: Password of owner wallet is required')
 
             openSocket(address, async (socket)=>{
+                console.log('Socket opened', socket.connected)
                 let contract = fs.readFileSync(filename).toString()
                 if(contract){
 
@@ -551,7 +552,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                     if(signature){
                                         action.signature = signature;
                                         
-                                        socket.emit(`/testAction`, action)
+                                        
                                         socket.on("testResult",(result)=>{
                                           console.log(result)
 //                                         if(result.action){
@@ -568,6 +569,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
 //                                             }
                                             socket.close()
                                         })
+                                        socket.emit(`/testAction`, action)
                                         
                                     }else{
                                         console.log('ERROR: Could not sign action')
