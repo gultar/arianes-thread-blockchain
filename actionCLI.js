@@ -425,10 +425,10 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                     if(signature){
                                         action.signature = signature;
                                         
-                                        socket.on("result",(result)=>{
-                                            if(result.action){
-                                                let sentAction = result.action;
-                                                let result = result.contractAPI
+                                        socket.on("result",(deployResult)=>{
+                                            if(deployResult.action){
+                                                let sentAction = deployResult.action;
+                                                let result = deployResult.contractAPI
                                                 let API = sentAction.data.contractAPI
                                                 let state = sentAction.data.state
                                                 console.log(`Successfully Deployed contract ${contractName}\n`)
@@ -436,7 +436,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                                 console.log('\nInitial state of contract:', state)
                                                 console.log('\nResult of deployment:', result)
                                             }else{
-                                                console.log(result.data)
+                                                console.log(deployResult.data)
                                             }
                                             socket.close()
                                         })
