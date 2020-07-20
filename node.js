@@ -1223,6 +1223,54 @@ class Node {
           console.log('ERROR:',e)
         }
       })
+     
+      socket.on('action',async (action)=>{
+        try{
+          if(isValidActionJSON(action)){
+           
+            
+            this.broadcastAction(action)
+            .then((actionEmitted)=>{
+              if(!actionEmitted.error){
+                res.send(JSON.stringify(actionEmitted, null, 2));
+              }else{
+                res.send({error:actionEmitted.error})
+              }
+            })
+
+          }else{
+            res.send('ERROR: Invalid action format')
+          }
+          
+        }catch(e){
+          console.log(chalk.red(e))
+          res.send("ERROR: An Error occurred")
+        }
+      })
+     
+           
+     socket.on('testAction',async (action)=>{
+       try{
+          if(isValidActionJSON(action)){
+            
+            
+            this.testAction(action)
+            .then((actionEmitted)=>{
+              if(!actionEmitted.error){
+                res.send(JSON.stringify(actionEmitted, null, 2));
+              }else{
+                res.send({error:actionEmitted.error})
+              }
+            })
+          }else{
+            res.send('ERROR: Invalid action format')
+          }
+          
+        }catch(e){
+          console.log(chalk.red(e))
+          res.send("ERROR: An Error occurred")
+        }
+      })
 
       socket.on('getAddress', (address)=>{
         this.requestKnownPeers(address);
