@@ -551,24 +551,24 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                     if(signature){
                                         action.signature = signature;
                                         
-                                        axios.post(`${address}/testAction`, action)
-                                        .then( response => {
-                                            if(response.data.action){
-                                                let sentAction = response.data.action;
-                                                let result = response.data.contractAPI
-                                                let API = sentAction.data.contractAPI
-                                                let state = sentAction.data.state
-                                                console.log(`Successfully Deployed contract ${contractName}\n`)
-                                                console.log('Contract API:\n',API)
-                                                console.log('\nInitial state of contract:', state)
-                                                console.log('\nResult of deployment:', result)
-                                            }else{
-                                                console.log(response.data)
-                                            }
-                                            
+                                        socket.emit(`/testAction`, action)
+                                        socket.on("testResult",(result)=>{
+                                          console.log(result)
+//                                         if(result.action){
+//                                                 let sentAction = result.action;
+//                                                 let result = result.contractAPI
+//                                                 let API = sentAction.data.contractAPI
+//                                                 let state = sentAction.data.state
+//                                                 console.log(`Successfully Deployed contract ${contractName}\n`)
+//                                                 console.log('Contract API:\n',API)
+//                                                 console.log('\nInitial state of contract:', state)
+//                                                 console.log('\nResult of deployment:', result)
+//                                             }else{
+//                                                 console.log(result.data)
+//                                             }
+                                            socket.close()
                                         })
-                                        .catch(e => console.log(e))
-                                        socket.close()
+                                        
                                     }else{
                                         console.log('ERROR: Could not sign action')
                                     }
