@@ -425,24 +425,22 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                     if(signature){
                                         action.signature = signature;
                                         
-                                        axios.post(`${address}/action`, action)
-                                        .then( response => {
-                                            if(response.data.action){
-                                                let sentAction = response.data.action;
-                                                let result = response.data.contractAPI
+                                        socket.on("result",(result)=>{
+                                            if(result.action){
+                                                let sentAction = result.action;
+                                                let result = result.contractAPI
                                                 let API = sentAction.data.contractAPI
                                                 let state = sentAction.data.state
                                                 console.log(`Successfully Deployed contract ${contractName}\n`)
                                                 console.log('Contract API:\n',API)
                                                 console.log('\nInitial state of contract:', state)
-                                                console.log('\nResult of deployment: Success!')
+                                                console.log('\nResult of deployment:', result)
                                             }else{
-                                                console.log(response.data)
+                                                console.log(result.data)
                                             }
-                                            
+                                            socket.close()
                                         })
-                                        .catch(e => console.log(e))
-                                        socket.close()
+                                        socket.emit(`action`, action)
                                     }else{
                                         console.log('ERROR: Could not sign action')
                                     }
@@ -556,19 +554,18 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                         action.signature = signature;
                                         
                                         socket.on("testResult",(result)=>{
-                                          console.log(result)
-//                                         if(result.action){
-//                                                 let sentAction = result.action;
-//                                                 let result = result.contractAPI
-//                                                 let API = sentAction.data.contractAPI
-//                                                 let state = sentAction.data.state
-//                                                 console.log(`Successfully Deployed contract ${contractName}\n`)
-//                                                 console.log('Contract API:\n',API)
-//                                                 console.log('\nInitial state of contract:', state)
-//                                                 console.log('\nResult of deployment:', result)
-//                                             }else{
-//                                                 console.log(result.data)
-//                                             }
+                                            if(result.action){
+                                                let sentAction = result.action;
+                                                let result = result.contractAPI
+                                                let API = sentAction.data.contractAPI
+                                                let state = sentAction.data.state
+                                                console.log(`Successfully Deployed contract ${contractName}\n`)
+                                                console.log('Contract API:\n',API)
+                                                console.log('\nInitial state of contract:', state)
+                                                console.log('\nResult of deployment:', result)
+                                            }else{
+                                                console.log(result.data)
+                                            }
                                             socket.close()
                                         })
                                         socket.emit(`testAction`, action)
