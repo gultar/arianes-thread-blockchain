@@ -1227,24 +1227,22 @@ class Node {
       socket.on('action',async (action)=>{
         try{
           if(isValidActionJSON(action)){
-           
             
-            this.broadcastAction(action)
-            .then((actionEmitted)=>{
-              if(!actionEmitted.error){
-                res.send(JSON.stringify(actionEmitted, null, 2));
+            
+            let actionEmitted = await this.broadcastAction(action)
+            if(!actionEmitted.error){
+                socket.emit('result', actionEmitted);
               }else{
-                res.send({error:actionEmitted.error})
+                socket.emit('result',{error:actionEmitted.error})
               }
-            })
-
+            
           }else{
-            res.send('ERROR: Invalid action format')
+            socket.emit('result',{error:'ERROR: Invalid action format'})
           }
           
         }catch(e){
           console.log(chalk.red(e))
-          res.send("ERROR: An Error occurred")
+          socket.emit('result',{error:e.message})
         }
       })
      
@@ -1268,7 +1266,7 @@ class Node {
           
         }catch(e){
           console.log(chalk.red(e))
-          socket.emit('testResult',{error:"ERROR: An Error occurred"})
+          socket.emit('result',{error:e.message})
         }
       })
 
