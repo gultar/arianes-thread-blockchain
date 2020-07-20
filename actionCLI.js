@@ -426,7 +426,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                         action.signature = signature;
                                         
                                         socket.on("result",(deployResult)=>{
-                                            if(deployResult.action){
+                                            if(deployResult){
                                                 let sentAction = deployResult.action;
                                                 let result = deployResult.contractAPI
                                                 let API = sentAction.data.contractAPI
@@ -554,7 +554,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                         action.signature = signature;
                                         
                                         socket.on("testResult",(testResult)=>{
-                                            if(testResult.action){
+                                            if(testResult){
                                                 let sentAction = testResult.action;
                                                 let result = testResult.contractAPI
                                                 let API = sentAction.data.contractAPI
