@@ -18,13 +18,13 @@ if (activePort.error) {
 
 const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 
-
+let connected = false
 const openSocket = async (address, runFunction) =>{
     let socket = ioClient(address, {'timeout':1000, 'connect_timeout': 1000});
-    console.log('Opened socket?',socket.connected)
+    console.log('addr?',nodeAddress)
     setTimeout(()=>{
         socket.close()
-    },1000)
+    },3000)
     if(socket){
         runFunction(socket);
     }else{
