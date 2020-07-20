@@ -530,7 +530,6 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                       if(deployment.error) throw new Error(deployment.error)
 
                       deployment((contractAPI, state)=>{
-                        console.log('Contract API', contractAPI)
                         if(contractAPI.error) throw new Error(contractAPI.error)
                         if(contractAPI){
                         
@@ -556,7 +555,6 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                     if(signature){
                                         action.signature = signature;
                                         
-                                        console.log('signed', action.signature)
                                         socket.on("testResult",(result)=>{
                                           console.log(result)
 //                                         if(result.action){
