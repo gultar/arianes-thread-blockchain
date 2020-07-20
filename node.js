@@ -1250,18 +1250,18 @@ class Node {
      
            
      socket.on('testAction',async (action)=>{
+      console.log(action)
        try{
           if(isValidActionJSON(action)){
             
             
-            this.testAction(action)
-            .then((actionEmitted)=>{
-              if(!actionEmitted.error){
-                socket.emit('testResult',JSON.stringify(actionEmitted, null, 2));
+            let actionEmitted = await this.testAction(action)
+            if(!actionEmitted.error){
+                socket.emit('testResult', actionEmitted);
               }else{
                 socket.emit('testResult',{error:actionEmitted.error})
               }
-            })
+            
           }else{
             socket.emit('testResult',{error:'ERROR: Invalid action format'})
           }
