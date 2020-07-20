@@ -554,7 +554,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                         action.signature = signature;
                                         
                                         socket.on("testResult",(testResult)=>{
-                                            console.log(testResult)
+                                            
                                             if(testResult){
                                                 let sentAction = testResult.action;
                                                 let result = testResult.result
