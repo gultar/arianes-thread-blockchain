@@ -21,11 +21,13 @@ const nodeAddress = 'http://localhost:'+activePort.parsed.API_PORT
 let connected = false
 const openSocket = async (address, runFunction) =>{
     let socket = ioClient(address, {'timeout':1000, 'connect_timeout': 1000});
-    console.log('addr?',nodeAddress)
+    
     setTimeout(()=>{
         socket.close()
     },3000)
     if(socket){
+        console.log('addr?',nodeAddress)
+        console.log('Open?',socket.connected)
         runFunction(socket);
     }else{
         console.log('Could not connect to node')
