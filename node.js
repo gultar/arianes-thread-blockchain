@@ -1257,18 +1257,18 @@ class Node {
             this.testAction(action)
             .then((actionEmitted)=>{
               if(!actionEmitted.error){
-                res.send(JSON.stringify(actionEmitted, null, 2));
+                socket.emit('testResult',JSON.stringify(actionEmitted, null, 2));
               }else{
-                res.send({error:actionEmitted.error})
+                socket.emit('testResult',{error:actionEmitted.error})
               }
             })
           }else{
-            res.send('ERROR: Invalid action format')
+            socket.emit('testResult',{error:'ERROR: Invalid action format'})
           }
           
         }catch(e){
           console.log(chalk.red(e))
-          res.send("ERROR: An Error occurred")
+          socket.emit('testResult',{error:"ERROR: An Error occurred"})
         }
       })
 
