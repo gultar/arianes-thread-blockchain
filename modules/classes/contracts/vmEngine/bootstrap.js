@@ -27,6 +27,7 @@ class Bootstrap{
         this.calls = {}
         this.timers = {}
         this.workerLifetime = 1000
+        this.workerSizeMb = 128
     }
 
     startVM(){
@@ -122,7 +123,7 @@ class Bootstrap{
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: workerData,
                 ressourceLimits:{
-                    maxOldGenerationSizeMb:128
+                    maxOldGenerationSizeMb:this.workerSizeMb
                 }
            })
            
