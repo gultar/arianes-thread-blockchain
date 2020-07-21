@@ -1287,7 +1287,7 @@ class Blockchain{
 
       for await(let header of removed){
         let deleted = await this.chainDB.deleteId(header.blockNumber.toString())
-        if(deleted.error) return deleted.error
+        if(deleted.error) resolve({error:deleted.error})
       }
 
       await this.createNewSnapshot()
