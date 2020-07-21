@@ -755,7 +755,7 @@ class Node {
               resolve({error:added.error})
             }else if(added.extended){
               //Should not happen since already checked if higher difficulty and if linked
-              let rolledback = await this.chain.rollbackToBlock(this.chain.getLatestBlock().blockNumber - 2)
+              let rolledback = await this.chain.rollbackToBlock(nextBlock - 2)
               if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
               request(this.chain.getLatestBlock())
             }else{
@@ -2259,7 +2259,9 @@ DHT_PORT=${this.peerDiscoveryPort}
     */
   syncHeartBeat(){
     setInterval(async ()=>{
-        this.synchronize()
+        // this.synchronize()
+        let currentStatus = await this.buildBlockchainStatus()
+        this.broadcast('getBlockchainStatus', currentStatus)
     }, this.synchronizeDelay)
   }
 
