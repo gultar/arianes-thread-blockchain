@@ -1194,7 +1194,7 @@ class Blockchain{
       const collectActionHashes = async (blocks) =>{
         return new Promise(async (resolve)=>{
           let actionHashes = []
-          for(var block of blocks){
+          for await(var block of blocks){
             if(block.actionHashes){
               actionHashes = [  ...actionHashes, ...block.actionHashes ]
             }
@@ -1207,7 +1207,7 @@ class Blockchain{
         return new Promise(async (resolve)=>{
           let txHashes = []
           
-          for(var block of blocks){
+          for await(var block of blocks){
             if(block.txHashes){
               
               txHashes = [  ...txHashes, ...block.txHashes ]
