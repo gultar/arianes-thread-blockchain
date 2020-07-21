@@ -55,7 +55,7 @@ class AuctionHall {
         auctions[id] = new Auction(params);
         auctions[id].creatorAccount = callingAccount;
         if (selectedBidders) {
-            let permissionsSet = await auctions[id].defileMultipleAccounts(selectedBidders);
+            let permissionsSet = await auctions[id].permissions.defileMultipleAccounts(selectedBidders);
             if (permissionsSet.error)
                 throw new Error(permissionsSet.error);
         }
