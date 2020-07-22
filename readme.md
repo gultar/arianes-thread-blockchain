@@ -264,4 +264,6 @@ Copyright (C) 2018 Sacha-Olivier Dulac
 
 * Special thanks to Simply Explained - Savjee and his video on "Creating a blockchain with Javascript", which has been the starting point of this project.
 
+* A huge thanks to Patrik Simek, creator of the vm2 module, which is at the very core of my "smart contract engine". It would never have been possible without your module, it  is greatly appreciated. 
+
 * Link to his video here:  https://www.youtube.com/watch?v=zVqczFZr124
