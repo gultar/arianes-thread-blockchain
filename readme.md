@@ -252,7 +252,7 @@ There are several types of actions:
 
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
 
-The Simublock library is licensed under the GNU General Public License v3.0
+This project is licensed under the GNU General Public License v3.0
 
 You may copy, distribute and modify the software as long as you track changes/dates in source files. Any modifications to or software including (via compiler) GPL-licensed code must also be made available under the GPL along with build & install instructions.
 
