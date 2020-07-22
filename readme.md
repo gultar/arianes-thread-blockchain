@@ -55,9 +55,9 @@ let myNode = new Node({
   enableDHTDiscovery: true, //DHT, over the internet
   peerDiscoveryPort: "6000", 
   network:"mainnet",  //Name of network to connect to
-  noLocalhost:false,  //Enable connects on same environment
+  noLocalhost:false,  //Enable connections on same environment
   genesis:genesis,  //Gotten from ./modules/tools/getGenesis
-  minerWorker:false,  //Enable worker on same node.js process but in a worker. No advised, unless on a small private network
+  minerWorker:false,  //Enable worker on same node.js process but in a worker. Not advised, unless on a small private network
   clusterMiner:program.clusterMiner,  //Number of cores to use in worker. Default: 1
   keychain:program.keychain //In case of miner worker, wallet and password
 })
@@ -140,13 +140,21 @@ The basic structure of a transaction is as follows:
 
 ## Interacting with smart contracts
 There are two ways to use contracts: Actions and Transaction calls. To build those, you can either use the CLI tools provided for that purpose or manually send the data to your local node. 
-
+Structure of transaction call using txCLI.js 
+```
+node txCLI.js --fromAddress <sender> --toAddress <contract> --amount <amount> --type call --walletName <wallet> --password <password> --data '{"method":"<methodName>","cpuTime":<timeInMS>,"params":{"<paramName>":"<value>"}}'
+```
+Sender account must be an account, not a publicKey.
+If it is necessary to send an amount, it is specified in contract API, otherwise amount will not be subtracted from balance
+Type of transaction must be set to "call" in order for the transaction to be treated as such
+Data object string is best wrapped in single quotes while double quotes serve to wrap property names.
 
 ### Transaction Calls
 
 By sending a transaction of type <call> you may interact with smart contracts stored on the blockchain
 The basic structure of the data payload must be consistent in order for the transaction to be
-validated by other nodes. Here is an example of the data payload located in the data field in the transaction:
+validated by other nodes. It is necessary to create an account in order to send calls on the network. 
+ Here is an example of the data payload located in the data field in the transaction:
 
 ```
 {
@@ -208,7 +216,10 @@ ckL7qrOkdhXgxSxHVTLHow=='
 
 ### Actions
 
-Actions are usually less expensive than transaction calls. 
+There are several types of actions: 
+- account creation
+- contract deployment
+- contract destruction
 
 ```
 {
