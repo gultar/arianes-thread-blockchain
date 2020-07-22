@@ -57,7 +57,8 @@
     "action": "actionCLI.js",
     "txgen": "txgen.js",
     "sendTx": "txCLI.js",
-    "miner": "minerCLI.js"
+    "miner": "minerCLI.js",
+    "netcli": "netCLI.js"
   },
   "scripts": {
     "test": "node test.js",
