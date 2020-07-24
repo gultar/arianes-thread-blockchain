@@ -1280,7 +1280,7 @@ class Blockchain{
       if(rolledBack.error) resolve({error:rolledBack.error})
 
       
-      let stateRolledBack = await this.contractTable.rollback(lastBlock.blockNumber)
+      let stateRolledBack = await this.contractTable.rollback(lastBlock.blockNumber, lastBlock)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
       
       let mainBranch = []

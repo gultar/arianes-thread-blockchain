@@ -1,21 +1,19 @@
+const ioClient = require('socket.io-client');
+const Bootstrap = require('./bootstrap')
 const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
 let start = process.hrtime()
-class Bootstrap{
-    constructor({ 
-        contractConnector, 
-        accountTable, 
-        buildCode, 
+class VMEngine{
+    constructor({
         deferContractAction, 
         deferPayable, 
         emitContractAction, 
         emitPayable, 
         getCurrentBlock, 
         getBalance, }){
+        
+        this.socket = {}
         this.getBalance = getBalance
-        this.contractConnector = contractConnector
-        this.accountTable = accountTable
-        this.buildCode = buildCode
         this.deferContractAction = deferContractAction
         this.deferPayable = deferPayable
         this.emitContractAction = emitContractAction
@@ -29,6 +27,61 @@ class Bootstrap{
         this.workerLifetime = 1000
         this.workerSizeMb = 8
     }
+
+    startVMEngine(url){
+        if(!url) throw new Error('Valid URL is Required')
+        
+        let config = {
+          query:
+              {
+                token: 'VMEngine',
+              }
+        }
+
+        this.socket = ioClient(url, config)
+        this.socket.on('connect', async ()=>{
+            this.log('VM Engine is connected to ', url)
+        })
+    }
+
+    getContractCode(contractName){
+        return new Promise((resolve)=>{
+            this.socket.emit('getContractCode', contractName)
+            this.socket.on('contractCode', async(code)=>{
+                if(code.error){
+                    this.socket.off('contractCode')
+                    resolve({error:code.error})
+                }
+                else{
+                    this.socket.off('contractCode')
+                    resolve(code)
+                }
+            })
+        })
+    }
+    
+    getState(contractName){
+        return new Promise((resolve)=>{
+            this.socket.emit('getState', contractName)
+            this.socket.on('state', async(state)=>{
+                if(state.error){
+                    this.socket.off('state')
+                    resolve({error:state.error})
+                }
+                else{
+                    this.socket.off('state')
+                    resolve(state)
+                }
+            })
+        })
+    }
+
+    getAccount(accountName){
+        return new Promise((resolve)=>{
+            
+        })
+    }
+
 
     startVM(){
         this.events.on('run', async (code)=>{
@@ -85,7 +138,7 @@ class Bootstrap{
     restartVM(){}
 
     async addContract(contractName){
-        let contractCode = await this.contractConnector.getContractCode(contractName)
+        let contractCode = await this.getContractCode(contractName)
         if(contractCode){
             
             let worker = await this.getWorker(contractName)
@@ -169,7 +222,7 @@ class Bootstrap{
                 }else if(message.getState){
 
                     console.log('VM Request state because its loaded state is empty')
-                    let state = await this.contractConnector.getState(message.getState);
+                    let state = await this.getState(message.getState);
                     let contractName = message.getState
                     let worker = await this.getWorker(contractName)
                     
@@ -184,7 +237,7 @@ class Bootstrap{
                     }
 
                 }else if(message.getContract){
-                    let contract = await this.contractConnector.getContractCode(message.getContract);
+                    let contract = await this.getContractCode(message.getContract);
                     // let contractName = message.getContract
                     // let worker = await this.getWorker(contractName)
 
@@ -200,7 +253,7 @@ class Bootstrap{
                 }else if(message.getAccount){
 
                     let { name, contractName } = message.getAccount
-                    let account = await this.accountTable.getAccount(name);
+                    let account = await this.getAccount(name);
 
                     // let worker = await this.getWorker(contractName)
 
@@ -292,6 +345,8 @@ class Bootstrap{
                         contractName:message.contractName
                     })
 
+                }else if(message.ressources){
+                    console.log(message.ressources)
                 }
             
            })

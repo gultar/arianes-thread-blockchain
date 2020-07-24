@@ -26,8 +26,6 @@ const openSocket = async (address, runFunction) =>{
         socket.close()
     },3000)
     if(socket){
-        console.log('addr?',nodeAddress)
-        console.log('Open?',socket.connected)
         runFunction(socket);
     }else{
         console.log('Could not connect to node')
@@ -65,14 +63,14 @@ Synthax : node actionCLI.js createaccount -a [account] -w [wallet] -p [passwd]
     let walletName = program.walletName
     let password = program.password
 
-    let accountType = program.accountType || 'user'
+    let accountType = program.accountType
 
     if(!address) throw new Error('ERROR: URL of receiving node is required')
     if(!accountName) throw new Error('ERROR: Name of sending account is required')
     if(!walletName) throw new Error('ERROR: Name of owner wallet is required')
     if(!password) throw new Error('ERROR: Password of owner wallet is required')
-
-
+    if(!accountType) throw new Error('ERROR: Account type is required: user or contract')
+    if(accountType !== 'user' && accountType !== 'contract') throw new Error('ERROR: Account type is invalid: user or contract')
     if(!nodeAddress){
         throw new Error('URL of blockchain node is required');
             
@@ -426,7 +424,9 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                         action.signature = signature;
                                         
                                         socket.on("result",(deployResult)=>{
-                                            if(deployResult){
+                                            
+                                            if(deployResult && !deployResult.error){
+
                                                 let sentAction = deployResult.action;
                                                 let result = deployResult.result
                                                 let API = sentAction.data.contractAPI
@@ -555,7 +555,7 @@ Synthax : node actionCLI.js testDeploy -c [ContractName] -a [account] -w [wallet
                                         
                                         socket.on("testResult",(testResult)=>{
                                             
-                                            if(testResult){
+                                            if(testResult && !testResult.error){
                                                 let sentAction = testResult.action;
                                                 let result = testResult.result
                                                 let API = sentAction.data.contractAPI

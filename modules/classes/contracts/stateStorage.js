@@ -202,9 +202,13 @@ class StateStorage{
         
     }
 
-    async rollbackToBlock(blockNumber){
+    async rollbackToBlock(blockNumber, latestBlock=false){
         let block = await this.getBlock(blockNumber)
-        if(!block) return { error:'ERROR: Could not find block '+blockNumber+' during rollback' }
+        if(!block && latestBlock){
+            block = latestBlock
+        }else if(!block && latestBlock){
+            return { error:'ERROR: Could not find block '+blockNumber+' during rollback' }
+        }
         let timestampString = block.timestamp
         let targetTimestamp = parseInt(timestampString)
         let keys = await this.database.getAllKeys()

@@ -1227,16 +1227,12 @@ class Node {
       socket.on('action',async (action)=>{
         try{
           if(isValidActionJSON(action)){
-            
-            
             let actionEmitted = await this.broadcastAction(action)
-            console.log('Result of action broadcast')
             if(!actionEmitted.error){
                 socket.emit('result', actionEmitted);
               }else{
                 socket.emit('result',{error:actionEmitted.error})
               }
-            
           }else{
             socket.emit('result',{error:'ERROR: Invalid action format'})
           }
@@ -1814,11 +1810,6 @@ class Node {
         let updated = await this.updateBlockchain()
         if(updated.error) resolve({error:updated.error})
         else resolve(updated)
-        // let peer = await this.getMostUpToDatePeer()
-        // let updated = await this.downloadBlocks(peer, this.chain.getLatestBlock())
-        // if(updated.error) resolve({error:updated.error})
-        // else resolve(updated)
-        // resolve({ updating:true })
 
       }
       else if(reception.rollback){

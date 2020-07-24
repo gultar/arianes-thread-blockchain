@@ -17,11 +17,12 @@ vm.signals.on('emitPayable', (payable)=> parentPort.postMessage({ emitPayable:JS
 vm.signals.on('getBalance', (accountName)=> parentPort.postMessage({ getBalance:accountName }))
 
 parentPort.on('message', async (message)=>{
+
         if(message.run){
 
             try{
+
                 let result = await vm.run(message.run)
-                
 
                 let resultString = JSON.stringify(result)
                 parentPort.postMessage({singleResult:resultString})

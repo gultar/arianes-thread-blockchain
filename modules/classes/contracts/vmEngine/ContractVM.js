@@ -449,6 +449,7 @@ class ContractVM{
                     method:methodToRun,
                     depth:0
                 }
+                // var start = process.hrtime();
                 
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
@@ -458,7 +459,8 @@ class ContractVM{
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
                         }
-
+                        // var executionTime = process.hrtime(start);
+                        // console.log('Execution time:', executionTime)
                         clearTimeout(this.timers[call.hash])
                         delete this.contractCallThreads[call.hash]
                         if(result.error){
