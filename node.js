@@ -582,10 +582,11 @@ class Node {
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
       if(peer && peer.connected){
+
+        logger('Attempting to download blocks from peer ', peer.address)
+
         this.minerChannel.emit('nodeEvent','outOfSync')
         this.isOutOfSync = true
-        this.isDownloading = true;
-        
         let resendTimer = false
         let timeoutTimer = false
         let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
@@ -601,7 +602,7 @@ class Node {
           resendTimer = setTimeout(()=>{
             peer.emit('getNextBlock', payload)
             awaitTimeout()
-          }, 100)
+          }, 1000)
         }
   
         const awaitTimeout = () =>{
@@ -609,7 +610,7 @@ class Node {
             logger('Could not complete download. Peer unavailable')
             closeConnection({ error:true })
             resolve(true)
-          }, 500)
+          }, 5000)
         }
   
         const cancelTimers = () =>{
@@ -651,6 +652,7 @@ class Node {
             let fork = block.previousFound
             let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
             if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
+
             request(this.chain.getLatestBlock())
   
           }else if(block.previousNotFound){
@@ -674,6 +676,7 @@ class Node {
               //Should not happen since already checked if higher difficulty and if linked
               let rolledback = await this.chain.rollbackToBlock(nextBlock - 2)
               if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
+              
               request(this.chain.getLatestBlock())
             }else{
               request(this.chain.getLatestBlock())
@@ -682,6 +685,7 @@ class Node {
         })
   
         request(this.chain.getLatestBlock())
+        
       }else{
         resolve({ switchPeers:true })
       }
@@ -733,13 +737,13 @@ class Node {
   receiveBlockchainStatus(peer, status){
     return new Promise(async (resolve) =>{
       if(peer && status){
-        if(this.isDownloading){
+        if(this.isDownloading || this.chain.isRoutingBlock){
           resolve(true)
         }else{
           let { totalDifficultyHex, bestBlockHeader, length } = status;
           let latestBlock = this.chain.getLatestBlock()
           if(totalDifficultyHex && bestBlockHeader && length){
-            if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 2){
+            if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 1){
               this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
               let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
               // Possible major bug, will not sync if chain is longer but has different block at a given height
@@ -748,7 +752,7 @@ class Node {
               
               if(thisTotalDifficulty < totalDifficulty){
                 
-                  logger('Attempting to download blocks from peer')
+                  
                 
                   let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
                   if(isValidHeader){

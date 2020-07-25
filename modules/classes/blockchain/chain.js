@@ -296,7 +296,9 @@ class Blockchain{
       if(blockAlreadyExists) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
       //Is none of the above, carry on with routing the block
       //to its proper place, either in the chain or in the pool
+      this.isRoutingBlock = true
       let success = await this.routeBlock(newBlock)
+      this.isRoutingBlock = false
       return success
       
     }else{
@@ -2540,32 +2542,34 @@ class Blockchain{
    * Keeps a trace of the top most recent blocks and their link to previous blocks
    *  
    */
-  async createNewSnapshot(){
-    try{
-      let maxNumberOfHashes = 10;
-      let blockNumber = this.getLatestBlock().blockNumber
-      this.chainSnapshot = {}
-      for(var i=blockNumber - 10; i  <= blockNumber; i++){
-        let newBlock = this.chain[i]
+  createNewSnapshot(){
+    return new Promise(async (resolve)=> {
+      try{
         let maxNumberOfHashes = 10;
-
-        this.chainSnapshot[newBlock.hash] = {
-          blockNumber:newBlock.blockNumber,
-          previousHash:newBlock.previousHash,
-          difficulty:newBlock.difficulty,
-          totalDifficulty:newBlock.totalDifficulty
-        }
-        
-        let elements = Object.keys(this.chainSnapshot)
-        if(elements.length > maxNumberOfHashes){
-          let firstHash =  elements[0]
-          delete this.chainSnapshot[firstHash]
+        let blockNumber = this.getLatestBlock().blockNumber
+        this.chainSnapshot = {}
+        for(var i=blockNumber - 10; i  <= blockNumber; i++){
+          let newBlock = this.chain[i]
+          let maxNumberOfHashes = 10;
+  
+          this.chainSnapshot[newBlock.hash] = {
+            blockNumber:newBlock.blockNumber,
+            previousHash:newBlock.previousHash,
+            difficulty:newBlock.difficulty,
+            totalDifficulty:newBlock.totalDifficulty
+          }
           
+          let elements = Object.keys(this.chainSnapshot)
+          if(elements.length > maxNumberOfHashes){
+            let firstHash =  elements[0]
+            delete this.chainSnapshot[firstHash]
+            
+          }
         }
+      }catch(e){
+        resolve({error:e.message})
       }
-    }catch(e){
-      return e.message
-    }
+    })
 
   }
 
