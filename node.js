@@ -662,9 +662,14 @@ class Node {
             let nextBlock = block.found
             let added = await this.chain.receiveBlock(nextBlock)
             if(added.error){
-              logger('DOWNLOAD', added.error)
-              closeConnection({ error:true })
-              resolve({error:added.error})
+              if(added.exists || added.existsInPool){
+                resolve({ downloadIsOkay:true })
+              }else{
+                logger('DOWNLOAD', added.error)
+                closeConnection({ error:true })
+                resolve({error:added.error})
+              }
+              
             }else if(added.extended){
               //Should not happen since already checked if higher difficulty and if linked
               let rolledback = await this.chain.rollbackToBlock(nextBlock - 2)
@@ -1532,12 +1537,8 @@ class Node {
       }
       else if(reception.rollback){
         
-        // let peer = await this.getMostUpToDatePeer()
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback -1)
-        //if(rolledBack.error) resolve({error:rolledBack.error})
-        // let lastHeader = this.chain.getLatestBlock()
-        // let downloaded = await this.downloadBlocks(peer, lastHeader)
-        // resolve(downloaded)
+        if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
         let updated = await this.updateBlockchain()
         if(updated.error) resolve({error:updated.error})
         else resolve(updated)
@@ -1560,8 +1561,7 @@ class Node {
             let updated = await this.updateBlockchain()
             if(updated.error) resolve({error:updated.error})
             else resolve(updated)
-            // let downloaded = await this.downloadBlocks(peer, lastHeader)
-            // resolve(downloaded)
+            
           }else if(comparison.merge){
             logger("Need to merge peer's branched block")
             let blockNumber = comparison.merge.hash

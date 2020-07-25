@@ -97,14 +97,7 @@ class MinerAPI{
     async addMinedBlock(block){
         let isValid = await this.chain.validateBlock(block)
         if(isValid){
-          if(isValid.error){
-            //   let blockFromDB = await this.chain.getBlockbyHash(block.blockNumber)
-            //   console.log('Received block', block.blockNumber)
-            //   console.log('Hash', block.hash)
-            //   console.log('Exists block', blockFromDB.blockNumber)
-            //   console.log('of Hash', blockFromDB.hash)
-              logger('INVALID BLOCK', isValid.error)
-          }
+          if(isValid.error){}  //logger('INVALID BLOCK', isValid.error)
           else{
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1

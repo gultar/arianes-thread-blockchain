@@ -293,7 +293,7 @@ class Blockchain{
     if(isValidBlockJSON(newBlock)){
       //Already exists in chain?
       let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-      if(blockAlreadyExists) return { error:`ERROR Block ${newBlock.blockNumber} already exists` }
+      if(blockAlreadyExists) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
       //Is none of the above, carry on with routing the block
       //to its proper place, either in the chain or in the pool
       let success = await this.routeBlock(newBlock)
@@ -365,7 +365,7 @@ class Blockchain{
     //Already exists in block pool?
     let blockExistsInPool = await this.getBlockFromPool(newBlock.hash)
     if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
-    else if(blockExistsInPool) return { error:`ERROR: Block ${newBlock.blockNumber} already exists in pool` }
+    else if(blockExistsInPool) return { error:`ERROR: Block ${newBlock.blockNumber} already exists in pool`, existsInPool:true }
     else{
       this.blockPool[newBlock.hash] = newBlock
       let blockPoolHashes = Object.keys(this.blockPool)
