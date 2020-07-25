@@ -601,7 +601,7 @@ class Node {
           resendTimer = setTimeout(()=>{
             peer.emit('getNextBlock', payload)
             awaitTimeout()
-          }, 2000)
+          }, 100)
         }
   
         const awaitTimeout = () =>{
@@ -609,7 +609,7 @@ class Node {
             logger('Could not complete download. Peer unavailable')
             closeConnection({ error:true })
             resolve(true)
-          }, 6000)
+          }, 500)
         }
   
         const cancelTimers = () =>{
