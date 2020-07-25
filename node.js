@@ -734,47 +734,41 @@ class Node {
           let { totalDifficultyHex, bestBlockHeader, length } = status;
           
           if(totalDifficultyHex && bestBlockHeader && length){
-            
-            this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
-            let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
-            // Possible major bug, will not sync if chain is longer but has different block at a given height
-            let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
-            let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
-            let latestBlock = this.chain.getLatestBlock()
-            if(thisTotalDifficulty < totalDifficulty){
-              if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 2){
-                logger('Attempting to download blocks from peer')
-              
-                let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
-                if(isValidHeader){
-
-                    this.isDownloading = true
-                    let updated = await this.updateBlockchain()
-                    this.isDownloading = false
-                    if(updated.error){
-                      logger(updated.error)
-                      resolve({error:updated.error})
-                    }
-                    else {
-                      this.updated = true
-                      resolve(updated)
-                    }
-                }else{
-                  resolve({ error:'ERROR: Last block header from peer is invalid' })
-                }
-              }else{
-                resolve({ isStillUpdated:true })
-              }
-              
-              
-               
-             
-            }else{
-              resolve(true)
-            }
+            if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 2){
+              this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
+              let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
+              // Possible major bug, will not sync if chain is longer but has different block at a given height
+              let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
+              let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
+              let latestBlock = this.chain.getLatestBlock()
+              if(thisTotalDifficulty < totalDifficulty){
+                
+                  logger('Attempting to download blocks from peer')
+                
+                  let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+                  if(isValidHeader){
   
+                      this.isDownloading = true
+                      let updated = await this.updateBlockchain()
+                      this.isDownloading = false
+                      if(updated.error){
+                        logger(updated.error)
+                        resolve({error:updated.error})
+                      }
+                      else {
+                        this.updated = true
+                        resolve(updated)
+                      }
+                  }else{
+                    resolve({ error:'ERROR: Last block header from peer is invalid' })
+                  }
+              }else{
+                resolve({ updated })
+              }
+            }else{
+              resolve({ isStillUpdated:true })
+            }
           }else{
-            //{ error:'ERROR: Status object is missing parameters' }
             resolve(false)
           }
         }
