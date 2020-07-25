@@ -4,7 +4,19 @@ const compareSnapshots = require('./snapshotHandler')
 const chalk = require('chalk')
 
 class PeerManager{
-    constructor({ address, host, lanHost, lanAddress, connectionsToPeers, networkManager, nodeList, receiveBlockchainStatus, buildBlockchainStatus, UILog, verbose, noLocalhost }){
+    constructor({ 
+        address, 
+        host, 
+        lanHost, 
+        lanAddress, 
+        connectionsToPeers, 
+        networkManager, 
+        nodeList, 
+        receiveBlockchainStatus, 
+        buildBlockchainStatus, 
+        UILog, 
+        verbose, 
+        noLocalhost }){
         this.address = address
         this.host = host
         this.lanHost = lanHost
@@ -18,12 +30,13 @@ class PeerManager{
         this.verbose = verbose
         this.noLocalhost = noLocalhost
         this.peerSnapshots = {}
+        this.peerStatus = {}
     }
 
     /**
         Basis for P2P connection
     */
-    connectToPeer(address, callback){
+    connectToPeer(address){
         
         if(address && this.address != address){
             if(!this.connectionsToPeers[address]){
@@ -104,7 +117,7 @@ class PeerManager{
                                     let status = await this.buildBlockchainStatus()
                                     peer.emit('connectionRequest', this.address);
                                     this.nodeList.addNewAddress(address) 
-                                    
+                                
 
                                     this.onPeerAuthenticated(peer)
                                     
@@ -135,11 +148,6 @@ class PeerManager{
                         }else{}
                     })
 
-                    
-
-                    if(callback){
-                        callback(peer)
-                    }
 
                 }catch(err){
                     console.log(err)
@@ -165,6 +173,9 @@ class PeerManager{
                     if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
                         this.nodeList.addNewAddress(addr)
                     }
+                    if(!this.connectionsToPeers[addr]){
+                        this.connectToPeer(addr)
+                    }
                 })
             }
         })
@@ -175,7 +186,6 @@ class PeerManager{
         })
 
         peer.on('chainSnapshot', (snapshot)=>{
-            //if(isValidSnapshotJSON)
             this.peerSnapshots[peer.address] = snapshot
         })
 
@@ -187,6 +197,8 @@ class PeerManager{
             peer.disconnect()
         })
     }
+
+
 
     getSnapshot(address){
         return this.peerSnapshots[address]

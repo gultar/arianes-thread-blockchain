@@ -4,7 +4,7 @@ const program = require('commander');
 const ioClient = require('socket.io-client');
 const ECDSA = require('ecdsa-secp256r1');
 const activePort = require('dotenv').config({ path: './config/.env' })
-
+const timeoutValue = 1000
 if (activePort.error) {
     throw activePort.error
 }
@@ -48,7 +48,7 @@ const openSocket = async (address, runFunction) =>{
     let socket = ioClient(address);
     setTimeout(()=>{
         socket.close()
-    },1000)
+    }, timeoutValue)
     if(socket){
         runFunction(socket);
     }else{
@@ -120,15 +120,28 @@ program
 })
 
 program
-.command('testdownload')
+.command('testdownload <from> <to>')
 .description('Requests a snapshot of the ten most recent blocks')
-.action(()=>{
+.action((from, to)=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('sync');
-            setTimeout(()=>{
-                socket.close()
-            }, 400)
+            socket.emit('getManyBlocks', from, to);
+            // let start = Date.now()
+            // from = parseInt(from)
+            // to = parseInt(to)
+            // let numOfBatches = 15000 / 500
+            // for(let i=1; i < numOfBatches; i++){
+            //     // console.log('From', from)
+            //     socket.emit('getManyBlocks', from, to);
+            //     from = to
+            //     to = to + 500
+            // }
+            // socket.on('blocks', (blocks)=>{
+            //     let end = Date.now()
+            //     console.log(blocks)
+            //     // console.log(`Finished in ${(end - start)} milliseconds`)
+            //     // socket.close()
+            // })
         
         })
     }else{
