@@ -732,7 +732,7 @@ class Node {
           resolve(true)
         }else{
           let { totalDifficultyHex, bestBlockHeader, length } = status;
-          
+          let latestBlock = this.chain.getLatestBlock()
           if(totalDifficultyHex && bestBlockHeader && length){
             if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 2){
               this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
@@ -740,7 +740,7 @@ class Node {
               // Possible major bug, will not sync if chain is longer but has different block at a given height
               let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
               let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
-              let latestBlock = this.chain.getLatestBlock()
+              
               if(thisTotalDifficulty < totalDifficulty){
                 
                   logger('Attempting to download blocks from peer')
