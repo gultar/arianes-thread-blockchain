@@ -165,18 +165,16 @@ class PeerManager{
     }
 
     onPeerAuthenticated(peer){
-        peer.on('newPeers', (peers)=> {
-            if(peers && typeof peers == Array){
-                peers.forEach(addr =>{
-                    //Validate if ip address
-                    logger('Peer sent a list of potential peers')
+        peer.on('newPeers', async (peers)=> {
+            if(peers && peers.length){
+               for await(let addr of peers){
                     if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
                         this.nodeList.addNewAddress(addr)
                     }
                     if(!this.connectionsToPeers[addr]){
                         this.connectToPeer(addr)
                     }
-                })
+               }
             }
         })
 

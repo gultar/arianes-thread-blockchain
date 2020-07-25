@@ -99,7 +99,7 @@ class Node {
     this.peersLatestBlocks = {}
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-    this.synchronizeDelay = 1000;
+    this.synchronizeDelay = 5000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
     this.isDownloading = false;
@@ -351,8 +351,7 @@ class Node {
   }
 
   async getPeers(socket){
-    let addresses = Object.keys(this.connectionsToPeers)
-    socket.emit('newPeers', addresses)
+    socket.emit('newPeers', Object.keys(this.connectionsToPeers))
   }
 
   async getNextBlock(socket, header){
@@ -784,7 +783,6 @@ class Node {
 
   async updateBlockchain(exceptPeers=[]){
     let peer = await this.getMostUpToDatePeer(exceptPeers)
-    console.log('Found peer', peer.address)
     if(peer && !peer.error){
 
       let updated = await this.downloadBlocks(peer)
