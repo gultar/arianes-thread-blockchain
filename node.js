@@ -99,7 +99,7 @@ class Node {
     this.peersLatestBlocks = {}
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-    this.synchronizeDelay = 5000;
+    this.synchronizeDelay = 1000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
     this.isDownloading = false;
