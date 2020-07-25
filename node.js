@@ -759,21 +759,19 @@ class Node {
                       this.updated = true
                       resolve(updated)
                     }
+                }else{
+                  resolve({ error:'ERROR: Last block header from peer is invalid' })
                 }
               }else{
                 resolve({ isStillUpdated:true })
               }
-               
+              
               
                
-              }else{
-                resolve({ error:'ERROR: Last block header from peer is invalid' })
-              }
+             
             }else{
               resolve(true)
             }
-  
-            
   
           }else{
             //{ error:'ERROR: Status object is missing parameters' }
