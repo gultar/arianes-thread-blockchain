@@ -1166,11 +1166,13 @@ class Node {
           this.UILog('Verbose set to OFF');
           logger('Verbose set to OFF');
           this.verbose = false;
+          this.minerChannel.emit('nodeEvent','verbose')
           
         }else{
           this.UILog('Verbose set to ON');
           logger('Verbose set to ON');
           this.verbose = true;
+         this.minerChannel.emit('nodeEvent','verbose')
         }
         
         socket.emit('verboseToggled', this.verbose)
