@@ -1320,7 +1320,7 @@ class Blockchain{
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
-        resolve({ rolledBack:blockNumber })
+        resolve({ rolledBack:number })
       }
     })
   }
