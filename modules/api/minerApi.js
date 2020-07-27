@@ -74,7 +74,7 @@ class MinerAPI{
                     //Stop miner
                     console.log('Received verbose message', this.verbose)
                     if(!this.verbose) this.verbose = true
-                    else this.verbose = false
+                    else if(this.verbose) this.verbose = false
                     break;
             }
         })
@@ -103,10 +103,9 @@ class MinerAPI{
 
     async addMinedBlock(block){
         let isValid = await this.chain.validateBlock(block)
-        logger("INVALID BLOCK:", isValid)
         if(isValid){
           if(isValid.error){
-            
+            if(this.verbose) logger("INVALID BLOCK:", isValid)
           }  //
           else{
             //To guard against accidentally creating doubles
@@ -114,7 +113,11 @@ class MinerAPI{
             let headerExists = this.chain[block.blockNumber]
             if(!headerExists) headerExists = await this.chain.getBlockbyHash(block.hash)
             let exists = await this.chain.getBlockFromDB(block.blockNumber)
+            console.log('Is next block',typeof isNextBlock)
+            console.log('Is header exists',typeof isNextBlock)
+            console.log('Exists', typeof exists)
             if(!exists && !headerExists && isNextBlock){
+                
                 //Broadcast new block found
                 this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
