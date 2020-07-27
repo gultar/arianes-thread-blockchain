@@ -175,7 +175,6 @@ class StateStorage{
             if(closestEntry.error) return { error:closestEntry.error }
             console.log('Closest Entry', closestEntry)
             let { state } = await this.database.get(closestEntry.timestamp)
-            
             console.log('Past state', JSON.stringify(state, null, 1))
             if(state){
                 if(state.error) return { error:state.error }
@@ -184,7 +183,28 @@ class StateStorage{
                 if(updatedIndex.error) return { error:updatedIndex.error }
                 console.log('Updated index',updatedIndex)
                 
+                let keys = await this.database.getAllKeys()
+                let parsedKeys = await this.parseTimestamps(keys)
+                let reversedParsedKeys = parsedKeys.reverse()
+                
+                for await(let timestamp of reversedParsedKeys){
+                    if(timestamp > closestEntry.timestamp){
+                        let entry = await this.database.get(timestamp.toString())
+                        if(!entry) return { error:`ERROR: Could not locate state entry ${timestamp}` }
+                        else if(entry.error) return { error:entry.error }
+                        else{
+                            let deleted = await this.database.deleteId(timestamp.toString())
+                            if(deleted.error) return { error:deleted.error }
+                        }
+                    }else if(timestamp <= closestEntry.timestamp){
+                        break
+                    }
+                }
+                
+                let reversedToNormal = reversedParsedKeys.reverse()
+                
                 this.state = state
+                console.log('New state', state)
                 let saved = await this.update(state)
                 
                 if(saved.error) return { error:saved.error }
