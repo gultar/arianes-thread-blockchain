@@ -126,6 +126,17 @@ class StateStorage{
             return {error:e.message}
         }
     }
+    
+    async getLastState(){
+            let currentBlock = await this.getCurrentBlock()
+            let closestEntry = await this.findClosestIndexEntry(currentBlock.blockNumber)
+            if(closestEntry.error) return { error:closestEntry.error }
+            
+            let { state } = await this.database.get(closestEntry.timestamp);
+            if(!state) return { error:`ERROR: Could not find state at entry ${currentBlock.timestamp}` }
+            else if(state.error) return { error:state.error } 
+            else return state
+    }
 
     async findClosestIndexEntry(blockNumber){
         let { index } = await this.database.get('index')
@@ -174,46 +185,42 @@ class StateStorage{
             let closestEntry = await this.findClosestIndexEntry(blockNumber)
             if(closestEntry.error) return { error:closestEntry.error }
             console.log('Closest Entry', closestEntry)
-            let { state } = await this.database.get(closestEntry.timestamp)
+            let state = await this.getLastState()
             console.log('Past state', JSON.stringify(state, null, 1))
-            if(state){
-                if(state.error) return { error:state.error }
-                
-                let updatedIndex = await this.rollbackIndex(blockNumber)
-                if(updatedIndex.error) return { error:updatedIndex.error }
-                console.log('Updated index',updatedIndex)
-                
-                let keys = await this.database.getAllKeys()
-                let parsedKeys = await this.parseTimestamps(keys)
-                let reversedParsedKeys = parsedKeys.reverse()
-                
-                for await(let timestamp of reversedParsedKeys){
-                    if(timestamp > closestEntry.timestamp){
-                        let entry = await this.database.get(timestamp.toString())
-                        if(!entry) return { error:`ERROR: Could not locate state entry ${timestamp}` }
-                        else if(entry.error) return { error:entry.error }
-                        else{
-                            let deleted = await this.database.deleteId(timestamp.toString())
-                            if(deleted.error) return { error:deleted.error }
-                        }
-                    }else if(timestamp <= closestEntry.timestamp){
-                        break
+            if(state.error) return { error:state.error }
+
+            let updatedIndex = await this.rollbackIndex(blockNumber)
+            if(updatedIndex.error) return { error:updatedIndex.error }
+            console.log('Updated index',updatedIndex)
+
+            let keys = await this.database.getAllKeys()
+            let parsedKeys = await this.parseTimestamps(keys)
+            let reversedParsedKeys = parsedKeys.reverse()
+
+            for await(let timestamp of reversedParsedKeys){
+                if(timestamp > closestEntry.timestamp){
+                    console.log(`Entry ${timestamp} must be deleted`)
+                    let entry = await this.database.get(timestamp.toString())
+                    if(!entry) return { error:`ERROR: Could not locate state entry ${timestamp}` }
+                    else if(entry.error) return { error:entry.error }
+                    else{
+                        let deleted = await this.database.deleteId(timestamp.toString())
+                        if(deleted.error) return { error:deleted.error }
                     }
+                }else if(timestamp <= closestEntry.timestamp){
+                    console.log(`Stopping at timestamp ${timestamp}`)
+                    break
                 }
-                
-                let reversedToNormal = reversedParsedKeys.reverse()
-                
-                this.state = state
-                console.log('New state', state)
-                let saved = await this.update(state)
-                
-                if(saved.error) return { error:saved.error }
-                else return saved
-                //return state
-            }else{
-                return { error:'ERROR Could not find state at block' }
-                //means state does not exist beyond this blocknumber
             }
+
+            let reversedToNormal = reversedParsedKeys.reverse()
+
+            this.state = state
+            console.log('New state', state)
+            let saved = await this.update(state)
+
+            if(saved.error) return { error:saved.error }
+            else return saved
             
             
         }catch(e){
