@@ -266,7 +266,7 @@ class ContractTable{
                 let storage = this.stateStorage[contractName]
                 if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
                 else{
-                    let rolledBack = await storage.rollbackToBlock(blockNumber, block)
+                    let rolledBack = await storage.rollback(blockNumber, block)
                     if(rolledBack.error) return { error:rolledBack.error }
 
                     this.stateMemory[contractName] = rolledBack
