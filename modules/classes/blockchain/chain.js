@@ -1194,11 +1194,6 @@ class Blockchain{
     return new Promise(async (resolve)=>{
       let start = Date.now()
       
-      if(typeof number == 'string'){
-        number = parseNumberParam(number)
-       if(number.error) resolve({ error:number.error })
-      }
-     
       const parseNumberParam = (numberString) =>{
         try{
            let number = parseInt(numberString)
@@ -1208,6 +1203,13 @@ class Blockchain{
            return { error:e.message }
         }
       }
+      
+      if(typeof number == 'string'){
+        number = parseNumberParam(number)
+       if(number.error) resolve({ error:number.error })
+      }
+     
+      
       
       const collectActionHashes = async (blocks) =>{
         return new Promise(async (resolve)=>{
