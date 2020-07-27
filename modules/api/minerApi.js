@@ -103,9 +103,10 @@ class MinerAPI{
 
     async addMinedBlock(block){
         let isValid = await this.chain.validateBlock(block)
+        logger("INVALID BLOCK:", isValid)
         if(isValid){
           if(isValid.error){
-            logger("INVALID BLOCK:", isValid)
+            
           }  //
           else{
             //To guard against accidentally creating doubles
