@@ -1205,9 +1205,10 @@ class Node {
       })
 
       socket.on('rollback', async (number)=>{
+        global.minerChannel('nodeEvent', 'isBusy')
         let rolledback = await this.chain.rollbackToBlock(number)
-        
         socket.emit('rollbackResult', rolledback)
+        global.minerChannel('nodeEvent', 'isAvailable')
       })
 
       socket.on('getTransactionFromDB', async (hash)=>{
