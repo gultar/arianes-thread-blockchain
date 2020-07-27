@@ -1315,8 +1315,8 @@ class Blockchain{
         if(deleted.error) resolve({error:deleted.error})
       }
       console.log("Remove blocks from DB", Date.now() - start)
-      await this.createNewSnapshot()
-      console.log("Create new snapshots", Date.now() - start)
+//       await this.createNewSnapshot()
+//       console.log("Create new snapshots", Date.now() - start)
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
