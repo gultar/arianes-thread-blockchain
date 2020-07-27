@@ -21,6 +21,7 @@ class MinerAPI{
         this.isAPIBusy = false;
         this.socket = socket
         this.generate = false
+        this.verbose = false
     }
 
     init(){
@@ -69,6 +70,11 @@ class MinerAPI{
                     //Stop miner
                     this.socket.emit('stopMining')
                     break;
+                case 'verbose':
+                    //Stop miner
+                    if(!this.verbose) this.verbose = true
+                    else this.verbose = false
+                    break;
             }
         })
 
@@ -97,7 +103,9 @@ class MinerAPI{
     async addMinedBlock(block){
         let isValid = await this.chain.validateBlock(block)
         if(isValid){
-          if(isValid.error){}  //logger('INVALID BLOCK', isValid.error)
+          if(isValid.error){
+            if(this.verbose) logger("INVALID BLOCK:", isValid)
+          }  //
           else{
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
