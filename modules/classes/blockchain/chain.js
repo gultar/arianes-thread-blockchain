@@ -1192,7 +1192,7 @@ class Blockchain{
 
   rollbackToBlock(number){
     return new Promise(async (resolve)=>{
-
+      let start = Date.now()
       const collectActionHashes = async (blocks) =>{
         return new Promise(async (resolve)=>{
           let actionHashes = []
@@ -1231,23 +1231,26 @@ class Blockchain{
       //Getting a copy of the blocks that will later be removed from the chain
       
       let blocks = this.chain.slice(startNumber + 1, this.chain.length)
-
       let newestToOldestBlocks = blocks.reverse()
-      let actionHashes = await collectActionHashes(newestToOldestBlocks)
-      let txHashes = await collectTransactionHashes(newestToOldestBlocks)
+      console.log("Slicing of header chains", Date.now() - start)
       
+      let actionHashes = await collectActionHashes(newestToOldestBlocks)
+      console.log("Extract action hashes", Date.now() - start)
+      let txHashes = await collectTransactionHashes(newestToOldestBlocks)
+      console.log("Extract tx hashes", Date.now() - start)
+     
       for await(let hash of txHashes){
         if(this.spentTransactionHashes[hash]){
           delete this.spentTransactionHashes[hash]
         }
       }
-
+      console.log("Delete tx hashes", Date.now() - start)
       for await(let hash of actionHashes){
         if(this.spentActionHashes[hash]){
           delete this.spentActionHashes[hash]
         }
       }
-      
+      console.log("Delete action hashes", Date.now() - start)
       if(actionHashes.length > 0){
         for await(var hash of actionHashes){
           //Rolling back actions and contracts
@@ -1273,26 +1276,29 @@ class Blockchain{
           }
         }
       }
+      console.log("Rollback actions", Date.now() - start)
 
       let backToNormal = newestToOldestBlocks.reverse()
       let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
-
+      console.log("Removed headers", Date.now() - start)
+     
       let lastBlock = this.getLatestBlock()
       let rolledBack = await this.balance.rollback(lastBlock.blockNumber.toString())
       if(rolledBack.error) resolve({error:rolledBack.error})
-
+      console.log("Rollback balance states", Date.now() - start)
       
       let stateRolledBack = await this.contractTable.rollback(lastBlock.blockNumber, lastBlock)
       if(stateRolledBack.error) resolve({error:stateRolledBack.error})
-      
+      console.log("Rollback contract states", Date.now() - start)
       let mainBranch = []
 
       for await(let header of removed){
         let deleted = await this.chainDB.deleteId(header.blockNumber.toString())
         if(deleted.error) resolve({error:deleted.error})
       }
-
+      console.log("Remove blocks from DB", Date.now() - start)
       await this.createNewSnapshot()
+      console.log("Create new snapshots", Date.now() - start)
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
