@@ -74,6 +74,18 @@ class StateStorage{
         if(updated.error) return { error:updated.error }
         else return updated
     }
+    
+    async saveIndex(index){
+        if(!index || index.length === 0) return { error:"ERROR: Cannot save empty index" }
+        let updated = await this.database.put({
+            key:'index',
+            value:{
+                index:index   //Current block is pointing towards the previousblock                                                                
+            }
+        })
+        if(updated.error) return { error:updated.error }
+        else return updated
+    }
 
     async save(state = undefined){
         try{
@@ -130,6 +142,23 @@ class StateStorage{
             position++
         }
     }
+    //Remove all entries before blockNumber, including the one at blocknumber
+    async rollbackIndex(blockNumber){
+        let { index } = await this.database.get('index')
+        let position = 0
+        for await(let entry of index){
+            let nextEntry = index[position + 1]
+            if(nextEntry){
+                if(entry.blockNumber <= blockNumber && nextEntry.blockNumber > blockNumber){
+                    return index.slice(0, position-1)
+                }
+            }else{
+                index.pop()
+                return index
+            }
+            position++
+        }
+    }
 
     async rollback(blockNumber){
         try{
@@ -143,12 +172,20 @@ class StateStorage{
             console.log('Past state', JSON.stringify(state, null, 1))
             if(state){
                 if(state.error) return { error:state.error }
-                // this.state = state
-                // let saved = await this.update(state)
                 
-                // if(saved.error) return { error:saved.error }
-                // else return saved
-                return state
+                let updatedIndex = await this.rollbackIndex(blockNumber)
+                if(updatedIndex.error) return { error:updatedIndex.error }
+                console.log('Updated index',updatedIndex)
+                let savedIndex = await this.saveIndex(updatedIndex)
+                if(savedIndex.error) return { error:savedIndex.error }
+                console.log('Saved index', savedIndex)
+                
+                this.state = state
+                let saved = await this.update(state)
+                
+                if(saved.error) return { error:saved.error }
+                else return saved
+                //return state
             }else{
                 return { error:'ERROR Could not find state at block' }
                 //means state does not exist beyond this blocknumber
