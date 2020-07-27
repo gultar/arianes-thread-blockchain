@@ -72,6 +72,7 @@ class MinerAPI{
                     break;
                 case 'verbose':
                     //Stop miner
+                    console.log('Received verbose message', this.verbose)
                     if(!this.verbose) this.verbose = true
                     else this.verbose = false
                     break;
