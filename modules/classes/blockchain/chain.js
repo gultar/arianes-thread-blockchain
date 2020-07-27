@@ -1193,6 +1193,22 @@ class Blockchain{
   rollbackToBlock(number){
     return new Promise(async (resolve)=>{
       let start = Date.now()
+      
+      if(typeof number == 'string'){
+        number = parseNumberParam(number)
+       if(number.error) resolve({ error:number.error })
+      }
+     
+      const parseNumberParam = (numberString) =>{
+        try{
+           let number = parseInt(numberString)
+           if(typeof number == 'number') return number
+           else return { error:'ERROR: Could not rollback. Number provided is not numerical' }
+        }catch(e){
+           return { error:e.message }
+        }
+      }
+      
       const collectActionHashes = async (blocks) =>{
         return new Promise(async (resolve)=>{
           let actionHashes = []
@@ -1302,7 +1318,7 @@ class Blockchain{
       logger('Rolled back to block ', number)
       if(Object.keys(errors).length > 0) resolve({error:errors})
       else{
-        resolve(mainBranch)
+        resolve({ rolledBack:blockNumber })
       }
     })
   }
