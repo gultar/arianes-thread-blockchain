@@ -220,7 +220,7 @@ class StateStorage{
             let saved = await this.update(state)
 
             if(saved.error) return { error:saved.error }
-            else return saved
+            else return state
             
             
         }catch(e){
