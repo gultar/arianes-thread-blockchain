@@ -436,7 +436,7 @@ Synthax : node actionCLI.js deploy -c [ContractName] -a [account] -w [wallet] -p
                                                 console.log('\nInitial state of contract:', state)
                                                 console.log('\nResult of deployment:', result)
                                             }else{
-                                                console.log(deployResult.data)
+                                                console.log(deployResult)
                                             }
                                             socket.close()
                                         })

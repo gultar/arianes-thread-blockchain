@@ -44,6 +44,28 @@ class StateStorage{
         }
         
     }
+    //[ {b,t},{b,t},{b,t}_________{b,t} ]
+    async updateIndex(){
+        let currentBlock = await this.getCurrentBlock()
+        let index = await this.database.get('index')
+        if(!index){
+            index = [{
+                blockNumber:currentBlock.blockNumber,
+                timestamp:currentBlock.timestamp,
+            }]
+        }else{
+            index = [...index, {
+                blockNumber:currentBlock.blockNumber,
+                timestamp:currentBlock.timestamp,
+            }]
+        }
+        let updated = await this.database.put({
+            key:'index',
+            value:{
+                index:index   //Current block is pointing towards the previousblock                                                                
+            }
+        })
+    }
 
     async save(state = undefined){
         try{

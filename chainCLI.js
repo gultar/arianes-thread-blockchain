@@ -120,28 +120,12 @@ program
 })
 
 program
-.command('testdownload <from> <to>')
+.command('testIndex <blockNumber>')
 .description('Requests a snapshot of the ten most recent blocks')
-.action((from, to)=>{
+.action((blockNumber)=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('getManyBlocks', from, to);
-            // let start = Date.now()
-            // from = parseInt(from)
-            // to = parseInt(to)
-            // let numOfBatches = 15000 / 500
-            // for(let i=1; i < numOfBatches; i++){
-            //     // console.log('From', from)
-            //     socket.emit('getManyBlocks', from, to);
-            //     from = to
-            //     to = to + 500
-            // }
-            // socket.on('blocks', (blocks)=>{
-            //     let end = Date.now()
-            //     console.log(blocks)
-            //     // console.log(`Finished in ${(end - start)} milliseconds`)
-            //     // socket.close()
-            // })
+            socket.emit('testIndex', blockNumber);
         
         })
     }else{

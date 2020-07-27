@@ -44,7 +44,8 @@ const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
 const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-const compareSnapshots = require('./modules/network/snapshotHandler')
+const compareSnapshots = require('./modules/network/snapshotHandler');
+const Database = require('./modules/classes/database/db');
 
 /**
   Instanciates a blockchain node
@@ -99,7 +100,7 @@ class Node {
     this.peersLatestBlocks = {}
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-    this.synchronizeDelay = 1000;
+    this.synchronizeDelay = 5*1000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
     this.isDownloading = false;
@@ -610,28 +611,31 @@ class Node {
             logger('Could not complete download. Peer unavailable')
             closeConnection({ error:true })
             resolve(true)
-          }, 5000)
+          }, 20000)
         }
   
         const cancelTimers = () =>{
           clearTimeout(timeoutTimer)
+          timeoutTimer = false
           clearTimeout(resendTimer)
         }
 
         const resetTimers = () =>{
           clearTimeout(timeoutTimer)
+          timeoutTimer = false
           if(resendTimer) clearTimeout(resendTimer)
           awaitTimeout()
         }
   
         const request = (payload) =>{
           peer.emit('getNextBlock', payload)
-          awaitResend()
+          //awaitResend()
+          // awaitTimeout()
         }
         
         peer.on('nextBlock', async (block)=>{
           // console.log(block)
-          resetTimers()
+          // resetTimers()
   
           //next known : OK
           //next unknown found but previous yes: ask for forked block, rollback and add new block
@@ -1177,9 +1181,14 @@ class Node {
         this.broadcast('getBlockchainStatus');
       })
 
-      socket.on('forceReceiveBlocks', ()=>{
-        logger('Will now receive new blocks mined on the network')
-        this.update = true
+      socket.on('keyAsNumber', async()=>{
+        let db = require('./modules/classes/database/db')
+        let poubelle = new Database('poubelle')
+        let result = await poubelle.put({
+          key:2000,
+          value:'muppet'
+        })
+        console.log(result)
       })
 
       socket.on('getMempool', ()=>{
@@ -1209,6 +1218,13 @@ class Node {
       socket.on('getActionFromDB', async (hash)=>{
         let action = await this.chain.getActionFromDB(hash)
         socket.emit('actionFromDB', action)
+      })
+
+      socket.on('testIndex', async (blockNumber)=>{
+          let name = 'Storage'
+          let store = this.chain.contractTable.stateStorage[name]
+          let entry = await store.findClosestIndexEntry(blockNumber)
+          let state = store.rollback(blockNumber)
       })
 
       socket.on('disconnect', ()=>{
@@ -1973,9 +1989,9 @@ DHT_PORT=${this.peerDiscoveryPort}
     */
   syncHeartBeat(){
     setInterval(async ()=>{
-        // this.synchronize()
+         this.synchronize()
         let currentStatus = await this.buildBlockchainStatus()
-        this.broadcast('getBlockchainStatus', currentStatus)
+        // this.broadcast('getBlockchainStatus', currentStatus)
     }, this.synchronizeDelay)
   }
 

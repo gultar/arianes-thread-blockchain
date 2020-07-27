@@ -1,7 +1,7 @@
 // const Database = require('./database')
 const Database = require('../database/db')
 const sha256 = require('../../tools/sha256')
-const StateStorage = require('../contracts/stateStorage')
+const StateStorage = require('../contracts/contractStorage')
 
 class ContractTable{
     constructor({ getCurrentBlock, getBlock, getBlockFromHash }){

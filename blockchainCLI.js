@@ -90,7 +90,6 @@ program
   .action(async ()=>{
 
       let lanHost = await getIP()
-    
       if(!program.ipaddress){
         
         let ip = await getIP()

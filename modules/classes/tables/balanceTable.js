@@ -261,7 +261,7 @@ class BalanceTable{
                     this.states = entry.states
                     resolve(true)
                 }else{
-                    resolve({error:'Could not complete rollback. Missing block state'})
+                    resolve({error:`ERROR: Could not complete rollback. Missing block ${blockNumber} state`})
                 }
 
             }else{
