@@ -120,12 +120,12 @@ program
 })
 
 program
-.command('testIndex <blockNumber>')
+.command('verbose')
 .description('Requests a snapshot of the ten most recent blocks')
-.action((blockNumber)=>{
+.action(()=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('testIndex', blockNumber);
+            socket.emit('verbose');
         
         })
     }else{
