@@ -105,7 +105,7 @@ class MinerAPI{
         let isValid = await this.chain.validateBlock(block)
         if(isValid){
           if(isValid.error){
-            if(this.verbose) logger("INVALID BLOCK:", isValid)
+            logger("INVALID BLOCK:", isValid)
           }  //
           else{
             //To guard against accidentally creating doubles
