@@ -146,18 +146,25 @@ class StateStorage{
     async rollbackIndex(blockNumber){
         let { index } = await this.database.get('index')
         let position = 0
+        
         for await(let entry of index){
             let nextEntry = index[position + 1]
             if(nextEntry){
                 if(entry.blockNumber <= blockNumber && nextEntry.blockNumber > blockNumber){
-                    return index.slice(0, position-1)
+                    break
                 }
-            }else{
-                index.pop()
-                return index
             }
             position++
         }
+        console.log("Index length before slice", index.length)
+        let rolledBackIndex = index.slice(0, position - 1)
+        console.log("Index length after slice", rolledBackIndex.length)
+        
+        let savedIndex = await this.saveIndex(rolledBackIndex)
+        if(savedIndex.error) return { error:savedIndex.error }
+        else savedIndex
+        console.log('Saved index', savedIndex)
+        
     }
 
     async rollback(blockNumber){
@@ -176,9 +183,6 @@ class StateStorage{
                 let updatedIndex = await this.rollbackIndex(blockNumber)
                 if(updatedIndex.error) return { error:updatedIndex.error }
                 console.log('Updated index',updatedIndex)
-                let savedIndex = await this.saveIndex(updatedIndex)
-                if(savedIndex.error) return { error:savedIndex.error }
-                console.log('Saved index', savedIndex)
                 
                 this.state = state
                 let saved = await this.update(state)
