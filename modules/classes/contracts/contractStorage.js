@@ -173,7 +173,7 @@ class StateStorage{
         
         let savedIndex = await this.saveIndex(rolledBackIndex)
         if(savedIndex.error) return { error:savedIndex.error }
-        else savedIndex
+        else return savedIndex
         console.log('Saved index', savedIndex)
         
     }
