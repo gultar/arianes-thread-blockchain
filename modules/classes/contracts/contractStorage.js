@@ -179,10 +179,12 @@ class StateStorage{
         }
 
         let rolledBackIndex = index.slice(0, position)
+        let lastEntry = rolledBackIndex[rolledBackIndex.length - 1]
+        if(lastEntry.blockNumber === blockNumber) rolledBackIndex.pop()
         console.log('Last Index entry:', rolledBackIndex[rolledBackIndex.length - 1])
         let savedIndex = await this.saveIndex(rolledBackIndex)
         if(savedIndex.error) return { error:savedIndex.error }
-        else return savedIndex
+        else return rolledBackIndex
         
         
     }
@@ -200,25 +202,27 @@ class StateStorage{
 
             let updatedIndex = await this.rollbackIndex(blockNumber)
             if(updatedIndex.error) return { error:updatedIndex.error }
-            console.log('Updated index',updatedIndex)
+            console.log('Last index item',updatedIndex[updatedIndex.length - 1])
 
             let keys = await this.database.getAllKeys()
             let parsedKeys = await this.parseTimestamps(keys)
             let reversedParsedKeys = parsedKeys.reverse()
 
             for await(let timestamp of reversedParsedKeys){
-                if(timestamp > closestEntry.timestamp){
+                let entry = await this.database.get(timestamp.toString())
+                console.log(`Entry ${entry.blockNumber}`)
+                if(entry.blockNumber > closestEntry.blockNumber){
                     
-                    let entry = await this.database.get(timestamp.toString())
-                    console.log(`Entry ${entry.blockNumber} must be deleted`)
+                    
+                    
                     if(!entry) return { error:`ERROR: Could not locate state entry ${timestamp}` }
                     else if(entry.error) return { error:entry.error }
                     else{
-                        let deleted = await this.database.deleteId(timestamp.toString())
+                        let deleted = await this.database.deleteId(entry.timestamp.toString())
                         if(deleted.error) return { error:deleted.error }
                     }
-                }else if(timestamp <= closestEntry.timestamp){
-                    console.log(`Stopping at timestamp ${timestamp}`)
+                }else if(entry.blockNumber <= closestEntry.blockNumber){
+                    console.log(`Stopping at timestamp ${entry.blockNumber}`)
                     break
                 }
             }
