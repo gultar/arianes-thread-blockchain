@@ -1192,135 +1192,131 @@ class Blockchain{
 
   rollbackToBlock(number){
     return new Promise(async (resolve)=>{
-      let start = Date.now()
-      
-      const parseNumberParam = (numberString) =>{
-        try{
-           let number = parseInt(numberString)
-           if(typeof number == 'number') return number
-           else return { error:'ERROR: Could not rollback. Number provided is not numerical' }
-        }catch(e){
-           return { error:e.message }
-        }
-      }
-      
-      if(typeof number == 'string'){
-        number = parseNumberParam(number)
-       if(number.error) resolve({ error:number.error })
-      }
-     
-      
-      
-      const collectActionHashes = async (blocks) =>{
-        return new Promise(async (resolve)=>{
-          let actionHashes = []
-          for await(var block of blocks){
-            if(block.actionHashes){
-              actionHashes = [  ...actionHashes, ...block.actionHashes ]
-            }
-          }
-          resolve(actionHashes)
-        })
-      }
+      if(!this.isRollingBack){
+        this.isRollingBack = true
 
-      const collectTransactionHashes = async (blocks) =>{
-        return new Promise(async (resolve)=>{
-          let txHashes = []
-          
-          for await(var block of blocks){
-            if(block.txHashes){
-              
-              txHashes = [  ...txHashes, ...block.txHashes ]
-            }
+        const endRollback = (returnValue) =>{
+          this.isRollingBack = false
+          resolve(returnValue)
+        }
+      
+        const parseNumberParam = (numberString) =>{
+          try{
+            let number = parseInt(numberString)
+            if(typeof number == 'number') return number
+            else return { error:'ERROR: Could not rollback. Number provided is not numerical' }
+          }catch(e){
+            return { error:e.message }
           }
-          resolve(txHashes)
-        })
-      }
+        }
 
-      let errors = {}
-      let totalBlockNumber = this.chain.length
-      
-      if(number < 0) number = 0
-      let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
-      
-      let newLastBlock = this.chain[number];
-      let numberOfBlocksToRemove = totalBlockNumber - number;
-      
-      //Getting a copy of the blocks that will later be removed from the chain
-      
-      let blocks = this.chain.slice(startNumber + 1, this.chain.length)
-      let newestToOldestBlocks = blocks.reverse()
-      console.log("Slicing of header chains", Date.now() - start)
-      
-      let actionHashes = await collectActionHashes(newestToOldestBlocks)
-      console.log("Extract action hashes", Date.now() - start)
-      let txHashes = await collectTransactionHashes(newestToOldestBlocks)
-      console.log("Extract tx hashes", Date.now() - start)
-     
-      for await(let hash of txHashes){
-        if(this.spentTransactionHashes[hash]){
-          delete this.spentTransactionHashes[hash]
+        
+        
+        if(typeof number == 'string'){
+          number = parseNumberParam(number)
+          if(number.error) endRollback({ error:number.error })
         }
-      }
-      console.log("Delete tx hashes", Date.now() - start)
-      for await(let hash of actionHashes){
-        if(this.spentActionHashes[hash]){
-          delete this.spentActionHashes[hash]
+        
+        const collectActionHashes = async (blocks) =>{
+          return new Promise(async (resolve)=>{
+            let actionHashes = []
+            for await(var block of blocks){
+              if(block.actionHashes) actionHashes = [  ...actionHashes, ...block.actionHashes ]
+            }
+            resolve(actionHashes)
+          })
         }
-      }
-      console.log("Delete action hashes", Date.now() - start)
-      if(actionHashes.length > 0){
-        for await(var hash of actionHashes){
-          //Rolling back actions and contracts
-          let action = await this.getActionFromDB(hash);
-          if(action){
-            if(action.error) resolve({error:action.error})
-            else{
-              if(action.type == 'contract'){
-                if(action.task == 'deploy'){
-                  let contractName = action.data.name;
-                  let deleted = await this.contractTable.removeContract(contractName);
-                  if(deleted.error) errors[hash] = deleted.error
-  
+
+        const collectTransactionHashes = async (blocks) =>{
+          return new Promise(async (resolve)=>{
+            let txHashes = []
+            for await(var block of blocks){
+              if(block.txHashes) txHashes = [  ...txHashes, ...block.txHashes ]
+            }
+            resolve(txHashes)
+          })
+        }
+
+        let errors = {}
+        let totalBlockNumber = this.chain.length
+        
+        if(number < 0) number = 0
+        let startNumber = ( typeof number == 'number' ? number : parseInt(number)  )
+        
+        let newLastBlock = this.chain[number];
+        let numberOfBlocksToRemove = totalBlockNumber - number;
+        
+        //Getting a copy of the blocks that will later be removed from the chain
+        
+        let blocks = this.chain.slice(startNumber + 1, this.chain.length)
+        let newestToOldestBlocks = blocks.reverse()
+        
+        let actionHashes = await collectActionHashes(newestToOldestBlocks)
+        let txHashes = await collectTransactionHashes(newestToOldestBlocks)
+      
+        for await(let hash of txHashes){
+          if(this.spentTransactionHashes[hash]){
+            delete this.spentTransactionHashes[hash]
+          }
+        }
+
+        for await(let hash of actionHashes){
+          if(this.spentActionHashes[hash]){
+            delete this.spentActionHashes[hash]
+          }
+        }
+        
+        //Preferable to not resolve and error directly here
+        if(actionHashes.length > 0){
+          for await(var hash of actionHashes){
+            //Rolling back actions and contracts
+            let action = await this.getActionFromDB(hash);
+            if(action){
+              if(action.error) errors[hash] = action.error
+              else{
+                if(action.type == 'contract'){
+                  if(action.task == 'deploy'){
+                    let contractName = action.data.name;
+                    let deleted = await this.contractTable.removeContract(contractName);
+                    if(deleted.error) errors[hash] = deleted.error
+    
+                  }
+                  
+                }else if(action.type == 'account'){
+                  let account = action.data
+                  let removed = await this.accountTable.deleteAccount({ name:account.name, signature:account.ownerSignature });
+                  if(removed.error) errors[hash] = removed.error
                 }
-                
-              }else if(action.type == 'account'){
-                let account = action.data
-                let removed = await this.accountTable.deleteAccount({ name:account.name, signature:account.ownerSignature });
-                if(removed.error) errors[hash] = removed.error
               }
+              
             }
-            
           }
         }
-      }
-      console.log("Rollback actions", Date.now() - start)
 
-      let backToNormal = newestToOldestBlocks.reverse()
-      let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
-      console.log("Removed headers", Date.now() - start)
-     
-      let lastBlock = this.getLatestBlock()
-      let rolledBack = await this.balance.rollback(lastBlock.blockNumber.toString())
-      if(rolledBack.error) resolve({error:rolledBack.error})
-      console.log("Rollback balance states", Date.now() - start)
+        let backToNormal = newestToOldestBlocks.reverse()
+        let removed = this.chain.splice(startNumber + 1, numberOfBlocksToRemove)
       
-      let stateRolledBack = await this.contractTable.rollback(lastBlock.blockNumber, lastBlock)
-      if(stateRolledBack.error) resolve({error:stateRolledBack.error})
-      console.log("Rollback contract states", Date.now() - start)
-      let mainBranch = []
+        let lastBlock = this.getLatestBlock()
+        let rolledBack = await this.balance.rollback(lastBlock.blockNumber.toString())
+        if(rolledBack.error) endRollback({error:rolledBack.error})
+        
+        let stateRolledBack = await this.contractTable.rollback(lastBlock.blockNumber, lastBlock)
+        if(stateRolledBack.error) endRollback({error:stateRolledBack.error})
+        
+        let mainBranch = []
 
-      for await(let header of removed){
-        let deleted = await this.chainDB.deleteId(header.blockNumber.toString())
-        if(deleted.error) resolve({error:deleted.error})
-      }
-      console.log("Remove blocks from DB", Date.now() - start)
-//       await this.createNewSnapshot()
-//       console.log("Create new snapshots", Date.now() - start)
-      logger('Rolled back to block ', number)
-      if(Object.keys(errors).length > 0) resolve({error:errors})
-      else{
-        resolve({ rolledBack:number })
+        for await(let header of removed){
+          let deleted = await this.chainDB.deleteId(header.blockNumber.toString())
+          if(deleted.error) endRollback({error:deleted.error})
+        }
+        
+        logger('Rolled back to block ', number)
+        if(Object.keys(errors).length > 0) endRollback({error:errors})
+        else{
+          endRollback({ rolledBack:number })
+        }
+      }else{
+        resolve({ error:'ERROR: Chain is already rolling back' })
       }
     })
   }

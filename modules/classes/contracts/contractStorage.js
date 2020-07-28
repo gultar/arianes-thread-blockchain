@@ -199,8 +199,9 @@ class StateStorage{
 
             for await(let timestamp of reversedParsedKeys){
                 if(timestamp > closestEntry.timestamp){
-                    console.log(`Entry ${timestamp} must be deleted`)
+                    
                     let entry = await this.database.get(timestamp.toString())
+                    console.log(`Entry ${entry.blockNumber} must be deleted`)
                     if(!entry) return { error:`ERROR: Could not locate state entry ${timestamp}` }
                     else if(entry.error) return { error:entry.error }
                     else{
@@ -216,7 +217,7 @@ class StateStorage{
             let reversedToNormal = reversedParsedKeys.reverse()
 
             this.state = state
-            console.log('New state', state)
+            console.log('New state', JSON.stringify(state, null, 2))
             let saved = await this.update(state)
 
             if(saved.error) return { error:saved.error }
