@@ -134,6 +134,7 @@ class Blockchain{
     this.spentTransactionHashes = {}
     this.spentActionHashes = {}
     this.isSyncingBlocks = false
+    this.isRollingBack = false
     this.branches = {}
     this.unlinkedBranches = {}
     this.looseBlocks = {}

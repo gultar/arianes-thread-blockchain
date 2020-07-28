@@ -115,7 +115,7 @@ class StateStorage{
 
     async getCurrentState(){
         try{
-            let closestState = await this.getLatestState()
+            let closestState = await this.getLastState()
             if(closestState){
                 if(closestState.error) return { error:closestState.error }
                 return closestState
@@ -144,7 +144,10 @@ class StateStorage{
         for await(let entry of index){
             let nextEntry = index[position + 1]
             if(nextEntry){
-                if(entry.blockNumber <= blockNumber && nextEntry.blockNumber > blockNumber){
+                if(entry.blockNumber == blockNumber){
+                    return entry
+                }
+                else if(entry.blockNumber < blockNumber && nextEntry.blockNumber > blockNumber){
                     return entry
                 }
             }else{
@@ -154,6 +157,10 @@ class StateStorage{
         }
     }
     //Remove all entries before blockNumber, including the one at blocknumber
+    //Rollback 13
+    //  4-5-6-7-8-11-12-14-16-17-18-19
+    //  . . . . . . I
+    //
     async rollbackIndex(blockNumber){
         let { index } = await this.database.get('index')
         let position = 0
@@ -161,20 +168,22 @@ class StateStorage{
         for await(let entry of index){
             let nextEntry = index[position + 1]
             if(nextEntry){
-                if(entry.blockNumber <= blockNumber && nextEntry.blockNumber > blockNumber){
+                if(entry.blockNumber == blockNumber){
+                    break
+                }
+                else if(entry.blockNumber < blockNumber && nextEntry.blockNumber > blockNumber){
                     break
                 }
             }
             position++
         }
-        console.log("Index length before slice", index.length)
-        let rolledBackIndex = index.slice(0, position - 1)
-        console.log("Index length after slice", rolledBackIndex.length)
-        
+
+        let rolledBackIndex = index.slice(0, position)
+        console.log('Last Index entry:', rolledBackIndex[rolledBackIndex.length - 1])
         let savedIndex = await this.saveIndex(rolledBackIndex)
         if(savedIndex.error) return { error:savedIndex.error }
         else return savedIndex
-        console.log('Saved index', savedIndex)
+        
         
     }
 
@@ -185,7 +194,7 @@ class StateStorage{
             let closestEntry = await this.findClosestIndexEntry(blockNumber)
             if(closestEntry.error) return { error:closestEntry.error }
             console.log('Closest Entry', closestEntry)
-            let state = await this.getLastState()
+            let { state } = await this.database.get(closestEntry.timestamp)
             console.log('Past state', JSON.stringify(state, null, 1))
             if(state.error) return { error:state.error }
 
@@ -343,7 +352,7 @@ class StateStorage{
 
             }
         }
-        let latestState = await this.getLatestState()
+        let latestState = await this.getLastState()
         return latestState
 
     }
