@@ -4,7 +4,7 @@ const program = require('commander');
 const ioClient = require('socket.io-client');
 const ECDSA = require('ecdsa-secp256r1');
 const activePort = require('dotenv').config({ path: './config/.env' })
-const timeoutValue = 1000
+const timeoutValue = 5000
 if (activePort.error) {
     throw activePort.error
 }

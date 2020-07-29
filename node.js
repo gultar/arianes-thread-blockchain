@@ -796,15 +796,19 @@ class Node {
   async updateBlockchain(exceptPeers=[]){
     let peer = await this.getMostUpToDatePeer(exceptPeers)
     if(peer && !peer.error){
-
-      let updated = await this.downloadBlocks(peer)
-      if(updated.error){
-        exceptPeers = [...exceptPeers, peer.address]
-        console.log(`Peer ${peer.address} is excluded`)
-        return this.updateBlockchain(exceptPeers)
+      if(!this.chain.isRollingBack){
+        let updated = await this.downloadBlocks(peer)
+        if(updated.error){
+          exceptPeers = [...exceptPeers, peer.address]
+          console.log(`Peer ${peer.address} is excluded`)
+          return this.updateBlockchain(exceptPeers)
+        }else{
+          return { updated:true }
+        }
       }else{
-        return { updated:true }
+        return {error:'Warning: Could not update now. Node is rolling back blocks'}
       }
+      
       
     }else{
       return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
@@ -1208,8 +1212,10 @@ class Node {
 
       socket.on('rollback', async (number)=>{
         global.minerChannel.emit('nodeEvent', 'isBusy')
+        global.minerChannel.emit('nodeEvent', 'isRollingBack')
         let rolledback = await this.chain.rollbackToBlock(number)
         socket.emit('rollbackResult', rolledback)
+        global.minerChannel.emit('nodeEvent', 'isRollingBack')
         global.minerChannel.emit('nodeEvent', 'isAvailable')
       })
 
@@ -1562,11 +1568,15 @@ class Node {
       else if(reception.rollback){
         
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback -1)
-        if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
-        let updated = await this.updateBlockchain()
-        this.minerChannel.emit('nodeEvent','isAvailable')
-        if(updated.error) resolve({error:updated.error})
-        else resolve(updated)
+        if(rolledBack){
+          if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
+          else{
+            let updated = await this.updateBlockchain()
+            if(updated.error) resolve({error:updated.error})
+            else resolve(updated)
+          }
+          
+        }
         
       }
       else if(reception.extended){
