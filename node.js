@@ -1514,8 +1514,6 @@ class Node {
                     this.minerChannel.emit('nodeEvent','isBusy')
                     //Validates than runs the block
                     let added = await this.chain.receiveBlock(block);
-  
-                    this.minerChannel.emit('nodeEvent','isAvailable')
                     let handled = await this.handleBlockReception(added)
                     resolve(handled)
       
@@ -1554,15 +1552,19 @@ class Node {
       else if(reception.requestUpdate){
         
         let updated = await this.updateBlockchain()
+        this.minerChannel.emit('nodeEvent','isAvailable')
         if(updated.error) resolve({error:updated.error})
-        else resolve(updated)
-
+        else {
+         
+         resolve(updated)
+        }
       }
       else if(reception.rollback){
         
         let rolledBack = await this.chain.rollbackToBlock(reception.rollback -1)
         if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
         let updated = await this.updateBlockchain()
+        this.minerChannel.emit('nodeEvent','isAvailable')
         if(updated.error) resolve({error:updated.error})
         else resolve(updated)
         
@@ -1607,6 +1609,7 @@ class Node {
         
 
       }else{
+        this.minerChannel.emit('nodeEvent','isAvailable')
         resolve(reception)
       }
     })
