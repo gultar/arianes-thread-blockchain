@@ -1492,7 +1492,7 @@ class Node {
   handleNewBlockFound(data, relayPeer, peerMessage){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
-        if(!this.isDownloading){
+        if(!this.isDownloading && !this.chain.isRollingBack){
           try{
             if(!this.isOutOfSync){
               let block = JSON.parse(data);
