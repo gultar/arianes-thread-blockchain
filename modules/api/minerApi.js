@@ -52,10 +52,12 @@ class MinerAPI{
                     break;
                 case 'isSwitchingBranch':
                 case 'isDownloading':
+                case 'isRollingBack':
                     this.isNodeWorking = true
                     break;
                 case 'finishedSwitchingBranch':
                 case 'finishedDownloading':
+                case 'finishedRollingBack':
                     this.isNodeWorking = false
                     break;
                 case 'outOfSync':
