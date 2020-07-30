@@ -797,19 +797,10 @@ class Node {
     let peer = await this.getMostUpToDatePeer(exceptPeers)
     if(peer && !peer.error){
       if(!this.chain.isRollingBack){
-        let updated = await this.downloadBlocks(peer)
-        if(updated.error){
-          exceptPeers = [...exceptPeers, peer.address]
-          console.log(`Peer ${peer.address} is excluded`)
-          return this.updateBlockchain(exceptPeers)
-        }else{
-          return { updated:true }
-        }
+        return await this.downloadBlocks(peer)
       }else{
         return {error:'Warning: Could not update now. Node is rolling back blocks'}
       }
-      
-      
     }else{
       let status = await this.buildBlockchainStatus()
       this.broadcast("getBlockchainStatus", status)
@@ -820,7 +811,7 @@ class Node {
   /**
    * @desc Checks for the peer that has the highest difficulty containing header
    */
-  getMostUpToDatePeer(exceptPeerAddresses=[]){
+  getMostUpToDatePeer(){
     return new Promise(async (resolve)=>{
       try{
         if(Object.keys(this.connectionsToPeers).length === 0){
@@ -829,8 +820,7 @@ class Node {
           let highestTotalDifficulty = '0x001'
           let mostUpdateToDatePeer = false
           for await(let address of Object.keys(this.connectionsToPeers)){
-            if(!exceptPeerAddresses.includes(address)){
-              let peer = this.connectionsToPeers[address]
+            let peer = this.connectionsToPeers[address]
   
               let peerLatestBlock = this.peersLatestBlocks[address]
               if(peerLatestBlock){
@@ -839,9 +829,7 @@ class Node {
                 if(this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber){
                   mostUpdateToDatePeer = peer
                 }
-              }
-            }
-            
+             }
           }
   
           if(mostUpdateToDatePeer) resolve(mostUpdateToDatePeer)
