@@ -834,9 +834,9 @@ class Node {
   
               let peerLatestBlock = this.peersLatestBlocks[address]
               if(peerLatestBlock){
-                let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
-                if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
-                  highestTotalDifficulty = peerLatestBlock.totalDifficulty
+                //let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
+                //if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
+                if(this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber){
                   mostUpdateToDatePeer = peer
                 }
               }
@@ -845,7 +845,15 @@ class Node {
           }
   
           if(mostUpdateToDatePeer) resolve(mostUpdateToDatePeer)
-          else resolve(false)
+          else{
+            //Picking random peer
+            logger("WARNING: Could not find fully updated peer, choosing random one")
+            let peerAddresses = Object.keys(this.connectionToPeers).length
+            let randomSelector = Math.floor(Math.random() * peerAddresses.length)
+            let randomPeerAddress = peerAddresses[randomSelector]
+            let randomPeer = this.connectionToPeers[randomPeerAddress]
+            resolve(randomPeer)
+          }
         }
       }catch(e){
         resolve({error:e.message})
