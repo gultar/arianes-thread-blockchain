@@ -811,6 +811,8 @@ class Node {
       
       
     }else{
+      let status = await this.buildBlockchainStatus()
+      this.broadcast("getBlockchainStatus", status)
       return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
     }
   }
