@@ -310,28 +310,31 @@ class StateStorage{
         let block = this.getBlock(blockNumber)
         if(!block) return { error:'ERROR: Block '+blockNumber+' not found during state rollback' }
         let blockBefore = this.getBlock(blockNumber - 1)
-        if(!block) return { error:'ERROR: Block '+blockNumber - 1+' not found during state rollback' }
+        if(!block) return { error:'ERROR: Block '+(blockNumber - 1)+' not found during state rollback' }
         if(block.error) return { error:block.error }
 
         let entry = await this.database.get(block.timestamp)
         if(entry){
             if(entry.error) return { error:entry.error }
 
-            //update index
-            let indexRolledback = await this.rollbackIndex(blockNumber)
-            if(indexRolledback.error) return { error:indexRolledback }
-            
             let closestIndexEntry = await this.findClosestIndexEntry(blockBefore.blockNumber)
             if(closestIndexEntry.error) return { error:closestIndexEntry }
 
             let newStateEntry = await this.database.get(closestIndexEntry.timestamp)
+            if(!newStateEntry) return { error:`ERROR: State entry found for ${closestIndexEntry.blockNumber} not found` }
             if(newStateEntry.error) return { error:newStateEntry.error }
-
-            let newState = newStateEntry.state
-
-            console.log('New state', newState)
-            let saved = await this.update(newState, blockBefore.blockNumber)
+            
+            let { state } = newStateEntry
+            if(!state || Object.keys(state).length == 0) return { error:`ERROR: State entry found for ${closestIndexEntry.blockNumber} is empty` }  
+            
+            //update index
+            let indexRolledback = await this.rollbackIndex(blockNumber)
+            if(indexRolledback.error) return { error:indexRolledback }
+            
+            console.log("New state", state)
+            let saved = await this.update(state, blockBefore.blockNumber)
             if(saved.error) return { error:saved.error }
+            
             console.log('Saved state', saved)
             let deleted = await this.database.deleteId(entry.timestamp.toString())
             if(deleted.error) return { error:deleted.error }
