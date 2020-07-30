@@ -339,7 +339,7 @@ class StateStorage{
             let deleted = await this.database.deleteId(entry.timestamp.toString())
             if(deleted.error) return { error:deleted.error }
             console.log('Deleted block state from DB')
-            return newState
+            return state
 
         }else{
             return { noStateToRollback:true }
