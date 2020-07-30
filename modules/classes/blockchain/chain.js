@@ -1253,7 +1253,7 @@ class Blockchain{
         }
       
         let blockBefore = this.chain[blockToRemove.blockNumber - 1]
-        
+
         let rolledBackBalances = await this.balance.rollback(blockBefore.blockNumber.toString())
         if(rolledBackBalances.error) return {error:rolledBackBalances.error}
         
@@ -1270,6 +1270,8 @@ class Blockchain{
   }
 
   async rollback(number){
+    if(!this.isRollingBack){
+      this.isRollingBack = true
       if(number && typeof number === 'number'){
         let highestBlockNumber = this.getLatestBlock().blockNumber
         let headersOfBlocksToRemove = this.chain.slice(number, highestBlockNumber)
@@ -1283,12 +1285,18 @@ class Blockchain{
             break;
           } 
         }
-  
+        
+        this.isRollingBack = false
         if(error) return { error:error }
         else return { rolledback:true }
       }else{
         return { error:'ERROR: Blocknumber to rollback to must be numerical' }
       }
+    }
+    else{
+      return { error:'WARNING: Could not rollback; chain is already rolling back' }
+    }
+      
   }
 
   rollbackToBlock(number){

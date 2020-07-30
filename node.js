@@ -1218,7 +1218,6 @@ class Node {
           global.minerChannel.emit('nodeEvent', 'isRollingBack')
           let rolledback = await this.chain.rollback(number)
           socket.emit('rollbackResult', rolledback)
-          global.minerChannel.emit('nodeEvent', 'isRollingBack')
           global.minerChannel.emit('nodeEvent', 'isAvailable')
         }
         
