@@ -135,6 +135,21 @@ program
 })
 
 program
+.command('testRollback <blockNumber>')
+.description('Requests a snapshot of the ten most recent blocks')
+.action((blockNumber)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+            socket.emit('testRollback', blockNumber);
+        
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+    
+})
+
+program
 .command('getblock <blockNumber>')
 .description('Requests some general information about the blockchain')
 .action((blockNumber)=>{
@@ -178,7 +193,7 @@ program
         openSocket(nodeAddress, (socket)=>{
                 socket.emit('rollback', blockNumber);
                 socket.on('rollbackResult', (result)=>{
-                    console.log(`Rolled back to block ${blockNumber}`)
+                    console.log(result)
                     socket.close()
                 })
             

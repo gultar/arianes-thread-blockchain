@@ -654,7 +654,7 @@ class Node {
             //Represents a fork
             
             let fork = block.previousFound
-            let rolledback = await this.chain.rollbackToBlock(fork.blockNumber - 2)
+            let rolledback = await this.chain.rollback(fork.blockNumber - 2)
             if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
 
             request(this.chain.getLatestBlock())
@@ -678,7 +678,7 @@ class Node {
               
             }else if(added.extended){
               //Should not happen since already checked if higher difficulty and if linked
-              let rolledback = await this.chain.rollbackToBlock(nextBlock - 2)
+              let rolledback = await this.chain.rollback(nextBlock - 2)
               if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
               
               request(this.chain.getLatestBlock())
@@ -1211,12 +1211,17 @@ class Node {
       })
 
       socket.on('rollback', async (number)=>{
-        global.minerChannel.emit('nodeEvent', 'isBusy')
-        global.minerChannel.emit('nodeEvent', 'isRollingBack')
-        let rolledback = await this.chain.rollbackToBlock(number)
-        socket.emit('rollbackResult', rolledback)
-        global.minerChannel.emit('nodeEvent', 'isRollingBack')
-        global.minerChannel.emit('nodeEvent', 'isAvailable')
+        number = parseInt(number)
+        if(number == 'NaN') socket.emit('rollbackResult', { error:'ERROR: Block number must be numerical' })
+        else{
+          global.minerChannel.emit('nodeEvent', 'isBusy')
+          global.minerChannel.emit('nodeEvent', 'isRollingBack')
+          let rolledback = await this.chain.rollback(number)
+          socket.emit('rollbackResult', rolledback)
+          global.minerChannel.emit('nodeEvent', 'isRollingBack')
+          global.minerChannel.emit('nodeEvent', 'isAvailable')
+        }
+        
       })
 
       socket.on('getTransactionFromDB', async (hash)=>{
@@ -1229,11 +1234,14 @@ class Node {
         socket.emit('actionFromDB', action)
       })
 
-      socket.on('testIndex', async (blockNumber)=>{
-          let name = 'Storage'
-          let store = this.chain.contractTable.stateStorage[name]
-          let entry = await store.findClosestIndexEntry(blockNumber)
-          let state = store.rollback(blockNumber)
+      socket.on('testRollback', async (blockNumber)=>{
+        console.log('Blocknumber', blockNumber)
+        let start = Date.now()
+        let number = parseInt(blockNumber)
+        let rolledback = await this.chain.rollback(number)
+        console.log(rolledback)
+        console.log(`Executed in ${Date.now() - start} ms`)
+
       })
 
       socket.on('disconnect', ()=>{
@@ -1567,7 +1575,7 @@ class Node {
       }
       else if(reception.rollback){
         
-        let rolledBack = await this.chain.rollbackToBlock(reception.rollback -1)
+        let rolledBack = await this.chain.rollback(reception.rollback -1)
         if(rolledBack){
           if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
           else{
@@ -1589,7 +1597,7 @@ class Node {
           let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
           if(comparison.rollback){
             logger('Peer chain has a longer branch than this node')
-            let rolledBack = await this.chain.rollbackToBlock(comparison.rollback)
+            let rolledBack = await this.chain.rollback(comparison.rollback)
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = this.chain.getLatestBlock()
@@ -1600,7 +1608,7 @@ class Node {
           }else if(comparison.merge){
             logger("Need to merge peer's branched block")
             let blockNumber = comparison.merge.hash
-            let rolledBack = await this.chain.rollbackToBlock(blockNumber - 1)
+            let rolledBack = await this.chain.rollback(blockNumber - 1)
             if(rolledBack.error) resolve({error:rolledBack.error})
 
             let lastHeader = this.chain.getLatestBlock()
@@ -1635,7 +1643,7 @@ class Node {
       if(isValid.conflict){
         let atBlockNumber = isValid.conflict;
         if(allowRollback){
-          let rolledback = await this.chain.rollbackToBlock(atBlockNumber-1);
+          let rolledback = await this.chain.rollback(atBlockNumber-1);
           logger('Rolled back chain up to block number ', atBlockNumber-1)
           return true;
         }else{

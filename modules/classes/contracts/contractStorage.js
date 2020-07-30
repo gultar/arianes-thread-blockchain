@@ -12,9 +12,14 @@ class StateStorage{
         this.configSet = null;
     }
 
-    async update(state){
+    async update(state, blockNumber){
         if(state && Object.keys(state).length > 0 && !state.error){
-            let currentBlock = await this.getCurrentBlock();
+            let currentBlock = false
+            if(blockNumber){
+                currentBlock = await this.getBlock(blockNumber)
+            }
+            else currentBlock = await this.getCurrentBlock();
+            if(!currentBlock) return { error:'ERROR: Could not find currentBlock during state update' }
             let timestamp = currentBlock.timestamp
             
             if(state && Object.keys(state).length > 0) this.state = state;
@@ -85,6 +90,10 @@ class StateStorage{
         })
         if(updated.error) return { error:updated.error }
         else return updated
+    }
+
+    async getIndex(){
+        return await this.database.get('index')
     }
 
     async save(state = undefined){
@@ -243,6 +252,97 @@ class StateStorage{
         
     }
 
+    // async rollbackBlockState(blockNumber){
+    //     try{
+            
+    //         console.log('Rolling back '+this.name+' to state', blockNumber)
+    //         let closestEntry = await this.findClosestIndexEntry(blockNumber)
+    //         if(closestEntry.error) return { error:closestEntry.error }
+    //         console.log('Closest Entry', closestEntry)
+    //         let { state } = await this.database.get(closestEntry.timestamp)
+    //         console.log('Past state', JSON.stringify(state, null, 1))
+    //         if(state.error) return { error:state.error }
+
+    //         let updatedIndex = await this.rollbackIndex(blockNumber)
+    //         if(updatedIndex.error) return { error:updatedIndex.error }
+    //         console.log('Last index item',updatedIndex[updatedIndex.length - 1])
+
+    //         let keys = await this.database.getAllKeys()
+    //         let parsedKeys = await this.parseTimestamps(keys)
+    //         let reversedParsedKeys = parsedKeys.reverse()
+
+    //         for await(let timestamp of reversedParsedKeys){
+    //             let entry = await this.database.get(timestamp.toString())
+    //             console.log(`Entry ${entry.blockNumber}`)
+    //             if(entry.blockNumber > closestEntry.blockNumber){
+                    
+                    
+                    
+    //                 if(!entry) return { error:`ERROR: Could not locate state entry ${timestamp}` }
+    //                 else if(entry.error) return { error:entry.error }
+    //                 else{
+    //                     let deleted = await this.database.deleteId(entry.timestamp.toString())
+    //                     if(deleted.error) return { error:deleted.error }
+    //                 }
+    //             }else if(entry.blockNumber <= closestEntry.blockNumber){
+    //                 console.log(`Stopping at timestamp ${entry.blockNumber}`)
+    //                 break
+    //             }
+    //         }
+
+    //         let reversedToNormal = reversedParsedKeys.reverse()
+
+    //         this.state = state
+    //         console.log('New state', JSON.stringify(state, null, 2))
+    //         let saved = await this.update(state)
+
+    //         if(saved.error) return { error:saved.error }
+    //         else return state
+            
+            
+    //     }catch(e){
+    //         return { error:e.message }
+    //     }
+        
+    // }
+
+    async rollbackBlock(blockNumber){
+        let block = this.getBlock(blockNumber)
+        if(!block) return { error:'ERROR: Block '+blockNumber+' not found during state rollback' }
+        let blockBefore = this.getBlock(blockNumber - 1)
+        if(!block) return { error:'ERROR: Block '+blockNumber - 1+' not found during state rollback' }
+        if(block.error) return { error:block.error }
+
+        let entry = await this.database.get(block.timestamp)
+        if(entry){
+            if(entry.error) return { error:entry.error }
+
+            //update index
+            let indexRolledback = await this.rollbackIndex(blockNumber)
+            if(indexRolledback.error) return { error:indexRolledback }
+            
+            let closestIndexEntry = await this.findClosestIndexEntry(blockBefore.blockNumber)
+            if(closestIndexEntry.error) return { error:closestIndexEntry }
+
+            let newStateEntry = await this.database.get(closestIndexEntry.timestamp)
+            if(newStateEntry.error) return { error:newStateEntry.error }
+
+            let newState = newStateEntry.state
+
+            console.log('New state', newState)
+            let saved = await this.update(newState, blockBefore.blockNumber)
+            if(saved.error) return { error:saved.error }
+            console.log('Saved state', saved)
+            let deleted = await this.database.deleteId(entry.timestamp.toString())
+            if(deleted.error) return { error:deleted.error }
+            console.log('Deleted block state from DB')
+            return newState
+
+        }else{
+            return { noStateToRollback:true }
+        }
+    }
+
     // async testRollback(blockNumber){
     //     try{
     //         // let current = await this.getCurrentState()
@@ -330,36 +430,36 @@ class StateStorage{
         
     }
 
-    async rollbackToBlock(blockNumber, latestBlock=false){
-        let block = await this.getBlock(blockNumber)
-        if(!block && latestBlock){
-            block = latestBlock
-        }else if(!block && latestBlock){
-            return { error:'ERROR: Could not find block '+blockNumber+' during rollback' }
-        }
-        let timestampString = block.timestamp
-        let targetTimestamp = parseInt(timestampString)
-        let keys = await this.database.getAllKeys()
-        let parsedKeys = await this.parseTimestamps(keys)
+    // async rollbackToBlock(blockNumber, latestBlock=false){
+    //     let block = await this.getBlock(blockNumber)
+    //     if(!block && latestBlock){
+    //         block = latestBlock
+    //     }else if(!block && latestBlock){
+    //         return { error:'ERROR: Could not find block '+blockNumber+' during rollback' }
+    //     }
+    //     let timestampString = block.timestamp
+    //     let targetTimestamp = parseInt(timestampString)
+    //     let keys = await this.database.getAllKeys()
+    //     let parsedKeys = await this.parseTimestamps(keys)
 
-        for await(let timestamp of parsedKeys){
-            if(timestamp > targetTimestamp){
-                let entry = await this.database.get(timestamp.toString())
-                if(!entry) console.log({ error:`ERROR: Could not locate state entry ${timestamp}` })
-                else if(entry.error) return { error:entry.error }
+    //     for await(let timestamp of parsedKeys){
+    //         if(timestamp > targetTimestamp){
+    //             let entry = await this.database.get(timestamp.toString())
+    //             if(!entry) console.log({ error:`ERROR: Could not locate state entry ${timestamp}` })
+    //             else if(entry.error) return { error:entry.error }
 
-                if(entry && !entry.error){
-                    let deleted = await this.database.deleteId(timestamp.toString())
-                    if(deleted.error) console.log(deleted.error)
-                }
+    //             if(entry && !entry.error){
+    //                 let deleted = await this.database.deleteId(timestamp.toString())
+    //                 if(deleted.error) console.log(deleted.error)
+    //             }
                 
 
-            }
-        }
-        let latestState = await this.getLastState()
-        return latestState
+    //         }
+    //     }
+    //     let latestState = await this.getLastState()
+    //     return latestState
 
-    }
+    // }
 
     
 

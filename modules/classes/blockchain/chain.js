@@ -320,7 +320,7 @@ class Blockchain{
         let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 5
         if(isTenBlocksAhead){
           //In case of a major fork
-          let rollback = await this.rollbackToBlock(this.getLatestBlock().blockNumber - 20)
+          let rollback = await this.rollback(this.getLatestBlock().blockNumber - 20)
           if(rollback.error) return { error:rollback.error }
           else return { requestUpdate:true }
         }
@@ -1180,7 +1180,7 @@ class Blockchain{
         let atBlockNumber = isValid.conflict;
         //Need to replace with side chain algorithm
         if(allowRollback){
-          this.rollbackToBlock(atBlockNumber-1);
+          this.rollback(atBlockNumber-1);
           logger('Rolled back chain up to block number ', atBlockNumber-1)
           return true;
         }else{
@@ -1189,6 +1189,106 @@ class Blockchain{
       }
 
       return true;
+  }
+
+  cancelRollback(block){
+
+  }
+
+  async rollbackOneBlock(){
+
+        //Getting a copy of the blocks that will later be removed from the chain
+        let blockToRemove = this.getLatestBlock()
+        let { txHashes, actionHashes } = blockToRemove
+
+        for await(let hash of txHashes){
+          if(this.spentTransactionHashes[hash]){
+            delete this.spentTransactionHashes[hash]
+          }
+        }
+
+        for await(let hash of actionHashes){
+          if(this.spentActionHashes[hash]){
+            delete this.spentActionHashes[hash]
+          }
+        }
+        
+        //Preferable to not resolve and error directly here
+        if(actionHashes.length > 0){
+          for await(var hash of actionHashes){
+            //Rolling back actions and contracts
+            let action = await this.getActionFromDB(hash);
+            if(action){
+              if(action.error) return { 
+                error:action.error, 
+                actionHash:hash, 
+                blockNumber:blockToRemove.blockNumber 
+              }
+              else{
+                if(action.type == 'contract'){
+                  if(action.task == 'deploy'){
+                    let contractName = action.data.name;
+                    let deleted = await this.contractTable.removeContract(contractName);
+                    if(deleted.error) return { 
+                      error:deleted.error, 
+                      actionHash:hash, 
+                      blockNumber:blockToRemove.blockNumber 
+                    }
+    
+                  }
+                  
+                }else if(action.type == 'account'){
+                  let account = action.data
+                  let removed = await this.accountTable.deleteAccount({ name:account.name, signature:account.ownerSignature });
+                  if(removed.error) return { 
+                    error:removed.error, 
+                    actionHash:hash, 
+                    blockNumber:blockToRemove.blockNumber 
+                  }
+                }
+              }
+              
+            }
+          }
+        }
+      
+        let blockBefore = this.chain[blockToRemove.blockNumber - 1]
+        
+        let rolledBackBalances = await this.balance.rollback(blockBefore.blockNumber.toString())
+        if(rolledBackBalances.error) return {error:rolledBackBalances.error}
+        
+        let stateRolledBack = await this.contractTable.rollbackBlock(blockToRemove.blockNumber)
+        if(stateRolledBack.error) return {error:stateRolledBack.error}
+
+        let deleted = await this.chainDB.deleteId(blockToRemove.blockNumber.toString())
+        if(deleted.error) return {error:deleted.error}
+
+        let removed = this.chain.pop()
+        
+        return { rollbackSuccess:true }
+    
+  }
+
+  async rollback(number){
+      if(number && typeof number === 'number'){
+        let highestBlockNumber = this.getLatestBlock().blockNumber
+        let headersOfBlocksToRemove = this.chain.slice(number, highestBlockNumber)
+        let reversedHeaders = headersOfBlocksToRemove.reverse()
+        let error = false
+        for await(let header of reversedHeaders){
+          let rolledBack = await this.rollbackOneBlock()
+          console.log('Rolledback block '+ header.blockNumber+' is a success', )
+          if(rolledBack.error){
+            error = rolledBack.error
+            break;
+          } 
+        }
+  
+        if(error) return { error:error }
+        else return { rolledback:true }
+      }else{
+        return { error:'ERROR: Blocknumber to rollback to must be numerical' }
+      }
   }
 
   rollbackToBlock(number){

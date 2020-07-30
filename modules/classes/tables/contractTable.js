@@ -278,6 +278,24 @@ class ContractTable{
         }
     }
 
+    async rollbackBlock(blockNumber){
+        if(blockNumber){
+            for await(let contractName of Object.keys(this.stateStorage)){
+                let storage = this.stateStorage[contractName]
+                if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
+                else{
+                    let rolledBack = await storage.rollbackBlock(blockNumber)
+                    if(rolledBack.error) return { error:rolledBack.error }
+
+                    this.stateMemory[contractName] = rolledBack
+                }
+            }
+            return true
+        }else{
+            return { error:'ERROR: Roll back incomplete. Block hash provided is undefined' }
+        }
+    }
+
     
 }
 
