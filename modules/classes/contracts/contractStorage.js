@@ -92,10 +92,15 @@ class StateStorage{
     //     return await this.database.get('index')
     // }
 
-    async save(state = undefined){
+    async save(state = undefined, blockNumber = undefined){
         try{
+            let currentBlock = false
+            if(!blockNumber){
+                currentBlock = await this.getCurrentBlock()
+            }else{
+                currentBlock = await this.getBlock(blockNumber)
+            }
             
-            let currentBlock = await this.getCurrentBlock()
             let timestamp = currentBlock.timestamp
             if(state && Object.keys(state).length > 0){
                 this.state = state
@@ -310,20 +315,21 @@ class StateStorage{
         let entry = await this.database.get(block.timestamp)
         if(entry){
             if(entry.error) return { error:entry.error }
-
+            console.log('Entry of block', entry.blockNumber)
             let state = await this.getPreviousState(entry.timestamp)
             if(state.error) return { error:state.error }
-            
+            console.log("New state", JSON.stringify(state, null, 2))
+
             if(!state || Object.keys(state).length == 0) return { error:`ERROR: State entry found for ${closestIndexEntry.blockNumber} is empty` }  
             
             let deleted = await this.database.deleteId(entry.timestamp.toString())
             if(deleted.error) return { error:deleted.error }
-
-            // console.log("New state", state)
-            let saved = await this.update(state)
-            if(saved.error) return { error:saved.error }
+            console.log('Deleted entry', deleted)
             
-            // console.log('Saved state', saved)
+            let saved = await this.save(state, blockNumber - 1)
+            if(saved.error) return { error:saved.error }
+            console.log('Saved state', saved)
+
             return state
 
         }else{
@@ -465,7 +471,9 @@ class StateStorage{
             
         }
 
-        return await this.getClosestState(timestamp)
+        console.log('Could not find previous state so looking for closest one')
+        let closestState = await this.getClosestState(timestamp)
+        console.log('ClosestState', JSON.stringify(closestState, null, 2))
 
         
     }

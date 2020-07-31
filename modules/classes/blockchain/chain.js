@@ -1275,12 +1275,14 @@ class Blockchain{
       global.minerChannel.emit("nodeEvent","isRollingBack")
       if(number && typeof number === 'number'){
         let highestBlockNumber = this.getLatestBlock().blockNumber
+        console.log('Highest block number', highestBlockNumber)
         let headersOfBlocksToRemove = this.chain.slice(number, highestBlockNumber)
+        console.log('Number of blocks to remove', headersOfBlocksToRemove)
         let reversedHeaders = headersOfBlocksToRemove.reverse()
         let error = false
         for await(let header of reversedHeaders){
           let rolledBack = await this.rollbackOneBlock()
-          
+          console.log('Rolled back', rolledBack)
           if(rolledBack.error){
             error = rolledBack.error
             break;
