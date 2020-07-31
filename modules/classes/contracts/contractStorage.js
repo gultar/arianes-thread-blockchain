@@ -42,11 +42,7 @@ class StateStorage{
             })
             if(currentStateChanged.error) return { error:currentStateChanged }
             if(added.error) return { error:added.error }
-            else{
-                let updatedIndex = await this.updateIndex()
-                if(updatedIndex.error) return { error:updatedIndex.error }
-                else return added
-            }
+            else return added
         }else{
             console.log('State provided:', state)
             return { error:`ERROR: Cannot update state of ${this.name} with empty entry` }
@@ -54,47 +50,47 @@ class StateStorage{
         
     }
     //[ {b,t},{b,t},{b,t}_________{b,t} ]
-    async updateIndex(){
-        let currentBlock = await this.getCurrentBlock()
-        let indexEntry = await this.database.get('index')
-        let index = []
-        if(!indexEntry){
-            index = [{
-                blockNumber:currentBlock.blockNumber,
-                timestamp:currentBlock.timestamp,
-            }]
-        }else{
-            index = indexEntry.index
-            index = [...index, {
-                blockNumber:currentBlock.blockNumber,
-                timestamp:currentBlock.timestamp,
-            }]
-        }
-        let updated = await this.database.put({
-            key:'index',
-            value:{
-                index:index   //Current block is pointing towards the previousblock                                                                
-            }
-        })
-        if(updated.error) return { error:updated.error }
-        else return updated
-    }
+    // async updateIndex(){
+    //     let currentBlock = await this.getCurrentBlock()
+    //     let indexEntry = await this.database.get('index')
+    //     let index = []
+    //     if(!indexEntry){
+    //         index = [{
+    //             blockNumber:currentBlock.blockNumber,
+    //             timestamp:currentBlock.timestamp,
+    //         }]
+    //     }else{
+    //         index = indexEntry.index
+    //         index = [...index, {
+    //             blockNumber:currentBlock.blockNumber,
+    //             timestamp:currentBlock.timestamp,
+    //         }]
+    //     }
+    //     let updated = await this.database.put({
+    //         key:'index',
+    //         value:{
+    //             index:index   //Current block is pointing towards the previousblock                                                                
+    //         }
+    //     })
+    //     if(updated.error) return { error:updated.error }
+    //     else return updated
+    // }
     
-    async saveIndex(index){
-        if(!index || index.length === 0) return { error:"ERROR: Cannot save empty index" }
-        let updated = await this.database.put({
-            key:'index',
-            value:{
-                index:index   //Current block is pointing towards the previousblock                                                                
-            }
-        })
-        if(updated.error) return { error:updated.error }
-        else return updated
-    }
+    // async saveIndex(index){
+    //     if(!index || index.length === 0) return { error:"ERROR: Cannot save empty index" }
+    //     let updated = await this.database.put({
+    //         key:'index',
+    //         value:{
+    //             index:index   //Current block is pointing towards the previousblock                                                                
+    //         }
+    //     })
+    //     if(updated.error) return { error:updated.error }
+    //     else return updated
+    // }
 
-    async getIndex(){
-        return await this.database.get('index')
-    }
+    // async getIndex(){
+    //     return await this.database.get('index')
+    // }
 
     async save(state = undefined){
         try{
@@ -124,7 +120,7 @@ class StateStorage{
 
     async getCurrentState(){
         try{
-            let closestState = await this.getLastState()
+            let closestState = await this.getLatestState()
             if(closestState){
                 if(closestState.error) return { error:closestState.error }
                 return closestState
@@ -136,67 +132,67 @@ class StateStorage{
         }
     }
     
-    async getLastState(){
-            let currentBlock = await this.getCurrentBlock()
-            let closestEntry = await this.findClosestIndexEntry(currentBlock.blockNumber)
-            if(closestEntry.error) return { error:closestEntry.error }
+    // async getLastState(){
+    //         let currentBlock = await this.getCurrentBlock()
+    //         let closestEntry = await this.findClosestIndexEntry(currentBlock.blockNumber)
+    //         if(closestEntry.error) return { error:closestEntry.error }
             
-            let { state } = await this.database.get(closestEntry.timestamp);
-            if(!state) return { error:`ERROR: Could not find state at entry ${currentBlock.timestamp}` }
-            else if(state.error) return { error:state.error } 
-            else return state
-    }
+    //         let { state } = await this.database.get(closestEntry.timestamp);
+    //         if(!state) return { error:`ERROR: Could not find state at entry ${currentBlock.timestamp}` }
+    //         else if(state.error) return { error:state.error } 
+    //         else return state
+    // }
 
-    async findClosestIndexEntry(blockNumber){
-        let { index } = await this.database.get('index')
-        let position = 0
-        for await(let entry of index){
-            let nextEntry = index[position + 1]
-            if(nextEntry){
-                if(entry.blockNumber == blockNumber){
-                    return entry
-                }
-                else if(entry.blockNumber < blockNumber && nextEntry.blockNumber > blockNumber){
-                    return entry
-                }
-            }else{
-                return entry
-            }
-            position++
-        }
-    }
+    // async findClosestIndexEntry(blockNumber){
+    //     let { index } = await this.database.get('index')
+    //     let position = 0
+    //     for await(let entry of index){
+    //         let nextEntry = index[position + 1]
+    //         if(nextEntry){
+    //             if(entry.blockNumber == blockNumber){
+    //                 return entry
+    //             }
+    //             else if(entry.blockNumber < blockNumber && nextEntry.blockNumber > blockNumber){
+    //                 return entry
+    //             }
+    //         }else{
+    //             return entry
+    //         }
+    //         position++
+    //     }
+    // }
     //Remove all entries before blockNumber, including the one at blocknumber
     //Rollback 13
     //  4-5-6-7-8-11-12-14-16-17-18-19
     //  . . . . . . I
     //
-    async rollbackIndex(blockNumber){
-        let { index } = await this.database.get('index')
-        let position = 0
+    // async rollbackIndex(blockNumber){
+    //     let { index } = await this.database.get('index')
+    //     let position = 0
         
-        for await(let entry of index){
-            let nextEntry = index[position + 1]
-            if(nextEntry){
-                if(entry.blockNumber == blockNumber){
-                    break
-                }
-                else if(entry.blockNumber < blockNumber && nextEntry.blockNumber > blockNumber){
-                    break
-                }
-            }
-            position++
-        }
+    //     for await(let entry of index){
+    //         let nextEntry = index[position + 1]
+    //         if(nextEntry){
+    //             if(entry.blockNumber == blockNumber){
+    //                 break
+    //             }
+    //             else if(entry.blockNumber < blockNumber && nextEntry.blockNumber > blockNumber){
+    //                 break
+    //             }
+    //         }
+    //         position++
+    //     }
 
-        let rolledBackIndex = index.slice(0, position)
-        let lastEntry = rolledBackIndex[rolledBackIndex.length - 1]
-        if(lastEntry.blockNumber === blockNumber) rolledBackIndex.pop()
-        console.log('Last Index entry:', rolledBackIndex[rolledBackIndex.length - 1])
-        let savedIndex = await this.saveIndex(rolledBackIndex)
-        if(savedIndex.error) return { error:savedIndex.error }
-        else return rolledBackIndex
+    //     let rolledBackIndex = index.slice(0, position)
+    //     let lastEntry = rolledBackIndex[rolledBackIndex.length - 1]
+    //     if(lastEntry.blockNumber === blockNumber) rolledBackIndex.pop()
+    //     console.log('Last Index entry:', rolledBackIndex[rolledBackIndex.length - 1])
+    //     let savedIndex = await this.saveIndex(rolledBackIndex)
+    //     if(savedIndex.error) return { error:savedIndex.error }
+    //     else return rolledBackIndex
         
         
-    }
+    // }
 
     async rollback(blockNumber){
         try{
@@ -309,36 +305,25 @@ class StateStorage{
     async rollbackBlock(blockNumber){
         let block = this.getBlock(blockNumber)
         if(!block) return { error:'ERROR: Block '+blockNumber+' not found during state rollback' }
-        let blockBefore = this.getBlock(blockNumber - 1)
-        if(!block) return { error:'ERROR: Block '+(blockNumber - 1)+' not found during state rollback' }
         if(block.error) return { error:block.error }
 
         let entry = await this.database.get(block.timestamp)
         if(entry){
             if(entry.error) return { error:entry.error }
 
-            let closestIndexEntry = await this.findClosestIndexEntry(blockBefore.blockNumber)
-            if(closestIndexEntry.error) return { error:closestIndexEntry }
-
-            let newStateEntry = await this.database.get(closestIndexEntry.timestamp)
-            if(!newStateEntry) return { error:`ERROR: State entry found for ${closestIndexEntry.blockNumber} not found` }
-            if(newStateEntry.error) return { error:newStateEntry.error }
+            let state = await this.getPreviousState(entry.timestamp)
+            if(state.error) return { error:state.error }
             
-            let { state } = newStateEntry
             if(!state || Object.keys(state).length == 0) return { error:`ERROR: State entry found for ${closestIndexEntry.blockNumber} is empty` }  
             
-            //update index
-            let indexRolledback = await this.rollbackIndex(blockNumber)
-            if(indexRolledback.error) return { error:indexRolledback }
-            
-            console.log("New state", state)
-            let saved = await this.update(state, blockBefore.blockNumber)
-            if(saved.error) return { error:saved.error }
-            
-            console.log('Saved state', saved)
             let deleted = await this.database.deleteId(entry.timestamp.toString())
             if(deleted.error) return { error:deleted.error }
-            console.log('Deleted block state from DB')
+
+            // console.log("New state", state)
+            let saved = await this.update(state)
+            if(saved.error) return { error:saved.error }
+            
+            // console.log('Saved state', saved)
             return state
 
         }else{
@@ -433,38 +418,57 @@ class StateStorage{
         
     }
 
-    // async rollbackToBlock(blockNumber, latestBlock=false){
-    //     let block = await this.getBlock(blockNumber)
-    //     if(!block && latestBlock){
-    //         block = latestBlock
-    //     }else if(!block && latestBlock){
-    //         return { error:'ERROR: Could not find block '+blockNumber+' during rollback' }
-    //     }
-    //     let timestampString = block.timestamp
-    //     let targetTimestamp = parseInt(timestampString)
-    //     let keys = await this.database.getAllKeys()
-    //     let parsedKeys = await this.parseTimestamps(keys)
-
-    //     for await(let timestamp of parsedKeys){
-    //         if(timestamp > targetTimestamp){
-    //             let entry = await this.database.get(timestamp.toString())
-    //             if(!entry) console.log({ error:`ERROR: Could not locate state entry ${timestamp}` })
-    //             else if(entry.error) return { error:entry.error }
-
-    //             if(entry && !entry.error){
-    //                 let deleted = await this.database.deleteId(timestamp.toString())
-    //                 if(deleted.error) console.log(deleted.error)
+    // async getLatestState(){
+    //     try{
+    //         let keys = await this.database.getAllKeys();
+    //             if(keys){
+                    
+    //                 let latestTimestamp = await this.getLatestTimestamp()
+    //                 let latestState = await this.getClosestState(latestTimestamp.toString())
+    //                 if(latestState.error) return { error:latestState.error }
+    //                 else return latestState
+                    
+    //             }else{
+    //                 return { error:'ERROR: State storage does not have keys yet' }
     //             }
-                
 
-    //         }
+    //     }catch(e){
+    //         return { error:e.message }
     //     }
-    //     let latestState = await this.getLastState()
-    //     return latestState
-
+        
     // }
 
-    
+    async getPreviousState(timestamp){
+        let keys = await this.database.getAllKeys();
+        if(!keys) return { error:'ERROR: State storage does not have keys yet' }
+
+        let timestamps = await this.parseTimestamps(keys)
+        if(timestamps.error) return { error:timestamps.error }
+
+        let foundTimestamp = false
+        let previousTimestamp = false
+        let previousStateEntry = false
+        
+        for await(let stamp of timestamps.reverse()){
+            if(foundTimestamp){
+                previousTimestamp = stamp
+                previousStateEntry = await this.database.get(previousTimestamp)
+                if(!previousStateEntry) return { error:`ERROR: Could not find previous state entry of ${previousTimestamp}` }
+                if(previousStateEntry.error) return { error:previousStateEntry.error }
+                
+                return previousStateEntry.state
+            }else{
+                if(timestamp == stamp){
+                    foundTimestamp = stamp
+                }
+            }
+            
+        }
+
+        return await this.getClosestState(timestamp)
+
+        
+    }
 
     async getLatestState(){
         try{
@@ -472,9 +476,15 @@ class StateStorage{
                 if(keys){
                     
                     let latestTimestamp = await this.getLatestTimestamp()
-                    let latestState = await this.getClosestState(latestTimestamp.toString())
-                    if(latestState.error) return { error:latestState.error }
-                    else return latestState
+                    let latestStateEntry = await this.database.get(latestTimestamp)
+                    if(latestStateEntry.error) return { error:latestStateEntry.error }
+                    else if(latestStateEntry) return latestStateEntry.state
+                    else{
+                        console.log('Finding closest state entry to ', latestTimestamp)
+                        let closestState = await this.getClosestState(latestTimestamp)
+                        if(closestState.error) return { error:closestState.error }
+                        else return closestState
+                    }
                     
                 }else{
                     return { error:'ERROR: State storage does not have keys yet' }

@@ -1280,17 +1280,20 @@ class Blockchain{
         let error = false
         for await(let header of reversedHeaders){
           let rolledBack = await this.rollbackOneBlock()
-          console.log('Rolledback block '+ header.blockNumber+' is a success', )
+          
           if(rolledBack.error){
             error = rolledBack.error
             break;
-          } 
+          }
         }
         
         this.isRollingBack = false
         global.minerChannel.emit("nodeEvent","finishedRollingBack")
         if(error) return { error:error }
-        else return { rolledback:true }
+        else{
+          logger(`Rolled back to block ${number}`)
+          return { rolledback:true }
+        }
       }else{
         return { error:'ERROR: Blocknumber to rollback to must be numerical' }
       }
