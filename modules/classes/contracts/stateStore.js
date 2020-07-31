@@ -63,16 +63,15 @@ class StateStorage{
     async getState(blockNumber=undefined){
         if(blockNumber){
             let state = this.changeLog[blockNumber]
-            if(state.atBlock) state = this.changeLog[state.atBlock]
-
-            return state
+            if(state.atBlock) return await this.getState(state.atBlock)
+            else return state
         }else{
-            return this.state
+            return this.changeLog[this.lastChange]
         }
     }
 
     async getLatestState(){
-        return this.state
+        return await this.getState(this.lastChange)
     }
 
     async rollbackBlock(blockNumber){
