@@ -1,7 +1,7 @@
 // const Database = require('./database')
 const Database = require('../database/db')
 const sha256 = require('../../tools/sha256')
-const StateStorage = require('../contracts/contractStorage')
+const StateStorage = require('../contracts/stateStore')
 
 class ContractTable{
     constructor({ getCurrentBlock, getBlock, getBlockFromHash }){
@@ -31,6 +31,8 @@ class ContractTable{
                     return this.getBlockFromHash(hash)
                 }
             })
+
+            await this.stateStorage[name].init()
         }
 
         return true
@@ -70,8 +72,12 @@ class ContractTable{
                             }
                             
                         })
+                        let currentBlock = await this.getCurrentBlock()
+
+
                         this.stateStorage[name].state = state;
-                        let updated = await this.stateStorage[name].update(state)
+                        let updated = await this.stateStorage[name].update(state, currentBlock.blockNumber)
+                        
                         if(updated.error) resolve({error:updated.error})
                         else resolve(updated)
                     }
@@ -177,7 +183,7 @@ class ContractTable{
                     resolve(this.stateMemory[name])
                 }else{
                     let state = await this.stateStorage[name].getLatestState()
-                
+                    console.log('State provided', JSON.stringify(state, null, 2))
                     if(state.error) resolve({error:state.error})
                     else resolve(state)
                 }
@@ -210,8 +216,9 @@ class ContractTable{
             if(name && newState){
                 
                 if(this.stateStorage[name]){
+                    let currentBlock = await this.getCurrentBlock()
                     
-                    let updated = await this.stateStorage[name].update(newState)
+                    let updated = await this.stateStorage[name].update(newState, currentBlock.blockNumber)
                     if(updated.error) resolve({error:updated.error})
                     else{
                         this.stateMemory[name] = newState
@@ -224,6 +231,49 @@ class ContractTable{
                
             }else{
                 resolve({error:`ERROR: Could not update state. Missing required parameters (name, state)`})
+            }
+            
+            
+        })
+    }
+
+    updateStates(){
+        return new Promise(async (resolve)=>{
+            for await(let name of Object.keys(this.stateStorage)){
+                if(this.stateStorage[name]){
+                    let currentBlock = await this.getCurrentBlock()
+                    //Making sure all states are saved upon new block
+                    let updated = await this.stateStorage[name].update(false, currentBlock.blockNumber)
+                    if(updated.error) resolve({error:updated.error})
+                    else{
+                        this.stateMemory[name] = this.stateStorage[name].getLatestState()
+                        resolve(true)
+                    }
+                    
+                }else{
+                    resolve({error:`ERROR: Could not update state of contract ${name}. Storage does not exist or is not loaded`})
+                }
+            }
+            resolve(true)
+        })
+    }
+
+    saveState(name){
+        return new Promise(async (resolve)=>{
+            if(name){
+                
+                if(this.stateStorage[name]){
+                    
+                    let saved = await this.stateStorage[name].save()
+                    if(saved.error) resolve({error:saved.error})
+                    else saved
+                    
+                }else{
+                    resolve({error:`ERROR: Could not save state of contract ${name}. Storage does not exist or is not loaded`})
+                }
+               
+            }else{
+                resolve({error:`ERROR: Could not save state. Missing required parameters (name)`})
             }
             
             

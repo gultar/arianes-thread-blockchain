@@ -423,6 +423,9 @@ class Blockchain{
     let callsExecuted = await this.runTransactionCalls(newBlock);
     if(callsExecuted.error) return { error:callsExecuted.error }
 
+    let updated = await this.contractTable.updateStates()
+    if(updated.error) return { error:updated.error }
+
     let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
     if(transactionsDeleted.error) return { error:transactionsDeleted.error }
 
@@ -1257,7 +1260,7 @@ class Blockchain{
         let rolledBackBalances = await this.balance.rollback(blockBefore.blockNumber.toString())
         if(rolledBackBalances.error) return {error:rolledBackBalances.error}
         
-        let stateRolledBack = await this.contractTable.rollbackBlock(blockToRemove.blockNumber)
+        let stateRolledBack = await this.contractTable.rollbackBlock(blockBefore.blockNumber)
         if(stateRolledBack.error) return {error:stateRolledBack.error}
 
         let deleted = await this.chainDB.deleteId(blockToRemove.blockNumber.toString())

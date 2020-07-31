@@ -1052,52 +1052,26 @@ class Node {
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          if(!blockNumber) blockNumber = this.chain.getLatestBlock().blockNumber;
-          let block = this.chain.chain[blockNumber]
-          let timestamp = block.timestamp
-          let state = await storage.getClosestState(timestamp)
+          // if(!blockNumber) blockNumber = this.chain.getLatestBlock().blockNumber;
+          // let block = this.chain.chain[blockNumber]
+          // let timestamp = block.timestamp
+          // let state = await storage.getClosestState(timestamp)
+          let state = await storage.getState(blockNumber)
           socket.emit('contractState', state)
         }
       })
 
-      socket.on('getCurrentContractState', async (contractName)=>{
-        
-        let storage = await this.chain.contractTable.stateStorage[contractName]
+      socket.on('getWholeState', async (contractName)=>{
+        let storage = this.chain.contractTable.stateStorage[contractName]
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          console.log('Got storage', storage)
-          let state = await storage.getCurrentState()
-          socket.emit('contractState', state)
-          console.log(JSON.stringify(state, null, 2))
-        }
-      })
-
-      socket.on('getClosestContractState', async (blockNumber, contractName)=>{
-        
-        let storage = await this.chain.contractTable.stateStorage[contractName]
-        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
-        else if(storage.error) socket.emit('contractState', { error:storage.error })
-        else{
-          let state = await storage.getClosestState(blockNumber)
-          socket.emit('contractState', state)
-          console.log(JSON.stringify(state, null, 2))
-        }
-      })
-
-      socket.on('getLatestContractState', async (contractName, blockNumber)=>{
-        
-        let storage = await this.chain.contractTable.stateStorage[contractName]
-        if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
-        else if(storage.error) socket.emit('contractState', { error:storage.error })
-        else{
-          let block = this.chain.chain[blockNumber]
-          if(!block) socket.emit('contractState', { error:`Block ${blockNumber} not found` })
-          else{
-            let timestamp = block.timestamp
-            let state = await storage.getClosestState(timestamp)
-            socket.emit('contractState', state)
-          }
+          // if(!blockNumber) blockNumber = this.chain.getLatestBlock().blockNumber;
+          // let block = this.chain.chain[blockNumber]
+          // let timestamp = block.timestamp
+          // let state = await storage.getClosestState(timestamp)
+          let log = storage.changeLog
+          socket.emit('contractState', log)
         }
       })
 

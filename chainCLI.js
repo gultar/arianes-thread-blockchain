@@ -256,6 +256,24 @@ program
 })
 
 program
+.command('getfullstate <contractName>')
+.description('Get state of contract at a given block hash')
+.action((contractName)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('getWholeState', contractName);
+                socket.on('contractState', (state)=>{
+                    console.log(JSON.stringify(state, null, 2))
+                    socket.close()
+                })
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+program
 .command('reset')
 .description('Requests some general information about the blockchain')
 .option('-y, --yes', 'Skip prompt')
