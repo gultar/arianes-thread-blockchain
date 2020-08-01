@@ -1337,6 +1337,8 @@ class Blockchain{
           }
         }
 
+        if(error) return { error:error }
+
         let rolledBackBalances = await this.balance.rollback(blockNumber)
         if(rolledBackBalances.error) return {error:rolledBackBalances.error}
         
