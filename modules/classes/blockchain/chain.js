@@ -314,8 +314,23 @@ class Blockchain{
 
       let isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
       let isLinked = newBlock.previousHash == this.getLatestBlock().hash
-      if(isNextBlock && isLinked) return await this.addBlock(newBlock)
+      let previousBlockExists = false
+      if(newBlock.blockNumber > 1) previousBlockExists = await this.getBlockFromDBByHash(newBlock.previousHash)
+      else previousBlockExists = true
+      
+      if(isNextBlock && isLinked && previousBlockExists) {
+        if(previousBlockExists.error) return { error:previousBlockExists.error }
+        else return await this.addBlock(newBlock)
+      }
+      else if(!previousBlockExists && isNextBlock && isLinked){
+        console.log("Seems like we're missing a block")
+        let rollback = await this.rollback(newBlock.blockNumber - 2)
+        if(rollback.error) return { error:rollback.error }
+        else return { requestUpdate:true }
+      }
       else{
+
+
 
         let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 5
         if(isTenBlocksAhead){
@@ -977,6 +992,41 @@ class Blockchain{
     return true;
   }
 
+  async isBlockchainValid(){
+    let previousHeader = false
+    let currentHeader = false
+    for await(let block of this.chain){
+      if(block.blockNumber > 0){
+        currentHeader = this.chain[block.blockNumber];
+
+        if(currentHeader.hash !== RecalculateHash(currentHeader)){
+          console.log('*******************************************************************');
+          console.log('currentblock hash does not match the recalculation ');
+          console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousHeader.hash);
+          console.log('*******************************************************************');
+          return {conflict:i};
+        }else if(currentHeader.previousHash !== previousHeader.hash){
+          console.log('*******************************************************************');
+          console.log('* currentblock hash does not match previousblock hash *');
+          console.log('Invalid block is :' + i + ' with hash: ' + currentHeader.hash + ' and previous hash: ' + previousHeader.hash);
+          console.log('*******************************************************************');
+          return {conflict:i};
+        }
+
+        let blockInDB = await this.getBlockFromDB(block.blockNumber)
+        if(!blockInDB) return { error:`ERROR: Could not find block ${block.blockNumber}` }
+        if(blockInDB.error) return { error:blockInDB.error }
+
+        
+      }
+
+      previousHeader = block
+      
+    }
+
+    return true;
+  }
+
   getTotalDifficulty(){
       let total = BigInt(1);
 
@@ -1178,7 +1228,7 @@ class Blockchain{
 
   validateBlockchain(allowRollback){
     
-      let isValid = this.isChainValid();
+      let isValid = this.isBlockchainValid();
       if(isValid.conflict){
         let atBlockNumber = isValid.conflict;
         //Need to replace with side chain algorithm
