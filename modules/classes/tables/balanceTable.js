@@ -256,12 +256,14 @@ class BalanceTable{
         return new Promise(async (resolve)=>{
             if(blockNumber !== undefined){
                 let entry = await this.stateDB.get(blockNumber.toString())
+                console.log('Rolling back to balance of ',blockNumber)
                 if(entry){
                     if(entry.error) resolve({error:entry.error})
                     this.states = entry.states
+                    console.log('Found balance states', this.states)
                     resolve(true)
                 }else{
-                    resolve({error:`ERROR: Could not complete rollback. Missing block ${blockNumber} state`})
+                    resolve({error:`ERROR: Could not complete rollback. Missing block ${blockNumber} balances`})
                 }
 
             }else{

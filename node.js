@@ -794,8 +794,13 @@ class Node {
   }
 
   async updateBlockchain(exceptPeers=[]){
-    let status = await this.buildBlockchainStatus()
-    this.broadcast("getBlockchainStatus", status)
+    if(!this.chain.isRollingBack){
+      let status = await this.buildBlockchainStatus()
+      this.broadcast("getBlockchainStatus", status)
+      return { updating:true }
+    }else{
+      return { warning:'Warning: Could not update now. Node is rolling back blocks' }
+    }
     // let peer = await this.getMostUpToDatePeer(exceptPeers)
     // if(peer && !peer.error){
     //   if(!this.chain.isRollingBack){
@@ -1567,7 +1572,7 @@ class Node {
 
         if(peer){
           let snapshot = this.peerManager.getSnapshot(peer.address)
-          
+          logger('Comparing snapshots')
           let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
           if(comparison.rollback){
             logger('Peer chain has a longer branch than this node')
