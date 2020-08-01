@@ -805,7 +805,8 @@ class Node {
     }else{
       let status = await this.buildBlockchainStatus()
       this.broadcast("getBlockchainStatus", status)
-      return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
+      if(peer.error) return { error:peer.error }
+      else return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
     }
   }
 
@@ -822,9 +823,11 @@ class Node {
           let mostUpdateToDatePeer = false
           for await(let address of Object.keys(this.connectionsToPeers)){
             let peer = this.connectionsToPeers[address]
-  
+              console.log('Checking with peer', address)
               let peerLatestBlock = this.peersLatestBlocks[address]
               if(peerLatestBlock){
+                console.log('Peer has a latest block', peerLatestBlock.blockNumber)
+                console.log('This latest block', this.chain.getLatestBlock().blockNumber)
                 //let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
                 //if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
                 console.log('Peer has higher block number', this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber)
