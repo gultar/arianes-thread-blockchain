@@ -1280,7 +1280,7 @@ class Blockchain{
         let highestBlockNumber = this.getLatestBlock().blockNumber
         console.log('Highest block number', highestBlockNumber)
         let headersOfBlocksToRemove = this.chain.slice(number, highestBlockNumber)
-        console.log('Number of blocks to remove', headersOfBlocksToRemove)
+        console.log('Number of blocks to remove', headersOfBlocksToRemove.length)
         let reversedHeaders = headersOfBlocksToRemove.reverse()
         let error = false
         for await(let header of reversedHeaders){

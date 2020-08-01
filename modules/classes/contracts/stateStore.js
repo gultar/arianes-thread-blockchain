@@ -64,15 +64,19 @@ class StateStorage{
     async getState(blockNumber=undefined){
         if(blockNumber){
             let state = this.changeLog[blockNumber]
-            if(state.atBlock) return await this.getState(state.atBlock)
-            else return state
+            if(!state){
+                return this.changeLog[this.lastChange]
+            }else{
+                if(state.atBlock) return await this.getState(state.atBlock)
+                else return state
+            }
         }else{
             return this.changeLog[this.lastChange]
         }
     }
 
     async getLatestState(){
-        return await this.getState(this.lastChange)
+        return this.changeLog[this.lastChange]
     }
 
     async rollbackOneState(){
@@ -94,7 +98,7 @@ class StateStorage{
                 let previousKey = entryKeys[entryKeys.length - 1]
                 console.log('Previous Block', previousKey)
                 let previousState = this.changeLog[previousKey]
-                
+                this.lastChange = previousKey
                 if(previousState.atBlock){
                     this.lastChange = previousState.atBlock
                     console.log('Pointed to other change', previousState)
@@ -126,7 +130,7 @@ class StateStorage{
             }
         }
 
-        return { rolledBack:true }
+        return this.state
     }
 
     // async rollbackBlock(blockNumber){
