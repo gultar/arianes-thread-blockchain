@@ -292,7 +292,7 @@ class Blockchain{
 
   async receiveBlock(newBlock){
     if(isValidBlockJSON(newBlock)){
-      if(this.isRollingBack){
+      if(!this.isRollingBack){
         //Already exists in chain?
         let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
         if(blockAlreadyExists) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
@@ -1328,9 +1328,9 @@ class Blockchain{
 
   async rollback(number){
     if(!this.isRollingBack){
-      this.isRollingBack = true
-      global.minerChannel.emit("nodeEvent","isRollingBack")
       if(number && typeof number === 'number'){
+        this.isRollingBack = true
+        global.minerChannel.emit("nodeEvent","isRollingBack")
         let highestBlockNumber = this.getLatestBlock().blockNumber
         console.log('Highest block number', highestBlockNumber)
         let headersOfBlocksToRemove = this.chain.slice(number, highestBlockNumber)
@@ -1354,6 +1354,7 @@ class Blockchain{
           return { rolledback:true }
         }
       }else{
+        
         return { error:'ERROR: Blocknumber to rollback to must be numerical' }
       }
     }
