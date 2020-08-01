@@ -826,6 +826,7 @@ class Node {
               if(peerLatestBlock){
                 //let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
                 //if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
+                console.log('Peer has higher block number', this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber)
                 if(this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber){
                   mostUpdateToDatePeer = peer
                 }

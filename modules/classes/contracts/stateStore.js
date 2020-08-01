@@ -118,9 +118,11 @@ class StateStorage{
 
     async rollbackBlock(blockNumber){
         let entries = Object.keys(this.changeLog)
-
+        let numberOfBlocksToRemove = this.lastChange - blockNumber
+        let counter = 0
         for await(let entry of entries.reverse()){
-            if(entry == blockNumber) break;
+            if(counter == numberOfBlocksToRemove) break;
+            if(entry <= blockNumber) break;
             else {
                 let rolledBack = await this.rollbackOneState()
                 if(rolledBack.error){
@@ -128,6 +130,7 @@ class StateStorage{
                     return { error:rolledBack.error }
                 }
             }
+            counter++
         }
 
         return this.state
