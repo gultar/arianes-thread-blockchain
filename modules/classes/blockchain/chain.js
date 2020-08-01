@@ -320,10 +320,8 @@ class Blockchain{
       let isLinked = newBlock.previousHash == this.getLatestBlock().hash
       
       
-      if(isNextBlock && isLinked) {
-        if(previousBlockExists.error) return { error:previousBlockExists.error }
-        else return await this.addBlock(newBlock)
-      }else{
+      if(isNextBlock && isLinked) return await this.addBlock(newBlock)
+      else{
 
 
 
