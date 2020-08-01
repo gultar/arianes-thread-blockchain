@@ -22,16 +22,17 @@ class StateStorage{
     }
 
     async init(){
-        let log = await this.database.get(this.name)
-        if(!log) return { error:`ERROR: Could not initiate ${this.name}` }
-        if(log.error) return { error:log.error }
+        let stateEntry = await this.database.get(this.name)
+        if(!stateEntry) return { error:`ERROR: Could not initiate ${this.name}` }
+        if(stateEntry.error) return { error:stateEntry.error }
+        let { changeLog, state, lastChange } = stateEntry
+        this.changeLog = changeLog
+        this.state = state
+        this.lastChange = lastChange
 
-        this.changeLog = log
-        let numberOfEntries = Object.keys(this.changeLog).length
-        let entryKeys = Object.keys(this.changeLog)
-        let lastState = this.changeLog[entryKeys[numberOfEntries - 1]]
+        console.log('State Entry', stateEntry)
 
-        this.state = lastState
+        return { started:true }
     }
 
     async update(state, blockNumber){
@@ -74,40 +75,101 @@ class StateStorage{
         return await this.getState(this.lastChange)
     }
 
-    async rollbackBlock(blockNumber){
+    async rollbackOneState(){
         let entryKeys = Object.keys(this.changeLog)
-        let firstEntry = entryKeys[0]
-        let isBeginning = blockNumber <= firstEntry
+        
+        let isBeginning = entryKeys.length <= 1
+
         if(isBeginning){
             this.state = {}
-            
         }else{
-            let previousState = this.changeLog[blockNumber]
-            let position = blockNumber
-            if(previousState.atBlock){
-                this.lastChange = previousState.atBlock
-                position = previousState.atBlock
-                previousState = this.changeLog[previousState.atBlock]
+            let lastStateKey = entryKeys.pop()
+            console.log('Last state key', lastStateKey)
+            let lastState = this.changeLog[lastStateKey]
+            if(lastState.atBlock){
+                console.log('Is pointing to other change')
+                delete this.changeLog[lastStateKey]
+            }else{
+                delete this.changeLog[lastStateKey]
+                let previousKey = entryKeys[entryKeys.length - 1]
+                console.log('Previous Block', previousKey)
+                let previousState = this.changeLog[previousKey]
+                
+                if(previousState.atBlock){
+                    this.lastChange = previousState.atBlock
+                    console.log('Pointed to other change', previousState)
+                    previousState = this.changeLog[previousState.atBlock]
+                    
+                }
+    
+                this.state = previousState
             }
 
-            this.state = previousState
-            let entryKeys = Object.keys(this.changeLog)
-            let entriesToDelete = entryKeys.slice(position, entryKeys.length - 1)
-            for await(let entry of entriesToDelete){
-                console.log('Need to delete', entry)
-                delete this.changeLog[entry]
-            }
-
-            // this.save()
+            
         }
+        await this.save()
         return this.state
 
     }
 
+    async rollbackBlock(blockNumber){
+        let entries = Object.keys(this.changeLog)
+
+        for await(let entry of entries.reverse()){
+            if(entry == blockNumber) break;
+            else {
+                let rolledBack = await this.rollbackOneState()
+                if(rolledBack.error){
+                    console.log('Caught an error', rolledBack)
+                    return { error:rolledBack.error }
+                }
+            }
+        }
+
+        return { rolledBack:true }
+    }
+
+    // async rollbackBlock(blockNumber){
+    //     let entryKeys = Object.keys(this.changeLog)
+    //     console.log('Num of entry keys:', entryKeys)
+    //     let firstEntry = entryKeys[0]
+    //     console.log('First key', firstEntry)
+    //     let isBeginning = blockNumber <= firstEntry
+    //     if(isBeginning){
+    //         this.state = {}
+    //     }else{
+    //         console.log('Block number', blockNumber)
+    //         let previousState = this.changeLog[blockNumber]
+    //         console.log('Previous State',previousState)
+    //         let position = blockNumber
+    //         if(previousState.atBlock){
+    //             this.lastChange = previousState.atBlock
+    //             position = previousState.atBlock
+    //             previousState = this.changeLog[previousState.atBlock]
+    //         }
+
+    //         this.state = previousState
+    //         let entryKeys = Object.keys(this.changeLog)
+    //         let entriesToDelete = entryKeys.slice(position, entryKeys.length)
+    //         for await(let entry of entriesToDelete.reverse()){
+    //             console.log('Need to delete', entry)
+    //             delete this.changeLog[entry]
+    //         }
+
+    //         // this.save()
+    //     }
+    //     return this.state
+
+    // }
+
     async save(){
         let currentStateChanged = await this.database.put({
             key:this.name,
-            value:this.changeLog
+            value:{
+                state:this.state,
+                changeLog:this.changeLog,
+                lastChange:this.lastChange
+            }
         })
         if(currentStateChanged.error) return { error:currentStateChanged }
         else if(currentStateChanged) return currentStateChanged
