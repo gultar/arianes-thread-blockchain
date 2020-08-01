@@ -794,25 +794,19 @@ class Node {
   }
 
   async updateBlockchain(exceptPeers=[]){
-    if(!this.chain.isRollingBack){
+
+    let peer = await this.getMostUpToDatePeer(exceptPeers)
+    if(peer && !peer.error){
+      if(!this.chain.isRollingBack){
+        return await this.downloadBlocks(peer)
+      }else{
+        return {error:'Warning: Could not update now. Node is rolling back blocks'}
+      }
+    }else{
       let status = await this.buildBlockchainStatus()
       this.broadcast("getBlockchainStatus", status)
-      return { updating:true }
-    }else{
-      return { warning:'Warning: Could not update now. Node is rolling back blocks' }
+      return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
     }
-    // let peer = await this.getMostUpToDatePeer(exceptPeers)
-    // if(peer && !peer.error){
-    //   if(!this.chain.isRollingBack){
-    //     return await this.downloadBlocks(peer)
-    //   }else{
-    //     return {error:'Warning: Could not update now. Node is rolling back blocks'}
-    //   }
-    // }else{
-    //   let status = await this.buildBlockchainStatus()
-    //   this.broadcast("getBlockchainStatus", status)
-    //   return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
-    // }
   }
 
   /**
