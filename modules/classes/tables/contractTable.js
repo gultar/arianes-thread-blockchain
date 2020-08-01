@@ -182,7 +182,8 @@ class ContractTable{
                 if(this.stateMemory[name]){
                     resolve(this.stateMemory[name])
                 }else{
-                    let state = await this.stateStorage[name].getLatestState()
+                    let currentBlock = await this.getCurrentBlock()
+                    let state = await this.stateStorage[name].getState(currentBlock.blockNumber)
                     console.log('State provided', JSON.stringify(state, null, 2))
                     if(state.error) resolve({error:state.error})
                     else resolve(state)
