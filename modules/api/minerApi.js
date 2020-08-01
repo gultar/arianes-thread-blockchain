@@ -28,6 +28,7 @@ class MinerAPI{
         this.socket.on('success', async(block) => {
             this.isAPIBusy = true
             let result = await this.addMinedBlock(block)
+            if(result.error) logger(result.error)
             this.isAPIBusy = false
         })
         this.socket.on('generate', ()=>{
@@ -108,6 +109,7 @@ class MinerAPI{
         if(isValid){
           if(isValid.error){
             if(this.verbose) logger("INVALID BLOCK:", isValid)
+            return { error:isValid.error }
           }  //
           else{
             //To guard against accidentally creating doubles
@@ -121,17 +123,19 @@ class MinerAPI{
                 this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
                 let added = await this.chain.receiveBlock(block)
-                if(added.error)logger('MINEDBLOCK:',added.error)
+                if(added.error) logger('MINEDBLOCK:',added.error)
                 else return block
-            }else{
-                return false
+            }else if(exists){
+                return { error:`ERROR: Block ${block.blockNumber} exists in DB` }
+            }else if(headerExists){
+                return { error:`ERROR: Block ${block.blockNumber}'s header is already in the chain` }
+            }else if(!isNextBlock){
+                return { error:`ERROR: Mined Block ${block.blockNumber} is not next block` }
             }
           }
           
         }else{
-          logger('ERROR: Mined Block is not valid!')
-          logger(block)
-          return false
+          return { error:'ERROR: Mined Block is not valid!' }
         }
     }
 

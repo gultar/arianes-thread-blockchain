@@ -47,7 +47,7 @@ class StateStorage{
                 this.changeLog[blockNumber] = { atBlock:this.lastChange }
             }
         }
-        console.log('State updated', JSON.stringify(this.state, null, 2))
+        // console.log('State updated', JSON.stringify(this.state, null, 2))
         return { updated:true }
     }
 
