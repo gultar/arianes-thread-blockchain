@@ -318,21 +318,12 @@ class Blockchain{
 
       let isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
       let isLinked = newBlock.previousHash == this.getLatestBlock().hash
-      let previousBlockExists = false
-      if(newBlock.blockNumber > 1) previousBlockExists = await this.getBlockFromDBByHash(newBlock.previousHash)
-      else previousBlockExists = true
       
-      if(isNextBlock && isLinked && previousBlockExists) {
+      
+      if(isNextBlock && isLinked) {
         if(previousBlockExists.error) return { error:previousBlockExists.error }
         else return await this.addBlock(newBlock)
-      }
-      else if(!previousBlockExists && isNextBlock && isLinked){
-        console.log("Seems like we're missing a block")
-        let rollback = await this.rollback(newBlock.blockNumber - 2)
-        if(rollback.error) return { error:rollback.error }
-        else return { requestUpdate:true }
-      }
-      else{
+      }else{
 
 
 
@@ -361,6 +352,14 @@ class Blockchain{
   }
 
   async addBlock(newBlock){
+    let previousBlockExists = false
+    if(newBlock.blockNumber > 1){
+      previousBlockExists = await this.getBlockFromDBByHash(newBlock.previousHash)
+      if(!previousBlockExists) return { error:"ERROR: Previous block ${newBlock.blockNumber - 1} is missing from DB" }
+      if(previousBlockExists.error) return { error:previousBlockExists.error }
+    }
+    else previousBlockExists = true
+
     let newHeader = this.extractHeader(newBlock)
     this.chain.push(newHeader);
 
