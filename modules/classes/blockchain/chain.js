@@ -1308,12 +1308,6 @@ class Blockchain{
       
         let blockBefore = this.chain[blockToRemove.blockNumber - 1]
 
-        let rolledBackBalances = await this.balance.rollback(blockBefore.blockNumber.toString())
-        if(rolledBackBalances.error) return {error:rolledBackBalances.error}
-        
-        let stateRolledBack = await this.contractTable.rollbackBlock(blockBefore.blockNumber)
-        if(stateRolledBack.error) return {error:stateRolledBack.error}
-
         let deleted = await this.chainDB.deleteId(blockToRemove.blockNumber.toString())
         if(deleted.error) return {error:deleted.error}
 
@@ -1342,6 +1336,12 @@ class Blockchain{
             break;
           }
         }
+
+        let rolledBackBalances = await this.balance.rollback(blockBefore.blockNumber.toString())
+        if(rolledBackBalances.error) return {error:rolledBackBalances.error}
+        
+        let stateRolledBack = await this.contractTable.rollbackBlock(blockBefore.blockNumber)
+        if(stateRolledBack.error) return {error:stateRolledBack.error}
         
         this.isRollingBack = false
         global.minerChannel.emit("nodeEvent","finishedRollingBack")
