@@ -97,6 +97,11 @@ class MinerAPI{
             }
         })
         this.mempool.events.on('newTransaction', async (transaction)=>{
+            console.log("Generate?", this.generate)
+            console.log("API Busy?", this.isAPIBusy)
+            console.log("Miner Busy?", this.isMinerBusy)
+            console.log("Node working?", this.isNodeWorking)
+            console.log("Node out of sync?", this.nodeOutOfSync)
              if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync){
                  
                 await this.sendNewBlock()
