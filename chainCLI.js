@@ -237,6 +237,7 @@ program
     }
 })
 
+
 program
 .command('getstate <contractName> [blockNumber]')
 .description('Get state of contract at a given block hash')
@@ -355,6 +356,24 @@ program
         openSocket(nodeAddress, (socket)=>{
                 socket.emit('isDownloading', value);
                 setTimeout(()=>{ socket.close() }, 300)
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
+
+program
+.command('keyasnumber')
+.description('Validates the enter blockchain. Returns the conflicting block if there is one')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('keyAsNumber');
+                setTimeout(()=>{
+                    socket.close()
+                }, 1000)
             
         })
     }else{

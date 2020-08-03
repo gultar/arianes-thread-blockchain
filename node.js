@@ -595,42 +595,40 @@ class Node {
         const closeConnection = (error=false) =>{
           peer.off('nextBlock')
           if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-          cancelTimers()
+          // cancelTimers()
           this.isDownloading = false;
         }
   
-        const awaitResend = (payload) =>{
-          resendTimer = setTimeout(()=>{
-            peer.emit('getNextBlock', payload)
-            awaitTimeout()
-          }, 1000)
-        }
+        // const awaitResend = (payload) =>{
+        //   resendTimer = setTimeout(()=>{
+        //     peer.emit('getNextBlock', payload)
+        //     awaitTimeout()
+        //   }, 1000)
+        // }
   
-        const awaitTimeout = () =>{
-          timeoutTimer = setTimeout(()=>{
-            logger('Could not complete download. Peer unavailable')
-            closeConnection({ error:true })
-            resolve(true)
-          }, 20000)
-        }
+        // const awaitTimeout = () =>{
+        //   timeoutTimer = setTimeout(()=>{
+        //     logger('Could not complete download. Peer unavailable')
+        //     closeConnection({ error:true })
+        //     resolve(true)
+        //   }, 20000)
+        // }
   
         const cancelTimers = () =>{
-          clearTimeout(timeoutTimer)
-          timeoutTimer = false
-          clearTimeout(resendTimer)
+        //   clearTimeout(timeoutTimer)
+        //   timeoutTimer = false
+        //   clearTimeout(resendTimer)
         }
 
-        const resetTimers = () =>{
-          clearTimeout(timeoutTimer)
-          timeoutTimer = false
-          if(resendTimer) clearTimeout(resendTimer)
-          awaitTimeout()
-        }
+        // const resetTimers = () =>{
+        //   clearTimeout(timeoutTimer)
+        //   timeoutTimer = false
+        //   if(resendTimer) clearTimeout(resendTimer)
+        //   awaitTimeout()
+        // }
   
         const request = (payload) =>{
           peer.emit('getNextBlock', payload)
-          //awaitResend()
-          // awaitTimeout()
         }
         
         peer.on('nextBlock', async (block)=>{
@@ -646,7 +644,7 @@ class Node {
             this.minerChannel.emit('nodeEvent','inSync')
             logger('Blockchain updated successfully!')
             closeConnection()
-            resolve(true)
+            resolve({ downloaded:true })
           }else if(block.error){
             closeConnection({ error:true })
             resolve({ error:block.error })
@@ -1130,8 +1128,9 @@ class Node {
       })
 
       socket.on('isChainValid', async ()=>{
-        let isValidChain = await this.validateBlockchain();
+        let isValidChain = await this.chain.validateBlockchain();
         if(isValidChain){
+          logger('Is valid?', isValidChain)
           logger('Blockchain is valid')
         }
       })
@@ -1172,6 +1171,8 @@ class Node {
           value:'muppet'
         })
         console.log(result)
+        let retrieved = await poubelle.get(2000)
+        console.log(retrieved)
       })
 
       socket.on('getMempool', ()=>{
