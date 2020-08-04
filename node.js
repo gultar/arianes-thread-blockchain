@@ -1409,7 +1409,7 @@ class Node {
           let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
           if(added){
             if(added.error) logger(chalk.red('REJECTED BLOCK:'), added.error)
-            else if(added.busy) logger(chalk.yellow('WARNING: Received block but node is busy downloading'))
+            else if(added.busy) logger(chalk.yellow(added.busy))
           }
         break;
       case 'networkEvent':
@@ -1554,10 +1554,8 @@ class Node {
         if(reception.exists || reception.existsInPool){
           resolve({error:reception.error})
         }else if(reception.isRollingBack){
-          logger(chalk.yellow('WARNING', reception.error))
           resolve({ busy:reception.error })
         }else if(reception.isRoutingBlock){
-          logger(chalk.yellow('WARNING', reception.error))
           resolve({ busy:reception.error })
         }else{
           resolve({error:reception.error})
