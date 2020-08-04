@@ -734,11 +734,7 @@ class Node {
                       if(updated.error){
                         logger(updated.error)
                         resolve({error:updated.error})
-                      }
-                      else if(updated.broadcasted){
-                        
-                      }
-                      else {
+                      }else {
                         this.updated = true
                         resolve(updated)
                       }
