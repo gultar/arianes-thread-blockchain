@@ -39,7 +39,6 @@ class BalanceTable{
             else if(previousState.error) return { error:previousState.error }
             else{
                 this.states = previousState.states
-                console.log(`Found balance state of ${block.blockNumber - 1}`)
             }
 
             let calls = await this.extractTransactionCalls(block.transactions)
