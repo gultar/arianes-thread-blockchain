@@ -307,7 +307,7 @@ class Node {
           points: 100, // 5 points
           duration: 1, // per second
       });
-
+      socket.on('getStatus', async ()=> socket.emit('status', await this.buildBlockchainStatus()))
       socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
       socket.on('getNextBlock', async (header)=> await this.getNextBlock(socket, header))
@@ -711,7 +711,7 @@ class Node {
   }
 
   async synchronize(){
-    let topPeer = await this.getMostUpToDatePeer()
+    let topPeer = await this.getBestPeer()
     if(topPeer && topPeer.connected){
       let currentStatus = await this.buildBlockchainStatus()
       let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
@@ -791,21 +791,68 @@ class Node {
     
   }
 
-  async updateBlockchain(exceptPeers=[]){
+  async updateBlockchain(){
     if(!this.chain.isRollingBack){
-      let peer = await this.getMostUpToDatePeer(exceptPeers)
-      if(peer && !peer.error){
+      let peer = await this.getBestPeer()
+      if(peer){
         return await this.downloadBlocks(peer)
       }else{
         let status = await this.buildBlockchainStatus()
         this.broadcast("getBlockchainStatus", status)
-        if(peer.error) return { error:peer.error }
-        else return { error:'ERROR: Could not update blockchain. All peers are unavailable.' }
+        return { broadcasted:true }
       }
     }else{
       return {error:'Warning: Could not update now. Node is rolling back blocks'}
     }
     
+  }
+
+  async getPeerStatuses(){
+    if(Object.keys(this.connectionsToPeers).length > 0){
+      let statuses = {}
+      for await(let address of Object.keys(this.connectionsToPeers)){
+        let peer = this.connectionsToPeers[address]
+        peer.on('status', (status)=>{
+            if(status){ //isValidStatus(status)
+              statuses[address] = status
+              this.peersLatestBlocks[address] = status.bestBlockHeader
+              peer.off('status')
+            }else{
+              peer.off('status')
+            } 
+        })
+        peer.emit('getStatus')
+      }
+
+
+    }else return false
+  }
+
+  async getBestPeer(){
+    if(Object.keys(this.connectionsToPeers).length > 0){
+      console.log('Getting best peer')
+      let bestPeer = {}
+      let bestPeerBlock = {
+        blockNumber:0
+      }
+      for await(let address of Object.keys(this.connectionsToPeers)){
+        let peer = this.connectionsToPeers[address]
+        peer.on('status', (status)=>{
+            if(status){ //isValidStatus(status)
+              if(bestPeerBlock.blockNumber < status.bestBlockHeader.blockNumber){
+                bestPeer = peer
+              }
+              this.peersLatestBlocks[address] = status.bestBlockHeader
+              peer.off('status')
+            }
+        })
+        peer.emit('getStatus')
+      }
+
+      return bestPeer
+
+
+    }else return false
   }
 
   /**
@@ -1560,53 +1607,13 @@ class Node {
             if(updated.error) resolve({error:updated.error})
             else resolve(updated)
           }
-          
         }
         
-      }
-      else if(reception.extended){
-        logger('Comparing chain snapshots with peer', peer.address)
-        let peer = await this.getMostUpToDatePeer()
-
-        if(peer){
-          let snapshot = this.peerManager.getSnapshot(peer.address)
-          logger('Comparing snapshots')
-          let comparison = await compareSnapshots(this.chain.chainSnapshot, snapshot)
-          if(comparison.rollback){
-            logger('Peer chain has a longer branch than this node')
-            let rolledBack = await this.chain.rollback(comparison.rollback)
-            if(rolledBack.error) resolve({error:rolledBack.error})
-
-            let lastHeader = this.chain.getLatestBlock()
-            let updated = await this.updateBlockchain()
-            if(updated.error) resolve({error:updated.error})
-            else resolve(updated)
-            
-          }else if(comparison.merge){
-            logger("Need to merge peer's branched block")
-            let blockNumber = comparison.merge.hash
-            let rolledBack = await this.chain.rollback(blockNumber - 1)
-            if(rolledBack.error) resolve({error:rolledBack.error})
-
-            let lastHeader = this.chain.getLatestBlock()
-            // let downloaded = await this.downloadBlocks(peer, lastHeader)
-            // resolve(downloaded)
-            let updated = await this.updateBlockchain()
-            if(updated.error) resolve({error:updated.error})
-            else resolve(updated)
-          }else{
-            logger("This chain snapshot is longer")
-            resolve(comparison)
-          }
-        }else{
-          resolve({error:'ERROR: Could not find suitable peer to sync with'})
-        }
-        
-
       }else{
         this.minerChannel.emit('nodeEvent','isAvailable')
         resolve(reception)
       }
+      
     })
   }
 

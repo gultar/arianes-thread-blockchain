@@ -1336,7 +1336,7 @@ class Blockchain{
         let error = false
         for await(let header of reversedHeaders){
           let rolledBack = await this.rollbackOneBlock()
-          console.log('Rolled back', rolledBack)
+          console.log('Rolled back block '+header.blockNumber, rolledBack)
           if(rolledBack.error){
             error = rolledBack.error
             break;
