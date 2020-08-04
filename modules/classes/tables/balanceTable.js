@@ -34,6 +34,11 @@ class BalanceTable{
         return new Promise(async (resolve)=>{
             if(!block) resolve({error:"Block to execute is of undefined"})
 
+            let previousState = await this.stateDB.get(block.blockNumber - 1)
+            if(!previousState) return { error:`ERROR: Balance state at block ${block.blockNumber - 1} could not be found` }
+            else if(previousState.error) return { error:previousState.error }
+            else this.states = previousState.states
+
             let calls = await this.extractTransactionCalls(block.transactions)
             
             if(calls){
