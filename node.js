@@ -635,7 +635,7 @@ class Node {
             let added = await this.chain.receiveBlock(nextBlock)
             if(added.error){
               if(added.exists || added.existsInPool){
-                request(nextBlock.blockNumber + 1)
+                resolve({error:added.error})
               }else if(added.isRollingBack){
                 logger(chalk.yellow(added.error))
                 resolve({error:added.error})
