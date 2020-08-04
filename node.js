@@ -711,7 +711,7 @@ class Node {
   }
 
   async synchronize(){
-    let topPeer = await this.getMostUpToDatePeer()
+    let topPeer = await this.getBestPeer()
     if(topPeer && topPeer.connected){
       let currentStatus = await this.buildBlockchainStatus()
       let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
@@ -816,7 +816,6 @@ class Node {
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
         peer.once('status', (status)=>{
-          console.log('Received status')
             if(status){ //isValidStatus(status)
               statuses[address] = status
               this.peersLatestBlocks[address] = status.bestBlockHeader
@@ -838,17 +837,12 @@ class Node {
       }
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
+        let peerBlock = this.peersLatestBlocks[address]
+
+        if(bestPeerBlock.blockNumber < peerBlock.blockNumber){
+          bestPeer = peer
+        }
         
-        peer.once('status', (status)=>{
-          console.log('Status received')
-            if(status){ //isValidStatus(status)
-              if(bestPeerBlock.blockNumber < status.bestBlockHeader.blockNumber){
-                bestPeer = peer
-              }
-              this.peersLatestBlocks[address] = status.bestBlockHeader
-            }
-        })
-        peer.emit('getStatus')
       }
 
       return bestPeer
