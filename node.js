@@ -603,7 +603,7 @@ class Node {
         peer.on('nextBlock', async (block)=>{
          
           if(block.end){
-            
+
             this.isOutOfSync = false
             this.minerChannel.emit('nodeEvent','inSync')
             logger('Blockchain updated successfully!')
@@ -635,7 +635,13 @@ class Node {
             let added = await this.chain.receiveBlock(nextBlock)
             if(added.error){
               if(added.exists || added.existsInPool){
-                resolve({ downloadIsOkay:true })
+                request(nextBlock.blockNumber + 1)
+              }else if(added.isRollingBack){
+                logger(chalk.yellow('DOWNLOAD WARNING', added.error))
+                resolve({error:added.error})
+              }else if(added.isRoutingBlock){
+                logger(chalk.yellow('DOWNLOAD WARNING', added.error))
+                request(added.isRoutingBlock + 1)
               }else{
                 logger('DOWNLOAD', added.error)
                 closeConnection({ error:true })
@@ -1543,7 +1549,21 @@ class Node {
    */
   handleBlockReception(reception){
     return new Promise(async (resolve)=>{
-      if(reception.error) resolve({error:reception.error})
+      if(reception.error){
+
+        if(reception.exists || reception.existsInPool){
+          resolve({error:reception.error})
+        }else if(reception.isRollingBack){
+          logger(chalk.yellow('WARNING', reception.error))
+          resolve({ busy:reception.error })
+        }else if(reception.isRoutingBlock){
+          logger(chalk.yellow('WARNING', reception.error))
+          resolve({ busy:reception.error })
+        }else{
+          resolve({error:reception.error})
+        }
+        
+      }
       else if(reception.requestUpdate){
         
         let updated = await this.updateBlockchain()

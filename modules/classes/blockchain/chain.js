@@ -292,8 +292,8 @@ class Blockchain{
 
   async receiveBlock(newBlock){
     if(isValidBlockJSON(newBlock)){
-      if(!this.isRollingBack){
-        if(this.isRoutingBlock) return { error:'ERROR: Chain is already routing a new block', blockNumber:this.isRoutingBlock }
+        if(this.isRollingBack) return { error:'ERROR: Could not receive block, chain is rolling back' }
+        if(this.isRoutingBlock) return { error:`WARNING: Chain is already routing block ${this.isRoutingBlock}`, isRoutingBlock:this.isRoutingBlock }
         //Already exists in chain?
         let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
         if(blockAlreadyExists) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
@@ -305,9 +305,7 @@ class Blockchain{
         let success = await this.routeBlock(newBlock)
         this.isRoutingBlock = false
         return success
-      }else{
-        return { error:'ERROR: Could not receive block, chain is rolling back' }
-      }
+      
       
     }else{
       return { error:`ERROR: Block does not have valid structure` }

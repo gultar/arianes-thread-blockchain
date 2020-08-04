@@ -1,5 +1,6 @@
 
 const { logger } = require('../tools/utils')
+const chalk = require('chalk')
 
 /**
  * An api that links the miner process and the node and gathers transactions for it
@@ -28,7 +29,8 @@ class MinerAPI{
         this.socket.on('success', async(block) => {
             this.isAPIBusy = true
             let result = await this.addMinedBlock(block)
-            if(result.error) logger('MINER',result.error)
+            if(result.error && result.isRoutingBlock) logger(chalk.yellow('MINER WARNING'), result.error)
+            else if(result.error) logger(chalk.red('MINER ERROR'),result.error)
             this.isAPIBusy = false
         })
         this.socket.on('generate', ()=>{
