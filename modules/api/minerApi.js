@@ -28,7 +28,7 @@ class MinerAPI{
         this.socket.on('success', async(block) => {
             this.isAPIBusy = true
             let result = await this.addMinedBlock(block)
-            if(result.error) logger(result.error)
+            if(result.error) logger('MINER',result.error)
             this.isAPIBusy = false
         })
         this.socket.on('generate', ()=>{
@@ -128,7 +128,9 @@ class MinerAPI{
                 this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
                 let added = await this.chain.receiveBlock(block)
-                if(added.error) logger('MINEDBLOCK:',added.error)
+                if(added.error){
+                    return { error:added.error }
+                }
                 else return block
             }else if(exists){
                 return { error:`ERROR: Block ${block.blockNumber} exists in DB` }
