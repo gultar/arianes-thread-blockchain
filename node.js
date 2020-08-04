@@ -588,69 +588,36 @@ class Node {
 
         this.minerChannel.emit('nodeEvent','outOfSync')
         this.isOutOfSync = true
-        let resendTimer = false
-        let timeoutTimer = false
         let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
   
         const closeConnection = (error=false) =>{
           peer.off('nextBlock')
           if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-          // cancelTimers()
           this.isDownloading = false;
         }
-  
-        // const awaitResend = (payload) =>{
-        //   resendTimer = setTimeout(()=>{
-        //     peer.emit('getNextBlock', payload)
-        //     awaitTimeout()
-        //   }, 1000)
-        // }
-  
-        // const awaitTimeout = () =>{
-        //   timeoutTimer = setTimeout(()=>{
-        //     logger('Could not complete download. Peer unavailable')
-        //     closeConnection({ error:true })
-        //     resolve(true)
-        //   }, 20000)
-        // }
-  
-        const cancelTimers = () =>{
-        //   clearTimeout(timeoutTimer)
-        //   timeoutTimer = false
-        //   clearTimeout(resendTimer)
-        }
-
-        // const resetTimers = () =>{
-        //   clearTimeout(timeoutTimer)
-        //   timeoutTimer = false
-        //   if(resendTimer) clearTimeout(resendTimer)
-        //   awaitTimeout()
-        // }
   
         const request = (payload) =>{
           peer.emit('getNextBlock', payload)
         }
         
         peer.on('nextBlock', async (block)=>{
-          // console.log(block)
-          // resetTimers()
-  
-          //next known : OK
-          //next unknown found but previous yes: ask for forked block, rollback and add new block
-          //next unknown and previous unknown: reask with previous block
-          //no known block on chain? Probably not using same genesis
+         
           if(block.end){
+            
             this.isOutOfSync = false
             this.minerChannel.emit('nodeEvent','inSync')
             logger('Blockchain updated successfully!')
             closeConnection()
             resolve({ downloaded:true })
+
           }else if(block.error){
+            
             closeConnection({ error:true })
             resolve({ error:block.error })
+
           }else if(block.previousFound){
-            //Represents a fork
             
+            //Represents a fork
             let fork = block.previousFound
             let rolledback = await this.chain.rollback(fork.blockNumber - 2)
             if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
@@ -663,6 +630,7 @@ class Node {
             goingBackInChainCounter--
             
           }else if(block.found){
+
             let nextBlock = block.found
             let added = await this.chain.receiveBlock(nextBlock)
             if(added.error){
@@ -673,13 +641,6 @@ class Node {
                 closeConnection({ error:true })
                 resolve({error:added.error})
               }
-              
-            }else if(added.extended){
-              //Should not happen since already checked if higher difficulty and if linked
-              let rolledback = await this.chain.rollback(nextBlock - 2)
-              if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
-              
-              request(this.chain.getLatestBlock())
             }else{
               request(this.chain.getLatestBlock())
             }
@@ -796,7 +757,7 @@ class Node {
 
   async updateBlockchain(){
     if(!this.chain.isRollingBack){
-      let peer = await this.getMostUpToDatePeer()
+      let peer = await this.getBestPeer()
       if(peer){
         return await this.downloadBlocks(peer)
       }else{
