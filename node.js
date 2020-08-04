@@ -307,7 +307,10 @@ class Node {
           points: 100, // 5 points
           duration: 1, // per second
       });
-      socket.on('getStatus', async ()=> socket.emit('status', await this.buildBlockchainStatus()))
+      socket.on('getStatus', async ()=> {
+        console.log('Peer requested status')
+        socket.emit('status', await this.buildBlockchainStatus())
+      })
       socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
       socket.on('getNextBlock', async (header)=> await this.getNextBlock(socket, header))
@@ -837,7 +840,9 @@ class Node {
       }
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
+        peer.emit('getStatus')
         peer.on('status', (status)=>{
+          console.log('Status', status)
             if(status){ //isValidStatus(status)
               if(bestPeerBlock.blockNumber < status.bestBlockHeader.blockNumber){
                 bestPeer = peer
@@ -846,7 +851,7 @@ class Node {
               peer.off('status')
             }
         })
-        peer.emit('getStatus')
+        
       }
 
       return bestPeer
