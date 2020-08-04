@@ -321,7 +321,7 @@ class Blockchain{
       let isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
       let isLinked = newBlock.previousHash == this.getLatestBlock().hash
       
-      if(isNextBlock && isLinked && !blockNumberExistsInDB) return await this.addBlock(newBlock)
+      if(isNextBlock && isLinked) return await this.addBlock(newBlock)
       else{
 
 
