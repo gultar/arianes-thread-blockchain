@@ -353,7 +353,7 @@ class Blockchain{
     let previousBlockExists = false
     if(newBlock.blockNumber > 1){
       previousBlockExists = await this.getBlockFromDBByHash(newBlock.previousHash)
-      if(!previousBlockExists) return { error:`ERROR: Previous block ${newBlock.blockNumber - 1} is missing from DB` }
+      if(!previousBlockExists) return { error:`ERROR: Previous block ${newBlock.blockNumber - 1} of hash ${newBlock.previousHash.substr(0,10)}... is missing from DB`, missing:newBlock.previousHash }
       if(previousBlockExists.error) return { error:previousBlockExists.error }
     }
     else previousBlockExists = true
