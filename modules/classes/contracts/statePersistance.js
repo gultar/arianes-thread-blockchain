@@ -16,7 +16,6 @@ class StateStorage{
     }
 
     async init(){
-        console.log('Does it init?')
         let stateEntry = await this.database.get(this.name)
         if(!stateEntry) return { error:`ERROR: Could not initiate ${this.name}` }
         if(stateEntry.error) return { error:stateEntry.error }
@@ -24,8 +23,6 @@ class StateStorage{
         this.changeLog = changeLog
         this.state = state
         this.lastChange = lastChange
-
-        console.log('State Entry', stateEntry)
 
         return { started:true }
     }
@@ -96,9 +93,9 @@ class StateStorage{
     async rollbackBlock(blockNumber){
         let entryKeys = Object.keys(this.changeLog)
         console.log('Rolling back to ', blockNumber)
-        let isBeginning = entryKeys.length <= 1
-        if(isBeginning){
-            this.state = {}
+        let shouldDestroy = blockNumber < entryKeys[0]
+        if(shouldDestroy){
+            return { destroy:true }
         }else{
             let hasEntry = this.changeLog[blockNumber]
             if(hasEntry){
