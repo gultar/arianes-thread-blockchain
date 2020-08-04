@@ -583,77 +583,81 @@ class Node {
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
       if(peer && peer.connected){
+         if(!this.isDownloading){
+            this.isDownloading = true
+            logger('Attempting to download blocks from peer ', peer.address)
 
-        logger('Attempting to download blocks from peer ', peer.address)
+            this.minerChannel.emit('nodeEvent','outOfSync')
+            this.isOutOfSync = true
+            let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
 
-        this.minerChannel.emit('nodeEvent','outOfSync')
-        this.isOutOfSync = true
-        let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
-  
-        const closeConnection = (error=false) =>{
-          peer.off('nextBlock')
-          if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-          this.isDownloading = false;
-        }
-  
-        const request = (payload) =>{
-          peer.emit('getNextBlock', payload)
-        }
-        
-        peer.on('nextBlock', async (block)=>{
-         
-          if(block.end){
+            const closeConnection = (error=false) =>{
+              peer.off('nextBlock')
+              if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+              this.isDownloading = false;
+            }
 
-            this.isOutOfSync = false
-            this.minerChannel.emit('nodeEvent','inSync')
-            logger('Blockchain updated successfully!')
-            closeConnection()
-            resolve({ downloaded:true })
+            const request = (payload) =>{
+              peer.emit('getNextBlock', payload)
+            }
 
-          }else if(block.error){
-            
-            closeConnection({ error:true })
-            resolve({ error:block.error })
+            peer.on('nextBlock', async (block)=>{
 
-          }else if(block.previousFound){
-            
-            //Represents a fork
-            let fork = block.previousFound
-            let rolledback = await this.chain.rollback(fork.blockNumber - 2)
-            if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
+              if(block.end){
+
+                this.isOutOfSync = false
+                this.minerChannel.emit('nodeEvent','inSync')
+                logger('Blockchain updated successfully!')
+                closeConnection()
+                resolve({ downloaded:true })
+
+              }else if(block.error){
+
+                closeConnection({ error:true })
+                resolve({ error:block.error })
+
+              }else if(block.previousFound){
+
+                //Represents a fork
+                let fork = block.previousFound
+                let rolledback = await this.chain.rollback(fork.blockNumber - 2)
+                if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
+
+                request(this.chain.getLatestBlock())
+
+              }else if(block.previousNotFound){
+
+                request(this.chain.getBlockHeader(goingBackInChainCounter))
+                goingBackInChainCounter--
+
+              }else if(block.found){
+
+                let nextBlock = block.found
+                let added = await this.chain.receiveBlock(nextBlock)
+                if(added.error){
+                  if(added.exists || added.existsInPool){
+                    resolve({error:added.error})
+                  }else if(added.isRollingBack){
+                    logger(chalk.yellow(added.error))
+                    resolve({error:added.error})
+                  }else if(added.isRoutingBlock){
+                    logger(chalk.yellow(added.error))
+                    resolve({error:added.error})
+                  }else{
+                    logger('DOWNLOAD', added.error)
+                    closeConnection({ error:true })
+                    resolve({error:added.error})
+                  }
+                }else{
+                  request(this.chain.getLatestBlock())
+                }
+              }
+            })
 
             request(this.chain.getLatestBlock())
-  
-          }else if(block.previousNotFound){
-  
-            request(this.chain.getBlockHeader(goingBackInChainCounter))
-            goingBackInChainCounter--
-            
-          }else if(block.found){
-
-            let nextBlock = block.found
-            let added = await this.chain.receiveBlock(nextBlock)
-            if(added.error){
-              if(added.exists || added.existsInPool){
-                resolve({error:added.error})
-              }else if(added.isRollingBack){
-                logger(chalk.yellow(added.error))
-                resolve({error:added.error})
-              }else if(added.isRoutingBlock){
-                logger(chalk.yellow(added.error))
-                resolve({error:added.error})
-              }else{
-                logger('DOWNLOAD', added.error)
-                closeConnection({ error:true })
-                resolve({error:added.error})
-              }
-            }else{
-              request(this.chain.getLatestBlock())
-            }
-          }
-        })
-  
-        request(this.chain.getLatestBlock())
+         }else{
+           resolve({ error:`ERROR: Node is already downloading blocks` })
+         }
         
       }else{
         resolve({ switchPeers:true })
