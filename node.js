@@ -730,9 +730,7 @@ class Node {
                   let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
                   if(isValidHeader){
   
-                      this.isDownloading = true
                       let updated = await this.updateBlockchain()
-                      this.isDownloading = false
                       if(updated.error){
                         logger(updated.error)
                         resolve({error:updated.error})
