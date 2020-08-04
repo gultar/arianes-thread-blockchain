@@ -217,16 +217,16 @@ class BalanceTable{
     }
 
     payActionBlock(actions, blockNumber){
-        return new Promise((resolve)=>{
+        return new Promise(async (resolve)=>{
             if(actions){
                 let hashes = Object.keys(actions);
                 if(hashes > 0){
                     let errors = {}
-                    hashes.forEach( hash=>{
+                    for await(let hash of hashes){
                         let action = actions[hash];
                         let executed = this.payAction(action, blockNumber)
                         if(executed.error) errors[hash] = executed.error;
-                    })
+                    }
                     let numOfErrors = Object.keys(errors).length;
         
                     if(numOfErrors > 0) resolve({errors:errors, blockNumber:blockNumber})
