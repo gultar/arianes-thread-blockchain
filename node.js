@@ -637,11 +637,11 @@ class Node {
               if(added.exists || added.existsInPool){
                 request(nextBlock.blockNumber + 1)
               }else if(added.isRollingBack){
-                logger(chalk.yellow('DOWNLOAD WARNING', added.error))
+                logger(chalk.yellow(added.error))
                 resolve({error:added.error})
               }else if(added.isRoutingBlock){
-                logger(chalk.yellow('DOWNLOAD WARNING', added.error))
-                request(added.isRoutingBlock + 1)
+                logger(chalk.yellow(added.error))
+                resolve({error:added.error})
               }else{
                 logger('DOWNLOAD', added.error)
                 closeConnection({ error:true })
