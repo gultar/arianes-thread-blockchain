@@ -794,6 +794,7 @@ class Node {
     }else return false
   }
 
+  
   async getBestPeer(){
     if(Object.keys(this.connectionsToPeers).length > 0){
       let bestPeer = false
