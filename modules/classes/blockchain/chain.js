@@ -1326,6 +1326,8 @@ class Blockchain{
   async rollback(number){
     if(!this.isRollingBack){
       if(number && typeof number === 'number'){
+        if(number > this.getLatestBlock().blockNumber) return { error:`ERROR: Could not rollback, block number ${number} is higher than latest` }
+        
         this.isRollingBack = true
         global.minerChannel.emit("nodeEvent","isRollingBack")
         let highestBlockNumber = this.getLatestBlock().blockNumber

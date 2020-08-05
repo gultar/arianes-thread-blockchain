@@ -803,10 +803,14 @@ class Node {
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
         let peerBlock = this.peersLatestBlocks[address]
-
-        if(bestPeerBlock.blockNumber < peerBlock.blockNumber){
-          bestPeer = peer
+        if(peerBlock){
+          if(bestPeerBlock.blockNumber < peerBlock.blockNumber){
+            bestPeer = peer
+          }
+        }else{
+          return false
         }
+        
         
       }
 
