@@ -325,7 +325,7 @@ class Blockchain{
 
 
 
-        let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 5
+        let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 10
         if(isTenBlocksAhead){
           //In case of a major fork
           let rollback = await this.rollback(this.getLatestBlock().blockNumber - 20)
@@ -373,7 +373,7 @@ class Blockchain{
         return { error:added.error }
       }
       else{
-        await this.manageChainSnapshotQueue(newBlock)
+        // await this.manageChainSnapshotQueue(newBlock)
         logger(`${chalk.green('[] Added new block')} ${newBlock.blockNumber} ${chalk.green('to chain:')} ${newBlock.hash.substr(0, 20)}...`)
         return added
       }
@@ -2708,71 +2708,71 @@ class Blockchain{
     
   }
 
-  /**
-   * Keeps a trace of the top most recent blocks and their link to previous blocks
-   * @param {Block} newBlock 
-   */
-  async manageChainSnapshotQueue(newBlock){
-    try{
-      if(newBlock){
-        let maxNumberOfHashes = 10;
+  // /**
+  //  * Keeps a trace of the top most recent blocks and their link to previous blocks
+  //  * @param {Block} newBlock 
+  //  */
+  // async manageChainSnapshotQueue(newBlock){
+  //   try{
+  //     if(newBlock){
+  //       let maxNumberOfHashes = 10;
   
-        this.chainSnapshot[newBlock.hash] = {
-          blockNumber:newBlock.blockNumber,
-          previousHash:newBlock.previousHash,
-          difficulty:newBlock.difficulty,
-          totalDifficulty:newBlock.totalDifficulty
-        }
+  //       this.chainSnapshot[newBlock.hash] = {
+  //         blockNumber:newBlock.blockNumber,
+  //         previousHash:newBlock.previousHash,
+  //         difficulty:newBlock.difficulty,
+  //         totalDifficulty:newBlock.totalDifficulty
+  //       }
         
-        let elements = Object.keys(this.chainSnapshot)
-        if(elements.length > maxNumberOfHashes){
-          let firstHash =  elements[0]
-          delete this.chainSnapshot[firstHash]
+  //       let elements = Object.keys(this.chainSnapshot)
+  //       if(elements.length > maxNumberOfHashes){
+  //         let firstHash =  elements[0]
+  //         delete this.chainSnapshot[firstHash]
           
-        }
-      }else{
-        await this.createNewSnapshot()
+  //       }
+  //     }else{
+  //       await this.createNewSnapshot()
         
-      }
-    }catch(e){
-      return e.message
-    }
-  }
+  //     }
+  //   }catch(e){
+  //     return e.message
+  //   }
+  // }
 
-    /**
-   * Keeps a trace of the top most recent blocks and their link to previous blocks
-   *  
-   */
-  createNewSnapshot(){
-    return new Promise(async (resolve)=> {
-      try{
-        let maxNumberOfHashes = 10;
-        let blockNumber = this.getLatestBlock().blockNumber
-        this.chainSnapshot = {}
-        for(var i=blockNumber - 10; i  <= blockNumber; i++){
-          let newBlock = this.chain[i]
-          let maxNumberOfHashes = 10;
+  //   /**
+  //  * Keeps a trace of the top most recent blocks and their link to previous blocks
+  //  *  
+  //  */
+  // createNewSnapshot(){
+  //   return new Promise(async (resolve)=> {
+  //     try{
+  //       let maxNumberOfHashes = 10;
+  //       let blockNumber = this.getLatestBlock().blockNumber
+  //       this.chainSnapshot = {}
+  //       for(var i=blockNumber - 10; i  <= blockNumber; i++){
+  //         let newBlock = this.chain[i]
+  //         let maxNumberOfHashes = 10;
   
-          this.chainSnapshot[newBlock.hash] = {
-            blockNumber:newBlock.blockNumber,
-            previousHash:newBlock.previousHash,
-            difficulty:newBlock.difficulty,
-            totalDifficulty:newBlock.totalDifficulty
-          }
+  //         this.chainSnapshot[newBlock.hash] = {
+  //           blockNumber:newBlock.blockNumber,
+  //           previousHash:newBlock.previousHash,
+  //           difficulty:newBlock.difficulty,
+  //           totalDifficulty:newBlock.totalDifficulty
+  //         }
           
-          let elements = Object.keys(this.chainSnapshot)
-          if(elements.length > maxNumberOfHashes){
-            let firstHash =  elements[0]
-            delete this.chainSnapshot[firstHash]
+  //         let elements = Object.keys(this.chainSnapshot)
+  //         if(elements.length > maxNumberOfHashes){
+  //           let firstHash =  elements[0]
+  //           delete this.chainSnapshot[firstHash]
             
-          }
-        }
-      }catch(e){
-        resolve({error:e.message})
-      }
-    })
+  //         }
+  //       }
+  //     }catch(e){
+  //       resolve({error:e.message})
+  //     }
+  //   })
 
-  }
+  // }
 
     /**
     Fetches a block from chainDB
@@ -2868,7 +2868,7 @@ class Blockchain{
                   for await(let hash of actionHashes){
                     this.spentActionHashes[hash] = block.blockNumber//{ spent:block.blockNumber }
                   }
-                  await this.manageChainSnapshotQueue(block)
+                  // await this.manageChainSnapshotQueue(block)
                   this.chain.push(this.extractHeader(block))
                   // console.log(`Chain is ${block.blockNumber} blocks long`)
                   bar1.update(block.blockNumber);

@@ -44,7 +44,7 @@ const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
 const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-const compareSnapshots = require('./modules/network/snapshotHandler');
+// const compareSnapshots = require('./modules/network/snapshotHandler');
 const Database = require('./modules/classes/database/db');
 
 /**
@@ -199,6 +199,8 @@ class Node {
             let savedPort = await this.savePortConfig();
             if(savedPort) logger('Saved port to .env config file')
             else logger('WARNING: Could not save port to .env file')
+            let loadedReputations = await this.peerManager.reputationTable.loadReputations()
+            if(loadedReputations.error) logger('REPUTATION',loadedReputations.error)
             this.heartbeat();
             this.syncHeartBeat();
             this.initAPIs();
@@ -327,10 +329,10 @@ class Node {
         this.peerManager.connectToPeer(address);
       });
 
-      socket.on('getChainSnapshot', async ()=>{
-        await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getChainSnapshot' events") }); // consume 1 point per event from IP
-        socket.emit('chainSnapshot', this.chain.chainSnapshot)
-      })
+      // socket.on('getChainSnapshot', async ()=>{
+      //   await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getChainSnapshot' events") }); // consume 1 point per event from IP
+      //   socket.emit('chainSnapshot', this.chain.chainSnapshot)
+      // })
 
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
         if(!this.messageBuffer[peerMessage.messageId]){
@@ -777,24 +779,25 @@ class Node {
 
   async getPeerStatuses(){
     if(Object.keys(this.connectionsToPeers).length > 0){
-      let statuses = {}
+      
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
         peer.once('status', (status)=>{
             if(status){ //isValidStatus(status)
-              statuses[address] = status
-              this.peersLatestBlocks[address] = status.bestBlockHeader
+              this.peerManager.peerStatus[address] = status
+              let blockHeader = status.bestBlockHeader
+              this.peersLatestBlocks[address] = blockHeader
             }
         })
         peer.emit('getStatus')
       }
 
-      return { received:statuses }
+      return { received:this.peerManager.peerStatus }
 
     }else return false
   }
 
-  
+  //Get best block according to reputation, network availability and block height
   async getBestPeer(){
     if(Object.keys(this.connectionsToPeers).length > 0){
       let bestPeer = false
@@ -1197,9 +1200,9 @@ class Node {
         this.minerChannel.emit('stopMining')
       })
 
-      socket.on('getSnapshot', ()=>{
-        socket.emit('chainSnapshot', this.chain.chainSnapshot)
-      })
+      // socket.on('getSnapshot', ()=>{
+      //   socket.emit('chainSnapshot', this.chain.chainSnapshot)
+      // })
 
       socket.on('rollback', async (number)=>{
         number = parseInt(number)
@@ -1964,7 +1967,7 @@ DHT_PORT=${this.peerDiscoveryPort}
     setInterval(async ()=>{
       this.chain.save()
       this.housekeeping()
-      this.broadcast('getChainSnapshot')
+      // this.broadcast('getChainSnapshot')
       let backUp = await this.chain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
@@ -1975,9 +1978,9 @@ DHT_PORT=${this.peerDiscoveryPort}
     */
   syncHeartBeat(){
     setInterval(async ()=>{
-        //  this.synchronize()
-        let currentStatus = await this.buildBlockchainStatus()
-        this.broadcast('getBlockchainStatus', currentStatus)
+         this.synchronize()
+        // let currentStatus = await this.buildBlockchainStatus()
+        // this.broadcast('getBlockchainStatus', currentStatus)
         await this.getPeerStatuses()
     }, this.synchronizeDelay)
   }

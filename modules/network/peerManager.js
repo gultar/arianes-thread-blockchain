@@ -1,7 +1,8 @@
 const ioClient = require('socket.io-client')
 const { logger } = require('../tools/utils')
-const compareSnapshots = require('./snapshotHandler')
+const reputationTable = require('./reputationTable')
 const chalk = require('chalk')
+const ReputationTable = require('./reputationTable')
 
 class PeerManager{
     constructor({ 
@@ -31,6 +32,7 @@ class PeerManager{
         this.noLocalhost = noLocalhost
         this.peerSnapshots = {}
         this.peerStatus = {}
+        this.reputationTable = new ReputationTable()
     }
 
     /**
@@ -106,7 +108,21 @@ class PeerManager{
                             
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
-                                // console.log(JSON.stringify(response, null, 2))
+
+                                let peerReputation = await this.reputationTable.getPeerReputation(address)
+                                if(peerReputation == 'untrusted'){
+                                    logger(`Refused connection to untrusted peer ${address}`)
+                                    response.success = false
+                                    peer.disconnect()
+                                }else if(peerReputation == 'unkown'){
+                                    logger(`New peer is unkown. Creating new reputation entry`)
+                                    let created = await this.reputationTable.createPeerReputation(address)
+                                    if(created.error){
+                                        logger('Could not create peer reputation entry. An error occured')
+                                        logger(created.error)
+                                    }
+                                }
+                                
                                 if(response.success){
                                     this.connectionsToPeers[address] = peer;
                                     logger(chalk.green('Connected to ', address))
@@ -117,14 +133,10 @@ class PeerManager{
                                     peer.emit('connectionRequest', this.address);
                                     this.nodeList.addNewAddress(address) 
                                 
-
+                                    this.requestNewPeers(peer)
                                     this.onPeerAuthenticated(peer)
-                                    
 
                                     setTimeout(async()=>{
-                                        // peer.emit('getBlockchainStatus', status);
-                                        peer.emit('getPeers')
-                                        peer.emit('getChainSnapshot')
                                         
                                     },2000);
                                 }else{
@@ -163,8 +175,8 @@ class PeerManager{
         return this.connectionsToPeers[address]
     }
 
-    onPeerAuthenticated(peer){
-        peer.on('newPeers', async (peers)=> {
+    requestNewPeers(peer){
+        peer.once('newPeers', async (peers)=> {
             if(peers && peers.length){
                for await(let addr of peers){
                     if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
@@ -176,14 +188,15 @@ class PeerManager{
                }
             }
         })
+        //Request known addresses from new peer
+        peer.emit('getPeers')
+    }
+
+    onPeerAuthenticated(peer){
 
         peer.on('blockchainStatus', async (status)=>{
             let updated = await this.receiveBlockchainStatus(peer, status)
             if(updated.error) console.log(updated.error)
-        })
-
-        peer.on('chainSnapshot', (snapshot)=>{
-            this.peerSnapshots[peer.address] = snapshot
         })
 
         peer.on('disconnect', () =>{
@@ -194,27 +207,6 @@ class PeerManager{
             peer.disconnect()
         })
     }
-
-
-
-    getSnapshot(address){
-        return this.peerSnapshots[address]
-    }
-
-    requestChainSnapshot(peer){
-        return new Promise((resolve)=>{
-            peer.on('chainSnapshot', snapshot => {
-                clearTimeout(noAnswer)
-                peer.off('chainSnapshot')
-                resolve(snapshot)
-            })
-            peer.emit('getChainSnapshot')
-            let noAnswer = setTimeout(()=>{
-                resolve(false)
-            }, 5000)
-        })
-    }
-
 
 }
 
