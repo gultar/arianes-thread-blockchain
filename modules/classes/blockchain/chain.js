@@ -438,7 +438,7 @@ class Blockchain{
     
     let callsExecuted = await this.runTransactionCalls(newBlock);
     if(callsExecuted.error) return { error:callsExecuted.error }
-
+    
     let updated = await this.contractTable.updateStates()
     if(updated.error) return { error:updated.error }
 

@@ -587,7 +587,7 @@ class Node {
       if(peer && peer.connected){
          if(!this.isDownloading){
             this.isDownloading = true
-            let requestTimer = {}
+            let requestTimer = false
             logger('Attempting to download blocks from peer ', peer.address)
 
             this.minerChannel.emit('nodeEvent','outOfSync')
@@ -603,14 +603,22 @@ class Node {
 
             const request = (payload) =>{
               peer.emit('getNextBlock', payload)
-              requestTimer = setTimeout(()=>{
-                closeConnection({ error:'timeout' })
-                resolve({ error:'ERROR: Download request timed out. Peer did not respond.' })
-              }, 30*1000)
+              if(!requestTimer){
+                requestTimer = setTimeout(()=>{
+                  console.log('OKAY DOES NOT WORK')
+                  closeConnection({ error:'timeout' })
+                  resolve({ error:'ERROR: Download request timed out. Peer did not respond.' })
+                }, 30*1000)
+              }else{
+                clearTimeout(requestTimer)
+                requestTimer = false
+              }
             }
 
             peer.on('nextBlock', async (block)=>{
               clearTimeout(requestTimer)
+              requestTimer = false
+
               if(block.end){
 
                 this.isOutOfSync = false
@@ -678,14 +686,11 @@ class Node {
 
 
   async buildBlockchainStatus(){
-    let latestFullBlock = await this.getLatestFullBlock()
-
     let status = {
       totalDifficultyHex: this.chain.getDifficultyTotal(),
-      bestBlockHeader: this.chain.extractHeader(latestFullBlock),
+      bestBlockHeader: this.chain.getLatestBlock(),
       length: this.chain.chain.length
     }
-
     return status
   }
 
