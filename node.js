@@ -1993,9 +1993,9 @@ DHT_PORT=${this.peerDiscoveryPort}
     */
   syncHeartBeat(){
     setInterval(async ()=>{
-         this.synchronize()
-        // let currentStatus = await this.buildBlockchainStatus()
-        // this.broadcast('getBlockchainStatus', currentStatus)
+        // this.synchronize()
+        let currentStatus = await this.buildBlockchainStatus()
+        this.broadcast('getBlockchainStatus', currentStatus)
         await this.getPeerStatuses()
     }, this.synchronizeDelay)
   }
