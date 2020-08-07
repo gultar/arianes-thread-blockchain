@@ -130,9 +130,7 @@ class MinerAPI{
                 this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
                 let added = await this.chain.receiveBlock(block)
-                if(added.error){
-                    return { error:added.error }
-                }
+                if(added.error) return added
                 else return block
             }else if(exists){
                 return { error:`ERROR: Block ${block.blockNumber} exists in DB` }
