@@ -1187,6 +1187,7 @@ class Node {
       })
 
       socket.on('update', ()=>{
+        this.isDownloading = false
         this.broadcast('getBlockchainStatus');
       })
 
