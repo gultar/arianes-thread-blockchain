@@ -603,20 +603,23 @@ class Node {
               this.isDownloading = false;
             }
 
+            const createTimer = () =>{
+              requestTimer = setTimeout(()=>{
+                console.log('OKAY DOES NOT WORK')
+                closeConnection({ error:'timeout' })
+                // console.log('Download failed so peer is now out of sync')
+                peer.isSynced = false
+                resolve({ error:'ERROR: Download request timed out. Peer did not respond.' })
+              }, 30*1000)
+            }
+            
             const request = (payload) =>{
               peer.emit('getNextBlock', payload)
-              if(!requestTimer){
-                requestTimer = setTimeout(()=>{
-                  console.log('OKAY DOES NOT WORK')
-                  closeConnection({ error:'timeout' })
-                  // console.log('Download failed so peer is now out of sync')
-                  peer.isSynced = false
-                  resolve({ error:'ERROR: Download request timed out. Peer did not respond.' })
-                }, 30*1000)
-              }else{
-                clearTimeout(requestTimer)
-                requestTimer = false
+              if(requestTimer){
+                 clearTimeout(requestTimer)
+                 requestTimer = false
               }
+              createTimer()
             }
 
             peer.on('nextBlock', async (block)=>{
@@ -2028,15 +2031,15 @@ DHT_PORT=${this.peerDiscoveryPort}
       @desc Routine tasks go here. The heartbeat's delay is adjusted in nodeconfig
     */
   syncHeartBeat(){
-    let lastSyncWithPeer = ""
+//     let lastSyncWithPeer = ""
     setInterval(async ()=>{
-        let syncedWith = await this.synchronize(lastSyncWithPeer)
-        if(syncedWith){
-          console.log('Has synced with', syncedWith)
-          lastSyncWithPeer = syncedWith
-        }
-        // let currentStatus = await this.buildBlockchainStatus()
-        // this.broadcast('getBlockchainStatus', currentStatus)
+//         let syncedWith = await this.synchronize(lastSyncWithPeer)
+//         if(syncedWith){
+//           console.log('Has synced with', syncedWith)
+//           lastSyncWithPeer = syncedWith
+//         }
+        let currentStatus = await this.buildBlockchainStatus()
+        this.broadcast('getBlockchainStatus', currentStatus)
         await this.getPeerStatuses()
     }, this.synchronizeDelay)
   }
