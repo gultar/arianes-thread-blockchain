@@ -587,6 +587,7 @@ class Node {
       if(peer && peer.connected){
          if(!this.isDownloading){
             this.isDownloading = true
+            let requestTimer = {}
             logger('Attempting to download blocks from peer ', peer.address)
 
             this.minerChannel.emit('nodeEvent','outOfSync')
@@ -597,14 +598,19 @@ class Node {
               peer.off('nextBlock')
               if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
               this.isDownloading = false;
+
             }
 
             const request = (payload) =>{
               peer.emit('getNextBlock', payload)
+              requestTimer = setTimeout(()=>{
+                closeConnection({ error:'timeout' })
+                resolve({ error:'ERROR: Download request timed out. Peer did not respond.' })
+              }, 30*1000)
             }
 
             peer.on('nextBlock', async (block)=>{
-
+              clearTimeout(requestTimer)
               if(block.end){
 
                 this.isOutOfSync = false
@@ -1499,6 +1505,7 @@ class Node {
   handleNewBlockFound(data, relayPeer, peerMessage){
     return new Promise( async (resolve)=>{
       if(this.chain instanceof Blockchain && data){
+        
         if(!this.isDownloading && !this.chain.isRollingBack){
           try{
             if(!this.isOutOfSync){
@@ -1540,7 +1547,10 @@ class Node {
             resolve({error:e.message})
           }
         }else{
-          resolve({busy:'ERROR: Node is busy, could not add block'})
+          
+          if(this.isDownloading) resolve({ busy:'ERROR: Node is busy downloading, could not add block' })
+          else if(this.isRollingBack) resolve({ busy:'ERROR: Node is busy rolling back blocks, could not add block' })
+          else resolve({busy:'ERROR: Node is busy, could not add block'})
         }
       }else{
         resolve({error:'ERROR: Missing parameters'})

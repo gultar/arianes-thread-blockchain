@@ -184,7 +184,6 @@ class ContractTable{
                 }else{
                     let currentBlock = await this.getCurrentBlock()
                     let state = await this.stateStorage[name].getState(currentBlock.blockNumber)
-                    console.log('State provided', JSON.stringify(state, null, 2))
                     if(state.error) resolve({error:state.error})
                     else resolve(state)
                 }
