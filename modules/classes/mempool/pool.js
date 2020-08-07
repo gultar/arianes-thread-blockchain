@@ -591,18 +591,18 @@ class Mempool{
                 let txAndTimestamp = {};
         
                 if(txHashes){
-                  txHashes.forEach( hash =>{
+                  for await(let hash of txHashes){
                     let transaction = transactions[hash];
                     txAndTimestamp[transaction.timestamp] = hash;
-                  })
+                  }
         
                   let timestamps = Object.keys(txAndTimestamp);
                   timestamps.sort(function(a, b){return a-b});
-                  timestamps.forEach( timestamp=>{
+                  for await(let timestamp of timestamps){
                     let hash = txAndTimestamp[timestamp];
                     let transaction = transactions[hash];
                     orderedTransaction[hash] = transaction;
-                  })
+                  }
         
                   return orderedTransaction;
         
@@ -620,18 +620,18 @@ class Mempool{
                 let txAndMiningFee = {};
         
                 if(txHashes){
-                  txHashes.forEach( hash =>{
+                  for await(let hash of txHashes){
                     let transaction = transactions[hash];
                     txAndMiningFee[transaction.miningFee] = hash;
-                  })
+                  }
         
                   let miningFees = Object.keys(txAndMiningFee);
                   miningFees.sort(function(a, b){return a-b});
-                  miningFees.forEach( miningFee=>{
+                  for await(let miningFee of miningFees){
                     let hash = txAndMiningFee[miningFee];
                     let transaction = transactions[hash];
                     orderedTransaction[hash] = transaction;
-                  })
+                  }
         
                   return orderedTransaction;
         

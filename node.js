@@ -98,15 +98,16 @@ class Node {
     this.peersConnected = {}; //From ioServer to ioClient
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.peersLatestBlocks = {}
+    this.lastThreeSyncs = []
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
     this.synchronizeDelay = 5*1000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
     this.isDownloading = false;
-    this.autoRollback = true || options.autoRollback || false;
-    this.tolerableBlockGap = 3 // blocks
-    this.maximumAutoRollback = 30
+    this.autoRollback = true || options.autoRollback;
+    this.tolerableBlockGap = 1 // blocks
+    this.maximumAutoRollback = 10
     this.peerManager = new PeerManager({
       address:this.address,
       host:this.host,
@@ -596,9 +597,10 @@ class Node {
 
             const closeConnection = (error=false) =>{
               peer.off('nextBlock')
-              if(!error) setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+              if(!error){
+                setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
+              }
               this.isDownloading = false;
-
             }
 
             const request = (payload) =>{
@@ -607,6 +609,8 @@ class Node {
                 requestTimer = setTimeout(()=>{
                   console.log('OKAY DOES NOT WORK')
                   closeConnection({ error:'timeout' })
+                  // console.log('Download failed so peer is now out of sync')
+                  peer.isSynced = false
                   resolve({ error:'ERROR: Download request timed out. Peer did not respond.' })
                 }, 30*1000)
               }else{
@@ -624,6 +628,8 @@ class Node {
                 this.isOutOfSync = false
                 this.minerChannel.emit('nodeEvent','inSync')
                 logger('Blockchain updated successfully!')
+                // console.log('Download successful, peer is in sync')
+                peer.isSynced = true
                 closeConnection()
                 resolve({ downloaded:true })
 
@@ -694,6 +700,7 @@ class Node {
     return status
   }
 
+  //Trying to vary peers
   async synchronize(){
     let topPeer = await this.getBestPeer()
     if(topPeer && topPeer.connected){
@@ -701,16 +708,20 @@ class Node {
       let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
       if(peerLatestHeader){
         let latestHeader = this.chain.getLatestBlock()
-        if(peerLatestHeader.blockNumber > latestHeader.blockNumber + this.tolerableBlockGap){
+        if(peerLatestHeader.blockNumber > latestHeader.blockNumber){
           this.minerChannel.emit('nodeEvent','outOfSync')
           if(!this.isDownloading) logger('Node is currently out of sync with top peer')
+          if(this.verbose) logger('Syncing chain with most up to date peer')
+          topPeer.emit('getBlockchainStatus', currentStatus)
         }else{
           this.minerChannel.emit('nodeEvent','inSync')
         }
       }
       
-      if(this.verbose) logger('Syncing chain with most up to date peer')
-      topPeer.emit('getBlockchainStatus', currentStatus)
+    }else{
+      //No Top Peer, this node is probably the top peer
+      let currentStatus = await this.buildBlockchainStatus()
+      this.broadcast('getBlockchainStatus', currentStatus)
     }
   }
 
@@ -798,6 +809,13 @@ class Node {
               this.peerManager.peerStatus[address] = status
               let blockHeader = status.bestBlockHeader
               this.peersLatestBlocks[address] = blockHeader
+              if(blockHeader.blockNumber + this.tolerableBlockGap < this.chain.getLatestBlock().blockNumber){
+                // console.log(`Peer status shows that peer ${address} is out of sync`)
+                peer.isSynced = false
+              }else{
+                // console.log(`Peer status shows that peer ${address} seems to be in sync`)
+                peer.isSynced = true
+              }
             }
         })
         peer.emit('getStatus')
@@ -808,22 +826,40 @@ class Node {
     }else return false
   }
 
+  // async manageSyncList(lastSyncWithPeer){
+  //   if(Object.keys(this.connectionsToPeers).length > 2){
+  //     this.lastThreeSyncs.push(lastSyncWithPeer)
+  //     if(this.lastThreeSyncs.length > 3){
+  //       this.lastThreeSyncs.shift()
+  //     }
+  //   }else if(Object.keys(this.connectionsToPeers).length <= 2){
+  //     if(this.lastThreeSyncs.includes(lastSyncWithPeer)){
+  //       let [ peerAddress, otherPeer ] = Object.keys(this.connectionsToPeers)
+  //       this.lastThreeSyncs = [otherPeer]
+  //     }else{
+
+  //     }
+  //   }else{
+  //     this.lastThreeSyncs = []
+  //   }
+  // }
+
   //Get best block according to reputation, network availability and block height
-  async getBestPeer(){
+  async getBestPeer(except=[]){
     if(Object.keys(this.connectionsToPeers).length > 0){
+    
       let bestPeer = false
       let bestPeerBlock = {
         blockNumber:0
       }
       for await(let address of Object.keys(this.connectionsToPeers)){
+        
         let peer = this.connectionsToPeers[address]
         let peerBlock = this.peersLatestBlocks[address]
-        if(peerBlock){
+        if(peerBlock && peer.isSynced && !except.includes(address)){
           if(bestPeerBlock.blockNumber < peerBlock.blockNumber && this.chain.getLatestBlock().blockNumber < peerBlock.blockNumber){
             bestPeer = peer
           }
-        }else{
-          return false
         }
       }
 
@@ -833,73 +869,50 @@ class Node {
     }else return false
   }
 
-  // async getThreeBestPeers(){
-  //   if(Object.keys(this.connectionsToPeers).length > 0){
-  //     let allPeers = {}
-  //     let peerBlocks = {}
-  //     for await(let address of Object.keys(this.connectionsToPeers)){
-  //       let peer = this.connectionsToPeers[address]
-  //       let peerBlock = this.peersLatestBlocks[address]
-  //       if(peerBlock){
-  //         if(this.chain.getLatestBlock().blockNumber < peerBlock.blockNumber){
-            
-  //         }
+
+  // /**
+  //  * @desc Checks for the peer that has the highest difficulty containing header
+  //  */
+  // getMostUpToDatePeer(){
+  //   return new Promise(async (resolve)=>{
+  //     try{
+  //       if(Object.keys(this.connectionsToPeers).length === 0){
+  //         resolve(false)
   //       }else{
-  //         return false
+  //         let highestTotalDifficulty = '0x001'
+  //         let mostUpdateToDatePeer = false
+  //         for await(let address of Object.keys(this.connectionsToPeers)){
+  //           let peer = this.connectionsToPeers[address]
+  //             console.log('Checking with peer', address)
+  //             let peerLatestBlock = this.peersLatestBlocks[address]
+  //             if(peerLatestBlock){
+  //               console.log('Peer has a latest block', peerLatestBlock.blockNumber)
+  //               console.log('This latest block', this.chain.getLatestBlock().blockNumber)
+  //               //let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
+  //               //if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
+  //               console.log('Peer has higher block number', this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber)
+  //               if(this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber){
+  //                 mostUpdateToDatePeer = peer
+  //               }
+  //            }
+  //         }
+  
+  //         if(mostUpdateToDatePeer) resolve(mostUpdateToDatePeer)
+  //         else{
+  //           //Picking random peer
+  //           logger("WARNING: Could not find fully updated peer, choosing random one")
+  //           let peerAddresses = Object.keys(this.connectionToPeers).length
+  //           let randomSelector = Math.floor(Math.random() * peerAddresses.length)
+  //           let randomPeerAddress = peerAddresses[randomSelector]
+  //           let randomPeer = this.connectionToPeers[randomPeerAddress]
+  //           resolve(randomPeer)
+  //         }
   //       }
+  //     }catch(e){
+  //       resolve({error:e.message})
   //     }
-
-  //     return bestPeer
-
-
-  //   }else return false
+  //   })
   // }
-
-  
-
-  /**
-   * @desc Checks for the peer that has the highest difficulty containing header
-   */
-  getMostUpToDatePeer(){
-    return new Promise(async (resolve)=>{
-      try{
-        if(Object.keys(this.connectionsToPeers).length === 0){
-          resolve(false)
-        }else{
-          let highestTotalDifficulty = '0x001'
-          let mostUpdateToDatePeer = false
-          for await(let address of Object.keys(this.connectionsToPeers)){
-            let peer = this.connectionsToPeers[address]
-              console.log('Checking with peer', address)
-              let peerLatestBlock = this.peersLatestBlocks[address]
-              if(peerLatestBlock){
-                console.log('Peer has a latest block', peerLatestBlock.blockNumber)
-                console.log('This latest block', this.chain.getLatestBlock().blockNumber)
-                //let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
-                //if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
-                console.log('Peer has higher block number', this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber)
-                if(this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber){
-                  mostUpdateToDatePeer = peer
-                }
-             }
-          }
-  
-          if(mostUpdateToDatePeer) resolve(mostUpdateToDatePeer)
-          else{
-            //Picking random peer
-            logger("WARNING: Could not find fully updated peer, choosing random one")
-            let peerAddresses = Object.keys(this.connectionToPeers).length
-            let randomSelector = Math.floor(Math.random() * peerAddresses.length)
-            let randomPeerAddress = peerAddresses[randomSelector]
-            let randomPeer = this.connectionToPeers[randomPeerAddress]
-            resolve(randomPeer)
-          }
-        }
-      }catch(e){
-        resolve({error:e.message})
-      }
-    })
-  }
 
   /**
     Broadcast only to this node's connected peers. Does not send peer messages
@@ -2015,10 +2028,15 @@ DHT_PORT=${this.peerDiscoveryPort}
       @desc Routine tasks go here. The heartbeat's delay is adjusted in nodeconfig
     */
   syncHeartBeat(){
+    let lastSyncWithPeer = ""
     setInterval(async ()=>{
-        this.synchronize()
-        let currentStatus = await this.buildBlockchainStatus()
-        this.broadcast('getBlockchainStatus', currentStatus)
+        let syncedWith = await this.synchronize(lastSyncWithPeer)
+        if(syncedWith){
+          console.log('Has synced with', syncedWith)
+          lastSyncWithPeer = syncedWith
+        }
+        // let currentStatus = await this.buildBlockchainStatus()
+        // this.broadcast('getBlockchainStatus', currentStatus)
         await this.getPeerStatuses()
     }, this.synchronizeDelay)
   }

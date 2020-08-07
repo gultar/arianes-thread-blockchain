@@ -43,18 +43,6 @@ class ReputationTable{
      * Reconnects too often (5 times / sec) = 500
      */
 
-    // async replaceColonByComma(address){
-    //     let curedAddress = ""
-    //     for await(let char of address){
-    //         if(char == ':'){
-    //             curedAddress += "-"
-    //         }else{
-    //             curedAddress += char
-    //         }
-    //     }
-
-    //     return curedAddress
-    // }
 
     cureAddressToKey(address){
         address = this.replaceDotByComma(address)
@@ -104,14 +92,12 @@ class ReputationTable{
                     
                     if(reputation.error) return { error:reputation.error }
                     let address = this.revertKeyToIp(addressKey)
-                    console.log('Reverted', address)
                     this.reputations[address] = reputation
                 }else{
                     return { error:`ERROR: Found reputation key ${address} but not entry` }
                 }
                 
             }
-            console.log('Reps:', this.reputations)
             return { loaded:true }
         }else{
             return { entriesFound:'none' }
@@ -127,7 +113,7 @@ class ReputationTable{
             
         }
 
-        return saved
+        return { saved:true }
     }
 }
 
