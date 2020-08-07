@@ -67,7 +67,6 @@ program
 .action(()=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.on('message', message => console.log(message))
             socket.emit('getInfo');
             socket.on('chainInfo', (info)=>{
                 console.log(JSON.stringify(info, null, 2))
