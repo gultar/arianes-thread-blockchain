@@ -819,14 +819,12 @@ class Node {
         let peer = this.connectionsToPeers[address]
         let peerBlock = this.peersLatestBlocks[address]
         if(peerBlock){
-          if(bestPeerBlock.blockNumber < peerBlock.blockNumber){
+          if(bestPeerBlock.blockNumber < peerBlock.blockNumber && this.chain.getLatestBlock().blockNumber < peerBlock.blockNumber){
             bestPeer = peer
           }
         }else{
           return false
         }
-        
-        
       }
 
       return bestPeer
@@ -834,6 +832,30 @@ class Node {
 
     }else return false
   }
+
+  // async getThreeBestPeers(){
+  //   if(Object.keys(this.connectionsToPeers).length > 0){
+  //     let allPeers = {}
+  //     let peerBlocks = {}
+  //     for await(let address of Object.keys(this.connectionsToPeers)){
+  //       let peer = this.connectionsToPeers[address]
+  //       let peerBlock = this.peersLatestBlocks[address]
+  //       if(peerBlock){
+  //         if(this.chain.getLatestBlock().blockNumber < peerBlock.blockNumber){
+            
+  //         }
+  //       }else{
+  //         return false
+  //       }
+  //     }
+
+  //     return bestPeer
+
+
+  //   }else return false
+  // }
+
+  
 
   /**
    * @desc Checks for the peer that has the highest difficulty containing header
@@ -1994,7 +2016,7 @@ DHT_PORT=${this.peerDiscoveryPort}
     */
   syncHeartBeat(){
     setInterval(async ()=>{
-        // this.synchronize()
+        this.synchronize()
         let currentStatus = await this.buildBlockchainStatus()
         this.broadcast('getBlockchainStatus', currentStatus)
         await this.getPeerStatuses()
