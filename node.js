@@ -660,7 +660,7 @@ class Node {
               }else if(block.previousFound){
                 //Represents a fork
                 let fork = block.previousFound
-                nodeDebug(`Next block ${nextBlock.blockNumber} was not found but previous ${fork.blockNumber} was.`)
+                nodeDebug(`Next block ${block.blockNumber} was not found but previous ${fork.blockNumber} was.`)
                 
                 let rolledback = await this.chain.rollback(fork.blockNumber - 2)
                 if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)

@@ -2,6 +2,7 @@ const ioClient = require('socket.io-client');
 const Bootstrap = require('./bootstrap')
 const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
+const bootstrapDebug = require('debug')('bootstrap')
 let start = process.hrtime()
 class VMEngine{
     constructor({
@@ -88,6 +89,8 @@ class VMEngine{
             start = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
+            bootstrapDebug(`Sent call ${code.hash} to Contract VM ${code.contractName}`)
+            console.log(`Sent call ${code.hash} to Contract VM ${code.contractName}`)
             this.calls[code.hash] = code
         })
         return this.events
@@ -180,7 +183,8 @@ class VMEngine{
                 }
            })
 
-           
+           bootstrapDebug(`Starting Contract VM ${contractName} with ${this.workerSizeMb} MB`)
+           console.log(`Starting Contract VM ${contractName} with ${this.workerSizeMb} MB`)
            this.workers[contractName] = worker
 
            if(this.workerMemory[contractName] && Object.keys(this.workerMemory[contractName]).length > 0){

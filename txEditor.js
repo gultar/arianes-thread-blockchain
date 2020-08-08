@@ -33,9 +33,6 @@ const sendTx = async () =>{
         "seventh":"Principle of gender"
     }
 
-    
-    
-    
     let createHermetic = {
         method:"createToken",
         cpuTime:5,
@@ -45,6 +42,8 @@ const sendTx = async () =>{
             "name":"hermeticCoin",
         }
     }
+    
+
     let getBalance = {
         method:'getBalanceOfAccount',
         cpuTime:5,
@@ -94,6 +93,70 @@ const sendTx = async () =>{
         },
         type:"call"
     });
+    let tx4 = new Transaction
+    ({
+        fromAddress:"tom",
+        toAddress:"Storage2",
+        amount:0,
+        data:{
+            method:'set',
+            cpuTime:5,
+            params:{
+                id:"principles",
+                data:setValue
+            }
+        },
+        type:"call"
+    });
+    let tx5 = new Transaction
+    ({
+        fromAddress:"tom",
+        toAddress:"Storage3",
+        amount:0,
+        data:{
+            method:'set',
+            cpuTime:5,
+            params:{
+                id:"principles",
+                data:setValue
+            }
+        },
+        type:"call"
+    });
+    let tx6 = new Transaction
+    ({
+        fromAddress:"tom",
+        toAddress:"Tokens2",
+        amount:0,
+        data:createHermetic,
+        type:"call"
+    });
+
+    let tx7 = new Transaction
+    ({
+        fromAddress:"tom",
+        toAddress:"Tokens2",
+        amount:0,
+        data:sendCoin,
+        type:"call"
+    });
+    let tx8 = new Transaction
+    ({
+        fromAddress:"tom",
+        toAddress:"Tokens3",
+        amount:0,
+        data:createHermetic,
+        type:"call"
+    });
+
+    let tx9 = new Transaction
+    ({
+        fromAddress:"tom",
+        toAddress:"Tokens3",
+        amount:0,
+        data:sendCoin,
+        type:"call"
+    });
     // console.log(JSON.stringify(transaction.data))
     let payload = {}
     let sha256 = require('./modules/tools/sha256')
@@ -105,7 +168,7 @@ const sendTx = async () =>{
         ...payload,
         [sha256(key.toString())] : sha256((value.toString()))
     }
-    let tx4 = new Transaction
+    let tx10 = new Transaction
     ({
         fromAddress:"tom",
         toAddress:"Storage",
@@ -121,7 +184,7 @@ const sendTx = async () =>{
         type:"call"
     });
 
-    let transactions = [tx1, tx2, tx3, tx4]
+    let transactions = [tx1, tx2, tx3, tx4, tx5, tx6, tx7, tx8, tx9, tx10]
 
     const signTxs = async()=>{
         openSocket(`${nodeAddress}`, async(socket)=>{
