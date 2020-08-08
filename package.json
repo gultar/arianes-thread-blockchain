@@ -14,6 +14,7 @@
     "crypt": "0.0.2",
     "crypto-js": "^3.1.9-1",
     "data-store": "^4.0.3",
+    "debug": "^4.1.1",
     "discover": "^0.4.3",
     "discovery-swarm": "^6.0.0",
     "dnssd": "^0.4.1",

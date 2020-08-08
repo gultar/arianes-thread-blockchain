@@ -3,6 +3,7 @@
 const program = require('commander');
 const ioClient = require('socket.io-client');
 const ECDSA = require('ecdsa-secp256r1');
+const { logger } = require('./modules/tools/utils');
 const activePort = require('dotenv').config({ path: './config/.env' })
 const timeoutValue = 5000
 if (activePort.error) {
@@ -120,7 +121,7 @@ program
 
 program
 .command('verbose')
-.description('Requests a snapshot of the ten most recent blocks')
+.description('Toggles verbose mode on node')
 .action(()=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
@@ -131,6 +132,22 @@ program
         console.log('ERROR: Missing node address')
     }
     
+})
+
+program
+.command('debug <channel>')
+.description('Enables debug logging on node')
+.action((channel)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+            socket.emit('debug', channel);
+            socket.on('debugToggled', ()=>{
+                logger('Debug mode on :', channel)
+            })
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
 })
 
 program

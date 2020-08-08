@@ -44,6 +44,7 @@ const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
 const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
+const nodeDebug = require('debug')('node')
 // const compareSnapshots = require('./modules/network/snapshotHandler');
 const Database = require('./modules/classes/database/db');
 
@@ -203,9 +204,12 @@ class Node {
             let loadedReputations = await this.peerManager.reputationTable.loadReputations()
             if(loadedReputations.error) logger('REPUTATION',loadedReputations.error)
             this.heartbeat();
+            nodeDebug('Started heartbeat cycle')
             this.syncHeartBeat();
+            nodeDebug('Started sync heartbeat cycle')
             this.initAPIs();
-            
+            nodeDebug('Started HTTP API and Miner API')
+
             if(this.enableLocalPeerDiscovery){
               this.findPeersThroughDNSSD()
             }
@@ -223,9 +227,12 @@ class Node {
               if(socket){
                 
                     socket.on('authentication', (config)=>{
+                      nodeDebug('Received authentication request from peer')
                       let verified = this.verifyNetworkConfig(config)
                       if(verified && !verified.error){
                         socket.emit('authenticated', { success:this.networkManager.getNetwork() })
+                        nodeDebug('Authenticated peer')
+                        
                         socket.on('message', (msg) => { logger('Client:', msg); });
 
                         if(token && token != undefined){
@@ -238,6 +245,7 @@ class Node {
 
                               this.peersConnected[peerAddress] = socket;
                               this.nodeList.addNewAddress(peerAddress);
+                              nodeDebug(`Added peer ${peerAddress} to node list`)
                               this.nodeEventHandlers(socket, peerAddress);
 
                             }
@@ -330,15 +338,11 @@ class Node {
         this.peerManager.connectToPeer(address);
       });
 
-      // socket.on('getChainSnapshot', async ()=>{
-      //   await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getChainSnapshot' events") }); // consume 1 point per event from IP
-      //   socket.emit('chainSnapshot', this.chain.chainSnapshot)
-      // })
-
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
         if(!this.messageBuffer[peerMessage.messageId]){
           await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
-          
+          nodeDebug(`SOCKET: Received a peer message from ${peerAddress}`)
+          nodeDebug('SOCKET: Message:', peerMessage)
           this.handlePeerMessage(peerMessage, acknowledge);
         }
       })
@@ -462,6 +466,7 @@ class Node {
 
   async getBlockchainStatus(socket, peerStatus){
     try{
+      
       let status = {
         totalDifficultyHex: this.chain.getDifficultyTotal(),
         bestBlockHeader: this.chain.getLatestBlock(),
@@ -472,9 +477,16 @@ class Node {
       let token = JSON.parse(socket.handshake.query.token)
       let peerAddress = token.address
       let peer = this.connectionsToPeers[peerAddress];
+      nodeDebug(`${peerAddress} requested a blockchain status`)
       if(!peer) this.peerManager.connectToPeer(peerAddress)
       
-      this.peerManager.peerStatus[peerAddress] = status      
+      this.peerManager.peerStatus[peerAddress] = peerStatus
+      this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
+      nodeDebug(`Peer ${peerAddress} shared its status`)
+      nodeDebug(`Best block header number: ${peerStatus.bestBlockHeader.blockNumber}`)
+      nodeDebug(`Best block header hash: ${peerStatus.bestBlockHeader.hash}`)
+      nodeDebug(`Best block header previous hash: ${peerStatus.bestBlockHeader.previousHash}`)
+      nodeDebug(`Best block header total difficulty: ${peerStatus.bestBlockHeader.totalDifficulty}`)
       let updated = await this.receiveBlockchainStatus(peer, peerStatus)
       if(updated && updated.error) socket.emit('blockchainStatus', { error:updated.error })
       
@@ -557,31 +569,31 @@ class Node {
     return connections.length
   } 
 
-  downloadGenesisBlock(peer){
-    return new Promise((resolve)=>{
-      this.isDownloading = true;
-      logger("Downloading peer's genesis block")
-      peer.on('genesisBlock', (genesisBlock)=>{
-        peer.off('genesisBlock')
-        this.isDownloading = false;
-        clearTimeout(timeout)
-        if(genesisBlock.error){
-          logger(genesisBlock.error)
-          resolve({error:genesisBlock.error})
-        }else{
-          resolve(genesisBlock)
-        }
-      })
+  // downloadGenesisBlock(peer){
+  //   return new Promise((resolve)=>{
+  //     this.isDownloading = true;
+  //     logger("Downloading peer's genesis block")
+  //     peer.on('genesisBlock', (genesisBlock)=>{
+  //       peer.off('genesisBlock')
+  //       this.isDownloading = false;
+  //       clearTimeout(timeout)
+  //       if(genesisBlock.error){
+  //         logger(genesisBlock.error)
+  //         resolve({error:genesisBlock.error})
+  //       }else{
+  //         resolve(genesisBlock)
+  //       }
+  //     })
 
-      peer.emit('getGenesisBlock')
+  //     peer.emit('getGenesisBlock')
 
-      let timeout = setTimeout(()=>{
-        logger('Genesis block request timedout')
-        peer.off('genesisBlock')
-        this.isDownloading = false;
-      }, 5000)
-    })
-  }
+  //     let timeout = setTimeout(()=>{
+  //       logger('Genesis block request timedout')
+  //       peer.off('genesisBlock')
+  //       this.isDownloading = false;
+  //     }, 5000)
+  //   })
+  // }
 
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
@@ -605,7 +617,6 @@ class Node {
 
             const createTimer = () =>{
               requestTimer = setTimeout(()=>{
-                console.log('OKAY DOES NOT WORK')
                 closeConnection({ error:'timeout' })
                 // console.log('Download failed so peer is now out of sync')
                 peer.isSynced = false
@@ -615,6 +626,7 @@ class Node {
             
             const request = (payload) =>{
               peer.emit('getNextBlock', payload)
+              this.isDownloading = true
               if(requestTimer){
                  clearTimeout(requestTimer)
                  requestTimer = false
@@ -623,6 +635,8 @@ class Node {
             }
 
             peer.on('nextBlock', async (block)=>{
+              nodeDebug('Received block', block)
+
               clearTimeout(requestTimer)
               requestTimer = false
 
@@ -632,6 +646,8 @@ class Node {
                 this.minerChannel.emit('nodeEvent','inSync')
                 logger('Blockchain updated successfully!')
                 // console.log('Download successful, peer is in sync')
+                clearTimeout(requestTimer)
+                requestTimer = false
                 peer.isSynced = true
                 closeConnection()
                 resolve({ downloaded:true })
@@ -642,16 +658,18 @@ class Node {
                 resolve({ error:block.error })
 
               }else if(block.previousFound){
-
                 //Represents a fork
                 let fork = block.previousFound
+                nodeDebug(`Next block ${nextBlock.blockNumber} was not found but previous ${fork.blockNumber} was.`)
+                
                 let rolledback = await this.chain.rollback(fork.blockNumber - 2)
                 if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
 
                 request(this.chain.getLatestBlock())
 
               }else if(block.previousNotFound){
-
+                nodeDebug(`Next block ${nextBlock.blockNumber} not found. Walking back chain blocks.`)
+                
                 request(this.chain.getBlockHeader(goingBackInChainCounter))
                 goingBackInChainCounter--
 
@@ -752,8 +770,6 @@ class Node {
               
               if(thisTotalDifficulty < totalDifficulty){
                 
-                  
-                
                   let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
                   if(isValidHeader){
   
@@ -765,6 +781,7 @@ class Node {
                         this.updated = true
                         resolve(updated)
                       }
+
                   }else{
                     resolve({ error:'ERROR: Last block header from peer is invalid' })
                   }
@@ -808,15 +825,15 @@ class Node {
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
         peer.once('status', (status)=>{
-            if(status){ //isValidStatus(status)
+            if(status){
               this.peerManager.peerStatus[address] = status
               let blockHeader = status.bestBlockHeader
               this.peersLatestBlocks[address] = blockHeader
               if(blockHeader.blockNumber + this.tolerableBlockGap < this.chain.getLatestBlock().blockNumber){
-                // console.log(`Peer status shows that peer ${address} is out of sync`)
+                nodeDebug(`Peer ${address} is not synced`)
                 peer.isSynced = false
               }else{
-                // console.log(`Peer status shows that peer ${address} seems to be in sync`)
+                nodeDebug(`Peer ${address} is in sync`)
                 peer.isSynced = true
               }
             }
@@ -829,24 +846,6 @@ class Node {
     }else return false
   }
 
-  // async manageSyncList(lastSyncWithPeer){
-  //   if(Object.keys(this.connectionsToPeers).length > 2){
-  //     this.lastThreeSyncs.push(lastSyncWithPeer)
-  //     if(this.lastThreeSyncs.length > 3){
-  //       this.lastThreeSyncs.shift()
-  //     }
-  //   }else if(Object.keys(this.connectionsToPeers).length <= 2){
-  //     if(this.lastThreeSyncs.includes(lastSyncWithPeer)){
-  //       let [ peerAddress, otherPeer ] = Object.keys(this.connectionsToPeers)
-  //       this.lastThreeSyncs = [otherPeer]
-  //     }else{
-
-  //     }
-  //   }else{
-  //     this.lastThreeSyncs = []
-  //   }
-  // }
-
   //Get best block according to reputation, network availability and block height
   async getBestPeer(except=[]){
     if(Object.keys(this.connectionsToPeers).length > 0){
@@ -855,8 +854,8 @@ class Node {
       let bestPeerBlock = {
         blockNumber:0
       }
+
       for await(let address of Object.keys(this.connectionsToPeers)){
-        
         let peer = this.connectionsToPeers[address]
         let peerBlock = this.peersLatestBlocks[address]
         if(peerBlock && peer.isSynced && !except.includes(address)){
@@ -1120,10 +1119,6 @@ class Node {
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          // if(!blockNumber) blockNumber = this.chain.getLatestBlock().blockNumber;
-          // let block = this.chain.chain[blockNumber]
-          // let timestamp = block.timestamp
-          // let state = await storage.getClosestState(timestamp)
           let state = await storage.getState(blockNumber)
           socket.emit('contractState', state)
         }
@@ -1134,10 +1129,6 @@ class Node {
         if(!storage) socket.emit('contractState', { error:`Contract Storage of ${contractName} not found` })
         else if(storage.error) socket.emit('contractState', { error:storage.error })
         else{
-          // if(!blockNumber) blockNumber = this.chain.getLatestBlock().blockNumber;
-          // let block = this.chain.chain[blockNumber]
-          // let timestamp = block.timestamp
-          // let state = await storage.getClosestState(timestamp)
           let log = storage.changeLog
           socket.emit('contractState', log)
         }
@@ -1172,12 +1163,9 @@ class Node {
           }else{
             socket.emit('accounts', {})
           }
-          
         }catch(e){
           socket.emit('accounts', { error:e.message })
         }
-          
-          
       })
 
       socket.on('getBlockHeader', (blockNumber)=>{
@@ -1212,7 +1200,6 @@ class Node {
           logger('Verbose set to OFF');
           this.verbose = false;
           this.minerChannel.emit('nodeEvent','verbose')
-          
         }else{
           this.UILog('Verbose set to ON');
           logger('Verbose set to ON');
@@ -1224,21 +1211,16 @@ class Node {
       
       })
 
+      socket.on('debug', (debugChannel)=>{
+        
+        process.env.DEBUG = debugChannel
+        socket.emit('debugToggled', this.verbose)
+      
+      })
+
       socket.on('update', ()=>{
         this.isDownloading = false
         this.broadcast('getBlockchainStatus');
-      })
-
-      socket.on('keyAsNumber', async()=>{
-        let db = require('./modules/classes/database/db')
-        let poubelle = new Database('poubelle')
-        let result = await poubelle.put({
-          key:2000,
-          value:'muppet'
-        })
-        console.log(result)
-        let retrieved = await poubelle.get(2000)
-        console.log(retrieved)
       })
 
       socket.on('getMempool', ()=>{
@@ -1249,10 +1231,6 @@ class Node {
         logger('Stopping miner')
         this.minerChannel.emit('stopMining')
       })
-
-      // socket.on('getSnapshot', ()=>{
-      //   socket.emit('chainSnapshot', this.chain.chainSnapshot)
-      // })
 
       socket.on('rollback', async (number)=>{
         number = parseInt(number)
@@ -1275,16 +1253,6 @@ class Node {
       socket.on('getActionFromDB', async (hash)=>{
         let action = await this.chain.getActionFromDB(hash)
         socket.emit('actionFromDB', action)
-      })
-
-      socket.on('testRollback', async (blockNumber)=>{
-        console.log('Blocknumber', blockNumber)
-        let start = Date.now()
-        let number = parseInt(blockNumber)
-        let rolledback = await this.chain.rollback(number)
-        console.log(rolledback)
-        console.log(`Executed in ${Date.now() - start} ms`)
-
       })
 
       socket.on('disconnect', ()=>{
