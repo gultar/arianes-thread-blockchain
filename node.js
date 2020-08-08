@@ -679,12 +679,15 @@ class Node {
                 let added = await this.chain.receiveBlock(nextBlock)
                 if(added.error){
                   if(added.exists || added.existsInPool){
+                    closeConnection({ error:true })
                     resolve({error:added.error})
                   }else if(added.isRollingBack){
                     logger(chalk.yellow(added.error))
+                    closeConnection({ error:true })
                     resolve({error:added.error})
                   }else if(added.isRoutingBlock){
                     logger(chalk.yellow(added.error))
+                    closeConnection({ error:true })
                     resolve({error:added.error})
                   }else{
                     logger('DOWNLOAD', added.error)
