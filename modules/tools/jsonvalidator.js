@@ -436,7 +436,7 @@ const isValidHeaderJSON = (header)=>{
     }
 
     if(header){
-        v.addSchema(headerSchema, "/getNextBlock")
+        v.addSchema(headerSchema, "/blockHeader")
         let valid = v.validate(header, headerSchema);
         if(valid.errors.length == 0){
             return true
