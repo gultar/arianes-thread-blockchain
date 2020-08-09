@@ -419,7 +419,7 @@ const isValidGetNextBlockJSON = (blockRequest) =>{
 const isValidHeaderJSON = (header)=>{
     var v = new Validator();
     var headerSchema = {
-        "id":"/blockHeader",
+        "id":"/header",
         "type":"object",
         "header":{"type":"object"},
             "properties":{
@@ -436,7 +436,7 @@ const isValidHeaderJSON = (header)=>{
     }
 
     if(header){
-        v.addSchema(headerSchema, "/blockHeader")
+        v.addSchema(headerSchema, "/header")
         let valid = v.validate(header, headerSchema);
         if(valid.errors.length == 0){
             return true
@@ -547,7 +547,7 @@ const isValidBlockchainStatusJSON = (blockchainStatus)=>{
         "type": "object",
         "properties": {
             "totalDifficultyHex": {"type": "string"},
-            "bestBlockHeader": {"$ref": "/blockHeader"},
+            "bestBlockHeader": {"$ref": "#/header"},
         },
         "required": ["totalDifficultyHex", "bestBlockHeader"]
     };
