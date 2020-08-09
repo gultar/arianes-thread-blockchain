@@ -37,7 +37,8 @@ const {
   isValidCallPayloadJSON,
   isValidActionJSON,
   isValidBlockJSON,
-  isValidHeaderJSON
+  isValidHeaderJSON,
+  isValidBlockchainStatusJSON
 } = require('./modules/tools/jsonvalidator');
 const sha256 = require('./modules/tools/sha256');
 const getGenesisConfigHash = require('./modules/tools/genesisConfigHash')
@@ -467,7 +468,7 @@ class Node {
   async getBlockchainStatus(socket, peerStatus){
     try{
       
-      if(peerStatus){
+      if(peerStatus && isValidBlockchainStatusJSON(peerStatus)){
         let status = {
           totalDifficultyHex: this.chain.getDifficultyTotal(),
           bestBlockHeader: this.chain.getLatestBlock(),
@@ -779,40 +780,45 @@ class Node {
         if(this.isDownloading || this.chain.isRoutingBlock){
           resolve(true)
         }else{
-          let { totalDifficultyHex, bestBlockHeader, length } = status;
-          let latestBlock = this.chain.getLatestBlock()
-          if(totalDifficultyHex && bestBlockHeader && length){
-            if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 1){
-              this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
-              let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
-              // Possible major bug, will not sync if chain is longer but has different block at a given height
-              let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
-              let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
-              
-              if(thisTotalDifficulty < totalDifficulty){
+          if(isValidBlockchainStatusJSON(status)){
+            let { totalDifficultyHex, bestBlockHeader, length } = status;
+            let latestBlock = this.chain.getLatestBlock()
+            if(totalDifficultyHex && bestBlockHeader && length){
+              if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 1){
+                this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
+                let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
+                // Possible major bug, will not sync if chain is longer but has different block at a given height
+                let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
+                let thisTotalDifficulty =  BigInt(parseInt(thisTotalDifficultyHex, 16))
                 
-                  let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
-                  if(isValidHeader){
+                if(thisTotalDifficulty < totalDifficulty){
+                  
+                    let isValidHeader = this.chain.validateBlockHeader(bestBlockHeader);
+                    if(isValidHeader){
+    
+                        let updated = await this.updateBlockchain()
+                        if(updated.error){
+                          logger(updated.error)
+                          resolve({error:updated.error})
+                        }else {
+                          this.updated = true
+                          resolve(updated)
+                        }
   
-                      let updated = await this.updateBlockchain()
-                      if(updated.error){
-                        logger(updated.error)
-                        resolve({error:updated.error})
-                      }else {
-                        this.updated = true
-                        resolve(updated)
-                      }
-
-                  }else{
-                    resolve({ error:'ERROR: Last block header from peer is invalid' })
-                  }
+                    }else{
+                      resolve({ error:'ERROR: Last block header from peer is invalid' })
+                    }
+                }else{
+                  resolve({ updated })
+                }
               }else{
-                resolve({ updated })
+                resolve({ isStillUpdated:true })
               }
             }else{
-              resolve({ isStillUpdated:true })
+              resolve(false)
             }
           }else{
+            nodeDebug('Peer supplied an invalid status object')
             resolve(false)
           }
         }
