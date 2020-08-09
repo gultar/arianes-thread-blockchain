@@ -542,6 +542,22 @@ const isValidGenesisBlockJSON = (header)=>{
 const isValidBlockchainStatusJSON = (blockchainStatus)=>{
     var v = new Validator();
     const statusDebug = require('debug')('status')
+    var headerSchema = {
+        "id":"/header",
+        "type":"object",
+        "header":{"type":"object"},
+            "properties":{
+                "blockNumber":{"type":"number"},
+                "timestamp":{"type":"number"},
+                "previousHash":{"type":"string"},
+                "hash":{"type":"string"},
+                "nonce":{"type":"number"},
+                "merkleRoot":{"type":"string"},
+                "actionMerkleRoot":{"type":"string"},
+                "txHashes":{"type":"array"},
+            },
+        "required": ["blockNumber", "timestamp", "previousHash", "hash", "nonce", "merkleRoot"]
+    }
     var schema = {
         "id":"/blockchainStatus",
         "type": "object",
@@ -553,6 +569,7 @@ const isValidBlockchainStatusJSON = (blockchainStatus)=>{
     };
 
     if(blockchainStatus){
+        v.addSchema(headerSchema, "/header")
         v.addSchema(schema, "/blockchainStatus")
         let valid = v.validate(blockchainStatus, schema);
         if(valid.errors.length == 0){
