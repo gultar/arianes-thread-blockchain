@@ -680,8 +680,8 @@ class Node {
                 if(added.error){
                   if(added.exists){
                     closeConnection({ error:true })
-                    if(block.blockNumber > this.chain.getLatestBlock().blockNumber){
-                      let removed = await this.chain.chainDB.delete(block.blockNumber)
+                    if(nextBlock.blockNumber > this.chain.getLatestBlock().blockNumber){
+                      let removed = await this.chain.chainDB.delete(nextBlock.blockNumber)
                       if(removed.error) resolve({ error:removed.error })
                     }
                     resolve({error:added.error})
