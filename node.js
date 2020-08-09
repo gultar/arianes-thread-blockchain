@@ -679,14 +679,12 @@ class Node {
                 let added = await this.chain.receiveBlock(nextBlock)
                 if(added.error){
                   if(added.exists){
-                    if(block.blockNumber > this.chain.getLatestBlock()){
+                    closeConnection({ error:true })
+                    if(block.blockNumber > this.chain.getLatestBlock().blockNumber){
                       let removed = await this.chain.chainDB.delete(block.blockNumber)
                       if(removed.error) resolve({ error:removed.error })
                     }
-
-                    closeConnection({ error:true })
                     resolve({error:added.error})
-                    
                   }else if(added.existsInPool){
                     closeConnection({ error:true })
                     resolve({error:added.error})
