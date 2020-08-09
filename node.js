@@ -126,7 +126,7 @@ class Node {
         return this.UILog(...args)
       },
       buildBlockchainStatus:async ()=>{
-        return await this.buildBlockchainStatus()
+        return this.buildBlockchainStatus()
       }
     })
     //APIs
@@ -319,7 +319,7 @@ class Node {
           points: 100, // 5 points
           duration: 1, // per second
       });
-      socket.on('getStatus', async ()=> socket.emit('status', await this.buildBlockchainStatus()))
+      socket.on('getStatus', async ()=> socket.emit('status', this.buildBlockchainStatus()))
       socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
       socket.on('getNextBlock', async (header)=> await this.getNextBlock(socket, header))
@@ -692,10 +692,6 @@ class Node {
                 if(added.error){
                   if(added.exists){
                     closeConnection({ error:true })
-                    if(nextBlock.blockNumber > this.chain.getLatestBlock().blockNumber){
-                      let removed = await this.chain.chainDB.delete(nextBlock.blockNumber)
-                      if(removed.error) resolve({ error:removed.error })
-                    }
                     resolve({error:added.error})
                   }else if(added.existsInPool){
                     closeConnection({ error:true })
@@ -734,7 +730,7 @@ class Node {
   }
 
 
-  async buildBlockchainStatus(){
+  buildBlockchainStatus(){
     let status = {
       totalDifficultyHex: this.chain.getDifficultyTotal(),
       bestBlockHeader: this.chain.getLatestBlock(),
@@ -747,7 +743,7 @@ class Node {
   async synchronize(){
     let topPeer = await this.getBestPeer()
     if(topPeer && topPeer.connected){
-      let currentStatus = await this.buildBlockchainStatus()
+      let currentStatus = this.buildBlockchainStatus()
       let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
       if(peerLatestHeader){
         let latestHeader = this.chain.getLatestBlock()
@@ -763,7 +759,7 @@ class Node {
       
     }else{
       //No Top Peer, this node is probably the top peer
-      let currentStatus = await this.buildBlockchainStatus()
+      let currentStatus = this.buildBlockchainStatus()
       this.broadcast('getBlockchainStatus', currentStatus)
     }
   }
@@ -836,7 +832,7 @@ class Node {
       if(peer){
         return await this.downloadBlocks(peer)
       }else{
-        let status = await this.buildBlockchainStatus()
+        let status = this.buildBlockchainStatus()
         this.broadcast("getBlockchainStatus", status)
         return { broadcasted:true }
       }
@@ -852,7 +848,7 @@ class Node {
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
         peer.once('status', (status)=>{
-            if(status){
+            if(status && isValidBlockchainStatusJSON(status)){
               this.peerManager.peerStatus[address] = status
               let blockHeader = status.bestBlockHeader
               this.peersLatestBlocks[address] = blockHeader
@@ -863,6 +859,10 @@ class Node {
                 nodeDebug(`Peer ${address} is in sync`)
                 peer.isSynced = true
               }
+            }else{
+              console.log(`Peer ${address} provided invalid status`)
+              console.log(status)
+              peer.isSynced = false
             }
         })
         peer.emit('getStatus')
@@ -2033,7 +2033,7 @@ DHT_PORT=${this.peerDiscoveryPort}
 //           console.log('Has synced with', syncedWith)
 //           lastSyncWithPeer = syncedWith
 //         }
-        let currentStatus = await this.buildBlockchainStatus()
+        let currentStatus = this.buildBlockchainStatus()
         this.broadcast('getBlockchainStatus', currentStatus)
         await this.getPeerStatuses()
     }, this.synchronizeDelay)

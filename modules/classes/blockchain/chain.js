@@ -290,17 +290,25 @@ class Blockchain{
 
 
 
-  async receiveBlock(newBlock){
+  async receiveBlock(newBlock, { overwrite=false }){
     if(isValidBlockJSON(newBlock)){
         if(this.isRollingBack) return { error:'ERROR: Could not receive block, chain is rolling back' }
         if(this.isRoutingBlock){
-          return await this.routeBlockToPool(newBlock)
+          return { error:'ERROR: Could not receive block, node is routing block' }
         }
         //Already exists in chain?
         let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-        if(blockAlreadyExists) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
+        if(blockAlreadyExists) return { error:`ERROR Block of hash ${newBlock.hash.substr(0, 15)}... already exists`, exists:true }
         let blockNumberExistsInDB = await this.getBlockFromDB(newBlock.blockNumber)
-        if(blockNumberExistsInDB) return await this.routeBlockToPool(newBlock)//{ error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
+        if(blockNumberExistsInDB){
+          if(!overwrite) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
+          else{
+            if(newBlock.blockNumber > this.getLatestBlock().blockNumber){
+              let removed = await this.chainDB.delete(newBlock.blockNumber)
+              if(removed.error) return { error:removed.error }
+            }
+          }
+        }
         //Is none of the above, carry on with routing the block
         //to its proper place, either in the chain or in the pool
         this.isRoutingBlock = newBlock.blockNumber
@@ -324,8 +332,6 @@ class Blockchain{
       
       if(isNextBlock && isLinked) return await this.addBlock(newBlock)
       else{
-
-
 
         let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 10
         if(isTenBlocksAhead){
