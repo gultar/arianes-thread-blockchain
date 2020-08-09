@@ -287,31 +287,7 @@ const isValidChainLengthJSON = (transaction)=>{
     }
 }
 
-const isValidBlockchainStatusJSON = (blockchainStatus)=>{
-    var v = new Validator();
-    const statusDebug = require('debug')('status')
-    var schema = {
-        "id":"/blockchainStatus",
-        "type": "object",
-        "properties": {
-            "totalDifficultyHex": {"type": "string"},
-            "bestBlockHeader": {"$ref": "/blockHeader"},
-        },
-        "required": ["totalDifficultyHex", "bestBlockHeader"]
-    };
 
-    if(blockchainStatus){
-        v.addSchema(schema, "/blockchainStatus")
-        let valid = v.validate(blockchainStatus, schema);
-        if(valid.errors.length == 0){
-            return true
-        }else{
-            statusDebug('Status Debug:', valid.errors)
-            return false;
-        }
-        
-    }
-}
 
 const isValidWalletRequestJSON = (transaction)=>{
     var v = new Validator();
@@ -557,6 +533,32 @@ const isValidGenesisBlockJSON = (header)=>{
             return true
         }else{
             console.log(valid.errors)
+            return false;
+        }
+        
+    }
+}
+
+const isValidBlockchainStatusJSON = (blockchainStatus)=>{
+    var v = new Validator();
+    const statusDebug = require('debug')('status')
+    var schema = {
+        "id":"/blockchainStatus",
+        "type": "object",
+        "properties": {
+            "totalDifficultyHex": {"type": "string"},
+            "bestBlockHeader": {"$ref": "/blockHeader"},
+        },
+        "required": ["totalDifficultyHex", "bestBlockHeader"]
+    };
+
+    if(blockchainStatus){
+        v.addSchema(schema, "/blockchainStatus")
+        let valid = v.validate(blockchainStatus, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            statusDebug('Status Debug:', valid.errors)
             return false;
         }
         
