@@ -467,7 +467,8 @@ class Node {
 
   async getBlockchainStatus(socket, peerStatus){
     try{
-      
+      let token = JSON.parse(socket.handshake.query.token)
+      let peerAddress = token.address
       if(peerStatus && isValidBlockchainStatusJSON(peerStatus)){
         let status = {
           totalDifficultyHex: this.chain.getDifficultyTotal(),
@@ -476,8 +477,7 @@ class Node {
         }
   
         socket.emit('blockchainStatus', status);
-        let token = JSON.parse(socket.handshake.query.token)
-        let peerAddress = token.address
+        
         let peer = this.connectionsToPeers[peerAddress];
         nodeDebug(`${peerAddress} requested a blockchain status`)
         if(!peer) this.peerManager.connectToPeer(peerAddress)
