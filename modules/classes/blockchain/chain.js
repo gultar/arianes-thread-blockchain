@@ -397,28 +397,19 @@ class Blockchain{
 
   async addBlockToPool(newBlock){
     //Already exists in block pool?
-    // let blockExistsInPool = await this.getBlockFromPool(newBlock.hash)
-    // if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
-    // else if(blockExistsInPool) return { error:`ERROR: Block ${newBlock.blockNumber} already exists in pool`, existsInPool:true }
-    // else{
-    //   this.blockPool[newBlock.hash] = newBlock
-    //   let blockPoolHashes = Object.keys(this.blockPool)
-    //   if(blockPoolHashes.length > 30){
-    //     let firstBlockHash = blockPoolHashes[0]
-    //     delete this.blockPool[firstBlockHash]
-    //   }
-    //   logger(`${chalk.cyan('[] Added block')}  ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
-    //   return  { pooled:true }
-    // }
-
-    this.blockPool[newBlock.hash] = newBlock
-    let blockPoolHashes = Object.keys(this.blockPool)
-    if(blockPoolHashes.length > 30){
-      let firstBlockHash = blockPoolHashes[0]
-      delete this.blockPool[firstBlockHash]
+    let blockExistsInPool = await this.getBlockFromPool(newBlock.hash)
+    if(blockExistsInPool && blockExistsInPool.error) return { error:blockExistsInPool.error }
+    else if(blockExistsInPool) return { error:`ERROR: Block ${newBlock.blockNumber} already exists in pool`, existsInPool:true }
+    else{
+      this.blockPool[newBlock.hash] = newBlock
+      let blockPoolHashes = Object.keys(this.blockPool)
+      if(blockPoolHashes.length > 30){
+        let firstBlockHash = blockPoolHashes[0]
+        delete this.blockPool[firstBlockHash]
+      }
+      logger(`${chalk.cyan('[] Added block')}  ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
+      return  { pooled:true }
     }
-    logger(`${chalk.cyan('[] Added block')}  ${newBlock.blockNumber} ${chalk.cyan('to pool:')} ${newBlock.hash.substr(0, 20)}...`)
-    return  { pooled:true }
     
   }
 
