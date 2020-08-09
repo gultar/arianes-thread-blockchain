@@ -668,7 +668,7 @@ class Node {
                 request(this.chain.getLatestBlock())
 
               }else if(block.previousNotFound){
-                nodeDebug(`Next block ${nextBlock.blockNumber} not found. Walking back chain blocks.`)
+                nodeDebug(`Next block ${block.blockNumber} not found. Walking back chain blocks.`)
                 
                 request(this.chain.getBlockHeader(goingBackInChainCounter))
                 goingBackInChainCounter--
