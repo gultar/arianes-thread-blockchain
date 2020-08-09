@@ -563,7 +563,7 @@ const isValidBlockchainStatusJSON = (blockchainStatus)=>{
         "type": "object",
         "properties": {
             "totalDifficultyHex": {"type": "string"},
-            "bestBlockHeader": {"$ref": "#/header"},
+            "bestBlockHeader": {"$ref": "/header"},
         },
         "required": ["totalDifficultyHex", "bestBlockHeader"]
     };
