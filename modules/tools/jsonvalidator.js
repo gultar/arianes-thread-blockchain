@@ -1,5 +1,5 @@
 const Validator = require('jsonschema').Validator;
-
+const schemaDebug = require('debug')('schema')
 const fetchErrors = (errors) =>{
     let errorMessages = {}
     for(let error of errors){
@@ -287,6 +287,32 @@ const isValidChainLengthJSON = (transaction)=>{
     }
 }
 
+const isValidBlockchainStatusJSON = (blockchainStatus)=>{
+    var v = new Validator();
+    const statusDebug = require('debug')('status')
+    var schema = {
+        "id":"/blockchainStatus",
+        "type": "object",
+        "properties": {
+            "totalDifficultyHex": {"type": "string"},
+            "bestBlockHeader": {"$ref": "/blockHeader"},
+        },
+        "required": ["totalDifficultyHex", "bestBlockHeader"]
+    };
+
+    if(blockchainStatus){
+        v.addSchema(schema, "/blockchainStatus")
+        let valid = v.validate(blockchainStatus, schema);
+        if(valid.errors.length == 0){
+            return true
+        }else{
+            statusDebug('Status Debug:', valid.errors)
+            return false;
+        }
+        
+    }
+}
+
 const isValidWalletRequestJSON = (transaction)=>{
     var v = new Validator();
     var schema = {
@@ -554,4 +580,5 @@ module.exports = {
     isValidGenesisBlockJSON,
     isValidContractActionJSON,
     isValidPayableJSON,
+    isValidBlockchainStatusJSON
  };

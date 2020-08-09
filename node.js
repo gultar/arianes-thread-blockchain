@@ -467,28 +467,39 @@ class Node {
   async getBlockchainStatus(socket, peerStatus){
     try{
       
-      let status = {
-        totalDifficultyHex: this.chain.getDifficultyTotal(),
-        bestBlockHeader: this.chain.getLatestBlock(),
-        length: this.chain.chain.length
+      if(peerStatus){
+        let status = {
+          totalDifficultyHex: this.chain.getDifficultyTotal(),
+          bestBlockHeader: this.chain.getLatestBlock(),
+          length: this.chain.chain.length
+        }
+  
+        socket.emit('blockchainStatus', status);
+        let token = JSON.parse(socket.handshake.query.token)
+        let peerAddress = token.address
+        let peer = this.connectionsToPeers[peerAddress];
+        nodeDebug(`${peerAddress} requested a blockchain status`)
+        if(!peer) this.peerManager.connectToPeer(peerAddress)
+        
+        this.peerManager.peerStatus[peerAddress] = peerStatus
+        this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
+        nodeDebug(`Peer ${peerAddress} shared its status`)
+        nodeDebug(`Best block header number: ${peerStatus.bestBlockHeader.blockNumber}`)
+        nodeDebug(`Best block header hash: ${peerStatus.bestBlockHeader.hash}`)
+        nodeDebug(`Best block header previous hash: ${peerStatus.bestBlockHeader.previousHash}`)
+        nodeDebug(`Best block header total difficulty: ${peerStatus.bestBlockHeader.totalDifficulty}`)
+        let updated = await this.receiveBlockchainStatus(peer, peerStatus)
+        if(updated && updated.error) socket.emit('blockchainStatus', { error:updated.error })
+      }else{
+        let status = {
+          totalDifficultyHex: this.chain.getDifficultyTotal(),
+          bestBlockHeader: this.chain.getLatestBlock(),
+          length: this.chain.chain.length
+        }
+        nodeDebug(`${peerAddress} requested a blockchain status`)
+        nodeDebug(`Peer did not supply a valid blockchain status`)
+        socket.emit('blockchainStatus', status);
       }
-
-      socket.emit('blockchainStatus', status);
-      let token = JSON.parse(socket.handshake.query.token)
-      let peerAddress = token.address
-      let peer = this.connectionsToPeers[peerAddress];
-      nodeDebug(`${peerAddress} requested a blockchain status`)
-      if(!peer) this.peerManager.connectToPeer(peerAddress)
-      
-      this.peerManager.peerStatus[peerAddress] = peerStatus
-      this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
-      nodeDebug(`Peer ${peerAddress} shared its status`)
-      nodeDebug(`Best block header number: ${peerStatus.bestBlockHeader.blockNumber}`)
-      nodeDebug(`Best block header hash: ${peerStatus.bestBlockHeader.hash}`)
-      nodeDebug(`Best block header previous hash: ${peerStatus.bestBlockHeader.previousHash}`)
-      nodeDebug(`Best block header total difficulty: ${peerStatus.bestBlockHeader.totalDifficulty}`)
-      let updated = await this.receiveBlockchainStatus(peer, peerStatus)
-      if(updated && updated.error) socket.emit('blockchainStatus', { error:updated.error })
       
     }catch(e){
       console.log(e)
