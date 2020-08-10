@@ -177,7 +177,6 @@ class StateStorage{
         })
         this.debug('State entry saved:', {
             state:this.state,
-            changeLog:this.changeLog,
             lastChange:this.lastChange
         })
         this.debug('Save successfull:', currentStateChanged)
