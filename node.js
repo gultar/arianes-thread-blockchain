@@ -693,10 +693,10 @@ class Node {
                 if(added.error){
                   if(added.exists){
                     closeConnection({ error:true })
-                    resolve({error:added.error})
+                    resolve({error:added.error,exists:added.exists})
                   }else if(added.existsInPool){
                     closeConnection({ error:true })
-                    resolve({error:added.error})
+                    resolve({error:added.error,existsInPool:added.existsInPool})
                   }else if(added.isRollingBack){
                     logger(chalk.yellow(added.error))
                     closeConnection({ error:true })
@@ -706,7 +706,6 @@ class Node {
                     closeConnection({ error:true })
                     resolve({error:added.error})
                   }else{
-                    logger('DOWNLOAD', added.error)
                     closeConnection({ error:true })
                     resolve({error:added.error})
                   }
