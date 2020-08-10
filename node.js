@@ -468,36 +468,30 @@ class Node {
 
   async getBlockchainStatus(socket, peerStatus){
     try{
+
       let token = JSON.parse(socket.handshake.query.token)
       let peerAddress = token.address
+      let status = this.buildBlockchainStatus()
+
       if(peerStatus && isValidBlockchainStatusJSON(peerStatus)){
-        let status = {
-          totalDifficultyHex: this.chain.getDifficultyTotal(),
-          bestBlockHeader: this.chain.getLatestBlock(),
-          length: this.chain.chain.length
-        }
-  
+        
+        nodeDebug(`${peerAddress} requested a blockchain status`)
         socket.emit('blockchainStatus', status);
         
         let peer = this.connectionsToPeers[peerAddress];
-        nodeDebug(`${peerAddress} requested a blockchain status`)
         if(!peer) this.peerManager.connectToPeer(peerAddress)
         
         this.peerManager.peerStatus[peerAddress] = peerStatus
         this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
+
         nodeDebug(`Peer ${peerAddress} shared its status`)
-        nodeDebug(`Best block header number: ${peerStatus.bestBlockHeader.blockNumber}`)
-        nodeDebug(`Best block header hash: ${peerStatus.bestBlockHeader.hash}`)
-        nodeDebug(`Best block header previous hash: ${peerStatus.bestBlockHeader.previousHash}`)
-        nodeDebug(`Best block header total difficulty: ${peerStatus.bestBlockHeader.totalDifficulty}`)
+        nodeDebug(peerStatus.bestBlockHeader)
+
         let updated = await this.receiveBlockchainStatus(peer, peerStatus)
-        if(updated && updated.error) socket.emit('blockchainStatus', { error:updated.error })
-      }else{
-        let status = {
-          totalDifficultyHex: this.chain.getDifficultyTotal(),
-          bestBlockHeader: this.chain.getLatestBlock(),
-          length: this.chain.chain.length
+        if(updated.error){
+          logger('STATUS ERROR:', updated.error)
         }
+      }else{
         nodeDebug(`${peerAddress} requested a blockchain status`)
         nodeDebug(`Peer did not supply a valid blockchain status`)
         socket.emit('blockchainStatus', status);
@@ -739,30 +733,30 @@ class Node {
     return status
   }
 
-  //Trying to vary peers
-  async synchronize(){
-    let topPeer = await this.getBestPeer()
-    if(topPeer && topPeer.connected){
-      let currentStatus = this.buildBlockchainStatus()
-      let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
-      if(peerLatestHeader){
-        let latestHeader = this.chain.getLatestBlock()
-        if(peerLatestHeader.blockNumber > latestHeader.blockNumber){
-          this.minerChannel.emit('nodeEvent','outOfSync')
-          if(!this.isDownloading) logger('Node is currently out of sync with top peer')
-          if(this.verbose) logger('Syncing chain with most up to date peer')
-          topPeer.emit('getBlockchainStatus', currentStatus)
-        }else{
-          this.minerChannel.emit('nodeEvent','inSync')
-        }
-      }
+  // //Trying to vary peers
+  // async synchronize(){
+  //   let topPeer = await this.getBestPeer()
+  //   if(topPeer && topPeer.connected){
+  //     let currentStatus = this.buildBlockchainStatus()
+  //     let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
+  //     if(peerLatestHeader){
+  //       let latestHeader = this.chain.getLatestBlock()
+  //       if(peerLatestHeader.blockNumber > latestHeader.blockNumber){
+  //         this.minerChannel.emit('nodeEvent','outOfSync')
+  //         if(!this.isDownloading) logger('Node is currently out of sync with top peer')
+  //         if(this.verbose) logger('Syncing chain with most up to date peer')
+  //         topPeer.emit('getBlockchainStatus', currentStatus)
+  //       }else{
+  //         this.minerChannel.emit('nodeEvent','inSync')
+  //       }
+  //     }
       
-    }else{
-      //No Top Peer, this node is probably the top peer
-      let currentStatus = this.buildBlockchainStatus()
-      this.broadcast('getBlockchainStatus', currentStatus)
-    }
-  }
+  //   }else{
+  //     //No Top Peer, this node is probably the top peer
+  //     let currentStatus = this.buildBlockchainStatus()
+  //     this.broadcast('getBlockchainStatus', currentStatus)
+  //   }
+  // }
 
 /**
  * 
@@ -781,7 +775,7 @@ class Node {
             let latestBlock = this.chain.getLatestBlock()
             if(totalDifficultyHex && bestBlockHeader && length){
               if(bestBlockHeader.blockNumber > latestBlock.blockNumber + 1){
-                this.peersLatestBlocks[peer.io.uri] = bestBlockHeader
+                this.peersLatestBlocks[peer.address] = bestBlockHeader
                 let thisTotalDifficultyHex = await this.chain.getDifficultyTotal();
                 // Possible major bug, will not sync if chain is longer but has different block at a given height
                 let totalDifficulty = BigInt(parseInt(totalDifficultyHex, 16))
@@ -797,7 +791,6 @@ class Node {
                           logger(updated.error)
                           resolve({error:updated.error})
                         }else {
-                          this.updated = true
                           resolve(updated)
                         }
   
