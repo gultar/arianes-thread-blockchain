@@ -48,6 +48,7 @@ const { RateLimiterMemory } = require('rate-limiter-flexible');
 const nodeDebug = require('debug')('node')
 // const compareSnapshots = require('./modules/network/snapshotHandler');
 const Database = require('./modules/classes/database/db');
+const { down } = require('inquirer/lib/utils/readline');
 
 /**
   Instanciates a blockchain node
@@ -103,7 +104,7 @@ class Node {
     this.lastThreeSyncs = []
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-    this.synchronizeDelay = 5*1000;
+    this.synchronizeDelay = 2*1000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
     this.isDownloading = false;
@@ -826,11 +827,31 @@ class Node {
     
   }
 
-  async updateBlockchain(){
+  // async updateBlockchain(){
+  //   if(!this.chain.isRollingBack){
+  //     let peer = await this.getBestPeer()
+  //     if(peer){
+  //       return await this.downloadBlocks(peer)
+  //     }else{
+  //       let status = this.buildBlockchainStatus()
+  //       this.broadcast("getBlockchainStatus", status)
+  //       return { broadcasted:true }
+  //     }
+  //   }else{
+  //     return {error:'Warning: Could not update now. Node is rolling back blocks'}
+  //   }
+    
+  // }
+
+  async updateBlockchain(exceptPeers=[]){
     if(!this.chain.isRollingBack){
-      let peer = await this.getBestPeer()
+      let peer = await this.getBestPeer(exceptPeers)
       if(peer){
-        return await this.downloadBlocks(peer)
+        let downloaded = await this.downloadBlocks(peer)
+        if(downloaded.error && !downloaded.exists && !downloaded.existsInPool){
+          logger(`ERROR: Failed to update blockchain through peer ${peer.address}`)
+          return await this.updateBlockchain([...exceptPeers, peer.address])
+        }
       }else{
         let status = this.buildBlockchainStatus()
         this.broadcast("getBlockchainStatus", status)
@@ -2015,8 +2036,6 @@ DHT_PORT=${this.peerDiscoveryPort}
   heartbeat(){
     setInterval(async ()=>{
       this.chain.save()
-      this.housekeeping()
-      // this.broadcast('getChainSnapshot')
       let backUp = await this.chain.saveLastKnownBlockToDB()
       if(backUp.error) console.log('Heartbeat ERROR:', backUp.error)
     }, this.messageBufferCleanUpDelay)
@@ -2026,13 +2045,7 @@ DHT_PORT=${this.peerDiscoveryPort}
       @desc Routine tasks go here. The heartbeat's delay is adjusted in nodeconfig
     */
   syncHeartBeat(){
-//     let lastSyncWithPeer = ""
     setInterval(async ()=>{
-//         let syncedWith = await this.synchronize(lastSyncWithPeer)
-//         if(syncedWith){
-//           console.log('Has synced with', syncedWith)
-//           lastSyncWithPeer = syncedWith
-//         }
         let currentStatus = this.buildBlockchainStatus()
         this.broadcast('getBlockchainStatus', currentStatus)
         await this.getPeerStatuses()
