@@ -652,6 +652,7 @@ class Node {
 
               clearTimeout(requestTimer)
               requestTimer = false
+              createTimer()
 
               if(block.end){
 
@@ -712,6 +713,8 @@ class Node {
                 }else{
                   request(this.chain.getLatestBlock())
                 }
+              }else{
+                console.log('Received something else', block)
               }
             })
 

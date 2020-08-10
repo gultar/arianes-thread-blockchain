@@ -292,9 +292,9 @@ class Blockchain{
 
   async receiveBlock(newBlock, overwrite=false){
     if(isValidBlockJSON(newBlock)){
-        if(this.isRollingBack) return { error:'ERROR: Could not receive block, chain is rolling back' }
+        if(this.isRollingBack) return { error:'ERROR: block not received, chain is rolling back' }
         if(this.isRoutingBlock){
-          return { error:'ERROR: Could not receive block, node is routing block' }
+          return { error:'ERROR: block not received, node is routing block' }
         }
         //Already exists in chain?
         let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
