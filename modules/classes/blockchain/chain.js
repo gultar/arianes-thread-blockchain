@@ -290,7 +290,7 @@ class Blockchain{
 
 
 
-  async receiveBlock(newBlock, { overwrite=false }){
+  async receiveBlock(newBlock, overwrite=false){
     if(isValidBlockJSON(newBlock)){
         if(this.isRollingBack) return { error:'ERROR: Could not receive block, chain is rolling back' }
         if(this.isRoutingBlock){

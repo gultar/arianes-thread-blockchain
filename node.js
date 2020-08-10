@@ -683,7 +683,7 @@ class Node {
               }else if(block.found){
 
                 let nextBlock = block.found
-                let added = await this.chain.receiveBlock(nextBlock)
+                let added = await this.chain.receiveBlock(nextBlock, 'overwrite')
                 if(added.error){
                   if(added.exists){
                     closeConnection({ error:true })
