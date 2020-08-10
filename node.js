@@ -652,7 +652,7 @@ class Node {
 
               clearTimeout(requestTimer)
               requestTimer = false
-              createTimer()
+              createTimer(false, this.chain.getLatestBlock())
 
               if(block.end){
 
