@@ -1352,14 +1352,12 @@ class Blockchain{
         this.isRollingBack = true
         global.minerChannel.emit("nodeEvent","isRollingBack")
         let highestBlockNumber = this.getLatestBlock().blockNumber
-        console.log('Highest block number', highestBlockNumber)
         let headersOfBlocksToRemove = this.chain.slice(number, highestBlockNumber)
-        console.log('Number of blocks to remove', headersOfBlocksToRemove.length)
         let reversedHeaders = headersOfBlocksToRemove.reverse()
         let error = false
         for await(let header of reversedHeaders){
+          let keepBlock = await this.getBlockFromDB(header.blockNumber)
           let rolledBack = await this.rollbackOneBlock()
-          console.log('Rolled back block '+header.blockNumber, rolledBack)
           if(rolledBack.error){
             error = rolledBack.error
             break;
@@ -1376,11 +1374,8 @@ class Blockchain{
         
         this.isRollingBack = false
         global.minerChannel.emit("nodeEvent","finishedRollingBack")
-        if(error) return { error:error }
-        else{
-          logger(`Rolled back to block ${number}`)
-          return { rolledback:true }
-        }
+        logger(`Rolled back to block ${number}`)
+        return { rolledback:true }
       }else{
         
         return { error:'ERROR: Blocknumber to rollback to must be numerical' }

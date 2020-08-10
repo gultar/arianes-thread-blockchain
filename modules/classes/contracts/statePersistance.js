@@ -1,4 +1,7 @@
 const Database = require('../database/db')
+const persistanceDebug = require('debug')('persistance')
+
+
 
 class StateStorage{
     constructor({ name, state }){
@@ -15,6 +18,10 @@ class StateStorage{
         this.changeLog = {}  
     }
 
+    debug(...output){
+        persistanceDebug(`[${this.name}]`, ...output)
+    }
+
     async init(){
         let stateEntry = await this.database.get(this.name)
         if(!stateEntry) return { error:`ERROR: Could not initiate ${this.name}` }
@@ -29,15 +36,20 @@ class StateStorage{
 
     async update(state, blockNumber){
         if(state && Object.keys(state).length > 0){
+            
             this.state = state
+            this.debug('Updating state', state)
             this.changeLog[blockNumber] = state
+            this.debug('At block', blockNumber)
             this.lastChange = blockNumber
+            this.debug('Last change:', this.lastChange)
         }else{
+            this.debug('Updating but no state provided')
             if(this.changeLog[blockNumber]){
+                this.debug('Updating but entry exists: overwriting')
                 this.changeLog[blockNumber] = this.changeLog[blockNumber]
             }
         }
-        // console.log('State updated', JSON.stringify(this.state, null, 2))
         return { updated:true }
     }
 
@@ -54,30 +66,45 @@ class StateStorage{
         for await(let key of keys.reverse()){
             if(key <= blockNumber){
                 let entry = this.changeLog[key]
+                this.debug('Found entry closest to', blockNumber)
+                this.debug('Entry:', entry)
                 if(entry) return entry
             }
         }
-
+        this.debug('Did not find closest state to ', blockNumber)
         return false
     }
 
     async lookForClosestKey(blockNumber){
         let keys = Object.keys(this.changeLog)
+        this.debug('Looking for key closest to block ', blockNumber)
         for await(let key of keys.reverse()){
             if(key <= blockNumber){
                 let entry = this.changeLog[key]
+                this.debug('Found key closest to', blockNumber)
+                this.debug('Key:', key)
                 if(entry) return key
             }
         }
-
+        this.debug('Did not find closest key to ', blockNumber)
         return 0
     }
 
     async getState(blockNumber=undefined){
         if(blockNumber){
+            this.debug('Getting state entry at block', blockNumber)
             let state = this.changeLog[blockNumber]
             if(!state){
-                return await this.lookForClosestState(blockNumber)
+                this.debug('Did not find state at block ', blockNumber)
+                this.debug('Looking for closest state to ', blockNumber)
+                let closestState = await this.lookForClosestState(blockNumber)
+                if(!closestState){
+                    this.debug('Did not find any state closest to ', blockNumber)
+                    return new Error('Did not find any contract state closest to '+blockNumber)
+                }else{
+                    this.debug('Found closest state to ', blockNumber)
+                    return closestState
+                }
             }else{
                 return state
             }
@@ -87,30 +114,38 @@ class StateStorage{
     }
 
     async getLatestState(){
+        this.debug('Getting latest state entry at block', this.lastChange)
+        this.debug('Entry:', this.changeLog[this.lastChange])
         return this.changeLog[this.lastChange]
     }
 
     async rollbackBlock(blockNumber){
+        this.debug('About to rollback to block', blockNumber)
         let entryKeys = Object.keys(this.changeLog)
-        console.log('Rolling back to ', blockNumber)
+        this.debug('Total number of keys', entryKeys.length)
         let shouldDestroy = blockNumber < entryKeys[0]
+        this.debug('Should destroy contract?', shouldDestroy)
         if(shouldDestroy){
             return { destroy:true }
         }else{
             let hasEntry = this.changeLog[blockNumber]
+            this.debug(`Block ${blockNumber} has state entry?`)
             if(hasEntry){
-                console.log('Found entry', blockNumber)
+                this.debug('Found contract state entry at', blockNumber)
                 this.state = this.changeLog[blockNumber]
+                this.debug('Entry', this.state)
                 this.lastChange = blockNumber
             }else{
+                this.debug('Did not find contract state entry at', blockNumber)
                 let closestKey = await this.lookForClosestKey(blockNumber)
                 if(closestKey){
-                    console.log('Closest key', closestKey)
+                    this.debug('Closest key', closestKey)
                     this.state = this.changeLog[closestKey]
                     this.lastChange = closestKey
                 }else{
-                    console.log('Could not find closest key to ', blockNumber)
+                    this.debug('Could not find closest key to ', blockNumber)
                     this.state = this.changeLog[0]
+                    this.debug('Setting initial state of contract', this.state)
                     this.lastChange = 0
                 }
             }
@@ -118,7 +153,7 @@ class StateStorage{
 
         for await(let key of entryKeys.reverse()){
             if(key > blockNumber){
-                console.log('Deleting key', key)
+                this.debug('Deleting state entry at block', blockNumber)
                 delete this.changeLog[key]
             }else{
                 break;
@@ -130,60 +165,8 @@ class StateStorage{
 
     }
 
-    // async rollbackBlock(blockNumber){
-    //     let entries = Object.keys(this.changeLog)
-    //     let numberOfBlocksToRemove = this.lastChange - blockNumber
-    //     let counter = 0
-    //     for await(let entry of entries.reverse()){
-    //         if(counter == numberOfBlocksToRemove) break;
-    //         if(entry <= blockNumber) break;
-    //         else {
-    //             let rolledBack = await this.rollbackOneState()
-    //             if(rolledBack.error){
-    //                 console.log('Caught an error', rolledBack)
-    //                 return { error:rolledBack.error }
-    //             }
-    //         }
-    //         counter++
-    //     }
-
-    //     return this.state
-    // }
-
-    // async rollbackBlock(blockNumber){
-    //     let entryKeys = Object.keys(this.changeLog)
-    //     console.log('Num of entry keys:', entryKeys)
-    //     let firstEntry = entryKeys[0]
-    //     console.log('First key', firstEntry)
-    //     let isBeginning = blockNumber <= firstEntry
-    //     if(isBeginning){
-    //         this.state = {}
-    //     }else{
-    //         console.log('Block number', blockNumber)
-    //         let previousState = this.changeLog[blockNumber]
-    //         console.log('Previous State',previousState)
-    //         let position = blockNumber
-    //         if(previousState.atBlock){
-    //             this.lastChange = previousState.atBlock
-    //             position = previousState.atBlock
-    //             previousState = this.changeLog[previousState.atBlock]
-    //         }
-
-    //         this.state = previousState
-    //         let entryKeys = Object.keys(this.changeLog)
-    //         let entriesToDelete = entryKeys.slice(position, entryKeys.length)
-    //         for await(let entry of entriesToDelete.reverse()){
-    //             console.log('Need to delete', entry)
-    //             delete this.changeLog[entry]
-    //         }
-
-    //         // this.save()
-    //     }
-    //     return this.state
-
-    // }
-
     async save(){
+        this.debug('Saving current state')
         let currentStateChanged = await this.database.put({
             key:this.name,
             value:{
@@ -192,6 +175,12 @@ class StateStorage{
                 lastChange:this.lastChange
             }
         })
+        this.debug('State entry saved:', {
+            state:this.state,
+            changeLog:this.changeLog,
+            lastChange:this.lastChange
+        })
+        this.debug('Save successfull:', currentStateChanged)
         if(currentStateChanged.error) return { error:currentStateChanged }
         else if(currentStateChanged) return currentStateChanged
     }
