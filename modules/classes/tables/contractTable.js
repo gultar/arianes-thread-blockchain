@@ -195,6 +195,19 @@ class ContractTable{
         })
     }
 
+    getLatestState(name){
+        return new Promise(async (resolve)=>{
+            if(this.stateStorage[name]){
+                let state = await this.stateStorage[name].getLatestState()
+                if(state.error) resolve({error:state.error})
+                else resolve(state)
+            }else{
+                resolve({error:`ERROR: State does not exist for contract ${name}`})
+            }
+            
+        })
+    }
+
 
     saveStates(block){
         return new Promise(async (resolve)=>{

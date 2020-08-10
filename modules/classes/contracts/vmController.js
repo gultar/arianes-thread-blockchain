@@ -77,7 +77,7 @@ class VMController{
                 let added = await this.vmBootstrap.addContract(contractName, contractCode)
                 if(added.error) return { error:added.error } 
 
-                let state = await this.contractConnector.getState(contractName)
+                let state = await this.contractConnector.getLatestState(contractName)
                 if(state && Object.keys(state).length > 0){
                     
                     let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
@@ -190,7 +190,7 @@ class VMController{
                 let contractSent = await this.testBootstrap.addContract(contractName)
                 if(contractSent.error) resolve({ error:`ERROR: Contract ${code.contractName} does not exist` })
                 
-                let state = await this.contractConnector.getState(contractName)
+                let state = await this.contractConnector.getLatestState(contractName)
                 if(state){
                     let stateAdded = await this.testBootstrap.setContractState(contractName, state)
                     if(stateAdded.error) resolve({ error:stateAdded.error })
