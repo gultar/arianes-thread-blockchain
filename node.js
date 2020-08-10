@@ -622,10 +622,11 @@ class Node {
               this.isDownloading = false;
             }
 
-            const createTimer = (alreadyRetried=false) =>{
+            const createTimer = (alreadyRetried=false, resendPayload) =>{
               requestTimer = setTimeout(()=>{
                 if(!alreadyRetried){
-                  request(retryRequesting, 'retried')
+                  logger('Retrying to send', resendPayload)
+                  request(resendPayload, 'retried')
                 }else{
                   closeConnection({ error:'timeout' })
                   // console.log('Download failed so peer is now out of sync')
@@ -635,14 +636,15 @@ class Node {
               }, 30*1000)
             }
             
-            const request = (payload, retry=false) =>{
+            const request = (payload, retried=false) =>{
               peer.emit('getNextBlock', payload)
               this.isDownloading = true
+              
               if(requestTimer){
                  clearTimeout(requestTimer)
                  requestTimer = false
               }
-              createTimer(retry)
+              createTimer(retried, payload)
             }
 
             peer.on('nextBlock', async (block)=>{
