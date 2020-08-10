@@ -844,6 +844,7 @@ class Node {
           logger(`ERROR: Failed to update blockchain through peer ${peer.address}`)
           return await this.updateBlockchain([...exceptPeers, peer.address])
         }
+        return downloaded
       }else{
         let status = this.buildBlockchainStatus()
         this.broadcast("getBlockchainStatus", status)
