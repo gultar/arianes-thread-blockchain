@@ -37,6 +37,23 @@ class ContractConnector{
        }) 
     }
 
+    getLatestState(contractName){
+        return new Promise(async (resolve)=>{
+         if(contractName){
+             let state = await this.contactTable.getLatestState(contractName)
+             if(state.error) resolve({ error:state.error })
+             else if(state){
+                 resolve(state)
+             }else{
+                 resolve(false)
+             }
+ 
+         }else{
+             return { error:'Need to provide name of contract to fetch' }
+         }
+        }) 
+     }
+
     async updateState({name, newState}){
         if(!name) return { error:'ERROR Need to provide name of the contract state to update' }
         else if(!newState || typeof newState !== 'object') return { error:'ERROR: Need to provide valid state object' }
