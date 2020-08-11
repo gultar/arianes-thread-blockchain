@@ -1248,7 +1248,8 @@ class Node {
       })
 
       socket.on('getContractStates',async (blockNumber)=>{
-        let peer = await this.getBestPeer()
+        let peerAddrs = Object.keys(this.connectionsToPeers)
+        let peer = this.connectionsToPeers[peerAddrs[0]]
         let states = await this.downloadBlockStates(peer, blockNumber)
         socket.emit('states', states)
       })
