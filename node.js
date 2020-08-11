@@ -376,7 +376,7 @@ class Node {
 
       if(isGenesis){
         let block = await this.chain.getBlockFromDB(1)
-        let states = await this.chain.contractTable.getStateOfAllContracts(nextBlock.blockNumber)
+        let states = await this.chain.contractTable.getStateOfAllContracts(block.blockNumber)
         if(states.error) socket.emit('nextBlock', { error:'ERROR: Could not find contract states of block '+nextBlock.blockNumber })
               
         if(block && block.error) socket.emit('nextBlock', { error:block.error})
