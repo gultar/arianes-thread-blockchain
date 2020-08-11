@@ -624,7 +624,7 @@ class Node {
     if(states && Object.keys(states).length > 0){
       for await(let contractName of Object.keys(states)){
         let state = states[contractName]
-        
+        console.log('State to be applied', states)
         let stateSet = await this.chain.contractTable.manuallySetState(contractName, state, blockNumber)
         console.log('Applying contract states', stateSet)
         if(stateSet.error) console.log('STATE SET', stateSet.error)
@@ -632,7 +632,8 @@ class Node {
 
       return { applied:true }
     }else{
-      return { noStatesProvided:true }
+      console.log('No state changes', states)
+      return { noStateChanged:true }
     }
   }
 
