@@ -324,6 +324,7 @@ class Node {
       socket.on('getBlockHeader', async (blockNumber)=> await this.getBlockHeader(socket, blockNumber))
       socket.on('getBlock', async (blockNumber, hash)=> await this.getBlock(socket, blockNumber, hash))
       socket.on('getNextBlock', async (header)=> await this.getNextBlock(socket, header))
+      socket.on('getAllContractStates', async(blockNumber)=> await this.getAllContractStates(socket, blockNumber))
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
@@ -418,6 +419,20 @@ class Node {
       
     }else{
       //Invalid header JSON
+    }
+  }
+
+  async getAllContractStates(socket, blockNumber){
+    try{
+      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
+      if(blockNumber && typeof blockNumber == 'number'){
+        let states = await this.chain.contractTable.getStateOfAllContracts(blockNumber)
+        socket.emit('contractStates', states)
+      }else{
+        logger('ERROR: Could not send contract states, block number provided is invalid')
+      }
+    }catch(e){
+      console.log('Get All Contract States',e)
     }
   }
 
@@ -576,31 +591,38 @@ class Node {
     return connections.length
   } 
 
-  // downloadGenesisBlock(peer){
-  //   return new Promise((resolve)=>{
-  //     this.isDownloading = true;
-  //     logger("Downloading peer's genesis block")
-  //     peer.on('genesisBlock', (genesisBlock)=>{
-  //       peer.off('genesisBlock')
-  //       this.isDownloading = false;
-  //       clearTimeout(timeout)
-  //       if(genesisBlock.error){
-  //         logger(genesisBlock.error)
-  //         resolve({error:genesisBlock.error})
-  //       }else{
-  //         resolve(genesisBlock)
-  //       }
-  //     })
+  downloadBlockStates(peer, blockNumber){
+    return new Promise((resolve)=>{
+      
+      logger("Downloading contract states at block", blockNumber)
+      peer.on('contractStates', (states)=>{
+        peer.off('contractStates')
+        clearTimeout(timeout)
+        resolve(states)
+      })
 
-  //     peer.emit('getGenesisBlock')
+      peer.emit('getAllContractStates', blockNumber)
 
-  //     let timeout = setTimeout(()=>{
-  //       logger('Genesis block request timedout')
-  //       peer.off('genesisBlock')
-  //       this.isDownloading = false;
-  //     }, 5000)
-  //   })
-  // }
+      let timeout = setTimeout(()=>{
+        logger('Block states request timed out')
+        peer.off('contractStates')
+      }, 5000)
+    })
+  }
+
+  async applyContractStates(states, blockNumber){
+    if(states && Object.keys(states).length > 0){
+      for await(let contractName of Object.keys(states)){
+        let state = states[contractName]
+        let stateSet = await this.chain.contractTable.manuallySetState(contractName, state, blockNumber)
+        if(stateSet.error) console.log('STATE SET', stateSet.error)
+      }
+
+      return { applied:true }
+    }else{
+      return { noStatesProvided:true }
+    }
+  }
 
   downloadBlocks(peer){
     return new Promise(async (resolve)=>{
@@ -925,50 +947,6 @@ class Node {
   }
 
 
-  // /**
-  //  * @desc Checks for the peer that has the highest difficulty containing header
-  //  */
-  // getMostUpToDatePeer(){
-  //   return new Promise(async (resolve)=>{
-  //     try{
-  //       if(Object.keys(this.connectionsToPeers).length === 0){
-  //         resolve(false)
-  //       }else{
-  //         let highestTotalDifficulty = '0x001'
-  //         let mostUpdateToDatePeer = false
-  //         for await(let address of Object.keys(this.connectionsToPeers)){
-  //           let peer = this.connectionsToPeers[address]
-  //             console.log('Checking with peer', address)
-  //             let peerLatestBlock = this.peersLatestBlocks[address]
-  //             if(peerLatestBlock){
-  //               console.log('Peer has a latest block', peerLatestBlock.blockNumber)
-  //               console.log('This latest block', this.chain.getLatestBlock().blockNumber)
-  //               //let totalDifficulty = BigInt(parseInt(peerLatestBlock.totalDifficulty, 16))
-  //               //if(totalDifficulty > BigInt(parseInt(highestTotalDifficulty, 16))){
-  //               console.log('Peer has higher block number', this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber)
-  //               if(this.chain.getLatestBlock().blockNumber <= peerLatestBlock.blockNumber){
-  //                 mostUpdateToDatePeer = peer
-  //               }
-  //            }
-  //         }
-  
-  //         if(mostUpdateToDatePeer) resolve(mostUpdateToDatePeer)
-  //         else{
-  //           //Picking random peer
-  //           logger("WARNING: Could not find fully updated peer, choosing random one")
-  //           let peerAddresses = Object.keys(this.connectionToPeers).length
-  //           let randomSelector = Math.floor(Math.random() * peerAddresses.length)
-  //           let randomPeerAddress = peerAddresses[randomSelector]
-  //           let randomPeer = this.connectionToPeers[randomPeerAddress]
-  //           resolve(randomPeer)
-  //         }
-  //       }
-  //     }catch(e){
-  //       resolve({error:e.message})
-  //     }
-  //   })
-  // }
-
   /**
     Broadcast only to this node's connected peers. Does not send peer messages
     @param {string} $eventType - Type of node event
@@ -1264,11 +1242,10 @@ class Node {
       
       })
 
-      socket.on('debug', (debugChannel)=>{
-        
-        process.env.DEBUG = debugChannel
-        socket.emit('debugToggled', this.verbose)
-      
+      socket.on('getContractStates',async (blockNumber)=>{
+        let peer = await this.getBestPeer()
+        let states = await this.downloadBlockStates(peer, blockNumber)
+        socket.emit('states', states)
       })
 
       socket.on('update', ()=>{
@@ -1380,8 +1357,6 @@ class Node {
   async handleNetworkEvent(peerMessage){
     this.localServer.sockets.emit('networkEvent', peerMessage)
   }
-
-
 
 
   /**

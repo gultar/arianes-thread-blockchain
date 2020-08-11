@@ -195,6 +195,28 @@ class ContractTable{
         })
     }
 
+    async manuallySetState(name, state, blockNumber){
+        if(this.stateStorage[name]){
+            return await this.stateStorage[name].setState(state, blockNumber)
+        }else{
+            return { error:'ERROR: Could not set state, contract storage of ${name} does not exist' }
+        }
+    }
+
+    async getStateOfAllContracts(blockNumber){
+        let contractNames = Object.keys(this.stateStorage)
+        let contractStates = {}
+        for await(let name of contractNames){
+            if(this.stateStorage[name]){
+                let state = await this.stateStorage[name].getEntryAtBlock(blockNumber)
+                if(state && state.error) throw state.error
+                else if(state) contractStates[name] = state
+            }
+        }
+
+        return contractStates
+    }
+
     getLatestState(name){
         return new Promise(async (resolve)=>{
             if(this.stateStorage[name]){
@@ -322,24 +344,6 @@ class ContractTable{
                 return removedState
             }
     }
-
-    // async rollback(blockNumber, block=false){
-    //     if(blockNumber){
-    //         for await(let contractName of Object.keys(this.stateStorage)){
-    //             let storage = this.stateStorage[contractName]
-    //             if(!storage) return { error:`ERROR: State storage at ${contractName} is not a proper instance of ContractStateStorage` }
-    //             else{
-    //                 let rolledBack = await storage.rollback(blockNumber, block)
-    //                 if(rolledBack.error) return { error:rolledBack.error }
-
-    //                 this.stateMemory[contractName] = rolledBack
-    //             }
-    //         }
-    //         return true
-    //     }else{
-    //         return { error:'ERROR: Roll back incomplete. Block hash provided is undefined' }
-    //     }
-    // }
 
     async rollbackBlock(blockNumber){
         if(blockNumber){

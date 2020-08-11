@@ -113,6 +113,15 @@ class StateStorage{
         }
     }
 
+    async getEntryAtBlock(blockNumber){
+        if(blockNumber){
+            let state = this.changeLog[blockNumber]
+            return state
+        }else{
+            return { error:new Error('No block number supplied to GetEntryAtBlock') }
+        }
+    }
+
     async getLatestState(){
         this.debug('Getting latest state entry at block', this.lastChange)
         this.debug('Entry:', this.changeLog[this.lastChange])
