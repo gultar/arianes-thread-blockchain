@@ -304,7 +304,7 @@ class Blockchain{
           if(!overwrite) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
           else{
             if(newBlock.blockNumber > this.getLatestBlock().blockNumber){
-              let removed = await this.chainDB.deleteId(newBlock.blockNumber)
+              let removed = await this.chainDB.delete({ id:newBlock.blockNumber })
               if(removed.error) return { error:removed.error }
             }
           }
