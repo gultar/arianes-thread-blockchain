@@ -324,7 +324,7 @@ class Blockchain{
 
   async routeBlock(newBlock){
     let isValidBlock = await this.validateBlock(newBlock)
-    if(isValidBlock.error) return { error:isValidBlock.error }
+    if(isValidBlock.error) return { error:new Error(isValidBlock.error) }
     else{
 
       let isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
@@ -337,7 +337,7 @@ class Blockchain{
         if(isTenBlocksAhead){
           //In case of a major fork
           let rollback = await this.rollback(this.getLatestBlock().blockNumber - 20)
-          if(rollback.error) return { error:rollback.error }
+          if(rollback.error) return { error:new Error(rollback.error) }
           else return { requestUpdate:true }
         }
         
@@ -374,8 +374,8 @@ class Blockchain{
     let previousBlockExists = false
     if(newBlock.blockNumber > 1){
       previousBlockExists = await this.getBlockFromDBByHash(newBlock.previousHash)
-      if(!previousBlockExists) return { error:`ERROR: Previous block ${newBlock.blockNumber - 1} of hash ${newBlock.previousHash.substr(0,10)}... is missing from DB`, missing:newBlock.previousHash }
-      if(previousBlockExists.error) return { error:previousBlockExists.error }
+      if(!previousBlockExists) return { error:new Error(`ERROR: Previous block ${newBlock.blockNumber - 1} of hash ${newBlock.previousHash.substr(0,10)}... is missing from DB`), missing:newBlock.previousHash }
+      if(previousBlockExists.error) return { error:new Error(previousBlockExists.error) }
     }
     else previousBlockExists = true
 
@@ -385,13 +385,13 @@ class Blockchain{
     let executed = await this.runBlock(newBlock)
     if(executed.error){
       this.chain.pop()
-      return { error:executed.error }
+      return { error:new Error(executed.error) }
     }
     else {
       let added = await this.addBlockToDB(newBlock)
       if(added.error){
         this.chain.pop()
-        return { error:added.error }
+        return { error:new Error(added.error) }
       }
       else{
         // await this.manageChainSnapshotQueue(newBlock)
