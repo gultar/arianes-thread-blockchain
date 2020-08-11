@@ -146,6 +146,7 @@ class Database{
                 this.configSet = await this.init()
                 if(this.configSet.error) return {error:this.configSet.error}
             }
+            console.log(entry)
             if(!entry) return {error:"Cannot read to Database: entry is undefined"}
             else if(!entry.id && !entry._id) return { error:`Entry does not have an id` }
             let deleted = await this.database.delete(this.name, entry._id || entry.id)
