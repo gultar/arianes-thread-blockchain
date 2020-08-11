@@ -2740,7 +2740,7 @@ class Blockchain{
         if(genesisBlock){
           if(genesisBlock.error) reject(genesisBlock.error)
           let lastBlock = await this.getLastKnownBlockFromDB()
-
+          console.log('Last block found', lastBlock)
           let blockNumbersKnown = await this.chainDB.getAllKeys()
           let blockNumbers = []
           if(!lastBlock && blockNumbersKnown.length > 2){ 
