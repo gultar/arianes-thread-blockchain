@@ -381,7 +381,13 @@ class Blockchain{
     else previousBlockExists = true
 
     let newHeader = this.extractHeader(newBlock)
-    this.chain.push(newHeader);
+    if(this.chain.length == newHeader.blockNumber + 1){
+      let latestToBeOverwritten = this.chain.pop()
+      console.log('Overwriting header', latestToBeOverwritten)
+    }
+    this.chain.push(newHeader)
+
+    
 
     let executed = await this.runBlock(newBlock)
     if(executed.error){
@@ -2734,6 +2740,24 @@ class Blockchain{
         if(genesisBlock){
           if(genesisBlock.error) reject(genesisBlock.error)
           let lastBlock = await this.getLastKnownBlockFromDB()
+
+          let blockNumbersKnown = await this.chainDB.getAllKeys()
+          let blockNumbers = []
+          if(!lastBlock && blockNumbersKnown.length > 2){ 
+            logger('Last block is unknown but block entries were found in database') //more than 2 because 0 and lastBlock being the only blocks
+            for await(let blockNumber of blockNumbersKnown){
+              if(blockNumber !== 'lastBlock'){
+                blockNumbers.push(parseInt(blockNumber))
+              }
+            }
+            logger('Sorting blockNumbers')
+            let numberOfBlocks = blockNumbers.length
+            let lastBlockNumberKnown = numberOfBlocks - 1
+            
+            lastBlock = await this.chainDB.get(lastBlockNumberKnown)
+            logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
+          }
+
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)
             this.chain[0] = genesisBlock
