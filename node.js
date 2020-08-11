@@ -381,7 +381,7 @@ class Node {
         if(states.error) socket.emit('nextBlock', { error:'ERROR: Could not find contract states of block '+nextBlock.blockNumber })
               
         if(block && block.error) socket.emit('nextBlock', { error:block.error})
-        else if(block && !block.error) socket.emit('nextBlock', { found:block })
+        else if(block && !block.error) socket.emit('nextBlock', { found:block, states:states })
         else socket.emit('nextBlock', { error:'Block not found'})
       }else{
         if(index && previousIsKnown){
