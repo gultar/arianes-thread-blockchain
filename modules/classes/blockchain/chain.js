@@ -305,6 +305,7 @@ class Blockchain{
           else{
             if(newBlock.blockNumber > this.getLatestBlock().blockNumber){
               let removed = await this.chainDB.delete({ id:newBlock.blockNumber })
+              logger('Overwrote block', newBlock.blockNumber)
               if(removed.error) return { error:removed.error }
             }
           }
