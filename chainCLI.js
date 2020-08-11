@@ -135,14 +135,14 @@ program
 })
 
 program
-.command('debug <channel>')
+.command('getcontractstates <blockNumber>')
 .description('Enables debug logging on node')
-.action((channel)=>{
+.action((blockNumber)=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('debug', channel);
-            socket.on('debugToggled', ()=>{
-                logger('Debug mode on :', channel)
+            socket.emit('getContractStates', blockNumber);
+            socket.on('states', (states)=>{
+                console.log(JSON.stringify(states, null, 2))
             })
         })
     }else{
