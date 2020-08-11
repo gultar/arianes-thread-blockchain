@@ -2754,11 +2754,10 @@ class Blockchain{
             logger('Sorting blockNumbers')
             let numberOfBlocks = blockNumbers.length
             let lastBlockNumberKnown = numberOfBlocks - 1
-            console.log('BlockNumbers Length', numberOfBlocks)
             let lastBlockEntry = await this.chainDB.get(lastBlockNumberKnown)
+            if(!lastBlockEntry) throw new Error('Could not load latest block in chainDB entries')
             lastBlock = lastBlockEntry[lastBlockNumberKnown]
-            console.log('New last block', lastBlock)
-            // logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
+            logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
           }
 
           if(lastBlock && lastBlock.blockNumber){
