@@ -207,8 +207,10 @@ class ContractTable{
         let contractNames = Object.keys(this.stateStorage)
         let contractStates = {}
         for await(let name of contractNames){
+            console.log('Going over state of',name)
             if(this.stateStorage[name]){
                 let state = await this.stateStorage[name].getEntryAtBlock(blockNumber)
+                console.log('Has state', state)
                 if(state && state.error) throw state.error
                 else if(state) contractStates[name] = state
             }
