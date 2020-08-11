@@ -593,20 +593,25 @@ class Node {
 
   downloadBlockStates(peer, blockNumber){
     return new Promise((resolve)=>{
+      if(peer && peer.connected){
+        logger("Downloading contract states at block", blockNumber)
+        peer.on('contractStates', (states)=>{
+          peer.off('contractStates')
+          clearTimeout(timeout)
+          resolve(states)
+        })
+  
+        peer.emit('getAllContractStates', blockNumber)
+  
+        let timeout = setTimeout(()=>{
+          logger('Block states request timed out')
+          peer.off('contractStates')
+        }, 5000)
+      }else{
+        console.log('Peer supplied is invalid')
+        console.log(peer)
+      }
       
-      logger("Downloading contract states at block", blockNumber)
-      peer.on('contractStates', (states)=>{
-        peer.off('contractStates')
-        clearTimeout(timeout)
-        resolve(states)
-      })
-
-      peer.emit('getAllContractStates', blockNumber)
-
-      let timeout = setTimeout(()=>{
-        logger('Block states request timed out')
-        peer.off('contractStates')
-      }, 5000)
     })
   }
 
