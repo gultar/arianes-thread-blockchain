@@ -748,7 +748,7 @@ class Node {
                     resolve({error:added.error})
                   }
                 }else{
-                  let applied = await this.applyContractStates(contractStates, block.blockNumber)
+                  let applied = await this.applyContractStates(contractStates, nextBlock.blockNumber)
                   if(applied.error){
                     closeConnection({ error:true })
                     resolve({error:added.error})
