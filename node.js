@@ -828,11 +828,35 @@ class Node {
     
   }
 
-  // async updateBlockchain(){
+  async updateBlockchain(){
+    if(!this.chain.isRollingBack){
+      let peer = await this.getBestPeer()
+      if(peer){
+        return await this.downloadBlocks(peer)
+      }else{
+        let status = this.buildBlockchainStatus()
+        this.broadcast("getBlockchainStatus", status)
+        return { broadcasted:true }
+      }
+    }else{
+      return {error:'Warning: Could not update now. Node is rolling back blocks'}
+    }
+    
+  }
+
+  // async updateBlockchain(exceptPeers=[]){
   //   if(!this.chain.isRollingBack){
-  //     let peer = await this.getBestPeer()
+  //     // let status = this.buildBlockchainStatus()
+  //     // this.broadcast("getBlockchainStatus", status)
+  //     // return { broadcasted:true }
+  //     let peer = await this.getBestPeer(exceptPeers)
   //     if(peer){
-  //       return await this.downloadBlocks(peer)
+  //       let downloaded = await this.downloadBlocks(peer)
+  //       if(downloaded.error && !downloaded.exists && !downloaded.existsInPool){
+  //         logger(`ERROR: Failed to update blockchain through peer ${peer.address}`)
+  //         return await this.updateBlockchain([...exceptPeers, peer.address])
+  //       }
+  //       return downloaded
   //     }else{
   //       let status = this.buildBlockchainStatus()
   //       this.broadcast("getBlockchainStatus", status)
@@ -843,30 +867,6 @@ class Node {
   //   }
     
   // }
-
-  async updateBlockchain(exceptPeers=[]){
-    if(!this.chain.isRollingBack){
-      let status = this.buildBlockchainStatus()
-      this.broadcast("getBlockchainStatus", status)
-      return { broadcasted:true }
-      // let peer = await this.getBestPeer(exceptPeers)
-      // if(peer){
-      //   let downloaded = await this.downloadBlocks(peer)
-      //   if(downloaded.error && !downloaded.exists && !downloaded.existsInPool){
-      //     logger(`ERROR: Failed to update blockchain through peer ${peer.address}`)
-      //     return await this.updateBlockchain([...exceptPeers, peer.address])
-      //   }
-      //   return downloaded
-      // }else{
-      //   let status = this.buildBlockchainStatus()
-      //   this.broadcast("getBlockchainStatus", status)
-      //   return { broadcasted:true }
-      // }
-    }else{
-      return {error:'Warning: Could not update now. Node is rolling back blocks'}
-    }
-    
-  }
 
   async getPeerStatuses(){
     if(Object.keys(this.connectionsToPeers).length > 0){
