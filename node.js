@@ -424,7 +424,7 @@ class Node {
 
   async getAllContractStates(socket, blockNumber){
     try{
-      await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
+      // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
       if(blockNumber && typeof blockNumber == 'number'){
         let states = await this.chain.contractTable.getStateOfAllContracts(blockNumber)
         socket.emit('contractStates', states)
@@ -437,7 +437,7 @@ class Node {
   }
 
   async getBlockFromHash(socket, hash){
-    await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
+    // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
       if(hash && typeof hash == 'string'){
         
         let block = await this.chain.getBlockFromDBByHash(blockIndex);
