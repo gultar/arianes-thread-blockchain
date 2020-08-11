@@ -2754,9 +2754,10 @@ class Blockchain{
             logger('Sorting blockNumbers')
             let numberOfBlocks = blockNumbers.length
             let lastBlockNumberKnown = numberOfBlocks - 1
-            
+            console.log('BlockNumbers Length', numberOfBlocks)
             lastBlock = await this.chainDB.get(lastBlockNumberKnown)
-            logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
+            console.log('New last block', lastBlock)
+            // logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
           }
 
           if(lastBlock && lastBlock.blockNumber){
