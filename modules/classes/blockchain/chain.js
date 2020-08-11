@@ -2742,7 +2742,7 @@ class Blockchain{
           let lastBlock = await this.getLastKnownBlockFromDB()
           
 
-          if(lastBlock && lastBlock.blockNumber){
+          if(lastBlock && lastBlock.blockNumber > 0){
             let iterator = Array(lastBlock.blockNumber + 1)
             this.chain[0] = genesisBlock
             bar1.start(lastBlock.blockNumber, 0);
