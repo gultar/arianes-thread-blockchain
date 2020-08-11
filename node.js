@@ -367,7 +367,6 @@ class Node {
 
   async getNextBlock(socket, header){
     if(header){
-     
       let index = await this.chain.getIndexOfBlockHashInChain(header.hash)
       let previousIsKnown = await this.chain.getIndexOfBlockHashInChain(header.previousHash)
       if(previousIsKnown === 0 || previousIsKnown === '0'){
@@ -396,7 +395,7 @@ class Node {
               let latestBlock = this.chain.getLatestBlock()
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
               let states = await this.chain.contractTable.getStateOfAllContracts(nextBlock.blockNumber)
-              console.log(`Peer wants states of block ${blockNumber}`, states)
+              console.log(`Peer wants states of block ${nextBlock.blockNumber}`, states)
               if(states.error) socket.emit('nextBlock', { error:'ERROR: Could not find contract states of block '+nextBlock.blockNumber })
               if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
               if(block && !block.error) socket.emit('nextBlock', { found:block, states:states })
