@@ -2755,7 +2755,8 @@ class Blockchain{
             let numberOfBlocks = blockNumbers.length
             let lastBlockNumberKnown = numberOfBlocks - 1
             console.log('BlockNumbers Length', numberOfBlocks)
-            lastBlock = await this.chainDB.get(lastBlockNumberKnown)
+            let lastBlockEntry = await this.chainDB.get(lastBlockNumberKnown)
+            lastBlock = lastBlockEntry[lastBlockNumberKnown]
             console.log('New last block', lastBlock)
             // logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
           }
