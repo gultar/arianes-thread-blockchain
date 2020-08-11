@@ -2740,24 +2740,7 @@ class Blockchain{
         if(genesisBlock){
           if(genesisBlock.error) reject(genesisBlock.error)
           let lastBlock = await this.getLastKnownBlockFromDB()
-          let blockNumbersKnown = await this.chainDB.getAllKeys()
-          let blockNumbers = []
-          if((!lastBlock || lastBlock.blockNumber == 0) && blockNumbersKnown.length > 2){ 
-            
-            logger('Last block is unknown but block entries were found in database') //more than 2 because 0 and lastBlock being the only blocks
-            for await(let blockNumber of blockNumbersKnown){
-              if(blockNumber !== 'lastBlock'){
-                blockNumbers.push(parseInt(blockNumber))
-              }
-            }
-            logger('Sorting blockNumbers')
-            let numberOfBlocks = blockNumbers.length
-            let lastBlockNumberKnown = numberOfBlocks - 1
-            let lastBlockEntry = await this.chainDB.get(lastBlockNumberKnown)
-            if(!lastBlockEntry) throw new Error('Could not load latest block in chainDB entries')
-            lastBlock = lastBlockEntry[lastBlockNumberKnown]
-            logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
-          }
+          
 
           if(lastBlock && lastBlock.blockNumber){
             let iterator = Array(lastBlock.blockNumber + 1)
@@ -2792,9 +2775,29 @@ class Blockchain{
               
             }
           }else{
-            this.chain.push(genesisBlock)
-            logger(`Finished loading genesis block`) 
-            resolve(true)
+            let blockNumbersKnown = await this.chainDB.getAllKeys()
+            let blockNumbers = []
+            if((!lastBlock || lastBlock.blockNumber == 0) && blockNumbersKnown.length > 2){ 
+              
+              logger('Last block is unknown but block entries were found in database') //more than 2 because 0 and lastBlock being the only blocks
+              for await(let blockNumber of blockNumbersKnown){
+                if(blockNumber !== 'lastBlock'){
+                  blockNumbers.push(parseInt(blockNumber))
+                }
+              }
+              logger('Sorting blockNumbers')
+              let numberOfBlocks = blockNumbers.length
+              let lastBlockNumberKnown = numberOfBlocks - 1
+              let lastBlockEntry = await this.chainDB.get(lastBlockNumberKnown)
+              if(!lastBlockEntry) throw new Error('Could not load latest block in chainDB entries')
+              lastBlock = lastBlockEntry[lastBlockNumberKnown]
+              logger(`Got lastBlock  ${lastBlock.blockNumber} of hash ${lastBlock.hash.substr(0,15)}...`)
+            }else{
+              this.chain.push(genesisBlock)
+              logger(`Finished loading genesis block`) 
+              resolve(true)
+            }
+            
           }
 
 
