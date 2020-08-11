@@ -377,6 +377,9 @@ class Node {
 
       if(isGenesis){
         let block = await this.chain.getBlockFromDB(1)
+        let states = await this.chain.contractTable.getStateOfAllContracts(nextBlock.blockNumber)
+        if(states.error) socket.emit('nextBlock', { error:'ERROR: Could not find contract states of block '+nextBlock.blockNumber })
+              
         if(block && block.error) socket.emit('nextBlock', { error:block.error})
         else if(block && !block.error) socket.emit('nextBlock', { found:block })
         else socket.emit('nextBlock', { error:'Block not found'})
@@ -392,8 +395,10 @@ class Node {
 
               let latestBlock = this.chain.getLatestBlock()
               let block = await this.chain.getBlockFromDB(nextBlock.blockNumber)
+              let states = await this.chain.contractTable.getStateOfAllContracts(nextBlock.blockNumber)
+              if(states.error) socket.emit('nextBlock', { error:'ERROR: Could not find contract states of block '+nextBlock.blockNumber })
               if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
-              if(block && !block.error) socket.emit('nextBlock', { found:block })
+              if(block && !block.error) socket.emit('nextBlock', { found:block, states:states })
               else{
                 // console.log('No block but is it block before last?')
                 let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
@@ -619,7 +624,9 @@ class Node {
     if(states && Object.keys(states).length > 0){
       for await(let contractName of Object.keys(states)){
         let state = states[contractName]
+        
         let stateSet = await this.chain.contractTable.manuallySetState(contractName, state, blockNumber)
+        console.log('Applying contract states', stateSet)
         if(stateSet.error) console.log('STATE SET', stateSet.error)
       }
 
@@ -717,6 +724,8 @@ class Node {
               }else if(block.found){
 
                 let nextBlock = block.found
+                let contractStates = block.states
+
                 let added = await this.chain.receiveBlock(nextBlock, 'overwrite')
                 if(added.error){
                   if(added.exists){
@@ -738,6 +747,12 @@ class Node {
                     resolve({error:added.error})
                   }
                 }else{
+                  let applied = await this.applyContractStates(contractStates)
+                  if(applied.error){
+                    closeConnection({ error:true })
+                    resolve({error:added.error})
+                  }
+
                   request(this.chain.getLatestBlock())
                 }
               }else{

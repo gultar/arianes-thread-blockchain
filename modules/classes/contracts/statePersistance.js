@@ -58,6 +58,9 @@ class StateStorage{
             this.state = state
             this.changeLog[blockNumber] = state
             this.lastChange = blockNumber
+            return { setState:state, blockNumber:blockNumber }
+        }else{
+            return { error:'ERROR: State provided to be set is empty' }
         }
     }
 
