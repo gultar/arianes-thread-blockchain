@@ -105,6 +105,12 @@ class Miner{
             }
         }
     }
+    
+    async startQueryingAPI(){
+        setInterval(()=>{
+            this.socket.emit('isApiReady')
+        }, 500)
+    }
 
     async createCoinbase({ transactions, actions }){
         if(this.wallet){
