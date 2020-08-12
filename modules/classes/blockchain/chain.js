@@ -315,7 +315,7 @@ class Blockchain{
         this.isRoutingBlock = newBlock.blockNumber
         let success = await this.routeBlock(newBlock)
         this.isRoutingBlock = false
-        this.minerChannel('nodeEvent','startMining')
+        global.minerChannel('nodeEvent','startMining')
         return success
       
       
