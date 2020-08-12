@@ -313,7 +313,9 @@ class Blockchain{
         //Is none of the above, carry on with routing the block
         //to its proper place, either in the chain or in the pool
         this.isRoutingBlock = newBlock.blockNumber
+        global.minerChannel.emit('nodeEvent','isRoutingBlock')
         let success = await this.routeBlock(newBlock)
+        global.minerChannel.emit('nodeEvent','finishedRoutingBlock')
         this.isRoutingBlock = false
         global.minerChannel.emit('nodeEvent','startMining')
         return success
