@@ -2,6 +2,7 @@
 const Database = require('../database/db')
 const sha256 = require('../../tools/sha256')
 const StateStorage = require('../contracts/statePersistance')
+const blockExecutionDebug = require('debug')('blockExecution')
 
 class ContractTable{
     constructor({ getCurrentBlock, getBlock, getBlockFromHash }){
@@ -235,8 +236,10 @@ class ContractTable{
         return new Promise(async (resolve)=>{
             for await(let contractName of Object.keys(this.stateStorage)){
                 if(this.stateStorage[contractName]){
+                    let startSaveOneState = process.hrtime()
                     let saved = await this.stateStorage[contractName].save(block)
-                
+                    let endSaveOneState = process.hrtime(startSaveOneState)
+                    blockExecutionDebug(`Save ${contractName} state: ${endSaveOneState[1]/1000000}`)
                     if(saved.error) resolve({error:saved.error})
                 }
                 

@@ -31,6 +31,7 @@ const fs = require('fs');
 let _ = require('private-parts').createKey();
 const genesis = require('../../tools/getGenesis')
 const Database = require('../database/db')
+const blockExecutionDebug = require('debug')('blockExecution')
 /**
   * @desc Basic blockchain class.
   * @param {Array} $chain Possibility of instantiating blockchain with existing chain. 
@@ -398,7 +399,7 @@ class Blockchain{
     let startRunBlock = process.hrtime()
     let executed = await this.runBlock(newBlock, skipCallExecution)
     let endRunBlock = process.hrtime(startRunBlock)
-    console.log(`Run Block: ${endRunBlock[1]/1000000}`)
+    blockExecutionDebug(`Run Block: ${endRunBlock[1]/1000000}`)
     if(executed.error){
       this.chain.pop()
       return { error:new Error(executed.error) }
@@ -467,20 +468,20 @@ class Blockchain{
     let executed = await this.balance.runBlock(newBlock)
     if(executed.error) return { error:executed.error }
     let endBalanceRunBlock = process.hrtime(startBalanceRunBlock)
-    console.log(`Executed balances: ${endBalanceRunBlock[1]/1000000}ms`)
+    blockExecutionDebug(`Executed balances: ${endBalanceRunBlock[1]/1000000}ms`)
 
     let actions = newBlock.actions || {}
     let startActionsExecuted = process.hrtime()
     let allActionsExecuted = await this.executeActionBlock(actions)
     if(allActionsExecuted.error) return { error:allActionsExecuted.error }
     let endActionsExecuted = process.hrtime(startActionsExecuted)
-    console.log(`Executed actions: ${endActionsExecuted[1]/1000000}ms`)
+    blockExecutionDebug(`Executed actions: ${endActionsExecuted[1]/1000000}ms`)
 
     let startSaveBalances = process.hrtime()
     let saved = await this.balance.saveBalances(newBlock)
     if(saved.error) return { error:saved.error }
     let endSaveBalances = process.hrtime(startSaveBalances)
-    console.log(`Save balances: ${endSaveBalances[1]/1000000}ms`)
+    blockExecutionDebug(`Save balances: ${endSaveBalances[1]/1000000}ms`)
     
     if(!skipCallExecution){
       let callsExecuted = await this.runTransactionCalls(newBlock);
@@ -493,19 +494,19 @@ class Blockchain{
     let updated = await this.contractTable.updateStates()
     if(updated.error) return { error:updated.error }
     let endUpdateStates = process.hrtime(startUpdateStates)
-    console.log(`Update states: ${endUpdateStates[1]/1000000}ms`)
+    blockExecutionDebug(`Update states: ${endUpdateStates[1]/1000000}ms`)
 
     let startTxDelete = process.hrtime()
     let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
     if(transactionsDeleted.error) return { error:transactionsDeleted.error }
     let endTxDelete = process.hrtime(startTxDelete)
-    console.log(`Tx Delete: ${endTxDelete[1]/1000000}ms`)
+    blockExecutionDebug(`Tx Delete: ${endTxDelete[1]/1000000}ms`)
 
     let startActionsDelete = process.hrtime()
     let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
     if(actionsDeleted.error) return { error:actionsDeleted.error }
     let endActionsDelete = process.hrtime(startActionsDelete)
-    console.log(`Actions Delete: ${endActionsDelete[1]/1000000}ms`)
+    blockExecutionDebug(`Actions Delete: ${endActionsDelete[1]/1000000}ms`)
 
     let startSpend = process.hrtime()
     for await(let hash of newHeader.txHashes){
@@ -518,13 +519,13 @@ class Blockchain{
       }
     }
     let endSpend = process.hrtime(startSpend)
-    console.log(`Spend : ${endSpend[1]/1000000}ms`)
+    blockExecutionDebug(`Spend : ${endSpend[1]/1000000}ms`)
 
     let startSaveStates = process.hrtime()
     let statesSaved = await this.contractTable.saveStates(newHeader)
     if(statesSaved.error) return { error:statesSaved.error }
     let endSaveStates = process.hrtime(startSaveStates)
-    console.log(`Save states: ${endSaveStates[1]/1000000}ms`)
+    blockExecutionDebug(`Save states: ${endSaveStates[1]/1000000}ms`)
 
     let savedLastBlock = await this.saveLastKnownBlockToDB()
     if(savedLastBlock.error) return { error:savedLastBlock.error }
