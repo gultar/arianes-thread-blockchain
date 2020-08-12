@@ -390,11 +390,7 @@ class Blockchain{
     }
     this.chain.push(newHeader)
 
-    
-    let start = process.hrtime()
     let executed = await this.runBlock(newBlock, skipCallExecution)//
-    let end = process.hrtime(start)
-    console.log(`Block execution time without calls: ${end[1]/1000000} ms`)
     if(executed.error){
       this.chain.pop()
       return { error:new Error(executed.error) }
@@ -458,16 +454,25 @@ class Blockchain{
 
   async runBlock(newBlock, skipCallExecution){
     let newHeader = this.extractHeader(newBlock)
-
+    
+    let startBalanceRunBlock = process.hrtime()
     let executed = await this.balance.runBlock(newBlock)
     if(executed.error) return { error:executed.error }
-    
+    let endBalanceRunBlock = process.hrtime(startBalanceRunBlock)
+    console.log(`Executed balances: ${endBalanceRunBlock[1]/1000000}ms`)
+
     let actions = newBlock.actions || {}
+    let startActionsExecuted = process.hrtime()
     let allActionsExecuted = await this.executeActionBlock(actions)
     if(allActionsExecuted.error) return { error:allActionsExecuted.error }
-    
+    let endActionsExecuted = process.hrtime(startActionsExecuted)
+    console.log(`Executed actions: ${endActionsExecuted[1]/1000000}ms`)
+
+    let startSaveBalances = process.hrtime()
     let saved = await this.balance.saveBalances(newBlock)
     if(saved.error) return { error:saved.error }
+    let endSaveBalances = process.hrtime(startSaveBalances)
+    console.log(`Save balances: ${endSaveBalances[1]/1000000}ms`)
     
     if(!skipCallExecution){
       let callsExecuted = await this.runTransactionCalls(newBlock);
@@ -476,15 +481,25 @@ class Blockchain{
       // logger(`Skipping call execution, saving peer's contract states instead.`)
     }
     
+    let startUpdateStates = process.hrtime()
     let updated = await this.contractTable.updateStates()
     if(updated.error) return { error:updated.error }
+    let endUpdateStates = process.hrtime(startUpdateStates)
+    console.log(`Update states: ${endUpdateStates[1]/1000000}ms`)
 
+    let startTxDelete = process.hrtime()
     let transactionsDeleted = await this.mempool.deleteTransactionsFromMinedBlock(newBlock.transactions)
     if(transactionsDeleted.error) return { error:transactionsDeleted.error }
+    let endTxDelete = process.hrtime(startTxDelete)
+    console.log(`Tx Delete: ${endTxDelete[1]/1000000}ms`)
 
+    let startActionsDelete = process.hrtime()
     let actionsDeleted = await this.mempool.deleteActionsFromMinedBlock(actions)
     if(actionsDeleted.error) return { error:actionsDeleted.error }
+    let endActionsDelete = process.hrtime(startActionsDelete)
+    console.log(`Actions Delete: ${endActionsDelete[1]/1000000}ms`)
 
+    let startSpend = process.hrtime()
     for await(let hash of newHeader.txHashes){
       this.spentTransactionHashes[hash] = newHeader.blockNumber//{ spent:newHeader.blockNumber }
     }
@@ -494,6 +509,8 @@ class Blockchain{
         this.spentActionHashes[hash] = newHeader.blockNumber//{ spent:newHeader.blockNumber }
       }
     }
+    let endSpend = process.hrtime(startSpend)
+    console.log(`Spend : ${endSpend[1]/1000000}ms`)
 
     let statesSaved = await this.contractTable.saveStates(newHeader)
     if(statesSaved.error) return { error:statesSaved.error }
