@@ -84,6 +84,17 @@ class MinerAPI{
                     //Stop miner
                     this.socket.emit('stopMining')
                     break;
+                case 'startMining':
+            // console.log("Generate?", this.generate)
+            // console.log("API Busy?", this.isAPIBusy)
+            // console.log("Miner Busy?", this.isMinerBusy)
+            // console.log("Node working?", this.isNodeWorking)
+            // console.log("Node out of sync?", this.nodeOutOfSync)
+            // console.log('Node is downloading?', this.nodeIsDownloading)
+                    if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+                        await this.sendNewBlock()
+                    }
+                    break;
                 case 'verbose':
                     //Stop miner
                     console.log('Received verbose message', this.verbose)
@@ -102,23 +113,23 @@ class MinerAPI{
             this.sendPeerMessage(type, data)
         })
         
-        this.mempool.events.on('newAction', async (action)=>{
-            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
-                await this.sendNewBlock()
-            }
-        })
-        this.mempool.events.on('newTransaction', async (transaction)=>{
-//             console.log("Generate?", this.generate)
-//             console.log("API Busy?", this.isAPIBusy)
-//             console.log("Miner Busy?", this.isMinerBusy)
-//             console.log("Node working?", this.isNodeWorking)
-//             console.log("Node out of sync?", this.nodeOutOfSync)
-            // console.log('Node is downloading?', this.nodeIsDownloading)
-             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+//         this.mempool.events.on('newAction', async (action)=>{
+//             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+//                 await this.sendNewBlock()
+//             }
+//         })
+//         this.mempool.events.on('newTransaction', async (transaction)=>{
+// //             console.log("Generate?", this.generate)
+// //             console.log("API Busy?", this.isAPIBusy)
+// //             console.log("Miner Busy?", this.isMinerBusy)
+// //             console.log("Node working?", this.isNodeWorking)
+// //             console.log("Node out of sync?", this.nodeOutOfSync)
+//             // console.log('Node is downloading?', this.nodeIsDownloading)
+//              if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
                  
-                await this.sendNewBlock()
-            }
-        })
+//                 await this.sendNewBlock()
+//             }
+//         })
     }
 
     async addMinedBlock(block){
