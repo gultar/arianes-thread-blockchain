@@ -180,9 +180,11 @@ class MinerAPI{
         this.isAPIBusy = true
         let latestBlock = await this.getLatestFullBlock()
         let newRawBlock = await this.createRawBlock(latestBlock, forceSend)
-        if(!newRawBlock.error) {
+        if(!newRawBlock.error && !newRawBlock.empty) {
             this.socket.emit('previousBlock', latestBlock)
             this.socket.emit('rawBlock', newRawBlock)
+        }else if(newRawBlock.empty){
+            if(this.verbose) logger('WARNING:', newRawBlock.empty)
         }else{
             logger('RAW BLOCK ERROR:', newRawBlock)
         }
@@ -212,7 +214,7 @@ class MinerAPI{
         actions = await this.chain.validateActionsBeforeMining(actions)
 
         if(!forceSend && Object.keys(transactions).length == 0 && Object.keys(actions).length == 0){
-            return { error:'ERROR: Could not create block without transactions or actions' }
+            return { empty:'Could not create block without transactions or actions' }
         } 
         
         let rawBlock = {
