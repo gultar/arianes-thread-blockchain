@@ -330,7 +330,10 @@ class Blockchain{
   }
 
   async routeBlock(newBlock, skipCallExecution=false){
+    let startValidateBlock = process.hrtime()
     let isValidBlock = await this.validateBlock(newBlock)
+    let endValidateBlock = process.hrtime(startValidateBlock)
+    console.log(`Validate Block: ${endValidateBlock[1]/1000000}`)
     if(isValidBlock.error) return { error:new Error(isValidBlock.error) }
     else{
 
