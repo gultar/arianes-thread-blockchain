@@ -48,6 +48,7 @@ class MinerAPI{
         this.channel.on('nodeEvent', (event)=>{
             switch(event){
                 case 'isBusy':
+                    this.socket.emit('stopMining')
                     this.isAPIBusy = true
                     break;
                 case 'isAvailable':
@@ -55,6 +56,7 @@ class MinerAPI{
                     break;
                 case 'isSwitchingBranch':
                 case 'isRollingBack':
+                    this.socket.emit('stopMining')
                     this.isNodeWorking = true
                     break;
                 case 'finishedSwitchingBranch':
@@ -64,6 +66,7 @@ class MinerAPI{
                     break;
                     
                 case 'isDownloading':
+                    this.socket.emit('stopMining')
                     this.nodeIsDownloading = true
                     break;
                 case 'finishedDownloading':

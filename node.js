@@ -652,9 +652,7 @@ class Node {
 
             const closeConnection = (error=false) =>{
               peer.off('nextBlock')
-              if(!error){
-                setTimeout(()=> this.minerChannel.emit('nodeEvent', 'finishedDownloading'), 500)
-              }
+              this.minerChannel.emit('nodeEvent','finishedDownloading')
               this.isDownloading = false;
             }
 
@@ -674,6 +672,7 @@ class Node {
             
             const request = (payload, retried=false) =>{
               peer.emit('getNextBlock', payload)
+              this.minerChannel.emit('nodeEvent','isDownloading')
               this.isDownloading = true
               
               if(requestTimer){
@@ -695,7 +694,6 @@ class Node {
                 this.isOutOfSync = false
                 this.minerChannel.emit('nodeEvent','inSync')
                 logger('Blockchain updated successfully!')
-                // console.log('Download successful, peer is in sync')
                 clearTimeout(requestTimer)
                 requestTimer = false
                 peer.isSynced = true
@@ -2010,7 +2008,7 @@ DHT_PORT=${this.peerDiscoveryPort}
   }
 
   housekeeping(){
-    
+
   }
 
   /**
