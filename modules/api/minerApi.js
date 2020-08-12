@@ -36,6 +36,11 @@ class MinerAPI{
         this.socket.on('generate', ()=>{
             this.generate = true
         })
+        this.socket.on('isApiReady', async ()=>{
+            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+                await this.sendNewBlock()
+            }
+        })
         this.socket.on('isStopped', ()=>{ this.isMinerBusy = false })
         this.socket.on('isMining', ()=>{ this.isMinerBusy = true })
         this.socket.on('isPreparing', ()=>{ this.isMinerBusy = true })
@@ -45,7 +50,7 @@ class MinerAPI{
             this.mempool.events.removeAllListeners('newTransaction')
         })
         //This is for when node is syncing a block or busy doing something else
-        this.channel.on('nodeEvent', (event)=>{
+        this.channel.on('nodeEvent', async(event)=>{
             switch(event){
                 case 'isBusy':
                     this.socket.emit('stopMining')
