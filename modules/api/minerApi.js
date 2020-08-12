@@ -77,7 +77,7 @@ class MinerAPI{
                     this.socket.emit('stopMining')
                     this.isNodeWorking = true
                     break;
-                case 'isRoutingBlock':
+                case 'finishedRoutingBlock':
                     this.isNodeWorking = false
                     break;
                 case 'finishedDownloading':
