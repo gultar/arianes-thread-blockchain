@@ -54,14 +54,20 @@ class MinerAPI{
                     this.isAPIBusy = false
                     break;
                 case 'isSwitchingBranch':
-                case 'isDownloading':
                 case 'isRollingBack':
                     this.isNodeWorking = true
                     break;
                 case 'finishedSwitchingBranch':
-                case 'finishedDownloading':
+                
                 case 'finishedRollingBack':
                     this.isNodeWorking = false
+                    break;
+                    
+                case 'isDownloading':
+                    this.nodeIsDownloading = true
+                    break;
+                case 'finishedDownloading':
+                    this.nodeIsDownloading = false
                     break;
                 case 'outOfSync':
                     logger('Node is out of sync. Stopped mining')
@@ -94,7 +100,7 @@ class MinerAPI{
         })
         
         this.mempool.events.on('newAction', async (action)=>{
-            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync){
+            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
                 await this.sendNewBlock()
             }
         })
@@ -104,7 +110,8 @@ class MinerAPI{
 //             console.log("Miner Busy?", this.isMinerBusy)
 //             console.log("Node working?", this.isNodeWorking)
 //             console.log("Node out of sync?", this.nodeOutOfSync)
-             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync){
+            console.log('Node is downloading?', this.nodeIsDownloading)
+             if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
                  
                 await this.sendNewBlock()
             }
@@ -127,11 +134,14 @@ class MinerAPI{
             if(!exists && !headerExists && isNextBlock){
                 
                 //Broadcast new block found
-                this.sendPeerMessage('newBlockFound', block);
+                
                 //Sync it with current blockchain, skipping the extended validation part
                 let added = await this.chain.receiveBlock(block)
                 if(added.error) return added
-                else return block
+                else{
+                    this.sendPeerMessage('newBlockFound', block);
+                    return block
+                }
             }else if(exists){
                 return { error:`ERROR: Block ${block.blockNumber} exists in DB` }
             }else if(headerExists){
@@ -197,12 +207,6 @@ class MinerAPI{
         return rawBlock
     }
 
-    // async getBlock({blockNumber}){
-    //     let block = await this.chain.getBlockFromDB(blockNumber)
-    //     if(!block || block.error) return false;
-    //     else return block
-    // }
-
     async getLatestFullBlock(){
         //Get the current header
         //Since the header is always added before running the entire block
@@ -218,10 +222,6 @@ class MinerAPI{
         }else{
             block = latestHeader
         }
-        
-
-        
-    
         return block
     }
 

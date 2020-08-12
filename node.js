@@ -414,7 +414,9 @@ class Node {
           }
         }else if(!index && previousIsKnown){
           let forkedBlock = await this.chain.getNextBlockbyHash(header.previousHash)
-          socket.emit('nextBlock', { previousFound:forkedBlock })
+          if(forkedBlock) socket.emit('nextBlock', { previousFound:forkedBlock })
+          else socket.emit('nextBlock', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Block not found'})
+          
         }else{
           socket.emit('nextBlock', { previousNotFound:this.chain.getLatestBlock(), errorMessage:'Block not found'})
   
@@ -642,7 +644,7 @@ class Node {
          if(!this.isDownloading){
             this.isDownloading = true
             let requestTimer = false
-            logger('Attempting to download blocks from peer ', peer.address)
+            logger('Downloading blocks from peer ', peer.address)
 
             this.minerChannel.emit('nodeEvent','outOfSync')
             this.isOutOfSync = true
@@ -667,7 +669,7 @@ class Node {
                   peer.isSynced = false
                   resolve({ error:'ERROR: Download request timed out. Peer did not respond.' })
                 }
-              }, 30*1000)
+              }, 10*1000)
             }
             
             const request = (payload, retried=false) =>{
@@ -756,7 +758,9 @@ class Node {
                   request(this.chain.getLatestBlock())
                 }
               }else{
-                console.log('Received something else', block)
+                console.log('Received something else')
+                closeConnection({ error:true })
+                resolve({error:block})
               }
             })
 
@@ -783,31 +787,6 @@ class Node {
     }
     return status
   }
-
-  // //Trying to vary peers
-  // async synchronize(){
-  //   let topPeer = await this.getBestPeer()
-  //   if(topPeer && topPeer.connected){
-  //     let currentStatus = this.buildBlockchainStatus()
-  //     let peerLatestHeader = this.peersLatestBlocks[topPeer.address]
-  //     if(peerLatestHeader){
-  //       let latestHeader = this.chain.getLatestBlock()
-  //       if(peerLatestHeader.blockNumber > latestHeader.blockNumber){
-  //         this.minerChannel.emit('nodeEvent','outOfSync')
-  //         if(!this.isDownloading) logger('Node is currently out of sync with top peer')
-  //         if(this.verbose) logger('Syncing chain with most up to date peer')
-  //         topPeer.emit('getBlockchainStatus', currentStatus)
-  //       }else{
-  //         this.minerChannel.emit('nodeEvent','inSync')
-  //       }
-  //     }
-      
-  //   }else{
-  //     //No Top Peer, this node is probably the top peer
-  //     let currentStatus = this.buildBlockchainStatus()
-  //     this.broadcast('getBlockchainStatus', currentStatus)
-  //   }
-  // }
 
 /**
  * 
@@ -886,29 +865,6 @@ class Node {
     
   }
 
-  // async updateBlockchain(exceptPeers=[]){
-  //   if(!this.chain.isRollingBack){
-  //     // let status = this.buildBlockchainStatus()
-  //     // this.broadcast("getBlockchainStatus", status)
-  //     // return { broadcasted:true }
-  //     let peer = await this.getBestPeer(exceptPeers)
-  //     if(peer){
-  //       let downloaded = await this.downloadBlocks(peer)
-  //       if(downloaded.error && !downloaded.exists && !downloaded.existsInPool){
-  //         logger(`ERROR: Failed to update blockchain through peer ${peer.address}`)
-  //         return await this.updateBlockchain([...exceptPeers, peer.address])
-  //       }
-  //       return downloaded
-  //     }else{
-  //       let status = this.buildBlockchainStatus()
-  //       this.broadcast("getBlockchainStatus", status)
-  //       return { broadcasted:true }
-  //     }
-  //   }else{
-  //     return {error:'Warning: Could not update now. Node is rolling back blocks'}
-  //   }
-    
-  // }
 
   async getPeerStatuses(){
     if(Object.keys(this.connectionsToPeers).length > 0){
@@ -2053,7 +2009,9 @@ DHT_PORT=${this.peerDiscoveryPort}
     }, this.synchronizeDelay)
   }
 
-  housekeeping(){}
+  housekeeping(){
+    
+  }
 
   /**
    * @desc Displays message to any client connected to local API server
