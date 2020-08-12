@@ -395,8 +395,10 @@ class Blockchain{
       console.log('Overwriting header', latestToBeOverwritten)
     }
     this.chain.push(newHeader)
-
-    let executed = await this.runBlock(newBlock, skipCallExecution)//
+    let startRunBlock = process.hrtime()
+    let executed = await this.runBlock(newBlock, skipCallExecution)
+    let endRunBlock = process.hrtime(startRunBlock)
+    console.log(`Run Block: ${endRunBlock[1]/1000000}`)
     if(executed.error){
       this.chain.pop()
       return { error:new Error(executed.error) }
