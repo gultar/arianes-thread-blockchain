@@ -169,7 +169,7 @@ class MinerAPI{
             let headerExists = this.chain[block.blockNumber]
             if(!headerExists) headerExists = await this.chain.getBlockbyHash(block.hash)
             let exists = await this.chain.getBlockFromDB(block.blockNumber)
-            if(!exists && !headerExists && isNextBlock){
+            if(!exists && !headerExists && isNextBlock && !this.isNodeRoutingBlock){
                 
                 //Broadcast new block found
                 this.sendPeerMessage('newBlockFound', block);
