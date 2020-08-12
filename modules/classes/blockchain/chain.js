@@ -392,7 +392,7 @@ class Blockchain{
 
     
 
-    let executed = await this.runBlock(newBlock, skipCallExecution)
+    let executed = await this.runBlock(newBlock, false)//skipCallExecution
     if(executed.error){
       this.chain.pop()
       return { error:new Error(executed.error) }
@@ -468,8 +468,11 @@ class Blockchain{
     if(saved.error) return { error:saved.error }
     
     if(!skipCallExecution){
+      let startExecution = process.hrtime()
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
+      let endExecution = process.hrtime(startExecution)
+      console.log('Execution of calls took', endExecution)
     }else{
       // logger(`Skipping call execution, saving peer's contract states instead.`)
     }
