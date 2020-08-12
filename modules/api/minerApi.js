@@ -65,7 +65,6 @@ class MinerAPI{
                     this.isNodeWorking = true
                     break;
                 case 'finishedSwitchingBranch':
-                
                 case 'finishedRollingBack':
                     this.isNodeWorking = false
                     break;
@@ -73,6 +72,13 @@ class MinerAPI{
                 case 'isDownloading':
                     this.socket.emit('stopMining')
                     this.nodeIsDownloading = true
+                    break;
+                case 'isRoutingBlock':
+                    this.socket.emit('stopMining')
+                    this.isNodeWorking = true
+                    break;
+                case 'isRoutingBlock':
+                    this.isNodeWorking = false
                     break;
                 case 'finishedDownloading':
                     this.nodeIsDownloading = false
