@@ -314,7 +314,10 @@ class Blockchain{
         //to its proper place, either in the chain or in the pool
         this.isRoutingBlock = newBlock.blockNumber
         global.minerChannel.emit('nodeEvent','isRoutingBlock')
+        let startRouteBlock = process.hrtime()
         let success = await this.routeBlock(newBlock, contractStates)
+        let endRouteBlock = process.hrtime(startRouteBlock)
+        console.log(`Route block: ${endRouteBlock[1]/1000000}`)
         global.minerChannel.emit('nodeEvent','finishedRoutingBlock')
         this.isRoutingBlock = false
         global.minerChannel.emit('nodeEvent','startMining')
@@ -512,8 +515,11 @@ class Blockchain{
     let endSpend = process.hrtime(startSpend)
     console.log(`Spend : ${endSpend[1]/1000000}ms`)
 
+    let startSaveStates = process.hrtime()
     let statesSaved = await this.contractTable.saveStates(newHeader)
     if(statesSaved.error) return { error:statesSaved.error }
+    let endSaveStates = process.hrtime(startSaveStates)
+    console.log(`Save states: ${endSaveStates[1]/1000000}ms`)
 
     let savedLastBlock = await this.saveLastKnownBlockToDB()
     if(savedLastBlock.error) return { error:savedLastBlock.error }
