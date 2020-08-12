@@ -318,7 +318,7 @@ class Blockchain{
         let startRouteBlock = process.hrtime()
         let success = await this.routeBlock(newBlock, contractStates)
         let endRouteBlock = process.hrtime(startRouteBlock)
-        console.log(`Route block: ${endRouteBlock[1]/1000000}`)
+        blockExecutionDebug(`Route block: ${endRouteBlock[1]/1000000}`)
         global.minerChannel.emit('nodeEvent','finishedRoutingBlock')
         this.isRoutingBlock = false
         global.minerChannel.emit('nodeEvent','startMining')
@@ -334,7 +334,7 @@ class Blockchain{
     let startValidateBlock = process.hrtime()
     let isValidBlock = await this.validateBlock(newBlock)
     let endValidateBlock = process.hrtime(startValidateBlock)
-    console.log(`Validate Block: ${endValidateBlock[1]/1000000}`)
+    blockExecutionDebug(`Validate Block: ${endValidateBlock[1]/1000000}`)
     if(isValidBlock.error) return { error:new Error(isValidBlock.error) }
     else{
 
