@@ -43,7 +43,7 @@ class MinerAPI{
                !this.isNodeWorking && 
                !this.nodeOutOfSync && 
                !this.nodeIsDownloading &&
-               !this.isNodeRoutingBlock &&){
+               !this.isNodeRoutingBlock){
                 
                 await this.sendNewBlock()
             }
