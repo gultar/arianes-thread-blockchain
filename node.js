@@ -646,6 +646,7 @@ class Node {
             let requestTimer = false
             logger('Downloading blocks from peer ', peer.address)
 
+            this.minerChannel.emit('nodeEvent','isDownloading')
             this.minerChannel.emit('nodeEvent','outOfSync')
             this.isOutOfSync = true
             let goingBackInChainCounter = this.chain.getLatestBlock().blockNumber - 1
@@ -672,7 +673,6 @@ class Node {
             
             const request = (payload, retried=false) =>{
               peer.emit('getNextBlock', payload)
-              this.minerChannel.emit('nodeEvent','isDownloading')
               this.isDownloading = true
               
               if(requestTimer){
