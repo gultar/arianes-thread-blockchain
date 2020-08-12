@@ -164,12 +164,14 @@ class MinerAPI{
             return { error:isValid.error }
           }  //
           else{
+              
+            if(this.isNodeRoutingBlock) return { error:`ERROR: Couldn't add new mined block ${block.blockNumber}. Node is routing block` }
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
             let headerExists = this.chain[block.blockNumber]
             if(!headerExists) headerExists = await this.chain.getBlockbyHash(block.hash)
             let exists = await this.chain.getBlockFromDB(block.blockNumber)
-            if(!exists && !headerExists && isNextBlock && !this.isNodeRoutingBlock){
+            if(!exists && !headerExists && isNextBlock){
                 
                 //Broadcast new block found
                 this.sendPeerMessage('newBlockFound', block);
