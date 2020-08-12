@@ -179,6 +179,8 @@ class StateStorage{
 
     async save(){
         this.debug('Saving current state')
+        let blockExecutionDebug = require('debug')('blockExecution')
+        let startPutState = process.hrtime()
         let currentStateChanged = await this.database.put({
             key:this.name,
             value:{
@@ -187,6 +189,8 @@ class StateStorage{
                 lastChange:this.lastChange
             }
         })
+        let endPutState = process.hrtime(startPutState)
+        blockExecutionDebug(`Put State to DB: ${endPutState[1]/1000000}`)
         this.debug('State entry saved:', {
             state:this.state,
             lastChange:this.lastChange
