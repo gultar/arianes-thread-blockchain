@@ -290,7 +290,7 @@ class Blockchain{
 
 
 
-  async receiveBlock(newBlock, overwrite=false){
+  async receiveBlock(newBlock, overwrite=false, contractStates=false){
     if(isValidBlockJSON(newBlock)){
         if(this.isRollingBack) return { error:'ERROR: block not received, chain is rolling back' }
         if(this.isRoutingBlock){
@@ -313,7 +313,7 @@ class Blockchain{
         //Is none of the above, carry on with routing the block
         //to its proper place, either in the chain or in the pool
         this.isRoutingBlock = newBlock.blockNumber
-        let success = await this.routeBlock(newBlock)
+        let success = await this.routeBlock(newBlock, contractStates)
         this.isRoutingBlock = false
         global.minerChannel('nodeEvent','startMining')
         return success
@@ -324,7 +324,7 @@ class Blockchain{
     }
   }
 
-  async routeBlock(newBlock){
+  async routeBlock(newBlock, skipCallExecution=false){
     let isValidBlock = await this.validateBlock(newBlock)
     if(isValidBlock.error) return { error:new Error(isValidBlock.error) }
     else{
@@ -332,7 +332,7 @@ class Blockchain{
       let isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
       let isLinked = newBlock.previousHash == this.getLatestBlock().hash
       
-      if(isNextBlock && isLinked) return await this.addBlock(newBlock)
+      if(isNextBlock && isLinked) return await this.addBlock(newBlock, skipCallExecution)
       else{
 
         let isTenBlocksAhead = newBlock.blockNumber >= this.getLatestBlock().blockNumber + 10
@@ -372,7 +372,7 @@ class Blockchain{
     }
  }
 
-  async addBlock(newBlock){
+  async addBlock(newBlock, skipCallExecution=false){
     let previousBlockExists = false
     if(newBlock.blockNumber > 1){
       previousBlockExists = await this.getBlockFromDBByHash(newBlock.previousHash)
@@ -390,7 +390,7 @@ class Blockchain{
 
     
 
-    let executed = await this.runBlock(newBlock)
+    let executed = await this.runBlock(newBlock, skipCallExecution)
     if(executed.error){
       this.chain.pop()
       return { error:new Error(executed.error) }
@@ -452,7 +452,7 @@ class Blockchain{
     
   }
 
-  async runBlock(newBlock){
+  async runBlock(newBlock, skipCallExecution){
     let newHeader = this.extractHeader(newBlock)
 
     let executed = await this.balance.runBlock(newBlock)
@@ -465,8 +465,12 @@ class Blockchain{
     let saved = await this.balance.saveBalances(newBlock)
     if(saved.error) return { error:saved.error }
     
-    let callsExecuted = await this.runTransactionCalls(newBlock);
-    if(callsExecuted.error) return { error:callsExecuted.error }
+    if(!skipCallExecution){
+      let callsExecuted = await this.runTransactionCalls(newBlock);
+      if(callsExecuted.error) return { error:callsExecuted.error }
+    }else{
+      logger(`Skipping call execution, saving peer's contract states instead.`)
+    }
     
     let updated = await this.contractTable.updateStates()
     if(updated.error) return { error:updated.error }
