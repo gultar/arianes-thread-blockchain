@@ -471,7 +471,7 @@ class Blockchain{
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
     }else{
-      logger(`Skipping call execution, saving peer's contract states instead.`)
+      // logger(`Skipping call execution, saving peer's contract states instead.`)
     }
     
     let updated = await this.contractTable.updateStates()
