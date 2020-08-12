@@ -37,7 +37,14 @@ class MinerAPI{
             this.generate = true
         })
         this.socket.on('isApiReady', async ()=>{
-            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+            if(!this.generate &&
+               !this.isAPIBusy && 
+               !this.isMinerBusy && 
+               !this.isNodeWorking && 
+               !this.nodeOutOfSync && 
+               !this.nodeIsDownloading &&
+               !this.isNodeRoutingBlock &&){
+                
                 await this.sendNewBlock()
             }
         })
@@ -75,10 +82,10 @@ class MinerAPI{
                     break;
                 case 'isRoutingBlock':
                     this.socket.emit('stopMining')
-                    this.isNodeWorking = true
+                    this.isNodeRoutingBlock = true
                     break;
                 case 'finishedRoutingBlock':
-                    this.isNodeWorking = false
+                    this.isNodeRoutingBlock = false
                     break;
                 case 'finishedDownloading':
                     this.nodeIsDownloading = false
@@ -102,7 +109,13 @@ class MinerAPI{
             // console.log("Node working?", this.isNodeWorking)
             // console.log("Node out of sync?", this.nodeOutOfSync)
             // console.log('Node is downloading?', this.nodeIsDownloading)
-                    if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+                    if(!this.generate &&
+                       !this.isAPIBusy &&
+                       !this.isMinerBusy &&
+                       !this.isNodeWorking &&
+                       !this.nodeOutOfSync &&
+                       !this.nodeIsDownloading &&
+                       !this.isNodeRoutingBlock){
                         await this.sendNewBlock()
                     }
                     break;
