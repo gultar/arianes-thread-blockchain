@@ -46,6 +46,7 @@ class Miner{
             this.log('Miner connected to ', url)
             await this.initWallet()
             this.socket.emit('isAvailable')
+            this.startQueryingApi()
         })
         this.socket.on('disconnect', async ()=>{
           this.socket.close()
@@ -104,6 +105,12 @@ class Miner{
                 this.socket.emit('failed')
             }
         }
+    }
+    
+    async startQueryingApi(){
+        setInterval(()=>{
+            this.socket.emit('isApiReady')
+        }, 500)
     }
 
     async createCoinbase({ transactions, actions }){

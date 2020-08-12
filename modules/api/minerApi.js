@@ -37,7 +37,14 @@ class MinerAPI{
             this.generate = true
         })
         this.socket.on('isApiReady', async ()=>{
-            if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+            if(!this.generate &&
+               !this.isAPIBusy && 
+               !this.isMinerBusy && 
+               !this.isNodeWorking && 
+               !this.nodeOutOfSync && 
+               !this.nodeIsDownloading &&
+               !this.isNodeRoutingBlock){
+                
                 await this.sendNewBlock()
             }
         })
@@ -65,7 +72,6 @@ class MinerAPI{
                     this.isNodeWorking = true
                     break;
                 case 'finishedSwitchingBranch':
-                
                 case 'finishedRollingBack':
                     this.isNodeWorking = false
                     break;
@@ -73,6 +79,13 @@ class MinerAPI{
                 case 'isDownloading':
                     this.socket.emit('stopMining')
                     this.nodeIsDownloading = true
+                    break;
+                case 'isRoutingBlock':
+                    this.socket.emit('stopMining')
+                    this.isNodeRoutingBlock = true
+                    break;
+                case 'finishedRoutingBlock':
+                    this.isNodeRoutingBlock = false
                     break;
                 case 'finishedDownloading':
                     this.nodeIsDownloading = false
@@ -96,7 +109,13 @@ class MinerAPI{
             // console.log("Node working?", this.isNodeWorking)
             // console.log("Node out of sync?", this.nodeOutOfSync)
             // console.log('Node is downloading?', this.nodeIsDownloading)
-                    if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
+                    if(!this.generate &&
+                       !this.isAPIBusy &&
+                       !this.isMinerBusy &&
+                       !this.isNodeWorking &&
+                       !this.nodeOutOfSync &&
+                       !this.nodeIsDownloading &&
+                       !this.isNodeRoutingBlock){
                         await this.sendNewBlock()
                     }
                     break;
@@ -145,6 +164,8 @@ class MinerAPI{
             return { error:isValid.error }
           }  //
           else{
+              
+            if(this.isNodeRoutingBlock) return { error:`ERROR: Couldn't add new mined block ${block.blockNumber}. Node is routing block` }
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
             let headerExists = this.chain[block.blockNumber]
@@ -153,12 +174,12 @@ class MinerAPI{
             if(!exists && !headerExists && isNextBlock){
                 
                 //Broadcast new block found
-                
+                this.sendPeerMessage('newBlockFound', block);
                 //Sync it with current blockchain, skipping the extended validation part
                 let added = await this.chain.receiveBlock(block)
                 if(added.error) return added
                 else{
-                    this.sendPeerMessage('newBlockFound', block);
+                    
                     return block
                 }
             }else if(exists){
@@ -180,9 +201,11 @@ class MinerAPI{
         this.isAPIBusy = true
         let latestBlock = await this.getLatestFullBlock()
         let newRawBlock = await this.createRawBlock(latestBlock, forceSend)
-        if(!newRawBlock.error) {
+        if(!newRawBlock.error && !newRawBlock.empty) {
             this.socket.emit('previousBlock', latestBlock)
             this.socket.emit('rawBlock', newRawBlock)
+        }else if(newRawBlock.empty){
+            if(this.verbose) logger('WARNING:', newRawBlock.empty)
         }else{
             logger('RAW BLOCK ERROR:', newRawBlock)
         }
@@ -212,7 +235,7 @@ class MinerAPI{
         actions = await this.chain.validateActionsBeforeMining(actions)
 
         if(!forceSend && Object.keys(transactions).length == 0 && Object.keys(actions).length == 0){
-            return { error:'ERROR: Could not create block without transactions or actions' }
+            return { empty:'Could not create block without transactions or actions' }
         } 
         
         let rawBlock = {
