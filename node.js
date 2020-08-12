@@ -726,7 +726,7 @@ class Node {
                 let nextBlock = block.found
                 let contractStates = block.states
 
-                let added = await this.chain.receiveBlock(nextBlock, 'overwrite')
+                let added = await this.chain.receiveBlock(nextBlock, 'overwrite', contractStates)
                 if(added.error){
                   if(added.exists){
                     closeConnection({ error:true })
