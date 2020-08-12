@@ -113,7 +113,7 @@ class MinerAPI{
 //             console.log("Miner Busy?", this.isMinerBusy)
 //             console.log("Node working?", this.isNodeWorking)
 //             console.log("Node out of sync?", this.nodeOutOfSync)
-            console.log('Node is downloading?', this.nodeIsDownloading)
+            // console.log('Node is downloading?', this.nodeIsDownloading)
              if(!this.generate && !this.isAPIBusy && !this.isMinerBusy && !this.isNodeWorking && !this.nodeOutOfSync && !this.nodeIsDownloading){
                  
                 await this.sendNewBlock()
