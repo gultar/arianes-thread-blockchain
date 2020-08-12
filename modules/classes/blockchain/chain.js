@@ -392,9 +392,9 @@ class Blockchain{
 
     
     let start = process.hrtime()
-    let executed = await this.runBlock(newBlock, false)//skipCallExecution
+    let executed = await this.runBlock(newBlock, skipCallExecution)//
     let end = process.hrtime(start)
-    console.log(`Block execution time: ${end[1]/1000000} ms`)
+    console.log(`Block execution time without calls: ${end[1]/1000000} ms`)
     if(executed.error){
       this.chain.pop()
       return { error:new Error(executed.error) }
