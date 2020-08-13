@@ -299,7 +299,7 @@ class Blockchain{
         }
         //Already exists in chain?
         let blockAlreadyExists = await this.getBlockbyHash(newBlock.hash)
-        if(blockAlreadyExists) return { error:`ERROR Block of hash ${newBlock.hash.substr(0, 15)}... already exists`, exists:true }
+        if(blockAlreadyExists) return { error:`ERROR Block of hash ${newBlock.hash.substr(0, 15)}... already exists`, exists:true, duplicate:true }
         let blockNumberExistsInDB = await this.getBlockFromDB(newBlock.blockNumber)
         if(blockNumberExistsInDB){
           if(!overwrite) return { error:`ERROR Block ${newBlock.blockNumber} already exists`, exists:true }
