@@ -165,7 +165,7 @@ class MinerAPI{
           }  //
           else{
               
-            if(this.isNodeRoutingBlock) return { error:`ERROR: Couldn't add new mined block ${block.blockNumber}. Node is routing block` }
+            if(this.isNodeRoutingBlock) return { error:`ERROR: Couldn't add block ${block.blockNumber}, node is routing block` }
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
             let headerExists = this.chain[block.blockNumber]
