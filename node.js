@@ -816,8 +816,9 @@ class Node {
     
                         let updated = await this.updateBlockchain()
                         if(updated.error){
-                          logger(updated.error)
                           resolve({error:updated.error})
+                        }else if(updated.busy){
+                          resolve({ busy:updated.busy })
                         }else {
                           resolve(updated)
                         }
@@ -858,7 +859,7 @@ class Node {
         return { broadcasted:true }
       }
     }else{
-      return {error:'Warning: Could not update now. Node is rolling back blocks'}
+      return {busy:'Warning: Could not update now. Node is rolling back blocks'}
     }
     
   }
@@ -1598,10 +1599,9 @@ class Node {
         let updated = await this.updateBlockchain()
         this.minerChannel.emit('nodeEvent','isAvailable')
         if(updated.error) resolve({error:updated.error})
-        else {
-         
-         resolve(updated)
-        }
+        else if(updated.busy){
+          resolve({ busy:updated.busy })
+        }else resolve(updated)
       }
       else if(reception.rollback){
         
@@ -1611,7 +1611,9 @@ class Node {
           else{
             let updated = await this.updateBlockchain()
             if(updated.error) resolve({error:updated.error})
-            else resolve(updated)
+            else if(updated.busy){
+              resolve({ busy:updated.busy })
+            }else resolve(updated)
           }
         }
         

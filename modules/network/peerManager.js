@@ -196,7 +196,8 @@ class PeerManager{
 
         peer.on('blockchainStatus', async (status)=>{
             let updated = await this.receiveBlockchainStatus(peer, status)
-            if(updated.error) console.log(updated.error)
+            if(updated.error) logger(chalk.red('CHAIN STATUS'))
+            else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
         })
 
         peer.on('disconnect', () =>{
