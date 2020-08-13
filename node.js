@@ -1588,7 +1588,20 @@ class Node {
         }else if(reception.exists && !reception.duplicate){
           let routed = await this.routeBlockToPool(block)
           if(routed.error) resolve({error:routed.error})
-         else if(routed.rollback)
+          else if(routed.rollback){
+            let rolledBack = await this.chain.rollback(routed.rollback -1)
+             if(rolledBack){
+               if(rolledBack.error) logger(chalk.red('BLOCK HANDLING ERROR:'), rolledBack.error)
+               else{
+                 let updated = await this.updateBlockchain()
+                 if(updated.error) resolve({error:updated.error})
+                 else if(updated.busy){
+                   resolve({ busy:updated.busy })
+                 }else resolve(updated)
+               }
+             }
+        
+          }
         }else if(reception.isRollingBack){
           resolve({ busy:reception.error })
         }else if(reception.isRoutingBlock){
