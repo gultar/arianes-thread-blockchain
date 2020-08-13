@@ -1545,6 +1545,9 @@ class Node {
                     //Validates than runs the block
                     let added = await this.chain.receiveBlock(block);
                     let handled = await this.handleBlockReception(added)
+                    if(handled.error && handled.exists && !handled.duplicate){
+                       handled = await this.routeBlockToPool(block)
+                    }
                     resolve(handled)
       
                   }else{
