@@ -1544,10 +1544,7 @@ class Node {
                     this.minerChannel.emit('nodeEvent','isBusy')
                     //Validates than runs the block
                     let added = await this.chain.receiveBlock(block);
-                    let handled = await this.handleBlockReception(added)
-                    if(handled.error && handled.exists && !handled.duplicate){
-                       handled = await this.routeBlockToPool(block)
-                    }
+                    let handled = await this.handleBlockReception(added, block)
                     resolve(handled)
       
                   }else{
@@ -1582,12 +1579,16 @@ class Node {
    * @desc Handles the outcome of adding next block
    * @param {Object} reception 
    */
-  handleBlockReception(reception){
+  handleBlockReception(reception, block){
     return new Promise(async (resolve)=>{
       if(reception.error){
 
-        if(reception.exists || reception.existsInPool){
+        if(reception.exists && reception.duplicate){
           resolve({error:reception.error})
+        }else if(reception.exists && !reception.duplicate){
+          let routed = await this.routeBlockToPool(block)
+          if(routed.error) resolve({error:routed.error})
+         else if(routed.rollback)
         }else if(reception.isRollingBack){
           resolve({ busy:reception.error })
         }else if(reception.isRoutingBlock){
