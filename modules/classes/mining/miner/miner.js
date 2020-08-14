@@ -54,7 +54,10 @@ class Miner{
         })
         this.socket.on('previousBlock', (block)=> this.previousBlock = block)
         this.socket.on('rawBlock', async (rawBlock)=> await this.start(rawBlock))
-        this.socket.on('stopMining', async ()=> await this.stop())
+        this.socket.on('stopMining', async ()=> {
+
+          await this.stop()
+        })
         this.socket.emit('isApiReady')
     }
 
@@ -70,10 +73,10 @@ class Miner{
     }
 
     async stop(abort=false){
-        this.log('Mining interrupted')
         if(process.WORKER_POOL && process.WORKER_POOL.length >0){
             if(abort) process.STOP_WORKERS({ abort:true })
             else process.STOP_WORKERS({ stop:true })
+            this.log('Mining stopped')
         }
         this.socket.emit('isStopped')
     }
