@@ -1436,7 +1436,10 @@ class Node {
         this.broadcast('peerMessage', peerMessage)
           let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
           if(added){
-            if(added.error) logger(chalk.red('REJECTED BLOCK:'), added.error)
+            if(added.error){
+              console.log(added)
+              logger(chalk.red('REJECTED BLOCK:'), added.error)
+            }
             else if(added.busy) logger(chalk.yellow(added.busy))
           }
         break;
@@ -1603,7 +1606,22 @@ class Node {
         
           }
         }else if(reception.isRoutingBlock){
-
+          let routed = await this.chain.routeBlockToPool(block)
+          if(routed.error) resolve({error:routed.error})
+          else if(routed.rollback){
+            let rolledBack = await this.chain.rollback(routed.rollback -1)
+             if(rolledBack){
+               if(rolledBack.error) logger(chalk.red('BLOCK HANDLING ERROR:'), rolledBack.error)
+               else{
+                 let updated = await this.updateBlockchain()
+                 if(updated.error) resolve({error:updated.error})
+                 else if(updated.busy){
+                   resolve({ busy:updated.busy })
+                 }else resolve(updated)
+               }
+             }
+        
+          }
         }else if(reception.isRollingBack){
           resolve({ busy:reception.error })
         }else{
