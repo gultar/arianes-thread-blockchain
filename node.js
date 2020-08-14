@@ -1585,7 +1585,7 @@ class Node {
 
         if(reception.exists && reception.duplicate){
           resolve({error:reception.error})
-        }else if((reception.exists && !reception.duplicate) || (reception.isRoutingBlock)){
+        }else if(reception.exists && !reception.duplicate){
           let routed = await this.chain.routeBlockToPool(block)
           if(routed.error) resolve({error:routed.error})
           else if(routed.rollback){
@@ -1602,6 +1602,8 @@ class Node {
              }
         
           }
+        }else if(reception.isRoutingBlock){
+
         }else if(reception.isRollingBack){
           resolve({ busy:reception.error })
         }else{
