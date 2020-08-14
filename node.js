@@ -1121,6 +1121,12 @@ class Node {
           this.findPeersThroughDNSSD()
         }
       })
+     
+     socket.on('recalculateBalance', async ()=>{
+        console.log('Initial State', this.chain.balance.states)
+        let recalculated = await this.chain.reRunBalancesOfBlockchain()
+        console.log('Finished', recalculated)
+     })
 
       socket.on('getContract', async (name)=>{
           let contract = await this.chain.contractTable.getContract(name)
