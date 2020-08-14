@@ -378,9 +378,12 @@ class Node {
         let block = await this.chain.getBlockFromDB(1)
         let states = await this.chain.contractTable.getStateOfAllContracts(block.blockNumber)
         if(states.error) socket.emit('nextBlock', { error:'ERROR: Could not find contract states of block '+block.blockNumber })
+
+        let balances = await this.chain.balance.getBalancesFromDB(block.blockNumber)
+        if(balances.error) socket.emit('nextBlock', { error:'ERROR: Could not find balance states at block '+block.blockNumber })
               
         if(block && block.error) socket.emit('nextBlock', { error:block.error})
-        else if(block && !block.error) socket.emit('nextBlock', { found:block, states:states })
+        else if(block && !block.error) socket.emit('nextBlock', { found:block, states:states, balances:balances })
         else socket.emit('nextBlock', { error:'Block not found'})
       }else{
         if(index && previousIsKnown){
@@ -398,11 +401,14 @@ class Node {
               let states = await this.chain.contractTable.getStateOfAllContracts(nextBlock.blockNumber)
               if(states.error) socket.emit('nextBlock', { error:'ERROR: Could not find contract states of block '+nextBlock.blockNumber })
 
+              let balances = await this.chain.balance.getBalancesFromDB(nextBlock.blockNumber)
+              if(balances.error) socket.emit('nextBlock', { error:'ERROR: Could not find balance states at block '+nextBlock.blockNumber })
+
               if(!block) setTimeout(async()=>{ block = await this.chain.getBlockFromDB(nextBlock.blockNumber) }, 500)
-              if(block && !block.error) socket.emit('nextBlock', { found:block, states:states })
+              if(block && !block.error) socket.emit('nextBlock', { found:block, states:states, balances:balances })
               else{
                 // console.log('No block but is it block before last?')
-                let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber - 1
+                let isBeforeLastBlock = nextBlock.blockNumber >= latestBlock.blockNumber// -1
                 if(isBeforeLastBlock) socket.emit('nextBlock', { end:'End of blockchain' })
                 else socket.emit('nextBlock', { 
                   error:`ERROR: Block ${nextBlock.blockNumber} of hash ${nextBlock.hash.substr(0, 8)} not found` 

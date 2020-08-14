@@ -372,6 +372,17 @@ class BalanceTable{
            })
        }
 
+       async getBalancesFromDB(blockNumber){
+            if(typeof blockNumber == 'number') blockNumber = blockNumber.toString()
+            let blockState = await this.stateDB.get(blockNumber)
+            if(blockState){
+                if(blockState .error) return {error:blockState.error}
+                return this.states
+            }else{
+                return {error:new Error('ERROR: Could not load balance states at block number '+blockNumber)}
+            }
+       }
+
     //   saveStates(){
     //       return new Promise((resolve, reject)=>{
     //         try{
