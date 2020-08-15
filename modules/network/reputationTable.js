@@ -21,7 +21,7 @@ class ReputationTable{
         }
     }
 
-    async getPeerReputation(address){
+    getPeerReputation(address){
         let reputationEntry = this.reputations[address]
         if(reputationEntry) return reputationEntry.reputation
         else return false

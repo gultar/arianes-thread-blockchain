@@ -82,18 +82,11 @@ class PeerManager{
                         return null;
                     }
 
-                    let peerReputation = await this.reputationTable.getPeerReputation(address)
+                    let peerReputation = this.reputationTable.getPeerReputation(address)
                     if(peerReputation == 'untrusted'){
                         logger(`Refused connection to untrusted peer ${address}`)
                         response.success = false
                         return { willNotConnect:'Peer is untrustworthy' }
-                    }else if(peerReputation == 'unkown'){
-                        logger(`New peer is unkown. Creating new reputation entry`)
-                        let created = await this.reputationTable.createPeerReputation(address)
-                        if(created.error){
-                            logger('Could not create peer reputation entry. An error occured')
-                            logger(created.error)
-                        }
                     }
                     
                     peer = ioClient(address, config);
@@ -123,6 +116,15 @@ class PeerManager{
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
                                 
+                                if(!peerReputation){
+                                    logger(`New peer is unkown. Creating new reputation entry`)
+                                    let created = await this.reputationTable.createPeerReputation(address)
+                                    if(created.error){
+                                        logger('Could not create peer reputation entry. An error occured')
+                                        logger(created.error)
+                                    }
+                                }
+
                                 if(response.success){
                                     this.connectionsToPeers[address] = peer;
                                     logger(chalk.green('Connected to ', address))
