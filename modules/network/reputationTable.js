@@ -43,14 +43,18 @@ class ReputationTable{
      * Reconnects too often (5 times / sec) = 500
      */
 
-    async spammed(address){
-        return await this.decreaseReputationScore(address, 500)
-    }
 
-    async decreaseReputationScore(address, amount){
+    async decreaseReputationScore(address, reason){
         let repEntry = this.reputations[address]
         if(repEntry){
-            return await repEntry.decreaseScore(amount)
+            let decreased = false
+            switch(reason){
+                case 'spammed':
+                    decreased = await repEntry.decreaseScore(500)
+                    break;
+            }
+
+            return decreased
         }else{
             return { error:new Error(`ERROR: Could not find reputation of ${address}`) }
         }

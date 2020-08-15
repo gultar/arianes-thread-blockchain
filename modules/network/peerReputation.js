@@ -28,6 +28,7 @@ class PeerReputation{
     async decreaseScore(amount){
         if(amount && typeof amount == 'number' && amount > 0){
             this.score -= amount
+            console.log(this.address+' Score:', this.score)
             if(this.score < 0) this.score = 0
             return await this.adjustReputation()
         }else{
