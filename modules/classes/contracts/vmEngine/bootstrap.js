@@ -34,8 +34,7 @@ class Bootstrap{
 
     startVM(){
         this.events.on('run', async (code)=>{
-            start = process.hrtime()
-            callLog[code.hash] = start
+            callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
             this.calls[code.hash] = code
