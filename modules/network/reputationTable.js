@@ -48,7 +48,7 @@ class ReputationTable{
         let repEntry = this.reputations[address]
         if(repEntry){
             if(reason == 'spammed'){
-                return await repEntry.decreaseScore(500)
+                return await repEntry.decreaseScore(1)
             }else if(reason == 'rejectedBlock'){
                 return await repEntry.decreaseScore(100)
             }
