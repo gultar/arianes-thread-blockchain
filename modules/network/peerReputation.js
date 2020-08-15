@@ -1,25 +1,25 @@
 
-
+let reputationScoreChart = {
+    1000:"great",
+    750:"good",
+    500:"mediocre",
+    250:"bad",
+    1:"untrusted"
+}
 class PeerReputation{
     constructor(address, reputation="great", score=750){
         this.address = address
         this.reputation = reputation //great, good, mediocre, bad
         this.maxScore = 2000
         this.score = score  // on 1000
-        this.reputationScoreChart = {
-            1000:"great",
-            750:"good",
-            500:"mediocre",
-            250:"bad",
-            1:"untrusted"
-        }
+        
     }
 
     async adjustReputation(){
-        let margins = Object.keys(this.reputationScoreChart)
+        let margins = Object.keys(reputationScoreChart)
         for await(let margin of margins){
             if(this.score >= margin){
-                this.reputation = this.reputationScoreChart[margin]
+                this.reputation = reputationScoreChart[margin]
             }
         }
         return { adjusted:this.reputation }
