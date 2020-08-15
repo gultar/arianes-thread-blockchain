@@ -229,6 +229,7 @@ class PeerManager{
             if(reputation == 'untrusted'){
                 logger('Forcing disconnection from peer')
                 this.disconnect(peer)
+                return { disconnected:true }
             }
         }
     }

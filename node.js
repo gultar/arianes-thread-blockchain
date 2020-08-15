@@ -227,7 +227,15 @@ class Node {
               let token = socket.handshake.query.token;
               
               if(socket){
-                
+                    token = JSON.parse(token)
+                    let peerAddress = token.address
+
+                    let reputation = this.peerManager.reputationTable.getPeerReputation(peerAddress)
+                    if(reputation == 'untrusted'){
+                      logger(`Peer ${peerAddress} is not allowed to connect to this node`)
+                      socket.disconnect()
+                    }
+
                     socket.on('authentication', (config)=>{
                       nodeDebug('Received authentication request from peer')
                       let verified = this.verifyNetworkConfig(config)
@@ -238,8 +246,7 @@ class Node {
                         socket.on('message', (msg) => { logger('Client:', msg); });
 
                         if(token && token != undefined){
-                          token = JSON.parse(token)
-                          let peerAddress = token.address
+                          
                           
                           if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
                             
@@ -345,7 +352,11 @@ class Node {
         if(!this.messageBuffer[peerMessage.messageId]){
           await rateLimiter.consume(socket.handshake.address).catch(async( e ) => { 
               let lowered = await this.peerManager.lowerReputation(peerAddress, 'spammed')
-              console.log('Is Socket',lowered)
+              if(lowered.disconnected) {
+                logger(`Peer ${peerAddress} has disconnected from node`);
+                delete this.peersConnected[peerAddress];
+                socket.disconnect()
+              }
           }); // consume 1 point per event from IP
           nodeDebug(`SOCKET: Received a peer message from ${peerAddress}`)
           nodeDebug('SOCKET: Message:', peerMessage)
