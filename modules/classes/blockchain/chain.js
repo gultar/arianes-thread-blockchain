@@ -484,8 +484,11 @@ class Blockchain{
     blockExecutionDebug(`Save balances: ${endSaveBalances[1]/1000000}ms`)
     
     if(!skipCallExecution){
+      let startExecuteCalls = process.hrtime()
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
+      let endExecuteCalls = process.hrtime(startExecuteCalls)
+      blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
     }else{
       // logger(`Skipping call execution, saving peer's contract states instead.`)
     }
@@ -1404,7 +1407,7 @@ class Blockchain{
           let keepBlock = await this.getBlockFromDB(header.blockNumber)
           let rolledBack = await this.rollbackOneBlock()
           if(rolledBack.error){
-            error = rolledBack.error
+            throw new Error('ROLLBACK ERROR',rolledBack.error)
             break;
           }
         }
