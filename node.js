@@ -343,7 +343,9 @@ class Node {
 
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
         if(!this.messageBuffer[peerMessage.messageId]){
-          // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
+          await rateLimiter.consume(socket.handshake.address).catch(e => { 
+              this.peerManager.lowerReputation(peerAddress, 'spammed')
+          }); // consume 1 point per event from IP
           nodeDebug(`SOCKET: Received a peer message from ${peerAddress}`)
           nodeDebug('SOCKET: Message:', peerMessage)
           this.handlePeerMessage(peerMessage, acknowledge);

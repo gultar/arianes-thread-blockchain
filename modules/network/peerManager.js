@@ -201,12 +201,35 @@ class PeerManager{
         })
 
         peer.on('disconnect', () =>{
-            let address = peer.address
-            logger(`connection with peer ${address} dropped`);
-            delete this.connectionsToPeers[address];
-            delete this.peerSnapshots[address]
-            peer.disconnect()
+            this.disconnect(peer)
         })
+    }
+
+    disconnect(peer){
+        let address = peer.address
+        logger(`connection with peer ${address} dropped`);
+        delete this.connectionsToPeers[address];
+        delete this.peerSnapshots[address]
+        peer.disconnect()
+    }
+
+    async lowerReputation(peerAddress, reason='spammed'){
+        let peer = this.connectionsToPeers[peerAddress]
+        let reputationAction = await this.reputationTable[reason]
+        if(!reputationAction) return { error:new Error(`ERROR: Could not find reputation penalty: ${reason}`) }
+
+        let decreased = reputationAction(peerAddress)
+        if(decreased.error) return { error:decreased.error }
+        let reputationEntry = await this.reputationTable.getPeerReputation(peerAddress)
+        if(reputationEntry){
+            if(reputationEntry.error) return { error:reputationEntry.error }
+            logger(`Peer ${peerAddress} reputation: ${reputationEntry.reputation}`)
+
+            if(reputationEntry.reputation == 'untrusted'){
+                logger('Forcing disconnection from peer')
+                this.disconnect(peer)
+            }
+        }
     }
 
 }

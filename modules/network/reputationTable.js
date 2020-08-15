@@ -43,6 +43,19 @@ class ReputationTable{
      * Reconnects too often (5 times / sec) = 500
      */
 
+    spammed(address){
+        return this.decreaseReputationScore(address, 500)
+    }
+
+    async decreaseReputationScore(address, amount){
+        let repEntry = this.reputations[address]
+        if(repEntry){
+            return await repEntry.decreaseScore(amount)
+        }else{
+            return { error:new Error(`ERROR: Could not find reputation of ${address}`) }
+        }
+    }
+
 
     cureAddressToKey(address){
         address = this.replaceDotByComma(address)
