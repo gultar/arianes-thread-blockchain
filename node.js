@@ -344,7 +344,8 @@ class Node {
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
         if(!this.messageBuffer[peerMessage.messageId]){
           await rateLimiter.consume(socket.handshake.address).catch(e => { 
-              this.peerManager.lowerReputation(peerAddress, 'spammed')
+              let lowered = await this.peerManager.lowerReputation(peerAddress, 'spammed')
+              console.log(lowered)
           }); // consume 1 point per event from IP
           nodeDebug(`SOCKET: Received a peer message from ${peerAddress}`)
           nodeDebug('SOCKET: Message:', peerMessage)
