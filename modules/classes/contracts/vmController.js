@@ -102,12 +102,12 @@ class VMController{
             }
         }
        
-        
-        // let start = process.hrtime() /**  Checking execution time */
+        let blockExecutionDebug = require('debug')('blockExecution')
+        let start = process.hrtime() /**  Checking execution time */
         let result = await this.sendCallsToVM(calls)
-        // let hrend = process.hrtime(start)
+        let hrend = process.hrtime(start)
 
-        // console.info('SendCallToVM: %ds %dms', hrend[0], hrend[1] / 1000000)
+        blockExecutionDebug(`Send calls to VM: ${hrend[1] / 1000000}`)
         if(result.error) return { error:result.error }
         else{
             let { results, state } = result;
