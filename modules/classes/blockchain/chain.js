@@ -488,6 +488,7 @@ class Blockchain{
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
       let endExecuteCalls = process.hrtime(startExecuteCalls)
+      
       blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
     }else{
       // logger(`Skipping call execution, saving peer's contract states instead.`)
