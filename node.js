@@ -549,6 +549,7 @@ class Node {
           let { host, port, address } = peer
           
           let reputation = await this.peerManager.reputationTable.getPeerReputation(address)
+          console.log('Reputation in discovery', reputation)
           if(reputation != 'untrusted'){
             logger('Found new peer', chalk.green(address))
             this.peerManager.connectToPeer(address)
