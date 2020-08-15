@@ -731,8 +731,9 @@ class Node {
 
                 let nextBlock = block.found
                 let contractStates = block.states
+                let balances = block.balances
 
-                let added = await this.chain.receiveBlock(nextBlock, 'overwrite', contractStates)
+                let added = await this.chain.receiveBlock(nextBlock, 'overwrite', contractStates, balances)
                 if(added.error){
                   if(added.exists){
                     closeConnection({ error:true })
@@ -1120,6 +1121,12 @@ class Node {
           this.findPeersThroughDNSSD()
         }
       })
+     
+     socket.on('recalculateBalance', async ()=>{
+        console.log('Initial State', this.chain.balance.states)
+        let recalculated = await this.chain.reRunBalancesOfBlockchain()
+        console.log('Finished', recalculated)
+     })
 
       socket.on('getContract', async (name)=>{
           let contract = await this.chain.contractTable.getContract(name)

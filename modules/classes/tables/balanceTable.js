@@ -68,7 +68,7 @@ class BalanceTable{
 
             let added = await this.stateDB.put({
                 id:block.blockNumber.toString(),
-                key: 'blockState',
+                key: block.blockNumber.toString(),
                 value: { 
                     states:this.states,
                     merkleRoot:block.merkleRoot,

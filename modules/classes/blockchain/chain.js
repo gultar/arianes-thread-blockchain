@@ -774,6 +774,30 @@ class Blockchain{
 
      return total.toString(16)
    }
+ 
+ async reRunBalancesOfBlockchain(){
+    global.minerChannel.emit('isBusy')
+    this.isRollingBack = true
+    let initialBalances = genesis.states
+
+    this.balance.states = initialBalances
+    for await(let header of this.chain){
+       if(header.blockNumber > 0){
+          let block = await this.getBlockFromDB(header.blockNumber)
+          if(block.error) throw new Error(block.error)
+
+          let runSuccessful = await this.balance.runBlock(block)
+          if(runSuccessful.error) return { error:new Error(runSuccessful.error) }
+        
+          console.log('Successful balance run:', runSuccessful)
+       }
+    }
+
+
+    global.minerChannel.emit('isAvailable')
+    this.isRollingBack = false
+    return { sucess:this.balance.states }
+ }
 
   /**
    * 
