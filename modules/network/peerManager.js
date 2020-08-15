@@ -219,12 +219,11 @@ class PeerManager{
         let decreased = await this.reputationTable.decreaseReputationScore(peerAddress, reason)
         console.log('Decreased',decreased)
         if(decreased.error) return { error:decreased.error }
-        let reputationEntry = await this.reputationTable.getPeerReputation(peerAddress)
-        if(reputationEntry){
-            if(reputationEntry.error) return { error:reputationEntry.error }
-            logger(`Peer ${peerAddress} reputation:`, reputationEntry)
+        let reputation = await this.reputationTable.getPeerReputation(peerAddress)
+        if(reputation){
+            logger(`Peer ${peerAddress} reputation:`, reputation)
 
-            if(reputationEntry.reputation == 'untrusted'){
+            if(reputation == 'untrusted'){
                 logger('Forcing disconnection from peer')
                 this.disconnect(peer)
             }

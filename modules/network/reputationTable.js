@@ -24,7 +24,7 @@ class ReputationTable{
     async getPeerReputation(address){
         let reputationEntry = this.reputations[address]
         if(reputationEntry) return reputationEntry.reputation
-        else return 'unkown'
+        else return false
     }
 
     async getPeerScore(address){
