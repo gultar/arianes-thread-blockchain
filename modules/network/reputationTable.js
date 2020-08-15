@@ -105,7 +105,8 @@ class ReputationTable{
                     
                     if(reputation.error) return { error:reputation.error }
                     let address = this.revertKeyToIp(addressKey)
-                    this.reputations[address] = new PeerReputation(addressKey, reputation.reputation, reputation.score)
+                    this.reputations[address] = new PeerReputation(address, reputation.reputation, reputation.score)
+                    console.log('Reputation:', this.reputations[address])
                 }else{
                     return { error:`ERROR: Found reputation key ${address} but not entry` }
                 }
