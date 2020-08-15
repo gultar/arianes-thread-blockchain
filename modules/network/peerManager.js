@@ -81,6 +81,20 @@ class PeerManager{
                         logger('Connections to localhost not allowed')
                         return null;
                     }
+
+                    let peerReputation = await this.reputationTable.getPeerReputation(address)
+                    if(peerReputation == 'untrusted'){
+                        logger(`Refused connection to untrusted peer ${address}`)
+                        response.success = false
+                        return { willNotConnect:'Peer is untrustworthy' }
+                    }else if(peerReputation == 'unkown'){
+                        logger(`New peer is unkown. Creating new reputation entry`)
+                        let created = await this.reputationTable.createPeerReputation(address)
+                        if(created.error){
+                            logger('Could not create peer reputation entry. An error occured')
+                            logger(created.error)
+                        }
+                    }
                     
                     peer = ioClient(address, config);
                     peer.heartbeatTimeout = 120000;
@@ -108,20 +122,6 @@ class PeerManager{
                             
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
-
-                                let peerReputation = await this.reputationTable.getPeerReputation(address)
-                                if(peerReputation == 'untrusted'){
-                                    logger(`Refused connection to untrusted peer ${address}`)
-                                    response.success = false
-                                    peer.disconnect()
-                                }else if(peerReputation == 'unkown'){
-                                    logger(`New peer is unkown. Creating new reputation entry`)
-                                    let created = await this.reputationTable.createPeerReputation(address)
-                                    if(created.error){
-                                        logger('Could not create peer reputation entry. An error occured')
-                                        logger(created.error)
-                                    }
-                                }
                                 
                                 if(response.success){
                                     this.connectionsToPeers[address] = peer;
@@ -136,9 +136,6 @@ class PeerManager{
                                     this.requestNewPeers(peer)
                                     this.onPeerAuthenticated(peer)
 
-                                    setTimeout(async()=>{
-                                        
-                                    },2000);
                                 }else{
                                     logger('Could not connect to remote node', response)
                                     if(response.network){

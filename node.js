@@ -511,7 +511,7 @@ class Node {
         socket.emit('blockchainStatus', status);
         
         let peer = this.connectionsToPeers[peerAddress];
-        if(!peer) this.peerManager.connectToPeer(peerAddress)
+        // if(!peer) this.peerManager.connectToPeer(peerAddress)
         
         this.peerManager.peerStatus[peerAddress] = peerStatus
         this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
@@ -886,22 +886,22 @@ class Node {
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
         peer.once('status', (status)=>{
-            if(status && isValidBlockchainStatusJSON(status)){
-              this.peerManager.peerStatus[address] = status
-              let blockHeader = status.bestBlockHeader
-              this.peersLatestBlocks[address] = blockHeader
-              if(blockHeader.blockNumber + this.tolerableBlockGap < this.chain.getLatestBlock().blockNumber){
-                nodeDebug(`Peer ${address} is not synced`)
-                peer.isSynced = false
-              }else{
-                nodeDebug(`Peer ${address} is in sync`)
-                peer.isSynced = true
-              }
-            }else{
-              console.log(`Peer ${address} provided invalid status`)
-              console.log(status)
+          if(status && isValidBlockchainStatusJSON(status)){
+            this.peerManager.peerStatus[address] = status
+            let blockHeader = status.bestBlockHeader
+            this.peersLatestBlocks[address] = blockHeader
+            if(blockHeader.blockNumber + this.tolerableBlockGap < this.chain.getLatestBlock().blockNumber){
+              nodeDebug(`Peer ${address} is not synced`)
               peer.isSynced = false
+            }else{
+              nodeDebug(`Peer ${address} is in sync`)
+              peer.isSynced = true
             }
+          }else{
+            console.log(`Peer ${address} provided invalid status`)
+            console.log(status)
+            peer.isSynced = false
+          }
         })
         peer.emit('getStatus')
       }
