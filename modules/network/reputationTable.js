@@ -10,7 +10,7 @@ class ReputationTable{
     async createPeerReputation(address){
         if(address){
             this.reputations[address] = new PeerReputation(address)
-            console.log('Cured', this.cureAddressToKey(address))
+            
             let created = await this.reputationDB.put({
                 key:this.cureAddressToKey(address),
                 value:this.reputations[address]
@@ -48,7 +48,7 @@ class ReputationTable{
         let repEntry = this.reputations[address]
         if(repEntry){
             if(reason == 'spammed'){
-                return await repEntry.decreaseScore(1)
+                return repEntry.decreaseScore(1)
             }else if(reason == 'rejectedBlock'){
                 return await repEntry.decreaseScore(100)
             }
@@ -108,7 +108,7 @@ class ReputationTable{
                     let address = this.revertKeyToIp(addressKey)
                     this.reputations[address] = new PeerReputation(address, reputation.reputation, reputation.score)
                     await this.reputations[address].adjustReputation()
-                    console.log('Reputation:', this.reputations[address])
+                    
                 }else{
                     return { error:`ERROR: Found reputation key ${address} but not entry` }
                 }

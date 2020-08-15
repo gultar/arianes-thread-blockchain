@@ -24,7 +24,7 @@ class PeerReputation{
         else if(score < 1) return 'untrusted'
     }
 
-    async decreaseScore(amount){
+    decreaseScore(amount){
         if(amount && typeof amount == 'number' && amount > 0){
             this.score = this.score - amount
             if(this.score < 0) {
@@ -32,7 +32,6 @@ class PeerReputation{
             }
             
             this.reputation = this.adjustReputation(this.score)
-            console.log('New rep:', this.reputation)
             return this.reputation
         }else{
             return { error:'ERROR: Could not decrease score. Amount must be positive integer' }
