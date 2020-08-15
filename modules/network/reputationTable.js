@@ -43,8 +43,8 @@ class ReputationTable{
      * Reconnects too often (5 times / sec) = 500
      */
 
-    spammed(address){
-        return this.decreaseReputationScore(address, 500)
+    async spammed(address){
+        return await this.decreaseReputationScore(address, 500)
     }
 
     async decreaseReputationScore(address, amount){
