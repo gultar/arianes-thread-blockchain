@@ -857,7 +857,7 @@ class Node {
         }
         
       }else{
-        resolve({ error:'ERROR: Cannot receive status without peer or status' })
+        resolve(false)
       }
     })
     
