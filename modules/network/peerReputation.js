@@ -17,8 +17,9 @@ class PeerReputation{
 
     async adjustReputation(score){
         let margins = Object.keys(reputationScoreChart)
-        let reputation = 'untrusted'
+        let reputation = 'bad'
         for await(let margin of margins){
+            console.log('Margin', margin)
             if(score >= margin){
                 reputation = reputationScoreChart[margin]
             }
@@ -33,7 +34,7 @@ class PeerReputation{
             console.log(this.address+' Score:', this.score)
             
             this.reputation = await this.adjustReputation(this.score)
-
+            console.log('New rep:', this.reputation)
             return this.reputation
         }else{
             return { error:'ERROR: Could not decrease score. Amount must be positive integer' }
