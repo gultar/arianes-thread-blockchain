@@ -216,7 +216,6 @@ class PeerManager{
     async lowerReputation(peerAddress, reason='spammed'){
         let peer = this.connectionsToPeers[peerAddress]
         let isValidPenalty = this.reputationTable[reason]
-        console.log('Penalty', isValidPenalty)
         if(!isValidPenalty) return { error:new Error(`ERROR: Could not find reputation penalty: ${reason}`) }
 
         let decreased = await this.reputationTable[reason](peerAddress)
@@ -224,7 +223,7 @@ class PeerManager{
         let reputationEntry = await this.reputationTable.getPeerReputation(peerAddress)
         if(reputationEntry){
             if(reputationEntry.error) return { error:reputationEntry.error }
-            logger(`Peer ${peerAddress} reputation: ${reputationEntry.reputation}`)
+            logger(`Peer ${peerAddress} reputation:`, reputationEntry)
 
             if(reputationEntry.reputation == 'untrusted'){
                 logger('Forcing disconnection from peer')

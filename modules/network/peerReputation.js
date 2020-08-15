@@ -8,7 +8,7 @@ let reputationScoreChart = {
 }
 let maxScore = 2000
 class PeerReputation{
-    constructor(address, reputation="great", score=750){
+    constructor(address, reputation="good", score=750){
         this.address = address
         this.reputation = reputation //great, good, mediocre, bad
         this.score = score  // on 1000
