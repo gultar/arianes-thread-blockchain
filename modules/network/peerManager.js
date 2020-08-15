@@ -206,11 +206,15 @@ class PeerManager{
     }
 
     disconnect(peer){
-        let address = peer.address
-        logger(`connection with peer ${address} dropped`);
-        delete this.connectionsToPeers[address];
-        delete this.peerSnapshots[address]
-        peer.disconnect()
+        if(peer){
+            let address = peer.address
+            logger(`connection with peer ${address} dropped`);
+            delete this.connectionsToPeers[address];
+            delete this.peerSnapshots[address]
+            peer.disconnect()
+        }else{
+            return 'disconnected'
+        }
     }
 
     async lowerReputation(peerAddress, reason='spammed'){

@@ -545,10 +545,14 @@ class Node {
     this.peerDiscovery.find()
     .then(()=>{
       this.peerDiscovery.collectPeers((emitter)=>{
-        emitter.on('peerDiscovered', (peer)=> {
+        emitter.on('peerDiscovered', async (peer)=> {
           let { host, port, address } = peer
-          logger('Found new peer', chalk.green(address))
-          this.peerManager.connectToPeer(address)
+          
+          let reputation = await this.peerManager.reputationTable.getPeerReputation(address)
+          if(address != 'untrusted'){
+            logger('Found new peer', chalk.green(address))
+            this.peerManager.connectToPeer(address)
+          }
         })
       })
       
