@@ -219,6 +219,7 @@ class PeerManager{
         if(!isValidPenalty) return { error:new Error(`ERROR: Could not find reputation penalty: ${reason}`) }
 
         let decreased = await this.reputationTable.decreaseReputationScore(peerAddress, reason)
+        console.log('Decreased',decreased)
         if(decreased.error) return { error:decreased.error }
         let reputationEntry = await this.reputationTable.getPeerReputation(peerAddress)
         if(reputationEntry){
