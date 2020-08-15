@@ -22,14 +22,14 @@ class PeerReputation{
                 this.reputation = this.reputationScoreChart[margin]
             }
         }
-        return { adjusted:true }
+        return { adjusted:this.reputation }
     }
 
     async decreaseScore(amount){
         if(amount && typeof amount == 'number' && amount > 0){
             this.score -= amount
             if(this.score < 0) this.score = 0
-            await this.adjustReputation()
+            return await this.adjustReputation()
         }else{
             return { error:'ERROR: Could not decrease score. Amount must be positive integer' }
         }
