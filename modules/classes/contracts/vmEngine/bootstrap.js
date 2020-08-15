@@ -152,10 +152,10 @@ class Bootstrap{
                 if(message.singleResult){
                     
                     let blockExecutionDebug = require('debug')('blockExecution')
+                    
+                    let result = JSON.parse(message.singleResult)
                     let endOfExec = process.hrtime(callLog[result.hash])
                     blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
-                    let result = JSON.parse(message.singleResult)
-                    
                     delete this.calls[result.hash]
                     if(result.error){
                         //VM Returned an error
