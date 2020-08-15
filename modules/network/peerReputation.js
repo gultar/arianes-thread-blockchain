@@ -6,11 +6,11 @@ let reputationScoreChart = {
     250:"bad",
     1:"untrusted"
 }
+let maxScore = 2000
 class PeerReputation{
     constructor(address, reputation="great", score=750){
         this.address = address
         this.reputation = reputation //great, good, mediocre, bad
-        this.maxScore = 2000
         this.score = score  // on 1000
         
     }
@@ -38,7 +38,7 @@ class PeerReputation{
     async increaseScore(amount){
         if(amount && typeof amount == 'number' && amount > 0){
             this.score += amount
-            if(this.score > this.maxScore) this.score = this.maxScore
+            if(this.score > maxScore) this.score = maxScore
             await this.adjustReputation()
         }else{
             return { error:'ERROR: Could not increase score. Amount must be positive integer' }
