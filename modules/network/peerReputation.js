@@ -15,27 +15,23 @@ class PeerReputation{
         
     }
 
-    async adjustReputation(score){
-        let margins = Object.keys(reputationScoreChart)
-        let reputation = 'bad'
-        for await(let margin of margins){
-            console.log('Margin', margin)
-            if(score >= margin){
-                reputation = reputationScoreChart[margin]
-            }
-        }
-        
-        return reputation
+    adjustReputation(score){
+        if(score >= 1000) return 'great'
+        else if(score < 1000 && score >= 750) return 'good'
+        else if(score < 750 && score >= 500) return 'mediocre'
+        else if(score < 500 && score >= 250) return 'bad'
+        else if(score < 250 && score >= 1) return 'very bad'
+        else if(score < 1) return 'untrusted'
     }
 
     async decreaseScore(amount){
         if(amount && typeof amount == 'number' && amount > 0){
             this.score = this.score - amount
-
-            if(this.score < 0) console.log('Below zero')
-            console.log(this.address+' Score:', this.score)
+            if(this.score < 0) {
+                this.score = 0
+            }
             
-            this.reputation = await this.adjustReputation(this.score)
+            this.reputation = this.adjustReputation(this.score)
             console.log('New rep:', this.reputation)
             return this.reputation
         }else{
