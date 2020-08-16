@@ -773,12 +773,6 @@ class Node {
                     resolve({error:added.error})
                   }
                 }else{
-                  let applied = await this.applyContractStates(contractStates, nextBlock.blockNumber)
-                  if(applied.error){
-                    closeConnection({ error:true })
-                    resolve({error:added.error})
-                  }
-
                   request(this.chain.getLatestBlock())
                 }
               }else{

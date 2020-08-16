@@ -483,14 +483,24 @@ class Blockchain{
     let endSaveBalances = process.hrtime(startSaveBalances)
     blockExecutionDebug(`Save balances: ${endSaveBalances[1]/1000000}ms`)
     
-    if(!skipCallExecution){
+    if(skipCallExecution){
+      let stateApplied = await this.applyContractStates(skipCallExecution, newBlock.blockNumber)
+      if(stateApplied.error) {
+        console.log('APPLY STATE ERROR', stateApplied.error)
+        let startExecuteCalls = process.hrtime()
+        let callsExecuted = await this.runTransactionCalls(newBlock);
+        if(callsExecuted.error) return { error:callsExecuted.error }
+        let endExecuteCalls = process.hrtime(startExecuteCalls)
+
+        blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
+      }
+    }else{
       let startExecuteCalls = process.hrtime()
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
       let endExecuteCalls = process.hrtime(startExecuteCalls)
-      
+
       blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
-    }else{
       // logger(`Skipping call execution, saving peer's contract states instead.`)
     }
     
@@ -1979,6 +1989,21 @@ class Blockchain{
        
       
     })
+  }
+
+  async applyContractStates(states, blockNumber){
+    if(states && Object.keys(states).length > 0){
+      for await(let contractName of Object.keys(states)){
+        let state = states[contractName]
+        let stateSet = await this.contractTable.manuallySetState(contractName, state, blockNumber)
+        if(stateSet.error) console.log('STATE SET', stateSet.error)
+      }
+
+      return { applied:true }
+    }else{
+      console.log('No state changes', states)
+      return { noStateChanged:true }
+    }
   }
 
   executeActionBlock(actions){
