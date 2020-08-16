@@ -1678,6 +1678,23 @@ class Node {
           }
         }
         
+      }else if(reception.missing){
+        /**
+         * TEMPORARY
+         * 
+         */
+        let rolledBack = await this.chain.rollback(reception.missingBlockNumber -1)
+        if(rolledBack){
+          if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
+          else{
+            let updated = await this.updateBlockchain()
+            if(updated.error) resolve({error:updated.error})
+            else if(updated.busy){
+              resolve({ busy:updated.busy })
+            }else resolve(updated)
+          }
+        }
+        
       }else{
         this.minerChannel.emit('nodeEvent','isAvailable')
         resolve(reception)
