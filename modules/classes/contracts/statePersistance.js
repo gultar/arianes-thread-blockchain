@@ -63,12 +63,16 @@ class StateStorage{
 
     async setState(state, blockNumber){
         if(state && Object.keys(state).length > 0){
-            this.state = state
-            this.changeLog[blockNumber] = state
-            this.lastChange = blockNumber
-            return { setState:state, blockNumber:blockNumber }
+            if(blockNumber){
+                this.state = state
+                this.changeLog[blockNumber] = state
+                this.lastChange = blockNumber
+                return { setState:state, blockNumber:blockNumber }
+            }else{
+                return { error:new Error('Need to provide a valid blockNumber for contract storage entry') }
+            }
         }else{
-            return { error:'ERROR: State provided to be set is empty' }
+            return { error:new Error('ERROR: State provided to be set is empty') }
         }
     }
 
