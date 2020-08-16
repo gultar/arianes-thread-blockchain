@@ -353,7 +353,7 @@ class Node {
           // await rateLimiter.consume(socket.handshake.address).catch(async( e ) => { 
           //     let lowered = await this.peerManager.lowerReputation(peerAddress, 'spammed')
           //     if(lowered.disconnected) {
-          //       logger(`Peer ${peerAddress} has disconnected from node`);
+          //       logger(`Closed peer connection ${peerAddress}`);
           //       delete this.peersConnected[peerAddress];
           //       socket.disconnect()
           //     }

@@ -44,10 +44,18 @@ class StateStorage{
             this.lastChange = blockNumber
             this.debug('Last change:', this.lastChange)
         }else{
-            this.debug('Updating but no state provided')
-            if(this.changeLog[blockNumber]){
-                this.debug('Updating but entry exists: overwriting')
-                this.changeLog[blockNumber] = this.changeLog[blockNumber]
+            if(blockNumber){
+                this.debug('Updating but no state provided')
+                if(this.changeLog[blockNumber]){
+                    this.debug('Updating but entry exists: overwriting')
+                    this.changeLog[blockNumber] = this.changeLog[blockNumber]
+                }
+            }else{
+                this.debug('Updating but no state provided')
+                if(this.changeLog[this.lastChange]){
+                    this.debug('Updating but entry exists: overwriting')
+                    this.changeLog[this.lastChange] = this.changeLog[this.lastChange]
+                }
             }
         }
         return { updated:true }
