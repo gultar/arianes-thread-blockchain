@@ -499,7 +499,6 @@ class Blockchain{
         blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
       }
     }else{
-      console.log('Run tx calls')
       let startExecuteCalls = process.hrtime()
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
