@@ -129,11 +129,11 @@ class StateStorage{
     }
 
     async getEntryAtBlock(blockNumber){
-        if(blockNumber){
+        if(blockNumber && blockNumber >= 0){
             let state = this.changeLog[blockNumber]
             return state
         }else{
-            return { error:new Error('No block number supplied to GetEntryAtBlock') }
+            return { error:new Error('No valid block number supplied to GetEntryAtBlock') }
         }
     }
 

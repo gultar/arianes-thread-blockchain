@@ -205,17 +205,21 @@ class ContractTable{
     }
 
     async getStateOfAllContracts(blockNumber){
-        let contractNames = Object.keys(this.stateStorage)
-        let contractStates = {}
-        for await(let name of contractNames){
-            if(this.stateStorage[name]){
-                let state = await this.stateStorage[name].getEntryAtBlock(blockNumber)
-                if(state && state.error) throw state.error
-                else if(state) contractStates[name] = state
+        if(blockNumber){
+            let contractNames = Object.keys(this.stateStorage)
+            let contractStates = {}
+            for await(let name of contractNames){
+                if(this.stateStorage[name]){
+                    let state = await this.stateStorage[name].getEntryAtBlock(blockNumber)
+                    if(state && state.error) throw state.error
+                    else if(state) contractStates[name] = state
+                }
             }
-        }
 
-        return contractStates
+            return contractStates
+        }else{
+            return { error:new Error('Need to provide a valid blocknumber to get states of contracts') }
+        }
     }
 
     getLatestState(name){

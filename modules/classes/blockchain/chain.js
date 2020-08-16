@@ -391,10 +391,10 @@ class Blockchain{
     else previousBlockExists = true
 
     let newHeader = this.extractHeader(newBlock)
-    if(this.chain.length == newHeader.blockNumber + 1){
-      let latestToBeOverwritten = this.chain.pop()
-      console.log('Overwriting header', latestToBeOverwritten)
-    }
+    // if(this.chain.length == newHeader.blockNumber + 1){
+    //   let latestToBeOverwritten = this.chain.pop()
+    //   console.log('Overwriting header', latestToBeOverwritten)
+    // }
     this.chain.push(newHeader)
     let startRunBlock = process.hrtime()
     let executed = await this.runBlock(newBlock, skipCallExecution)
@@ -461,7 +461,7 @@ class Blockchain{
     
   }
 
-  async runBlock(newBlock, skipCallExecution){
+  async runBlock(newBlock, skipCallExecution=false){
     let newHeader = this.extractHeader(newBlock)
     
     let startBalanceRunBlock = process.hrtime()
@@ -495,6 +495,7 @@ class Blockchain{
         blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
       }
     }else{
+      console.log('Run tx calls')
       let startExecuteCalls = process.hrtime()
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
