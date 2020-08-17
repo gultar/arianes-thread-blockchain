@@ -1463,7 +1463,6 @@ class Node {
           let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
           if(added){
             if(added.error){
-              console.log(added)
               logger(chalk.red('REJECTED BLOCK:'), added.error)
             }
             else if(added.busy) logger(chalk.yellow(added.busy))
