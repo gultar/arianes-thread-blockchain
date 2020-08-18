@@ -777,18 +777,8 @@ class Blockchain{
   * @param {object} transaction Unvalidated transaction object 
   * @return {boolean} Validity of transaction, or error object
   */
-  createTransaction(transaction){
-    return new Promise((resolve, reject)=>{
-      this.validateTransaction(transaction)
-      .then(valid =>{
-        resolve(valid)
-      })
-      .catch(e =>{
-        reject(e);
-      })
-      
-    })
-    
+  async createTransaction(transaction){
+    return await this.validateTransaction(transaction)
   }
 
   async chainHasBlockOfHash(hash){
