@@ -1655,8 +1655,11 @@ class Blockchain{
         if(alreadyExistsInBlockchain) resolve({exists:'Transaction already exists in blockchain', blockNumber:alreadyExistsInBlockchain})
 
         if(isTransactionCall){
-
+          let txDebug = require('debug')('txValidate')
+          let startValidateCall = process.hrtime()
           let isValidTransactionCall = await this.validateTransactionCall(transaction);
+          let endValidateCall = process.hrtime(startValidateCall)
+          txDebug(`Validate Transaction call: ${endValidateCall[1]/1000000}`)
           if(isValidTransactionCall.error) resolve({error:isValidTransactionCall.error})
           else resolve(isValidTransactionCall)
 

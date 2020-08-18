@@ -406,7 +406,7 @@ class Node {
           else{
 
             let nextBlock = await this.chain.getNextBlockbyHash(header.hash)
-            if(!nextBlock || nextBlock.error) socket.emit('nextBlock', {previousIsKnown:header})
+            if(!nextBlock || nextBlock.error) socket.emit('nextBlock', {previousFound:header})
             else{
 
               let latestBlock = this.chain.getLatestBlock()
