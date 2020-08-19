@@ -49,6 +49,7 @@ class Peer{
                                 
                                 this.socket.emit('message', 'Connection established by '+ this.address);
                                 let status = await this.buildBlockchainStatus()
+                                console.log('Status', status)
                                 this.socket.emit('connectionRequest', this.address);
                             
                                 this.requestNewPeers()
