@@ -42,8 +42,18 @@ class Peer{
                     this.socket.on('connect', async () => {
                         if(!this.connectionsToPeers[this.address]){
                             let authenticated = await this.authenticate(networkConfig)
-                            console.log('Auth',authenticated)
-                            if(authenticated.success) await this.handleConnection()
+                            if(authenticated.success) {
+                                this.connectionsToPeers[this.address] = this.socket;
+                                logger(chalk.green('Connected to ', this.address))
+                                this.UILog('Connected to ', this.address)
+                                
+                                this.socket.emit('message', 'Connection established by '+ this.address);
+                                let status = await this.buildBlockchainStatus()
+                                this.socket.emit('connectionRequest', this.address);
+                            
+                                this.requestNewPeers()
+                                this.onPeerAuthenticated()
+                            }
                             else this.disconnect()
 
                             resolve(this.socket)
@@ -117,19 +127,6 @@ class Peer{
         }else{
             return 'disconnected'
         }
-    }
-
-    async handleConnection(){
-        this.connectionsToPeers[this.address] = this.socket;
-        logger(chalk.green('Connected to ', this.address))
-        this.UILog('Connected to ', this.address)
-        
-        this.socket.emit('message', 'Connection established by '+ this.address);
-        let status = await this.buildBlockchainStatus()
-        this.socket.emit('connectionRequest', this.address);
-    
-        this.requestNewPeers()
-        this.onPeerAuthenticated()
     }
 
 }
