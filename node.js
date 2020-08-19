@@ -345,7 +345,6 @@ class Node {
 
       socket.on('connectionRequest', async(address)=>{
         await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
-        console.log('Peer requested connection', address)
         this.peerManager.connectToPeer(address);
       });
 
