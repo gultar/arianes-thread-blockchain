@@ -29,7 +29,7 @@ class Peer{
             try{
                 if(!this.connectionsToPeers[this.address]){
                     let connectionAttempts = 0;
-
+                    logger('Connecting to '+ this.address+ ' ...')
                     this.socket = ioClient(this.address, this.config);
                     this.socket.heartbeatTimeout = 120000;
                     if(this.verbose) logger('Connecting to '+ this.address+ ' ...');

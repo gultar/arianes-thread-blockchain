@@ -74,10 +74,10 @@ class PeerManager{
             address:address,
             connectionsToPeers:this.connectionsToPeers,
             verbose:this.verbose,
+            config: config,
             buildBlockchainStatus:() => this.buildBlockchainStatus(),
             receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
             UILog:(...message)=> this.UILog(...message),
-            config: config
         })
 
         let connected = await peer.connect(networkConfig)
