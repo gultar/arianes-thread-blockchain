@@ -51,6 +51,8 @@ class PeerManager{
             }
         }
 
+
+
         let networkConfig = this.networkManager.getNetwork()
         let token = {
             address:this.address,
@@ -81,7 +83,16 @@ class PeerManager{
         })
 
         let connected = await peer.connect(networkConfig)
-
+        if(connected){
+            if(!peerReputation){
+                logger(`New peer is unkown. Creating new reputation entry`)
+                let created = await this.reputationTable.createPeerReputation(address)
+                if(created.error){
+                    logger('Could not create peer reputation entry. An error occured')
+                    logger(created.error)
+                }
+            }
+        }
         return connected
 
     }

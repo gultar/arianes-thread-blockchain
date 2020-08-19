@@ -32,6 +32,7 @@ class Peer{
                     logger('Connecting to '+ this.address+ ' ...')
                     this.socket = ioClient(this.address, this.config);
                     this.socket.heartbeatTimeout = 120000;
+                    this.socket.address = this.address
                     if(this.verbose) logger('Connecting to '+ this.address+ ' ...');
                     this.UILog('Requesting connection to '+ this.address+ ' ...');
                     this.socket.on('error', e =>  { reject(e) })
@@ -43,13 +44,7 @@ class Peer{
                         if(!this.connectionsToPeers[this.address]){
                             let authenticated = await this.authenticate(networkConfig)
                             if(authenticated.success) {
-                                this.connectionsToPeers[this.address] = this.socket;
-                                logger(chalk.green('Connected to ', this.address))
-                                this.UILog('Connected to ', this.address)
                                 
-                                this.socket.emit('message', 'Connection established by '+ this.address);
-                                console.log('Address', this.address)
-                                this.socket.emit('connectionRequest', this.address);
                             
                                 this.requestNewPeers()
                                 this.onPeerAuthenticated()
@@ -110,7 +105,12 @@ class Peer{
     }
 
     onPeerAuthenticated(){
-
+        this.connectionsToPeers[this.address] = this.socket;
+        logger(chalk.green('Connected to ', this.address))
+        this.UILog('Connected to ', this.address)
+        this.socket.emit('message', 'Connection established by '+ this.address);
+        this.socket.emit('connectionRequest', this.address);
+        
         this.socket.on('blockchainStatus', async (status)=>{
             let updated = await this.receiveBlockchainStatus(this.socket, status)
             if(updated.error) logger(chalk.red('CHAIN STATUS'), updated.error)
