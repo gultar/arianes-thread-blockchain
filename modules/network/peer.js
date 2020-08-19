@@ -41,7 +41,7 @@ class Peer{
                     this.socket.on('connect', async () => {
                         if(!this.connectionsToPeers[this.address]){
                             let authenticated = await this.authenticate()
-                            if(authenticated.success) this.handleConnection()
+                            if(authenticated.success) await this.handleConnection()
                             else this.disconnect()
 
                             resolve(this.socket)
@@ -117,7 +117,7 @@ class Peer{
         }
     }
 
-    handleConnection(){
+    async handleConnection(){
         this.connectionsToPeers[this.address] = this.socket;
         logger(chalk.green('Connected to ', this.address))
         this.UILog('Connected to ', this.address)
