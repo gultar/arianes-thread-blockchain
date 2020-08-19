@@ -1143,7 +1143,8 @@ class Node {
 
      socket.on('connectClass', async (address)=>{
         let connected = await this.peerManager.connect(address)
-        console.log(connected)
+        if(connected) console.log('Success')
+        else console.log('failed')
      })
 
       socket.on('getContract', async (name)=>{

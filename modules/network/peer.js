@@ -48,7 +48,7 @@ class Peer{
                                 this.UILog('Connected to ', this.address)
                                 
                                 this.socket.emit('message', 'Connection established by '+ this.address);
-                                
+                                console.log('Address', this.address)
                                 this.socket.emit('connectionRequest', this.address);
                             
                                 this.requestNewPeers()
