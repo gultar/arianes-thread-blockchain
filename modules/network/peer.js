@@ -109,7 +109,7 @@ class Peer{
         logger(chalk.green('Connected to ', this.address))
         this.UILog('Connected to ', this.address)
         this.socket.emit('message', 'Connection established by '+ this.address);
-        this.socket.emit('connectionRequest', this.address);
+        
         
         this.socket.on('blockchainStatus', async (status)=>{
             let updated = await this.receiveBlockchainStatus(this.socket, status)
@@ -117,6 +117,10 @@ class Peer{
             if(updated.error) logger(chalk.red('CHAIN STATUS'), updated.error)
             else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
         })
+
+        setTimeout(()=>{
+            this.socket.emit('connectionRequest', this.address);
+        }, 1000)
 
         this.socket.on('disconnect', () =>{
             this.disconnect()
