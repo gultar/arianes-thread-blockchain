@@ -82,6 +82,8 @@ class PeerManager{
 
         let connected = await peer.connect(networkConfig)
 
+        return connected
+
     }
 
     /**
