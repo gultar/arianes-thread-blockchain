@@ -1141,7 +1141,7 @@ class Node {
         console.log('Finished', recalculated)
      })
 
-     socket.on('connectClass', (address)=>{
+     socket.on('connectClass', async (address)=>{
         let connected = await this.peerManager.connect(address)
         console.log(connected)
      })
