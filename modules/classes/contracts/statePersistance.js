@@ -44,10 +44,18 @@ class StateStorage{
             this.lastChange = blockNumber
             this.debug('Last change:', this.lastChange)
         }else{
-            this.debug('Updating but no state provided')
-            if(this.changeLog[blockNumber]){
-                this.debug('Updating but entry exists: overwriting')
-                this.changeLog[blockNumber] = this.changeLog[blockNumber]
+            if(blockNumber){
+                this.debug('Updating but no state provided')
+                if(this.changeLog[blockNumber]){
+                    this.debug('Updating but entry exists: overwriting')
+                    this.changeLog[blockNumber] = this.changeLog[blockNumber]
+                }
+            }else{
+                this.debug('Updating but no state provided')
+                if(this.changeLog[this.lastChange]){
+                    this.debug('Updating but entry exists: overwriting')
+                    this.changeLog[this.lastChange] = this.changeLog[this.lastChange]
+                }
             }
         }
         return { updated:true }
@@ -55,12 +63,16 @@ class StateStorage{
 
     async setState(state, blockNumber){
         if(state && Object.keys(state).length > 0){
-            this.state = state
-            this.changeLog[blockNumber] = state
-            this.lastChange = blockNumber
-            return { setState:state, blockNumber:blockNumber }
+            if(blockNumber){
+                this.state = state
+                this.changeLog[blockNumber] = state
+                this.lastChange = blockNumber
+                return { setState:state, blockNumber:blockNumber }
+            }else{
+                return { error:new Error('Need to provide a valid blockNumber for contract storage entry') }
+            }
         }else{
-            return { error:'ERROR: State provided to be set is empty' }
+            return { error:new Error('ERROR: State provided to be set is empty') }
         }
     }
 
@@ -117,11 +129,11 @@ class StateStorage{
     }
 
     async getEntryAtBlock(blockNumber){
-        if(blockNumber){
+        if(blockNumber && blockNumber >= 0){
             let state = this.changeLog[blockNumber]
             return state
         }else{
-            return { error:new Error('No block number supplied to GetEntryAtBlock') }
+            return { error:new Error('No valid block number supplied to GetEntryAtBlock') }
         }
     }
 

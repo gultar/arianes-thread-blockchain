@@ -1,6 +1,8 @@
 const EventEmitter = require('events')
 const { Worker } = require('worker_threads')
-let start = process.hrtime()
+let start = false
+let end = false
+let callLog = {}
 class Bootstrap{
     constructor({ 
         contractConnector, 
@@ -32,7 +34,7 @@ class Bootstrap{
 
     startVM(){
         this.events.on('run', async (code)=>{
-            start = process.hrtime()
+            callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
             this.calls[code.hash] = code
@@ -148,9 +150,11 @@ class Bootstrap{
                
                 if(message.singleResult){
                     
+                    let blockExecutionDebug = require('debug')('blockExecution')
                     
                     let result = JSON.parse(message.singleResult)
-                    
+                    let endOfExec = process.hrtime(callLog[result.hash])
+                    blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
                     delete this.calls[result.hash]
                     if(result.error){
                         //VM Returned an error

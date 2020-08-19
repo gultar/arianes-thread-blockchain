@@ -385,16 +385,20 @@ class Blockchain{
     let previousBlockExists = false
     if(newBlock.blockNumber > 1){
       previousBlockExists = await this.getBlockFromDBByHash(newBlock.previousHash)
-      if(!previousBlockExists) return { error:new Error(`ERROR: Previous block ${newBlock.blockNumber - 1} of hash ${newBlock.previousHash.substr(0,10)}... is missing from DB`), missing:newBlock.previousHash }
+      if(!previousBlockExists) return { 
+        error:new Error(`ERROR: Previous block ${newBlock.blockNumber - 1} of hash ${newBlock.previousHash.substr(0,10)}... is missing from DB`), 
+        missing:newBlock.previousHash, 
+        missingBlockNumber:newBlock.blockNumber - 1 
+      }
       if(previousBlockExists.error) return { error:new Error(previousBlockExists.error) }
     }
     else previousBlockExists = true
 
     let newHeader = this.extractHeader(newBlock)
-    if(this.chain.length == newHeader.blockNumber + 1){
-      let latestToBeOverwritten = this.chain.pop()
-      console.log('Overwriting header', latestToBeOverwritten)
-    }
+    // if(this.chain.length == newHeader.blockNumber + 1){
+    //   let latestToBeOverwritten = this.chain.pop()
+    //   console.log('Overwriting header', latestToBeOverwritten)
+    // }
     this.chain.push(newHeader)
     let startRunBlock = process.hrtime()
     let executed = await this.runBlock(newBlock, skipCallExecution)
@@ -461,7 +465,7 @@ class Blockchain{
     
   }
 
-  async runBlock(newBlock, skipCallExecution){
+  async runBlock(newBlock, skipCallExecution=false){
     let newHeader = this.extractHeader(newBlock)
     
     let startBalanceRunBlock = process.hrtime()
@@ -483,10 +487,24 @@ class Blockchain{
     let endSaveBalances = process.hrtime(startSaveBalances)
     blockExecutionDebug(`Save balances: ${endSaveBalances[1]/1000000}ms`)
     
-    if(!skipCallExecution){
+    if(skipCallExecution){
+      let stateApplied = await this.applyContractStates(skipCallExecution, newBlock.blockNumber)
+      if(stateApplied.error) {
+        console.log('APPLY STATE ERROR', stateApplied.error)
+        let startExecuteCalls = process.hrtime()
+        let callsExecuted = await this.runTransactionCalls(newBlock);
+        if(callsExecuted.error) return { error:callsExecuted.error }
+        let endExecuteCalls = process.hrtime(startExecuteCalls)
+
+        blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
+      }
+    }else{
+      let startExecuteCalls = process.hrtime()
       let callsExecuted = await this.runTransactionCalls(newBlock);
       if(callsExecuted.error) return { error:callsExecuted.error }
-    }else{
+      let endExecuteCalls = process.hrtime(startExecuteCalls)
+
+      blockExecutionDebug(`Execute calls: ${endExecuteCalls[1]/1000000}ms`)
       // logger(`Skipping call execution, saving peer's contract states instead.`)
     }
     
@@ -771,6 +789,30 @@ class Blockchain{
 
      return total.toString(16)
    }
+ 
+ async reRunBalancesOfBlockchain(){
+    global.minerChannel.emit('isBusy')
+    this.isRollingBack = true
+    let initialBalances = genesis.states
+
+    this.balance.states = initialBalances
+    for await(let header of this.chain){
+       if(header.blockNumber > 0){
+          let block = await this.getBlockFromDB(header.blockNumber)
+          if(block.error) throw new Error(block.error)
+
+          let runSuccessful = await this.balance.runBlock(block)
+          if(runSuccessful.error) return { error:new Error(runSuccessful.error) }
+        
+          console.log('Successful balance run:', runSuccessful)
+       }
+    }
+
+
+    global.minerChannel.emit('isAvailable')
+    this.isRollingBack = false
+    return { sucess:this.balance.states }
+ }
 
   /**
    * 
@@ -1394,7 +1436,7 @@ class Blockchain{
           let keepBlock = await this.getBlockFromDB(header.blockNumber)
           let rolledBack = await this.rollbackOneBlock()
           if(rolledBack.error){
-            error = rolledBack.error
+            throw new Error('ROLLBACK ERROR',rolledBack.error)
             break;
           }
         }
@@ -1603,8 +1645,11 @@ class Blockchain{
         if(alreadyExistsInBlockchain) resolve({exists:'Transaction already exists in blockchain', blockNumber:alreadyExistsInBlockchain})
 
         if(isTransactionCall){
-
+          let txDebug = require('debug')('txValidate')
+          let startValidateCall = process.hrtime()
           let isValidTransactionCall = await this.validateTransactionCall(transaction);
+          let endValidateCall = process.hrtime(startValidateCall)
+          txDebug(`Validate Transaction call: ${endValidateCall[1]/1000000}`)
           if(isValidTransactionCall.error) resolve({error:isValidTransactionCall.error})
           else resolve(isValidTransactionCall)
 
@@ -1941,6 +1986,21 @@ class Blockchain{
        
       
     })
+  }
+
+  async applyContractStates(states, blockNumber){
+    if(states && Object.keys(states).length > 0){
+      for await(let contractName of Object.keys(states)){
+        let state = states[contractName]
+        let stateSet = await this.contractTable.manuallySetState(contractName, state, blockNumber)
+        if(stateSet.error) console.log('STATE SET', stateSet.error)
+      }
+
+      return { applied:true }
+    }else{
+      console.log('No state changes', states)
+      return { noStateChanged:true }
+    }
   }
 
   executeActionBlock(actions){

@@ -81,6 +81,13 @@ class PeerManager{
                         logger('Connections to localhost not allowed')
                         return null;
                     }
+
+                    let peerReputation = this.reputationTable.getPeerReputation(address)
+                    if(peerReputation == 'untrusted'){
+                        logger(`Refused connection to untrusted peer ${address}`)
+                        response.success = false
+                        return { willNotConnect:'Peer is untrustworthy' }
+                    }
                     
                     peer = ioClient(address, config);
                     peer.heartbeatTimeout = 120000;
@@ -108,13 +115,8 @@ class PeerManager{
                             
                             peer.emit('authentication', networkConfig);
                             peer.on('authenticated',async  (response)=>{
-
-                                let peerReputation = await this.reputationTable.getPeerReputation(address)
-                                if(peerReputation == 'untrusted'){
-                                    logger(`Refused connection to untrusted peer ${address}`)
-                                    response.success = false
-                                    peer.disconnect()
-                                }else if(peerReputation == 'unkown'){
+                                
+                                if(!peerReputation){
                                     logger(`New peer is unkown. Creating new reputation entry`)
                                     let created = await this.reputationTable.createPeerReputation(address)
                                     if(created.error){
@@ -122,7 +124,7 @@ class PeerManager{
                                         logger(created.error)
                                     }
                                 }
-                                
+
                                 if(response.success){
                                     this.connectionsToPeers[address] = peer;
                                     logger(chalk.green('Connected to ', address))
@@ -136,9 +138,6 @@ class PeerManager{
                                     this.requestNewPeers(peer)
                                     this.onPeerAuthenticated(peer)
 
-                                    setTimeout(async()=>{
-                                        
-                                    },2000);
                                 }else{
                                     logger('Could not connect to remote node', response)
                                     if(response.network){
@@ -196,17 +195,43 @@ class PeerManager{
 
         peer.on('blockchainStatus', async (status)=>{
             let updated = await this.receiveBlockchainStatus(peer, status)
-            if(updated.error) logger(chalk.red('CHAIN STATUS'))
+            if(updated.error) logger(chalk.red('CHAIN STATUS'), updated.error)
             else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
         })
 
         peer.on('disconnect', () =>{
+            this.disconnect(peer)
+        })
+    }
+
+    disconnect(peer){
+        if(peer){
             let address = peer.address
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
             delete this.peerSnapshots[address]
             peer.disconnect()
-        })
+        }else{
+            return 'disconnected'
+        }
+    }
+
+    async lowerReputation(peerAddress, reason='spammed'){
+        let peer = this.connectionsToPeers[peerAddress]
+
+        let decreased = await this.reputationTable.decreaseReputationScore(peerAddress, reason)
+        console.log('Decreased',decreased)
+        if(decreased.error) return { error:decreased.error }
+        let reputation = await this.reputationTable.getPeerReputation(peerAddress)
+        if(reputation){
+            logger(`Peer ${peerAddress} reputation:`, reputation)
+
+            if(reputation == 'untrusted'){
+                logger('Forcing disconnection from peer')
+                this.disconnect(peer)
+                return { disconnected:true }
+            }
+        }
     }
 
 }

@@ -1,35 +1,38 @@
 
-
+let reputationScoreChart = {
+    1000:"great",
+    750:"good",
+    500:"mediocre",
+    250:"bad",
+    1:"untrusted"
+}
+let maxScore = 2000
 class PeerReputation{
-    constructor(address, reputation="great", score=750){
+    constructor(address, reputation="good", score=750){
         this.address = address
         this.reputation = reputation //great, good, mediocre, bad
-        this.maxScore = 2000
         this.score = score  // on 1000
-        this.reputationScoreChart = {
-            1000:"great",
-            750:"good",
-            500:"mediocre",
-            250:"bad",
-            1:"untrusted"
-        }
+        
     }
 
-    async adjustReputation(){
-        let margins = Object.keys(this.reputationScoreChart)
-        for await(let margin of margins){
-            if(this.score >= margin){
-                this.reputation = this.reputationScoreChart[margin]
-            }
-        }
-        return { adjusted:true }
+    adjustReputation(score){
+        if(score >= 1000) return 'great'
+        else if(score < 1000 && score >= 750) return 'good'
+        else if(score < 750 && score >= 500) return 'mediocre'
+        else if(score < 500 && score >= 250) return 'bad'
+        else if(score < 250 && score >= 1) return 'very bad'
+        else if(score < 1) return 'untrusted'
     }
 
-    async decreaseScore(amount){
+    decreaseScore(amount){
         if(amount && typeof amount == 'number' && amount > 0){
-            this.score -= amount
-            if(this.score < 0) this.score = 0
-            await this.adjustReputation()
+            this.score = this.score - amount
+            if(this.score < 0) {
+                this.score = 0
+            }
+            
+            this.reputation = this.adjustReputation(this.score)
+            return this.reputation
         }else{
             return { error:'ERROR: Could not decrease score. Amount must be positive integer' }
         }
@@ -38,7 +41,7 @@ class PeerReputation{
     async increaseScore(amount){
         if(amount && typeof amount == 'number' && amount > 0){
             this.score += amount
-            if(this.score > this.maxScore) this.score = this.maxScore
+            if(this.score > maxScore) this.score = maxScore
             await this.adjustReputation()
         }else{
             return { error:'ERROR: Could not increase score. Amount must be positive integer' }

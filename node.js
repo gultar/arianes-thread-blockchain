@@ -227,7 +227,15 @@ class Node {
               let token = socket.handshake.query.token;
               
               if(socket){
-                
+                    token = JSON.parse(token)
+                    let peerAddress = token.address
+
+                    let reputation = this.peerManager.reputationTable.getPeerReputation(peerAddress)
+                    if(reputation == 'untrusted'){
+                      logger(`Peer ${peerAddress} is not allowed to connect to this node`)
+                      socket.disconnect()
+                    }
+
                     socket.on('authentication', (config)=>{
                       nodeDebug('Received authentication request from peer')
                       let verified = this.verifyNetworkConfig(config)
@@ -238,8 +246,7 @@ class Node {
                         socket.on('message', (msg) => { logger('Client:', msg); });
 
                         if(token && token != undefined){
-                          token = JSON.parse(token)
-                          let peerAddress = token.address
+                          
                           
                           if(socket.request.headers['user-agent'] === 'node-XMLHttpRequest'){  //
                             
@@ -343,7 +350,14 @@ class Node {
 
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
         if(!this.messageBuffer[peerMessage.messageId]){
-          await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'peerMessage' events") }); // consume 1 point per event from IP
+          // await rateLimiter.consume(socket.handshake.address).catch(async( e ) => { 
+          //     let lowered = await this.peerManager.lowerReputation(peerAddress, 'spammed')
+          //     if(lowered.disconnected) {
+          //       logger(`Closed peer connection ${peerAddress}`);
+          //       delete this.peersConnected[peerAddress];
+          //       socket.disconnect()
+          //     }
+          // }); // consume 1 point per event from IP
           nodeDebug(`SOCKET: Received a peer message from ${peerAddress}`)
           nodeDebug('SOCKET: Message:', peerMessage)
           this.handlePeerMessage(peerMessage, acknowledge);
@@ -392,7 +406,7 @@ class Node {
           else{
 
             let nextBlock = await this.chain.getNextBlockbyHash(header.hash)
-            if(!nextBlock || nextBlock.error) socket.emit('nextBlock', {previousIsKnown:header})
+            if(!nextBlock || nextBlock.error) socket.emit('nextBlock', {previousFound:header})
             else{
 
               let latestBlock = this.chain.getLatestBlock()
@@ -508,7 +522,7 @@ class Node {
         socket.emit('blockchainStatus', status);
         
         let peer = this.connectionsToPeers[peerAddress];
-        if(!peer) this.peerManager.connectToPeer(peerAddress)
+        // if(!peer) this.peerManager.connectToPeer(peerAddress)
         
         this.peerManager.peerStatus[peerAddress] = peerStatus
         this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
@@ -542,10 +556,15 @@ class Node {
     this.peerDiscovery.find()
     .then(()=>{
       this.peerDiscovery.collectPeers((emitter)=>{
-        emitter.on('peerDiscovered', (peer)=> {
+        emitter.on('peerDiscovered', async (peer)=> {
           let { host, port, address } = peer
-          logger('Found new peer', chalk.green(address))
-          this.peerManager.connectToPeer(address)
+          
+          let reputation = await this.peerManager.reputationTable.getPeerReputation(address)
+          console.log('Reputation in discovery', reputation)
+          if(reputation != 'untrusted'){
+            logger('Found new peer', chalk.green(address))
+            this.peerManager.connectToPeer(address)
+          }
         })
       })
       
@@ -754,12 +773,6 @@ class Node {
                     resolve({error:added.error})
                   }
                 }else{
-                  let applied = await this.applyContractStates(contractStates, nextBlock.blockNumber)
-                  if(applied.error){
-                    closeConnection({ error:true })
-                    resolve({error:added.error})
-                  }
-
                   request(this.chain.getLatestBlock())
                 }
               }else{
@@ -849,7 +862,7 @@ class Node {
         }
         
       }else{
-        resolve({ error:'ERROR: Cannot receive status without peer or status' })
+        resolve(false)
       }
     })
     
@@ -878,22 +891,22 @@ class Node {
       for await(let address of Object.keys(this.connectionsToPeers)){
         let peer = this.connectionsToPeers[address]
         peer.once('status', (status)=>{
-            if(status && isValidBlockchainStatusJSON(status)){
-              this.peerManager.peerStatus[address] = status
-              let blockHeader = status.bestBlockHeader
-              this.peersLatestBlocks[address] = blockHeader
-              if(blockHeader.blockNumber + this.tolerableBlockGap < this.chain.getLatestBlock().blockNumber){
-                nodeDebug(`Peer ${address} is not synced`)
-                peer.isSynced = false
-              }else{
-                nodeDebug(`Peer ${address} is in sync`)
-                peer.isSynced = true
-              }
-            }else{
-              console.log(`Peer ${address} provided invalid status`)
-              console.log(status)
+          if(status && isValidBlockchainStatusJSON(status)){
+            this.peerManager.peerStatus[address] = status
+            let blockHeader = status.bestBlockHeader
+            this.peersLatestBlocks[address] = blockHeader
+            if(blockHeader.blockNumber + this.tolerableBlockGap < this.chain.getLatestBlock().blockNumber){
+              nodeDebug(`Peer ${address} is not synced`)
               peer.isSynced = false
+            }else{
+              nodeDebug(`Peer ${address} is in sync`)
+              peer.isSynced = true
             }
+          }else{
+            console.log(`Peer ${address} provided invalid status`)
+            console.log(status)
+            peer.isSynced = false
+          }
         })
         peer.emit('getStatus')
       }
@@ -1121,6 +1134,12 @@ class Node {
           this.findPeersThroughDNSSD()
         }
       })
+     
+     socket.on('recalculateBalance', async ()=>{
+        console.log('Initial State', this.chain.balance.states)
+        let recalculated = await this.chain.reRunBalancesOfBlockchain()
+        console.log('Finished', recalculated)
+     })
 
       socket.on('getContract', async (name)=>{
           let contract = await this.chain.contractTable.getContract(name)
@@ -1444,7 +1463,6 @@ class Node {
           let added = await this.handleNewBlockFound(data, relayPeer, peerMessage);
           if(added){
             if(added.error){
-              console.log(added)
               logger(chalk.red('REJECTED BLOCK:'), added.error)
             }
             else if(added.busy) logger(chalk.yellow(added.busy))
@@ -1648,6 +1666,23 @@ class Node {
       else if(reception.rollback){
         
         let rolledBack = await this.chain.rollback(reception.rollback -1)
+        if(rolledBack){
+          if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
+          else{
+            let updated = await this.updateBlockchain()
+            if(updated.error) resolve({error:updated.error})
+            else if(updated.busy){
+              resolve({ busy:updated.busy })
+            }else resolve(updated)
+          }
+        }
+        
+      }else if(reception.missing){
+        /**
+         * TEMPORARY
+         * 
+         */
+        let rolledBack = await this.chain.rollback(reception.missingBlockNumber -1)
         if(rolledBack){
           if(rolledBack.error) logger('BLOCK HANDLING ERROR:', rolledBack.error)
           else{

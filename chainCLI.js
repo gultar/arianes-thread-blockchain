@@ -218,6 +218,23 @@ program
         console.log('ERROR: Missing node address')
     }
 })
+program
+.command('recalculateBalance')
+.description('Roll back to previous on the chain, reverting the state of transactions, actions, contracts and accounts ')
+.action(()=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+                socket.emit('recalculateBalance');
+                socket.on('rollbackResult', ()=>{
+                    socket.close()
+                })
+            
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+})
+
 
 program
 .command('update')

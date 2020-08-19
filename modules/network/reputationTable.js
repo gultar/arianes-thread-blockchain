@@ -10,7 +10,7 @@ class ReputationTable{
     async createPeerReputation(address){
         if(address){
             this.reputations[address] = new PeerReputation(address)
-            console.log('Cured', this.cureAddressToKey(address))
+            
             let created = await this.reputationDB.put({
                 key:this.cureAddressToKey(address),
                 value:this.reputations[address]
@@ -21,10 +21,10 @@ class ReputationTable{
         }
     }
 
-    async getPeerReputation(address){
+    getPeerReputation(address){
         let reputationEntry = this.reputations[address]
         if(reputationEntry) return reputationEntry.reputation
-        else return 'unkown'
+        else return false
     }
 
     async getPeerScore(address){
@@ -42,6 +42,20 @@ class ReputationTable{
      * Peer is falling behind in blocks : 100 + peerOutOfsync flag
      * Reconnects too often (5 times / sec) = 500
      */
+
+
+    async decreaseReputationScore(address, reason){
+        let repEntry = this.reputations[address]
+        if(repEntry){
+            if(reason == 'spammed'){
+                return repEntry.decreaseScore(1)
+            }else if(reason == 'rejectedBlock'){
+                return await repEntry.decreaseScore(100)
+            }
+        }else{
+            return { error:new Error(`ERROR: Could not find reputation of ${address}`) }
+        }
+    }
 
 
     cureAddressToKey(address){
@@ -92,7 +106,9 @@ class ReputationTable{
                     
                     if(reputation.error) return { error:reputation.error }
                     let address = this.revertKeyToIp(addressKey)
-                    this.reputations[address] = reputation
+                    this.reputations[address] = new PeerReputation(address, reputation.reputation, reputation.score)
+                    await this.reputations[address].adjustReputation()
+                    
                 }else{
                     return { error:`ERROR: Found reputation key ${address} but not entry` }
                 }
