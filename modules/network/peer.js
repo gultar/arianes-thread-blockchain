@@ -15,7 +15,7 @@ class Peer{
         this.address = address
         this.socket = {}
         this.connectionsToPeers = connectionsToPeers
-        this.verbose = opts.verbose
+        this.verbose = verbose
         this.UILog = opts.UILog
         this.buildBlockchainStatus = buildBlockchainStatus
         this.receiveBlockchainStatus = receiveBlockchainStatus
