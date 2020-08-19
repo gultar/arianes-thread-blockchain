@@ -77,6 +77,7 @@ class PeerManager{
             buildBlockchainStatus:() => this.buildBlockchainStatus(),
             receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
             UILog:(...message)=> this.UILog(...message),
+            config: config
         })
 
         let connected = await peer.connect(networkConfig)

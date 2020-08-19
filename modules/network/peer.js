@@ -10,7 +10,8 @@ class Peer{
         buildBlockchainStatus, 
         receiveBlockchainStatus,
         UILog,
-        verbose
+        verbose,
+        config
      }){
         this.address = address
         this.socket = {}
