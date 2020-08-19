@@ -65,6 +65,23 @@ program
     })
 
 program
+    .command('connectclass <address>')
+    .description('Connect to remote peer')
+    .action(( address )=>{
+        if(nodeAddress){
+            openSocket(nodeAddress, (socket)=>{
+                if(address){
+                    socket.emit('connectClass', address)
+                }
+            })
+
+        }else{
+            throw new Error('URL of active is required')
+        }
+
+    })
+
+program
     .command('join <network>')
     .description('Joins specific network according to configs found in config/netConfig.json')
     .action(async ( network )=>{

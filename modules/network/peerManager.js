@@ -1,8 +1,8 @@
 const ioClient = require('socket.io-client')
 const { logger } = require('../tools/utils')
-const reputationTable = require('./reputationTable')
 const chalk = require('chalk')
 const ReputationTable = require('./reputationTable')
+const Peer = require('./peer')
 
 class PeerManager{
     constructor({ 
@@ -33,6 +33,79 @@ class PeerManager{
         this.peerSnapshots = {}
         this.peerStatus = {}
         this.reputationTable = new ReputationTable()
+    }
+
+    async connect(address){
+        if(!address || this.address == address) return false
+        if(this.connectionsToPeers[address]) return this.connectionsToPeers[address]
+
+        if(!this.noLocalhost){
+            if(address.includes(this.host) && (this.host !== '127.0.0.1' || this.host !== 'localhost')){
+                let [ prefix, hostAndPort ] = address.split('://')
+                let [ host, port ] = hostAndPort.split(':')
+                address = `${prefix}://${this.lanHost}:${port}`
+            }else{
+                let [ prefix, hostAndPort ] = address.split('://')
+                let [ host, port ] = hostAndPort.split(':')
+                address = `${prefix}://127.0.0.1:${port}`
+            }
+        }
+
+        let peerReputation = this.reputationTable.getPeerReputation(address)
+        if(peerReputation == 'untrusted'){
+            logger(`Refused connection to untrusted peer ${address}`)
+            response.success = false
+            return { willNotConnect:'Peer is untrustworthy' }
+        }
+
+        let networkConfig = this.networkManager.getNetwork()
+        let token = {
+            address:this.address,
+            networkConfig:networkConfig
+        }
+        
+        let config = {
+            'reconnection limit' : 1000,
+            'max reconnection attempts' : 3,
+            'pingInterval': 200, 
+            'pingTimeout': 10000,
+            'secure':true,
+            'rejectUnauthorized':false,
+            'query':
+            {
+                token: JSON.stringify(token),
+            }
+        }
+
+        let peer = new Peer({
+            nodeAddress:this.address,
+            address:address,
+            connectionsToPeers:this.connectionsToPeers,
+            verbose:this.verbose,
+            config: config,
+            buildBlockchainStatus:() => this.buildBlockchainStatus(),
+            receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
+            UILog:(...message)=> this.UILog(...message),
+        })
+
+        let connected = await peer.connect(networkConfig)
+        if(connected){
+            if(!peerReputation){
+                logger(`New peer is unkown. Creating new reputation entry`)
+                let created = await this.reputationTable.createPeerReputation(address)
+                if(created.error){
+                    logger('Could not create peer reputation entry. An error occured')
+                    logger(created.error)
+                }
+            }
+
+            this.nodeList.addNewAddress(address)
+            peer.newPeersEvent.on('newPeer', ()=>{
+                this.connectToPeer(address)
+            })
+        }
+        return connected
+
     }
 
     /**
