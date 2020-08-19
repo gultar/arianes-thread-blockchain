@@ -78,6 +78,7 @@ class PeerManager{
         }
 
         let peer = new Peer({
+            nodeAddress:this.address,
             address:address,
             connectionsToPeers:this.connectionsToPeers,
             verbose:this.verbose,

@@ -4,7 +4,8 @@ const chalk = require('chalk')
 const EventEmitter = require('events')
 
 class Peer{
-    constructor({ 
+    constructor({
+        nodeAddress, 
         address, 
         connectionsToPeers, 
         buildBlockchainStatus, 
@@ -13,6 +14,7 @@ class Peer{
         verbose,
         config
      }){
+        this.nodeAddress
         this.address = address
         this.socket = {}
         this.connectionsToPeers = connectionsToPeers
@@ -116,10 +118,7 @@ class Peer{
             if(updated.error) logger(chalk.red('CHAIN STATUS'), updated.error)
             else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
         })
-
-        setTimeout(()=>{
-            this.socket.emit('connectionRequest', this.address);
-        }, 1000)
+        this.socket.emit('connectionRequest', this.nodeAddress);
 
         this.socket.on('disconnect', () =>{
             this.disconnect()
