@@ -53,10 +53,14 @@ class Peer{
                             
                                 this.requestNewPeers()
                                 this.onPeerAuthenticated()
+                                resolve(this.socket)
                             }
-                            else this.disconnect()
+                            else{
+                                this.disconnect()
+                                resolve(false)
+                            }
 
-                            resolve(this.socket)
+                            
                         }else{
                             logger('ERROR: Cannot connect same peer twice')
                             this.socket.destroy()
