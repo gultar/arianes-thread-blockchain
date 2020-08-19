@@ -41,7 +41,7 @@ class Peer{
                     })
                     this.socket.on('connect', async () => {
                         if(!this.connectionsToPeers[this.address]){
-                            let authenticated = await this.authenticate()
+                            let authenticated = await this.authenticate(networkConfig)
                             if(authenticated.success) await this.handleConnection()
                             else this.disconnect()
 
@@ -64,7 +64,7 @@ class Peer{
         })
     }
 
-    authenticate(config){
+    authenticate(networkConfig){
        return new Promise((resolve)=>{
             this.socket.emit('authentication', networkConfig);
             this.socket.on('authenticated', (response)=>{
