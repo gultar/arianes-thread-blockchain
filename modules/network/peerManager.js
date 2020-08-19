@@ -51,7 +51,12 @@ class PeerManager{
             }
         }
 
-
+        let peerReputation = this.reputationTable.getPeerReputation(address)
+        if(peerReputation == 'untrusted'){
+            logger(`Refused connection to untrusted peer ${address}`)
+            response.success = false
+            return { willNotConnect:'Peer is untrustworthy' }
+        }
 
         let networkConfig = this.networkManager.getNetwork()
         let token = {
