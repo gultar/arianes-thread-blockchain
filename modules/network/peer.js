@@ -113,7 +113,6 @@ class Peer{
         
         this.socket.on('blockchainStatus', async (status)=>{
             let updated = await this.receiveBlockchainStatus(this.socket, status)
-            console.log('Updated?', updated)
             if(updated.error) logger(chalk.red('CHAIN STATUS'), updated.error)
             else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
         })
