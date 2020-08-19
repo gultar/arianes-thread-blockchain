@@ -48,8 +48,7 @@ class Peer{
                                 this.UILog('Connected to ', this.address)
                                 
                                 this.socket.emit('message', 'Connection established by '+ this.address);
-                                let status = await this.buildBlockchainStatus()
-                                console.log('Status', status)
+                                
                                 this.socket.emit('connectionRequest', this.address);
                             
                                 this.requestNewPeers()
@@ -109,6 +108,7 @@ class Peer{
     onPeerAuthenticated(){
 
         this.socket.on('blockchainStatus', async (status)=>{
+            let status = await this.buildBlockchainStatus()
             let updated = await this.receiveBlockchainStatus(this.socket, status)
             if(updated.error) logger(chalk.red('CHAIN STATUS'), updated.error)
             else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
