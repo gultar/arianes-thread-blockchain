@@ -11,16 +11,22 @@ class Difficulty{
     this.difficultyBomb = genesisConfig.difficultyBomb || 100 * 1000;
     this.minimumDifficulty = (typeof genesisConfig.difficulty == 'string' ? parseInt(genesisConfig.difficulty, 16) : genesisConfig.difficulty)
     this.difficultyBoundDivider = genesisConfig.difficultyBoundDivider || 512
-    this.difficultyDivider = BigInt(384) //Has to be a big int
+    this.difficultyDivider = BigInt(128)//BigInt(384) //Has to be a big int
   }
 
   setNewDifficulty(previousBlock, newBlock){
+    let debug = require('debug')('difficulty')
     const minimumDifficulty = BigInt(this.minimumDifficulty);
+    debug('Minimum diff', minimumDifficulty)
     const mineTime = Math.floor((newBlock.timestamp - previousBlock.timestamp) / 1000);
+    debug('Mine time difference', mineTime)
     const timeAdjustment = (this.blockTime - mineTime >= -99? (this.blockTime - mineTime) : -99)
+    debug('Time adjustment', timeAdjustment)
     const modifier = (BigInt(parseInt(previousBlock.difficulty, 16)) / this.difficultyDivider) * BigInt(timeAdjustment)
+    debug('Modifier', modifier)
     const difficultyBomb = BigInt(Math.floor(Math.pow(2, Math.floor(previousBlock.blockNumber / this.difficultyBomb)-2)))
     let blockDiff = BigInt(parseInt(previousBlock.difficulty, 16)) + modifier + difficultyBomb
+    debug('Block diff', blockDiff)
     blockDiff = (blockDiff > minimumDifficulty ? blockDiff : minimumDifficulty)
     return BigInt(blockDiff).toString(16)
   }
