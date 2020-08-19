@@ -97,6 +97,11 @@ class PeerManager{
                     logger(created.error)
                 }
             }
+
+            this.nodeList.addNewAddress(address)
+            peer.newPeersEvent.on('newPeer', ()=>{
+                this.connectToPeer(address)
+            })
         }
         return connected
 
