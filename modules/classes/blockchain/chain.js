@@ -1760,14 +1760,15 @@ class Blockchain{
         try{
 
 
+            
+
+            let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
             let txDebug = require('debug')('txValidate')
 
             let startTestPublicKey = process.hrtime()
-            let tested = validatePublicKey(ownerKey)
+            let tested = validatePublicKey(fromAccount.ownerKey)
             let endTestPubKey = process.hrtime(startTestPublicKey)
             txDebug(`Test pub key ${endTestPubKey[1]/1000000}`)
-
-            let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
             if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
 
