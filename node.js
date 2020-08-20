@@ -271,7 +271,7 @@ class Node {
 
                             }else{
                                 logger('Multiple connections by peers are not allowed')
-                                socket.destroy()
+                                socket.disconnect()
                             }
 
                           }else{
