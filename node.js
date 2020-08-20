@@ -98,7 +98,7 @@ class Node {
     this.ioServer = {};
     this.userInterfaces = [];
     this.peersConnected = {}; //From ioServer to ioClient
-    this.attemptedConnectionsFromPeers = {}
+    this.connectionAttemptsFromPeers = {}
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.peersLatestBlocks = {}
     this.lastThreeSyncs = []
@@ -224,6 +224,10 @@ class Node {
             this.ioServer = socketIo(this.server, { 'pingInterval': 200, 'pingTimeout': 10000, 'forceNew':true });
       
             this.ioServer.on('connection', (socket) => {
+              if(this.connectionAttemptsFromPeers[peerAddress]){
+                  logger('Peer already attempted to connect')
+                  socket.disconnect()
+              }
               
               let token = socket.handshake.query.token;
               
@@ -231,7 +235,7 @@ class Node {
                     token = JSON.parse(token)
                     let peerAddress = token.address
                     
-                    this.attemptedConnectionsFromPeers[peerAddress] = {
+                    this.connectionAttemptsFromPeers[peerAddress] = {
                         address:peerAddress,
                         time:Date.now()
                     }
@@ -290,7 +294,7 @@ class Node {
                         }
                       }else{
                         socket.emit('authenticated', { error:verified.error, network:this.networkManager.getNetwork() })
-                        delete this.attemptedConnectionsFromPeers[peerAddress]
+                        delete this.connectionAttemptsFromPeers[peerAddress]
                         socket.disconnect()
                       }
                       
