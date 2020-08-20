@@ -1650,6 +1650,7 @@ class Blockchain{
           let isValidTransactionCall = await this.validateTransactionCall(transaction);
           let endValidateCall = process.hrtime(startValidateCall)
           txDebug(`Validate Transaction call: ${endValidateCall[1]/1000000}`)
+          txDebug('***************************************')
           if(isValidTransactionCall.error) resolve({error:isValidTransactionCall.error})
           else resolve(isValidTransactionCall)
 
@@ -1758,17 +1759,46 @@ class Blockchain{
       if(transaction){
         try{
 
+
+            
+
             let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+            let txDebug = require('debug')('txValidate')
+
+            let startTestPublicKey = process.hrtime()
+            let tested = validatePublicKey(fromAccount.ownerKey)
+            let endTestPubKey = process.hrtime(startTestPublicKey)
+            txDebug(`Test pub key ${endTestPubKey[1]/1000000}`)
             if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
 
+              let startValidSign = process.hrtime()  
               let isSignatureValid = await this.validateActionSignature(transaction, fromAccount.ownerKey)
+              let endValidSign = process.hrtime(startValidSign)
+              txDebug('Validated Signature', endValidSign[1] / 1000000)
+
+              let startGetToAccount = process.hrtime()  
               let toAccount = await this.accountTable.getAccount(transaction.toAddress) //Check if is contract
               let toAccountIsContract = await this.contractTable.getContract(transaction.toAddress)
+              let endGetToAccount = process.hrtime(startGetToAccount)
+              txDebug('Got contract account', endGetToAccount[1] / 1000000)
+
+              let checksumStart = process.hrtime()
               var isChecksumValid = this.validateChecksum(transaction);
+              let endChecksum = process.hrtime(checksumStart)
+              txDebug('Checksum verif', endChecksum[1] / 1000000)
+
               var amountHigherOrEqualToZero = transaction.amount >= 0;
+              let calcFeeStart = process.hrtime()
               let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
+              let endFeeCalc = process.hrtime(calcFeeStart)
+              txDebug('Calc fee', endFeeCalc[1] / 1000000)
+
+              let startTxTooBig = process.hrtime()
               var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
+              let endTxTooBig = process.hrtime(startTxTooBig)
+              txDebug('Tx Too Big', endFeeCalc[1] / 1000000)
+
               let isNotCircular = fromAccount.name !== toAccount.name
               var balanceOfSendingAddr = await this.checkBalance(fromAccount.ownerKey) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
               let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee

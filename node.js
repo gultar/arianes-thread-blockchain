@@ -46,7 +46,6 @@ const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
 const nodeDebug = require('debug')('node')
-// const compareSnapshots = require('./modules/network/snapshotHandler');
 const Database = require('./modules/classes/database/db');
 const { down } = require('inquirer/lib/utils/readline');
 
@@ -99,6 +98,7 @@ class Node {
     this.ioServer = {};
     this.userInterfaces = [];
     this.peersConnected = {}; //From ioServer to ioClient
+    this.connectionAttemptsFromPeers = {}
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.peersLatestBlocks = {}
     this.lastThreeSyncs = []
@@ -120,6 +120,7 @@ class Node {
       networkManager:this.networkManager,
       nodeList:this.nodeList,
       noLocalhost:this.noLocalhost,
+      peersConnected:this.peersConnected,
       receiveBlockchainStatus:(peer, status)=>{
         return this.receiveBlockchainStatus(peer, status)
       },
@@ -224,19 +225,32 @@ class Node {
       
             this.ioServer.on('connection', (socket) => {
               
+              
               let token = socket.handshake.query.token;
               
               if(socket){
                     token = JSON.parse(token)
                     let peerAddress = token.address
-
+                    
                     let reputation = this.peerManager.reputationTable.getPeerReputation(peerAddress)
                     if(reputation == 'untrusted'){
                       logger(`Peer ${peerAddress} is not allowed to connect to this node`)
                       socket.disconnect()
                     }
 
-                    socket.on('authentication', (config)=>{
+                    const reconnectionLimiter = new RateLimiterMemory({
+                        points: 10,
+                        duration: 30,
+                    });
+
+                    socket.on('authentication', async (config)=>{
+                    
+                        await reconnectionLimiter.consume(peerAddress).catch((e)=>{
+                            let newReputation = this.peerManager.reputationTable.decreaseReputationScore(peerAddress, 'tooManyConnection')
+                            logger(`Remote node ${address} attempted to reconnect too many times`)
+                            logger(`Remote node reputation lowered to: ${newReputation}`)
+                        })
+
                       nodeDebug('Received authentication request from peer')
                       let verified = this.verifyNetworkConfig(config)
                       if(verified && !verified.error){
@@ -257,6 +271,9 @@ class Node {
                               nodeDebug(`Added peer ${peerAddress} to node list`)
                               this.nodeEventHandlers(socket, peerAddress);
 
+                            }else{
+                                logger('Multiple connections by peers are not allowed')
+                                socket.disconnect()
                             }
 
                           }else{
@@ -269,6 +286,7 @@ class Node {
                         }
                       }else{
                         socket.emit('authenticated', { error:verified.error, network:this.networkManager.getNetwork() })
+                        delete this.connectionAttemptsFromPeers[peerAddress]
                         socket.disconnect()
                       }
                       
@@ -280,7 +298,7 @@ class Node {
         
             });
         
-            this.ioServer.on('disconnect', ()=>{ })
+            this.ioServer.on('disconnect', ()=>{})
         
             this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
         
@@ -314,7 +332,7 @@ class Node {
   }
 
   connectToPeer(address){
-    return this.peerManager.connectToPeer(address)
+    return this.peerManager.connect(address)
   }
 
   /**
@@ -345,7 +363,7 @@ class Node {
 
       socket.on('connectionRequest', async(address)=>{
         await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
-        this.peerManager.connectToPeer(address);
+        this.peerManager.connect(address);
       });
 
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
@@ -522,7 +540,7 @@ class Node {
         socket.emit('blockchainStatus', status);
         
         let peer = this.connectionsToPeers[peerAddress];
-        // if(!peer) this.peerManager.connectToPeer(peerAddress)
+        // if(!peer) this.peerManager.connect(peerAddress)
         
         this.peerManager.peerStatus[peerAddress] = peerStatus
         this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
@@ -563,7 +581,7 @@ class Node {
           console.log('Reputation in discovery', reputation)
           if(reputation != 'untrusted'){
             logger('Found new peer', chalk.green(address))
-            this.peerManager.connectToPeer(address)
+            this.peerManager.connect(address)
           }
         })
       })
@@ -606,7 +624,7 @@ class Node {
               let { host, port, address } = peer
               if(host == this.host) host = this.lanHost
               logger('Found new peer', chalk.green(address))
-              this.peerManager.connectToPeer(address)
+              this.peerManager.connect(address)
             }
           })
 
@@ -1036,7 +1054,7 @@ class Node {
       socket.on('error', (err)=> logger(chalk.red(err)))
 
       socket.on('connectionRequest', (address)=>{
-        this.peerManager.connectToPeer(address);
+        this.peerManager.connect(address);
       });
 
       socket.on('getMessageBuffer', ()=>{
@@ -1116,6 +1134,17 @@ class Node {
         console.log(await this.chain.getBalance(publicKey))
         let balance = 0;
         
+      })
+
+      socket.on('stresstest', async ()=>{
+        setInterval(async ()=>{
+            let socket = await this.peerManager.connect('https://138.197.153.155:8000')
+            if(socket){
+                console.log('Connected: '+'https://138.197.153.155:8000')
+                let disconnected = await this.peerManager.disconnect(socket)
+                console.log(disconnected)
+            }
+        }, 1)
       })
 
       socket.on('getKnownPeers', ()=>{
@@ -1486,23 +1515,21 @@ class Node {
     @param {Transaction} $transaction - New transaction emitted on the network
   */
   receiveTransaction(transaction){
-    return new Promise((resolve)=>{
+    return new Promise(async (resolve)=>{
       if(transaction && this.chain instanceof Blockchain){
         if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
   
-          this.chain.validateTransaction(transaction)
-          .then(async (valid) => {
+            let valid = await  this.chain.validateTransaction(transaction)
             if(!valid.error){
-              await this.mempool.addTransaction(transaction);
-              this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-              resolve(valid)
+                await this.mempool.addTransaction(transaction);
+                this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                resolve(valid)
             }else{
-              this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-              resolve({error:valid.error})
+                this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                resolve({error:valid.error})
             }
-          })
         }
       }
     })
