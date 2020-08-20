@@ -314,7 +314,8 @@ const getDirectorySize = ()=>{
   })
 }
 
-const validatePublicKey = (compressedPublicKey) =>{
+/**
+ * const validatePublicKey = (compressedPublicKey) =>{
   return new Promise((resolve, reject)=>{
       try{
         if(compressedPublicKey){
@@ -337,6 +338,24 @@ const validatePublicKey = (compressedPublicKey) =>{
       }
 
   })
+}
+*/
+
+const validatePublicKey = (compressedPublicKey) =>{
+    try{
+        if(compressedPublicKey){
+            const publicKey = ECDSA.fromCompressedPublicKey(compressedPublicKey);
+            if(publicKey){
+                return true
+            }else{
+                return false
+            }
+        }else{
+            return false
+        }
+    }catch(err){
+        return false
+    }
 }
 
 
