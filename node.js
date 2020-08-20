@@ -224,10 +224,7 @@ class Node {
             this.ioServer = socketIo(this.server, { 'pingInterval': 200, 'pingTimeout': 10000, 'forceNew':true });
       
             this.ioServer.on('connection', (socket) => {
-              if(this.connectionAttemptsFromPeers[peerAddress]){
-                  logger('Peer already attempted to connect')
-                  socket.disconnect()
-              }
+              
               
               let token = socket.handshake.query.token;
               
@@ -238,6 +235,11 @@ class Node {
                     this.connectionAttemptsFromPeers[peerAddress] = {
                         address:peerAddress,
                         time:Date.now()
+                    }
+
+                    if(this.connectionAttemptsFromPeers[peerAddress]){
+                        logger('Peer already attempted to connect')
+                        socket.disconnect()
                     }
                     
                     let reputation = this.peerManager.reputationTable.getPeerReputation(peerAddress)
