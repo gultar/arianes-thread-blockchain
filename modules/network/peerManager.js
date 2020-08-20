@@ -117,9 +117,12 @@ class PeerManager{
 
         let connected = await peer.connect(networkConfig)
         if(connected){
+
+            
+
             if(connected.error){
                 logger(chalk.red('PEER CONN ERROR:'), connected.error)
-                delete this.attemptedConnections[address]
+                
             }
             if(!peerReputation){
                 logger(`New peer is unkown. Creating new reputation entry`)
@@ -310,6 +313,7 @@ class PeerManager{
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
             delete this.peerSnapshots[address]
+            delete this.attemptedConnections[address]
             peerSocket.disconnect()
             return 'disconnected'
         }else{
