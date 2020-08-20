@@ -243,8 +243,8 @@ class Node {
 
                     socket.on('authentication', async (config)=>{
                     
-                        await reconnectionLimiter.consume(address).catch((e)=>{
-                            let newReputation = this.peerManager.reputationTable.decreaseReputationScore(address, 'tooManyConnection')
+                        await reconnectionLimiter.consume(peerAddress).catch((e)=>{
+                            let newReputation = this.peerManager.reputationTable.decreaseReputationScore(peerAddress, 'tooManyConnection')
                             logger(`Remote node ${address} attempted to reconnect too many times`)
                             logger(`Remote node reputation lowered to: ${newReputation}`)
                         })
