@@ -370,6 +370,7 @@ class Node {
       socket.on('disconnect', async()=>{ 
         logger(`Peer ${peerAddress} has disconnected from node`);
         delete this.peersConnected[peerAddress];
+        delete this.connectionAttemptsFromPeers[peerAddress]
         socket.disconnect()
       })
 
