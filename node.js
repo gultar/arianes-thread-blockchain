@@ -1118,7 +1118,7 @@ class Node {
       })
 
       socket.on('stresstest', async ()=>{
-        setInterval(()=>{
+        setInterval(async ()=>{
             let socket = await this.peerManager.connect('https://138.197.153.155:8000')
             if(socket){
                 console.log('Connected: '+'https://138.197.153.155:8000')
