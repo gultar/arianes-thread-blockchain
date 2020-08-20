@@ -87,11 +87,7 @@ class PeerManager{
             receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
             UILog:(...message)=> this.UILog(...message),
         })
-        peer.newPeersEvents.on('newPeer', async (peerAddress)=>{
-            if(peer.address !== peerAddress){
-                let connected = await this.connect(peerAddress)
-            }
-        })
+
         let connected = await peer.connect(networkConfig)
         if(connected){
             if(!peerReputation){
@@ -102,7 +98,7 @@ class PeerManager{
                     logger(created.error)
                 }
             }
-
+            this.requestNewPeers(peer.socket)
             this.nodeList.addNewAddress(address)
             
         }
@@ -172,16 +168,12 @@ class PeerManager{
                     this.UILog('Requesting connection to '+ address+ ' ...');
 
                     peer.on('connect_timeout', (timeout)=>{
-                        if(connectionAttempts >= 3) { 
-                            peer.destroy()
-                        }else{
-                            connectionAttempts++;
-                        }
-                        
+                        if(connectionAttempts >= 3) peer.destroy()
+                        else connectionAttempts++;
                     })
 
                     peer.on('error', (error)=>{
-                        console.log(error)
+                        logger(chalk.red('PEER ERROR'),error)
                     })
 
 
@@ -215,14 +207,16 @@ class PeerManager{
 
                                 }else{
                                     logger('Could not connect to remote node', response)
-                                    if(response.network){
-                                        let exists = this.networkManager.getNetwork(response.network.network)
-                                        if(!exists){
-                                            let added = await this.networkManager.addNetwork(response.network)
-                                            if(added.error) logger('NETWORK ERROR', added.error)
-                                            logger('Discovered new network ', response.network.network)
+                                    /**
+                                     * if(response.network){
+                                            let exists = this.networkManager.getNetwork(response.network.network)
+                                            if(!exists){
+                                                let added = await this.networkManager.addNetwork(response.network)
+                                                if(added.error) logger('PEER TOKEN ERROR', added.error)
+                                                logger('Discovered new network ', response.network.network)
+                                            }
                                         }
-                                    }
+                                     */
                                     peer.disconnect()
                                 }
                                 
@@ -249,43 +243,43 @@ class PeerManager{
         return this.connectionsToPeers[address]
     }
 
-    requestNewPeers(peer){
-        peer.once('newPeers', async (peers)=> {
+    requestNewPeers(peerSocket){
+        peerSocket.once('newPeers', async (peers)=> {
             if(peers && peers.length){
                for await(let addr of peers){
                     if(!this.nodeList.addresses.includes(addr) && !this.nodeList.blackListed.includes(addr)){
                         this.nodeList.addNewAddress(addr)
                     }
                     if(!this.connectionsToPeers[addr]){
-                        this.connectToPeer(addr)
+                        this.connect(addr)
                     }
                }
             }
         })
         //Request known addresses from new peer
-        peer.emit('getPeers')
+        peerSocket.emit('getPeers')
     }
 
-    onPeerAuthenticated(peer){
+    onPeerAuthenticated(peerSocket){
 
-        peer.on('blockchainStatus', async (status)=>{
-            let updated = await this.receiveBlockchainStatus(peer, status)
+        peerSocket.on('blockchainStatus', async (status)=>{
+            let updated = await this.receiveBlockchainStatus(peerSocket, status)
             if(updated.error) logger(chalk.red('CHAIN STATUS'), updated.error)
             else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
         })
 
-        peer.on('disconnect', () =>{
-            this.disconnect(peer)
+        peerSocket.on('disconnect', () =>{
+            this.disconnect(peerSocket)
         })
     }
 
-    disconnect(peer){
-        if(peer){
-            let address = peer.address
+    disconnect(peerSocket){
+        if(peerSocket){
+            let address = peerSocket.address
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
             delete this.peerSnapshots[address]
-            peer.disconnect()
+            peerSocket.disconnect()
         }else{
             return 'disconnected'
         }

@@ -314,7 +314,7 @@ class Node {
   }
 
   connectToPeer(address){
-    return this.peerManager.connectToPeer(address)
+    return this.peerManager.connect(address)
   }
 
   /**
@@ -345,7 +345,7 @@ class Node {
 
       socket.on('connectionRequest', async(address)=>{
         await rateLimiter.consume(socket.handshake.address).catch(e => {  console.log("Peer sent too many 'connectionRequest' events") }); // consume 1 point per event from IP
-        this.peerManager.connectToPeer(address);
+        this.peerManager.connect(address);
       });
 
       socket.on('peerMessage', async(peerMessage, acknowledge)=>{
@@ -522,7 +522,7 @@ class Node {
         socket.emit('blockchainStatus', status);
         
         let peer = this.connectionsToPeers[peerAddress];
-        // if(!peer) this.peerManager.connectToPeer(peerAddress)
+        // if(!peer) this.peerManager.connect(peerAddress)
         
         this.peerManager.peerStatus[peerAddress] = peerStatus
         this.peersLatestBlocks[peerAddress] = peerStatus.bestBlockHeader
@@ -563,7 +563,7 @@ class Node {
           console.log('Reputation in discovery', reputation)
           if(reputation != 'untrusted'){
             logger('Found new peer', chalk.green(address))
-            this.peerManager.connectToPeer(address)
+            this.peerManager.connect(address)
           }
         })
       })
@@ -606,7 +606,7 @@ class Node {
               let { host, port, address } = peer
               if(host == this.host) host = this.lanHost
               logger('Found new peer', chalk.green(address))
-              this.peerManager.connectToPeer(address)
+              this.peerManager.connect(address)
             }
           })
 
@@ -1036,7 +1036,7 @@ class Node {
       socket.on('error', (err)=> logger(chalk.red(err)))
 
       socket.on('connectionRequest', (address)=>{
-        this.peerManager.connectToPeer(address);
+        this.peerManager.connect(address);
       });
 
       socket.on('getMessageBuffer', ()=>{
