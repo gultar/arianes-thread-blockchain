@@ -119,6 +119,7 @@ class Node {
       networkManager:this.networkManager,
       nodeList:this.nodeList,
       noLocalhost:this.noLocalhost,
+      peersConnected:this.peersConnected,
       receiveBlockchainStatus:(peer, status)=>{
         return this.receiveBlockchainStatus(peer, status)
       },
@@ -235,7 +236,19 @@ class Node {
                       socket.disconnect()
                     }
 
+                    const reconnectionLimiter = new RateLimiterMemory({
+                        points: 10,
+                        duration: 30,
+                    });
+
                     socket.on('authentication', (config)=>{
+                    
+                        await reconnectionLimiter.consume(address).catch((e)=>{
+                            let newReputation = this.peerManager.reputationTable.decreaseReputationScore(address, 'tooManyConnection')
+                            logger(`Remote node ${address} attempted to reconnect too many times`)
+                            logger(`Remote node reputation lowered to: ${newReputation}`)
+                        })
+
                       nodeDebug('Received authentication request from peer')
                       let verified = this.verifyNetworkConfig(config)
                       if(verified && !verified.error){
@@ -256,6 +269,9 @@ class Node {
                               nodeDebug(`Added peer ${peerAddress} to node list`)
                               this.nodeEventHandlers(socket, peerAddress);
 
+                            }else{
+                                logger('Multiple connections by peers are not allowed')
+                                socket.destroy()
                             }
 
                           }else{

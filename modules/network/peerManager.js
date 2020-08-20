@@ -18,12 +18,14 @@ class PeerManager{
         buildBlockchainStatus, 
         UILog, 
         verbose, 
-        noLocalhost }){
+        noLocalhost,
+        peersConnected }){
         this.address = address
         this.host = host
         this.lanHost = lanHost
         this.lanAddress = lanAddress
         this.connectionsToPeers = connectionsToPeers
+        this.peersConnected = peersConnected
         this.nodeList = nodeList
         this.networkManager = networkManager
         this.receiveBlockchainStatus = receiveBlockchainStatus
@@ -301,7 +303,8 @@ class PeerManager{
 
     async lowerReputation(peerAddress, reason='spammed'){
         let peer = this.connectionsToPeers[peerAddress]
-
+        let peerConnected = this.peersConnected[peerAddress]
+        
         let decreased = await this.reputationTable.decreaseReputationScore(peerAddress, reason)
         console.log('Decreased',decreased)
         if(decreased.error) return { error:decreased.error }
@@ -312,6 +315,7 @@ class PeerManager{
             if(reputation == 'untrusted'){
                 logger('Forcing disconnection from peer')
                 this.disconnect(peer)
+
                 return { disconnected:true }
             }
         }
