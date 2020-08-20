@@ -47,6 +47,7 @@ class Peer{
                             if(authenticated.success) {
                                 
                                 let newPeers = await this.requestNewPeers()
+                                console.log('New peers:', newPeers)
                                 for await(let peerAddress of newPeers){
                                     this.newPeersEvent.emit('newPeer', peerAddress)
                                 }
