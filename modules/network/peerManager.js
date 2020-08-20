@@ -87,7 +87,7 @@ class PeerManager{
             receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
             UILog:(...message)=> this.UILog(...message),
         })
-        peer.newPeersEvents.on('newPeer', (address)=>{
+        peer.newPeersEvents.on('newPeer', async (address)=>{
             let connected = await this.connect(address)
             console.log('Connected new peer', typeof connected)
         })
