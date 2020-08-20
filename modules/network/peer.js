@@ -46,9 +46,12 @@ class Peer{
                             let authenticated = await this.authenticate(networkConfig)
                             if(authenticated.success) {
                                 
-                                this.requestNewPeers()
+                                let newPeers = await this.requestNewPeers()
+                                for await(let peerAddress of newPeers){
+                                    this.newPeersEvent.emit('newPeer', peerAddress)
+                                }
                                 this.onPeerAuthenticated()
-                                
+
                                 resolve(this.socket)
                             }
                             else{
