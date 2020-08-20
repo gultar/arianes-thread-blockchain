@@ -25,6 +25,7 @@ class PeerManager{
         this.lanHost = lanHost
         this.lanAddress = lanAddress
         this.connectionsToPeers = connectionsToPeers
+        this.attemptedConnections = {}
         this.peersConnected = peersConnected
         this.nodeList = nodeList
         this.networkManager = networkManager
@@ -55,10 +56,16 @@ class PeerManager{
             }
         }
 
+        this.attemptedConnections[address] = {
+            address:address,
+            time:Date.now()
+        }
+
         let peerReputation = this.reputationTable.getPeerReputation(address)
         if(peerReputation == 'untrusted'){
             logger(`Refused connection to untrusted peer ${address}`)
             response.success = false
+            delete this.attemptedConnections[address]
             return { willNotConnect:'Peer is untrustworthy' }
         }
 
@@ -105,6 +112,10 @@ class PeerManager{
 
         let connected = await peer.connect(networkConfig)
         if(connected){
+            if(connected.error){
+                logger(chalk.red('PEER CONN ERROR:'), connected.error)
+                delete this.attemptedConnections[address]
+            }
             if(!peerReputation){
                 logger(`New peer is unkown. Creating new reputation entry`)
                 let created = await this.reputationTable.createPeerReputation(address)

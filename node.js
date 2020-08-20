@@ -98,6 +98,7 @@ class Node {
     this.ioServer = {};
     this.userInterfaces = [];
     this.peersConnected = {}; //From ioServer to ioClient
+    this.attemptedConnectionsFromPeers = {}
     this.connectionsToPeers = {}; //From ioClient to ioServer
     this.peersLatestBlocks = {}
     this.lastThreeSyncs = []
@@ -229,7 +230,12 @@ class Node {
               if(socket){
                     token = JSON.parse(token)
                     let peerAddress = token.address
-
+                    
+                    this.attemptedConnectionsFromPeers[peerAddress] = {
+                        address:peerAddress,
+                        time:Date.now()
+                    }
+                    
                     let reputation = this.peerManager.reputationTable.getPeerReputation(peerAddress)
                     if(reputation == 'untrusted'){
                       logger(`Peer ${peerAddress} is not allowed to connect to this node`)
@@ -284,6 +290,7 @@ class Node {
                         }
                       }else{
                         socket.emit('authenticated', { error:verified.error, network:this.networkManager.getNetwork() })
+                        delete this.attemptedConnectionsFromPeers[peerAddress]
                         socket.disconnect()
                       }
                       
@@ -295,7 +302,7 @@ class Node {
         
             });
         
-            this.ioServer.on('disconnect', ()=>{ })
+            this.ioServer.on('disconnect', ()=>{})
         
             this.ioServer.on('error', (err) =>{ logger(chalk.red(err));  })
         
