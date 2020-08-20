@@ -82,17 +82,12 @@ program
 })
 
 program
-.command('getsnapshot')
+.command('stresstest')
 .description('Requests a snapshot of the ten most recent blocks')
 .action(()=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('getSnapshot');
-            socket.on('chainSnapshot', (info)=>{
-                console.log(JSON.stringify(info, null, 2))
-                socket.close()
-            })
-        
+            socket.emit('stresstest');
         })
     }else{
         console.log('ERROR: Missing node address')

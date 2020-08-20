@@ -293,8 +293,9 @@ class PeerManager{
             delete this.connectionsToPeers[address];
             delete this.peerSnapshots[address]
             peerSocket.disconnect()
-        }else{
             return 'disconnected'
+        }else{
+            return 'no socket provided'
         }
     }
 

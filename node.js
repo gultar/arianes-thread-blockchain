@@ -46,7 +46,6 @@ const sha1 = require('sha1')
 const chalk = require('chalk');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
 const nodeDebug = require('debug')('node')
-// const compareSnapshots = require('./modules/network/snapshotHandler');
 const Database = require('./modules/classes/database/db');
 const { down } = require('inquirer/lib/utils/readline');
 
@@ -1116,6 +1115,17 @@ class Node {
         console.log(await this.chain.getBalance(publicKey))
         let balance = 0;
         
+      })
+
+      socket.on('stresstest', async ()=>{
+        setInterval(()=>{
+            let socket = await this.peerManager.connect('https://138.197.153.155:8000')
+            if(socket){
+                console.log('Connected: '+'https://138.197.153.155:8000')
+                let disconnected = await this.peerManager.disconnect(socket)
+                console.log(disconnected)
+            }
+        }, 1)
       })
 
       socket.on('getKnownPeers', ()=>{
