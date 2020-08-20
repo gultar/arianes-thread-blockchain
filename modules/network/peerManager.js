@@ -100,8 +100,9 @@ class PeerManager{
             }
 
             this.nodeList.addNewAddress(address)
-            peer.newPeersEvent.on('newPeer', ()=>{
-                this.connectToPeer(address)
+            peer.newPeersEvent.on('newPeer', (address)=>{
+                console.log('Found new peer', address)
+                //this.connect(address)
             })
         }
         return connected
