@@ -44,13 +44,17 @@ class ReputationTable{
      */
 
 
-    async decreaseReputationScore(address, reason){
+    decreaseReputationScore(address, reason){
         let repEntry = this.reputations[address]
         if(repEntry){
             if(reason == 'spammed'){
-                return repEntry.decreaseScore(1)
+                return repEntry.decreaseScore(200)
             }else if(reason == 'rejectedBlock'){
-                return await repEntry.decreaseScore(100)
+                return repEntry.decreaseScore(100)
+            }else if(reason == 'tooManyConnections'){
+                return repEntry.decreaseScore(500)
+            }else{
+                return repEntry.decreaseScore(2000)
             }
         }else{
             return { error:new Error(`ERROR: Could not find reputation of ${address}`) }

@@ -3,6 +3,7 @@ const { logger } = require('../tools/utils')
 const chalk = require('chalk')
 const ReputationTable = require('./reputationTable')
 const Peer = require('./peer')
+const { RateLimiterMemory } = require('rate-limiter-flexible');
 
 class PeerManager{
     constructor({ 
@@ -36,6 +37,7 @@ class PeerManager{
     }
 
     async connect(address){
+        
         if(!address || this.address == address) return false
         if(this.connectionsToPeers[address]) return this.connectionsToPeers[address]
 
@@ -76,6 +78,17 @@ class PeerManager{
                 token: JSON.stringify(token),
             }
         }
+
+        const reconnectionLimiter = new RateLimiterMemory({
+            points: 10,
+            duration: 30,
+        });
+        
+        await reconnectionLimiter.consume(address).catch((e)=>{
+            let newReputation = this.reputationTable.decreaseReputationScore(address, 'tooManyConnection')
+            logger(`Peer ${address} attempted to reconnect too many times`)
+            logger(`Peer reputation lowered to: ${newReputation}`)
+        })
 
         let peer = new Peer({
             nodeAddress:this.address,
