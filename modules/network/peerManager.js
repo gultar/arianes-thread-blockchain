@@ -88,7 +88,8 @@ class PeerManager{
             UILog:(...message)=> this.UILog(...message),
         })
         peer.newPeersEvents.on('newPeer', (address)=>{
-            console.log('Found new peer', address)
+            let connected = await this.connect(address)
+            console.log('Connected new peer', typeof connected)
         })
         let connected = await peer.connect(networkConfig)
         if(connected){
