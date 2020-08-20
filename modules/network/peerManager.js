@@ -87,7 +87,9 @@ class PeerManager{
             receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
             UILog:(...message)=> this.UILog(...message),
         })
-
+        peer.newPeersEvent.on('newPeer', (address)=>{
+            console.log('Found new peer', address)
+        })
         let connected = await peer.connect(networkConfig)
         if(connected){
             if(!peerReputation){
@@ -100,10 +102,7 @@ class PeerManager{
             }
 
             this.nodeList.addNewAddress(address)
-            peer.newPeersEvent.on('newPeer', (address)=>{
-                console.log('Found new peer', address)
-                //this.connect(address)
-            })
+            
         }
         return connected
 
