@@ -12,9 +12,8 @@ class Peer{
         receiveBlockchainStatus,
         UILog,
         verbose,
-        config
-     }){
-        this.nodeAddress
+        config  }){
+        this.nodeAddress = nodeAddress
         this.address = address
         this.socket = {}
         this.connectionsToPeers = connectionsToPeers
@@ -47,9 +46,9 @@ class Peer{
                             let authenticated = await this.authenticate(networkConfig)
                             if(authenticated.success) {
                                 
-                            
                                 this.requestNewPeers()
                                 this.onPeerAuthenticated()
+                                
                                 resolve(this.socket)
                             }
                             else{
