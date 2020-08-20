@@ -56,9 +56,14 @@ class PeerManager{
             }
         }
 
-        this.attemptedConnections[address] = {
-            address:address,
-            time:Date.now()
+        if(this.attemptedConnections[address]){
+            logger('Cannot connect twice to remote node')
+            return false
+        }else{
+            this.attemptedConnections[address] = {
+                address:address,
+                time:Date.now()
+            }
         }
 
         let peerReputation = this.reputationTable.getPeerReputation(address)
