@@ -241,7 +241,7 @@ class Node {
                         duration: 30,
                     });
 
-                    socket.on('authentication', (config)=>{
+                    socket.on('authentication', async (config)=>{
                     
                         await reconnectionLimiter.consume(address).catch((e)=>{
                             let newReputation = this.peerManager.reputationTable.decreaseReputationScore(address, 'tooManyConnection')
