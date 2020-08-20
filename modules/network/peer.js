@@ -92,7 +92,7 @@ class Peer{
         logger(chalk.green('Connected to ', this.address))
         this.UILog('Connected to ', this.address)
         
-        this.socket.emit('message', 'Connection established by '+ this.address);
+        this.socket.emit('message', 'Connection established by '+ this.nodeAddress);
         
         this.socket.on('blockchainStatus', async (status)=>{
             let updated = await this.receiveBlockchainStatus(this.socket, status)
