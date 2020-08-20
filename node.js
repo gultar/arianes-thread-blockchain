@@ -232,14 +232,16 @@ class Node {
                     token = JSON.parse(token)
                     let peerAddress = token.address
                     
-                    this.connectionAttemptsFromPeers[peerAddress] = {
-                        address:peerAddress,
-                        time:Date.now()
-                    }
+                    
 
                     if(this.connectionAttemptsFromPeers[peerAddress]){
                         logger('Peer already attempted to connect')
                         socket.disconnect()
+                    }else{
+                        this.connectionAttemptsFromPeers[peerAddress] = {
+                            address:peerAddress,
+                            time:Date.now()
+                        }
                     }
                     
                     let reputation = this.peerManager.reputationTable.getPeerReputation(peerAddress)
