@@ -48,7 +48,7 @@ class Peer{
                                 
                                 let newPeers = await this.requestNewPeers()
                                 for await(let peerAddress of newPeers){
-                                    this.newPeersEvent.emit('newPeer', peerAddress)
+                                    this.newPeersEvents.emit('newPeer', peerAddress)
                                 }
                                 this.onPeerAuthenticated()
 
