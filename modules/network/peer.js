@@ -93,9 +93,10 @@ class Peer{
        })
     }
     
-    requestNewPeers(peer){
+    requestNewPeers(){
         return new Promise((resolve)=>{
             this.socket.once('newPeers', async (peers)=> {
+                console.log('PEERS', peers)
                 if(peers && peers.length){
                     clearTimeout(timeout)
                     resolve(peers)
