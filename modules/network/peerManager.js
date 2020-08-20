@@ -42,102 +42,90 @@ class PeerManager{
     async connect(address){
         
         if(!address || this.address == address) return false
-        if(this.connectionsToPeers[address]) return this.connectionsToPeers[address]
+        if(!this.connectionsToPeers[address]){
 
-        if(!this.noLocalhost){
-            if(address.includes(this.host) && (this.host !== '127.0.0.1' || this.host !== 'localhost')){
-                let [ prefix, hostAndPort ] = address.split('://')
-                let [ host, port ] = hostAndPort.split(':')
-                address = `${prefix}://${this.lanHost}:${port}`
-            }else{
-                let [ prefix, hostAndPort ] = address.split('://')
-                let [ host, port ] = hostAndPort.split(':')
-                address = `${prefix}://127.0.0.1:${port}`
-            }
-        }
-
-        if(this.attemptedConnections[address]){
-            logger('Cannot connect twice to remote node')
-            return false
-        }else{
-            this.attemptedConnections[address] = {
-                address:address,
-                time:Date.now()
-            }
-        }
-
-        let peerReputation = this.reputationTable.getPeerReputation(address)
-        if(peerReputation == 'untrusted'){
-            logger(`Refused connection to untrusted peer ${address}`)
-            response.success = false
-            delete this.attemptedConnections[address]
-            return { willNotConnect:'Peer is untrustworthy' }
-        }
-
-        let networkConfig = this.networkManager.getNetwork()
-        let token = {
-            address:this.address,
-            networkConfig:networkConfig
-        }
-        
-        let config = {
-            'reconnection limit' : 1000,
-            'max reconnection attempts' : 3,
-            'pingInterval': 200, 
-            'pingTimeout': 10000,
-            'secure':true,
-            'rejectUnauthorized':false,
-            'query':
-            {
-                token: JSON.stringify(token),
-            }
-        }
-
-        const reconnectionLimiter = new RateLimiterMemory({
-            points: 10,
-            duration: 30,
-        });
-        
-        await reconnectionLimiter.consume(address).catch((e)=>{
-            let newReputation = this.reputationTable.decreaseReputationScore(address, 'tooManyConnection')
-            logger(`Peer ${address} attempted to reconnect too many times`)
-            logger(`Peer reputation lowered to: ${newReputation}`)
-        })
-
-        let peer = new Peer({
-            nodeAddress:this.address,
-            address:address,
-            connectionsToPeers:this.connectionsToPeers,
-            verbose:this.verbose,
-            config: config,
-            buildBlockchainStatus:() => this.buildBlockchainStatus(),
-            receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
-            UILog:(...message)=> this.UILog(...message),
-        })
-
-        let connected = await peer.connect(networkConfig)
-        if(connected){
-
-            
-
-            if(connected.error){
-                logger(chalk.red('PEER CONN ERROR:'), connected.error)
-                
-            }
-            if(!peerReputation){
-                logger(`New peer is unkown. Creating new reputation entry`)
-                let created = await this.reputationTable.createPeerReputation(address)
-                if(created.error){
-                    logger('Could not create peer reputation entry. An error occured')
-                    logger(created.error)
+            if(!this.noLocalhost){
+                if(address.includes(this.host) && (this.host !== '127.0.0.1' || this.host !== 'localhost')){
+                    let [ prefix, hostAndPort ] = address.split('://')
+                    let [ host, port ] = hostAndPort.split(':')
+                    address = `${prefix}://${this.lanHost}:${port}`
+                }else{
+                    let [ prefix, hostAndPort ] = address.split('://')
+                    let [ host, port ] = hostAndPort.split(':')
+                    address = `${prefix}://127.0.0.1:${port}`
                 }
             }
-            this.requestNewPeers(peer.socket)
-            this.nodeList.addNewAddress(address)
-            
-        }
-        return connected
 
+            let peerReputation = this.reputationTable.getPeerReputation(address)
+            if(peerReputation == 'untrusted'){
+                logger(`Refused connection to untrusted peer ${address}`)
+                response.success = false
+                delete this.attemptedConnections[address]
+                return { willNotConnect:'Peer is untrustworthy' }
+            }
+
+            let networkConfig = this.networkManager.getNetwork()
+            let token = {
+                address:this.address,
+                networkConfig:networkConfig
+            }
+            
+            let config = {
+                'reconnection limit' : 1000,
+                'max reconnection attempts' : 3,
+                'pingInterval': 200, 
+                'pingTimeout': 10000,
+                'secure':true,
+                'rejectUnauthorized':false,
+                'query':
+                {
+                    token: JSON.stringify(token),
+                }
+            }
+
+            const reconnectionLimiter = new RateLimiterMemory({
+                points: 10,
+                duration: 30,
+            });
+            
+            await reconnectionLimiter.consume(address).catch((e)=>{
+                let newReputation = this.reputationTable.decreaseReputationScore(address, 'tooManyConnection')
+                logger(`Peer ${address} attempted to reconnect too many times`)
+                logger(`Peer reputation lowered to: ${newReputation}`)
+            })
+
+            let peer = new Peer({
+                nodeAddress:this.address,
+                address:address,
+                connectionsToPeers:this.connectionsToPeers,
+                verbose:this.verbose,
+                config: config,
+                buildBlockchainStatus:() => this.buildBlockchainStatus(),
+                receiveBlockchainStatus:(peer, status) => this.receiveBlockchainStatus(peer, status),
+                UILog:(...message)=> this.UILog(...message),
+            })
+
+            let connected = await peer.connect(networkConfig)
+            if(connected){
+
+                if(connected.error) logger(chalk.red('PEER CONN ERROR:'), connected.error)
+                if(!peerReputation){
+                    logger(`New peer is unkown. Creating new reputation entry`)
+                    let created = await this.reputationTable.createPeerReputation(address)
+                    if(created.error){
+                        logger('Could not create peer reputation entry. An error occured')
+                        logger(created.error)
+                    }
+                }
+                this.requestNewPeers(peer.socket)
+                this.nodeList.addNewAddress(address)
+                
+            }
+            return connected
+        }
+        else {
+            return this.connectionsToPeers[address]
+        }
     }
 
     /**
@@ -313,7 +301,6 @@ class PeerManager{
             logger(`connection with peer ${address} dropped`);
             delete this.connectionsToPeers[address];
             delete this.peerSnapshots[address]
-            delete this.attemptedConnections[address]
             peerSocket.disconnect()
             return 'disconnected'
         }else{

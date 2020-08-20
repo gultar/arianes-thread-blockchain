@@ -232,18 +232,6 @@ class Node {
                     token = JSON.parse(token)
                     let peerAddress = token.address
                     
-                    
-
-                    if(this.connectionAttemptsFromPeers[peerAddress]){
-                        logger('Peer already attempted to connect')
-                        socket.disconnect()
-                    }else{
-                        this.connectionAttemptsFromPeers[peerAddress] = {
-                            address:peerAddress,
-                            time:Date.now()
-                        }
-                    }
-                    
                     let reputation = this.peerManager.reputationTable.getPeerReputation(peerAddress)
                     if(reputation == 'untrusted'){
                       logger(`Peer ${peerAddress} is not allowed to connect to this node`)
@@ -370,7 +358,6 @@ class Node {
       socket.on('disconnect', async()=>{ 
         logger(`Peer ${peerAddress} has disconnected from node`);
         delete this.peersConnected[peerAddress];
-        delete this.connectionAttemptsFromPeers[peerAddress]
         socket.disconnect()
       })
 
