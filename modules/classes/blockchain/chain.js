@@ -1757,8 +1757,11 @@ class Blockchain{
     return new Promise(async (resolve, reject)=>{
       if(transaction){
         try{
+            let txDebug = require('debug')('txValidate')
+
 
             let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+            txDebug('Finished check from account', fromAccount)
             if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
 

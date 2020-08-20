@@ -1515,23 +1515,21 @@ class Node {
     @param {Transaction} $transaction - New transaction emitted on the network
   */
   receiveTransaction(transaction){
-    return new Promise((resolve)=>{
+    return new Promise(async (resolve)=>{
       if(transaction && this.chain instanceof Blockchain){
         if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
   
-          this.chain.validateTransaction(transaction)
-          .then(async (valid) => {
+            let valid = await  this.chain.validateTransaction(transaction)
             if(!valid.error){
-              await this.mempool.addTransaction(transaction);
-              this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
-              resolve(valid)
+                await this.mempool.addTransaction(transaction);
+                this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.green('<-')+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                resolve(valid)
             }else{
-              this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
-              if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
-              resolve({error:valid.error})
+                this.UILog('!!!'+' Received invalid transaction : '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.red('!!!'+' Received invalid transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                resolve({error:valid.error})
             }
-          })
         }
       }
     })
