@@ -1,7 +1,7 @@
 const { parentPort, workerData } = require('worker_threads')
 const ECDSA = require('ecdsa-secp256r1');
 const { logger, validatePublicKey } = require('../../tools/utils');
-const { isValidTransactionJSON } = require('../../tools/jsonvalidator')
+const { isValidTransactionJSON, isValidAccountJSON } = require('../../tools/jsonvalidator')
 const sha256 = require('../../tools/sha256')
 const Transaction = require('./transaction')
 const chalk = require('chalk')
@@ -83,6 +83,55 @@ class ValidationWorker{
 
     
     }
+
+      validateAction(action){
+        return new Promise(async (resolve, reject)=>{
+            if(action){
+                let isCreateAccount = action.type == 'account' && action.task == 'create';
+                let account = await this.getAccount(action.fromAccount)
+                
+                if(isCreateAccount){
+
+                    if(account) resolve({error:'An account with that name already exists'})
+                    let newAccount = action.data;
+                    let isValidAccount = isValidAccountJSON(newAccount);
+
+                    if(!isValidAccount) resolve({error:"ERROR: Account contained in create account action is invalid"})
+
+                    account = newAccount;
+                }
+
+                let isExistingAccount = ( account? true : false )
+                if(!isExistingAccount) resolve({error:'ERROR: Account does not exist'})
+
+                let isChecksumValid = await this.validateActionChecksum(action);
+                if(!isChecksumValid) resolve({error:"ERROR: Action checksum is invalid"})
+
+                let hasMiningFee = action.fee > 0; //check if amount is correct
+                if(!hasMiningFee) resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
+
+                let actionIsNotTooBig = (Transaction.getTransactionSize(action) / 1024) < this.transactionSizeLimit;
+                if(!actionIsNotTooBig) resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+                
+                let balanceOfSendingAddr = await this.getBalance(account.ownerKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.ownerKey);
+                if(balanceOfSendingAddr < action.fee) resolve({error:"ERROR: Sender's balance is too low"})
+                
+                let isLinkedToWallet = validatePublicKey(account.ownerKey);
+                if(!isLinkedToWallet) resolve({error:"ERROR: Action ownerKey is invalid"})
+                
+                let isSignatureValid = await this.validateActionSignature(action, account.ownerKey);
+                if(!isSignatureValid) resolve({error:"ERROR: Action signature is invalid"})
+                
+                resolve(true);
+
+            }else{
+                resolve({error:'Account or Action is undefined'})
+            }
+        
+        
+        })
+    
+  }
 
     async validateTransactionCall(transaction){
         return new Promise(async (resolve, reject)=>{
