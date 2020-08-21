@@ -32,7 +32,7 @@ class ValidationController{
             }
             this.worker.on('message', receiveResult)
             this.worker.postMessage({ validate:transaction })
-            removeEventListener('message', receiveResult)
+            this.worker.removeListener('message', receiveResult)
         })
     }
 
