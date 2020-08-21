@@ -1,5 +1,6 @@
 const { Worker } = require('worker_threads');
-
+const { logger } = require('../../tools/utils')
+const chalk = require('chalk')
 
 class ValidationController{
     constructor({ balanceTable, accountTable, contractTable }){
@@ -17,6 +18,12 @@ class ValidationController{
                 contracts:await this.contractTable.getAllContracts()
             }
         });
+
+        this.worker.on('error', (error)=>{
+            logger(chalk.red('VALIDATION CONTROL ERROR'), error)
+            this.worker.terminate()
+            //this.startThread()
+        })
     
     }
 
