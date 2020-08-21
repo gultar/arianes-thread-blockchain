@@ -1174,7 +1174,7 @@ class Node {
         let ValidationController = require('./modules/classes/transactions/validationController')
 
         let validator = new ValidationController({
-          balanceTable:this.chain.balanceTable,
+          balanceTable:this.chain.balance,
           accountTable:this.chain.accountTable,
         })
 
