@@ -12,7 +12,6 @@ class ValidationWorker{
         this.balances = workerData.balanceStates
         this.accounts = workerData.accounts
         this.contracts = workerData.contracts
-        console.log('This contracts', this.contracts)
         this.transactionSizeLimit = 10 * 1024
     }
 
@@ -69,7 +68,7 @@ class ValidationWorker{
                   let toAccount = await this.getAccount(transaction.toAddress) //Check if is contract
                   if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
 
-                  let toAccountIsContract = this.getContract(toAccount)//toAccount.type == 'contract'
+                  let toAccountIsContract = this.getContract(transaction.toAddress)//toAccount.type == 'contract'
                   if(!toAccountIsContract) resolve({error: 'REJECTED: Transaction calls must be made to contract accounts'})
     
                   var isChecksumValid = this.validateChecksum(transaction);
