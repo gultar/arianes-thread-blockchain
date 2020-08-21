@@ -27,7 +27,8 @@ class ValidationWorker{
                 delete this.accounts[name]
             }else if(message.validate){
                 let transaction = message.validate
-
+                let result = await this.validateTransaction(transaction)
+                parentPort.postMessage({ [transaction.hash]:result, transaction:transaction })
             }else if(message.test){
                 let start = process.hrtime()
                 // let valid = await this.validateSimpleTransaction(message.test)
@@ -450,8 +451,6 @@ class ValidationWorker{
 const runValidator = () =>{
     let validator = new ValidationWorker()
     validator.init()
-
-    console.log('Worker:',validator)
 }
 
 runValidator()

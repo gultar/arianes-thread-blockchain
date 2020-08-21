@@ -20,6 +20,7 @@ const AccountTable = require('../tables/accountTable');
 const ContractTable = require('../tables/contractTable');
 const Factory = require('../contracts/build/callFactory')
 const VMController = require('../contracts/vmController')
+const ValidationController = require('../transactions/validationController')
 /******************************************** */
 
 const Block = require('./block');
@@ -30,7 +31,8 @@ const ECDSA = require('ecdsa-secp256r1');
 const fs = require('fs');
 let _ = require('private-parts').createKey();
 const genesis = require('../../tools/getGenesis')
-const Database = require('../database/db')
+const Database = require('../database/db');
+const ValidationController = require('../transactions/validationController');
 const blockExecutionDebug = require('debug')('blockExecution')
 /**
   * @desc Basic blockchain class.
@@ -131,6 +133,11 @@ class Blockchain{
       getCurrentBlock:async ()=>{
         return this.getLatestBlock()
       }
+    })
+    this.validationController = new ValidationController({
+      balanceTable:this.balance,
+      accountTable:this.accountTable,
+      contractTable:this.contractTable
     })
     this.spentTransactionHashes = {}
     this.spentActionHashes = {}
@@ -820,7 +827,7 @@ class Blockchain{
   * @return {boolean} Validity of transaction, or error object
   */
   async createTransaction(transaction){
-    return await this.validateTransaction(transaction)
+    return await this.validationController.validateTransaction(transaction)
   }
 
   async chainHasBlockOfHash(hash){
