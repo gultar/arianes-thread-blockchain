@@ -1540,7 +1540,7 @@ class Blockchain{
     for await(let hash of Object.keys(actions)){
       let action = actions[hash]
 
-      let isValid = await this.validateAction(action);
+      let isValid = await this.validationController.validateAction(action);
       if(isValid && !isValid.error){
         let alreadyExistsInBlockchain = this.spentActionHashes[hash]
         if(!alreadyExistsInBlockchain){

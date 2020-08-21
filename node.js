@@ -1549,7 +1549,7 @@ class Node {
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
 
-      let isValid = await this.chain.validateAction(action)
+      let isValid = await this.chain.validationController.validateAction(action)
       if(!isValid || isValid.error){
         if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
         resolve({error:isValid.error})
@@ -1949,7 +1949,7 @@ class Node {
       let isContractAction = action.type == 'contract action'
       if(isContractAction) resolve({error:'ERROR: Contract actions may only be created from within a contract'})
       else{
-        let isValid = await this.chain.validateAction(action)
+        let isValid = await this.chain.validationController.validateAction(action)
         if(!isValid || isValid.error){
           if(this.verbose) logger(chalk.red('!!!')+' Rejected invalid action : '+ action.hash.substr(0, 15)+"...")
           resolve({error:isValid.error})
@@ -1986,7 +1986,7 @@ class Node {
     return new Promise(async (resolve)=>{
       if(!isValidActionJSON(action)) resolve({error:'ERROR: Received action of invalid format'})
 
-      let isValid = await this.chain.validateAction(action)
+      let isValid = await this.chain.validationController.validateAction(action)
       if(!isValid || isValid.error){
         resolve({error:isValid.error})
       }else{
