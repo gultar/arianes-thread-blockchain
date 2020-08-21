@@ -1178,7 +1178,7 @@ class Node {
           accountTable:this.chain.accountTable,
         })
 
-        validator.startThread()
+        await validator.startThread()
      })
 
       socket.on('getContract', async (name)=>{

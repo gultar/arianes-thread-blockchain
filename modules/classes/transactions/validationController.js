@@ -8,7 +8,7 @@ class ValidationController{
         this.threads = {}
     }
 
-    startThread(){
+    async startThread(){
         let tx = {
             "fromAddress": "john",
             "toAddress": "mary",
@@ -26,8 +26,8 @@ class ValidationController{
           
         const worker = new Worker(__dirname+'validationWorker.js', {
             workerData: {
-                balanceStates:this.balanceTable.getCurrentBalances(),
-                accounts:this.accountTable.getAllAccounts()
+                balanceStates:await this.balanceTable.getCurrentBalances(),
+                accounts:await this.accountTable.getAllAccounts()
             }
         });
 
