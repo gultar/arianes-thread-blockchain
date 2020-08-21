@@ -11,6 +11,7 @@ class ValidationWorker{
         this.controller = parentPort
         this.balances = workerData.balanceStates
         this.accounts = workerData.accounts
+        this.contracts = workerData.contracts
         this.transactionSizeLimit = 10 * 1024
     }
 
@@ -48,59 +49,48 @@ class ValidationWorker{
         else return entry.balance
     }
 
+    getContract(contractName){
+        return this.contracts[contractName]
+    }
+
     async validateTransactionCall(transaction){
         return new Promise(async (resolve, reject)=>{
           if(transaction){
             try{
     
                 let fromAccount = await this.getAccount(transaction.fromAddress)
-                let txDebug = require('debug')('txValidate')
                 if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
                 else{
     
-                  let startValidSign = process.hrtime()  
                   let isSignatureValid = await this.validateActionSignature(transaction, fromAccount.ownerKey)
-                  let endValidSign = process.hrtime(startValidSign)
-                  txDebug('Validated Signature', endValidSign[1] / 1000000)
+                  if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
     
-                  let startGetToAccount = process.hrtime()  
                   let toAccount = await this.getAccount(transaction.toAddress) //Check if is contract
-                  let toAccountIsContract = toAccount.type == 'contract'
-                  let endGetToAccount = process.hrtime(startGetToAccount)
-                  txDebug('Got contract account', endGetToAccount[1] / 1000000)
+                  if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
+
+                  let toAccountIsContract = this.getContract(toAccount)//toAccount.type == 'contract'
+                  if(!toAccountIsContract) resolve({error: 'REJECTED: Transaction calls must be made to contract accounts'})
     
-                  let checksumStart = process.hrtime()
                   var isChecksumValid = this.validateChecksum(transaction);
-                  let endChecksum = process.hrtime(checksumStart)
-                  txDebug('Checksum verif', endChecksum[1] / 1000000)
-    
+                  if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+
                   var amountHigherOrEqualToZero = transaction.amount >= 0;
-                  let calcFeeStart = process.hrtime()
+                  if(!amountHigherOrEqualToZero) resolve({error:'REJECTED: Amount needs to be higher than or equal to zero'});
+
                   let hasMiningFee = transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
-                  let endFeeCalc = process.hrtime(calcFeeStart)
-                  txDebug('Calc fee', endFeeCalc[1] / 1000000)
-    
-                  let startTxTooBig = process.hrtime()
+                  if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
+
                   var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
-                  let endTxTooBig = process.hrtime(startTxTooBig)
-                  txDebug('Tx Too Big', endFeeCalc[1] / 1000000)
-    
+                  if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
+
                   let isNotCircular = fromAccount.name !== toAccount.name
+                  if(!isNotCircular) resolve({error:"REJECTED: Sending account can't be the same as receiving account"});
+
                   var balanceOfSendingAddr = await this.getBalance(fromAccount.ownerKey) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
                   let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
-    
-                  if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
-                  if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
-                  if(!amountHigherOrEqualToZero) resolve({error:'REJECTED: Amount needs to be higher than or equal to zero'});
-                  if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
-                  if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
-                  if(!isSignatureValid) resolve({error:'REJECTED: Transaction signature is invalid'});
-                  if(!toAccountIsContract) resolve({error: 'REJECTED: Transaction calls must be made to contract accounts'})
-                  if(!isNotCircular) resolve({error:"REJECTED: Sending account can't be the same as receiving account"}); 
                   if(!hasEnoughFunds) resolve({error: 'REJECTED: Sender does not have sufficient funds'})
     
                 }
-                
     
                 resolve(true)
     
@@ -174,6 +164,33 @@ class ValidationWorker{
             resolve({error:`ERROR: Transaction has an invalid format`})
           }
         })
+      }
+
+      async validatePayableReference(reference, transaction, sendingAccount, fromContract){
+
+        // let isValidTransaction = await this.validateTransactionCall(reference);
+        // let isValidAction = await this.validateAction(reference)
+    
+        // if(isValidTransaction.error && isValidAction.error) return { error:'ERROR: Reference is not a valid transaction call or action' }
+    
+        let fromAccount = await this.getAccount(reference.fromAddress)
+        if(!fromAccount || fromAccount.error) return { error:`ERROR: Could not find account ${reference.fromAddress} of payable reference` }
+    
+        let isSameAddress = fromAccount.name === sendingAccount.name && fromAccount.ownerKey === sendingAccount.ownerKey
+        if(!isSameAddress) return { error:'ERROR: Payables must be sent by the same account who sent the reference' }
+    
+        let isSignatureValid = await this.validateActionSignature(reference, fromAccount.ownerKey)
+        if(!isSignatureValid) return { error:'ERROR: Payable reference signature is not valid' }
+    
+        let referenceContract = await this.getContract(reference.toAddress)
+        if(!referenceContract || referenceContract.error) return { error:'ERROR: Payable reference must be made to contract account' }
+    
+        let isSameContract = reference.toAddress === transaction.fromContract
+        if(!isSameContract) return { error:'ERROR: Payable reference must be sent to same contract as payable' }
+    
+        return true
+    
+        
       }
 
     /**

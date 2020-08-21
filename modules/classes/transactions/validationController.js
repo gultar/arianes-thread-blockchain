@@ -47,7 +47,8 @@ class ValidationController{
         const worker = new Worker(__dirname+'/validationWorker.js', {
             workerData: {
                 balanceStates:await this.balanceTable.getCurrentBalances(),
-                accounts:await this.accountTable.getAllAccounts()
+                accounts:await this.accountTable.getAllAccounts(),
+                contracts:await this.contractTable.getAllContracts()
             }
         });
 

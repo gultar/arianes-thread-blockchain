@@ -94,6 +94,15 @@ class ContractTable{
         })
     }
 
+    async getAllContracts(){
+        let names = {}
+        let contracts =  await this.contractDB.getAll()
+        for await(let contract of contracts){
+            names[contract.name] = contract.name
+        }
+        return names
+    }
+
     getAllContractNames(){
         return new Promise(async (resolve)=>{
             let names = []
