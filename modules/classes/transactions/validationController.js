@@ -6,12 +6,12 @@ class ValidationController{
         this.balanceTable = balanceTable
         this.accountTable = accountTable
         this.contractTable = contractTable
-        this.threads = {}
+        this.worker = {}
     }
 
     async startThread(){
     
-        const worker = new Worker(__dirname+'/validationWorker.js', {
+        this.worker = new Worker(__dirname+'/validationWorker.js', {
             workerData: {
                 balanceStates:await this.balanceTable.getCurrentBalances(),
                 accounts:await this.accountTable.getAllAccounts(),
@@ -30,8 +30,8 @@ class ValidationController{
                     else resolve(message.transaction)
                 }
             }
-            worker.on('message', receiveResult)
-            worker.postMessage({ validate:transaction })
+            this.worker.on('message', receiveResult)
+            this.worker.postMessage({ validate:transaction })
             removeEventListener('message', receiveResult)
         })
     }
