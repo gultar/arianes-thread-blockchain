@@ -71,8 +71,8 @@ class ValidationWorker{
                 var isResourceAllocation = transaction.type == 'allocation'
                 var isPayable = transaction.type == 'payable'
 
-                let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
-                if(alreadyExistsInBlockchain) resolve({exists:'Transaction already exists in blockchain', blockNumber:alreadyExistsInBlockchain})
+                // let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
+                // if(alreadyExistsInBlockchain) resolve({exists:'Transaction already exists in blockchain', blockNumber:alreadyExistsInBlockchain})
 
                 if(isTransactionCall) return await this.validateTransactionCall(transaction)
                 else if(isMiningReward) return await this.validateCoinbaseTransaction(transaction)
