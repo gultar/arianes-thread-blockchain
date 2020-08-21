@@ -30,7 +30,22 @@ class ValidationController{
                 }
             }
             this.worker.once('message', receiveResult)
-            this.worker.postMessage({ validate:transaction })
+            this.worker.postMessage({ validateTransaction:transaction })
+            
+        })
+    }
+
+    validateAction(action){
+        return new Promise((resolve)=>{
+            const receiveResult = (message)=>{
+                if(message[action.hash]){
+                    let result = message[action.hash]
+                    if(result.error) resolve({ error:result.error })
+                    else resolve(message.action)
+                }
+            }
+            this.worker.once('message', receiveResult)
+            this.worker.postMessage({ validateAction:action })
             
         })
     }

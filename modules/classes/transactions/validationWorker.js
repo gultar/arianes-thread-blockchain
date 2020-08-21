@@ -25,10 +25,14 @@ class ValidationWorker{
             }else if(message.deleteAccount){
                 let name = message.deleteAccount
                 delete this.accounts[name]
-            }else if(message.validate){
-                let transaction = message.validate
+            }else if(message.validateTransaction){
+                let transaction = message.validateTransaction
                 let result = await this.validateTransaction(transaction)
                 parentPort.postMessage({ [transaction.hash]:result, transaction:transaction })
+            }else if(message.validateAction){
+                let transaction = message.validateAction
+                let result = await this.validateAction(action)
+                parentPort.postMessage({ [action.hash]:result, action:action })
             }
         })
     }
