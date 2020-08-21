@@ -3,6 +3,7 @@ const Database = require('../database/db')
 const { isValidTransactionJSON, isValidActionJSON } = require('../../tools/jsonvalidator');
 const { readFile, writeToFile, logger } = require('../../tools/utils');
 const fs = require('fs')
+const EventEmitter = require('events')
 
 class BalanceTable{
     constructor(accountTable){
@@ -10,6 +11,7 @@ class BalanceTable{
         this.history = {}
         this.stateDB = new Database('balances') //./data/balanceDB
         this.accountTable = accountTable
+        this.balanceEvents = new EventEmitter()
     }
 
     extractTransactionCalls(transactions){
@@ -77,6 +79,8 @@ class BalanceTable{
                     actionHashes:actionHashes
                 }
             })
+
+            this.balanceEvents.emit('newState', this.states)
 
             if(added.error) resolve({error:added.error})
             else resolve(added)
@@ -266,6 +270,7 @@ class BalanceTable{
                 if(entry){
                     if(entry.error) resolve({error:entry.error})
                     this.states = entry.states
+                    this.balanceEvents.emit('newState', this.states)
                     resolve(true)
                 }else{
                     resolve({error:`ERROR: Could not complete rollback. Missing block ${blockNumber} balances`})
@@ -348,7 +353,7 @@ class BalanceTable{
                         actionHashes:block.actionHashes
                     }
                 })
-                
+                this.balanceEvents.emit('newState', this.states)
                 if(added.error) resolve({error:added})
                 else resolve(added)
             }else{

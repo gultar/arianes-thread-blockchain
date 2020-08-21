@@ -17,14 +17,20 @@ class ValidationWorker{
 
     init(){
         parentPort.on('message', async (message)=>{
-            if(message.account){
-                let account = message.account
+            if(message.newAccount){
+                let account = message.newAccount
                 this.accounts[account.name] = account
+            }else if(message.newContract){
+                let contract = message.newContract
+                this.contracts[contract.contractName] = contract
             }else if(message.balances){
                 this.balances = message.balances
             }else if(message.deleteAccount){
                 let name = message.deleteAccount
                 delete this.accounts[name]
+            }else if(message.deleteContract){
+                let name = message.deleteContract
+                delete this.contracts[name]
             }else if(message.validateTransaction){
                 let transaction = message.validateTransaction
                 let result = await this.validateTransaction(transaction)

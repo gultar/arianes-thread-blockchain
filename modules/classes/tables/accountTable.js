@@ -1,13 +1,15 @@
 const ECDSA = require('ecdsa-secp256r1');
 const { logger, readFile, writeToFile } = require('../../tools/utils.js') 
 const fs = require('fs')
-// const Database = require('./database')
+const EventEmitter = require('events')
+
 const Database = require('../database/db')
 class AccountTable{
     constructor(){
         this.accounts = {}
         // this.accountsDB = new Database('./data/accountsDB')
         this.accountsDB = new Database('accounts')
+        this.accountEvents = new EventEmitter()
     }
 
     addAccount(account){
@@ -19,6 +21,7 @@ class AccountTable{
                     _id:account.name,
                     account:account,
                 }) 
+                this.accountEvents.emit('newAccount', account)
                 resolve(added)
             }else{
                 if(existing.error) resolve({error:existing.error})
@@ -104,7 +107,10 @@ class AccountTable{
                         if(isOwner){
                             let deleted = await this.accountsDB.deleteId(account.name)
                             if(deleted.error) resolve({error:deleted.error})
-                            else resolve(deleted)
+                            else{
+                                this.accountEvents.emit('deleteAccount', account.name)
+                                resolve(deleted)
+                            }
                         }else{
                             resolve({ error:`ERROR: Could not delete ${name}` })
                         }

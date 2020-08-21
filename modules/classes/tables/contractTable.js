@@ -3,6 +3,7 @@ const Database = require('../database/db')
 const sha256 = require('../../tools/sha256')
 const StateStorage = require('../contracts/statePersistance')
 const blockExecutionDebug = require('debug')('blockExecution')
+const EventEmitter = require('events')
 
 class ContractTable{
     constructor({ getCurrentBlock, getBlock, getBlockFromHash }){
@@ -80,7 +81,10 @@ class ContractTable{
                         let updated = await this.stateStorage[name].update(state, currentBlock.blockNumber)
                         
                         if(updated.error) resolve({error:updated.error})
-                        else resolve(updated)
+                        else{
+                            this.contractEvents.emit('newContract', { contractName:name, contractAPI:contractAPI })
+                            resolve(updated)
+                        }
                     }
                 }else{
                     resolve({ error:`ERROR: Creation of contract ${name} failed. Could not create contract entry` })
@@ -340,7 +344,7 @@ class ContractTable{
                     if(deleted.error) resolve({error:deleted.error})
                     let stateDeleted = await this.removeState(name);
                     if(stateDeleted.error) resolve({error:stateDeleted.error})
-    
+                    this.contractEvents.emit('deleteContract', name)
                     resolve({contractDeleted:deleted, stateDeleted:stateDeleted})
                 }else{
                     resolve({error:'Contract to delete does not exist'})

@@ -21,6 +21,16 @@ class ValidationController{
             }
         });
 
+        this.balanceTable.balanceEvents.on('newState', (balances)=>{
+            this.worker.postMessage({ balances:balances })
+        })
+
+        this.accountTable.accountEvents.on('newAccount', account => this.worker.postMessage({ newAccount:account }))
+        this.accountTable.accountEvents.on('deleteAccount', accountName => this.worker.postMessage({ deleteAccount:accountName }))
+        
+        this.contractTable.contractEvents.on('newContract', contract => this.worker.postMessage({ newContract:contract }))
+        this.contractTable.contractEvents.on('deleteContract', contractName => this.worker.postMessage({ deleteContract:contractName }))
+
         this.worker.on('error', (error)=>{
             logger(chalk.red('VALIDATION CONTROL ERROR'), error)
             this.worker.terminate()
