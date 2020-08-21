@@ -337,7 +337,7 @@ class Blockchain{
     let isValidBlock = await this.validateBlock(newBlock)
     let endValidateBlock = process.hrtime(startValidateBlock)
     blockExecutionDebug(`Validate Block: ${endValidateBlock[1]/1000000}`)
-    if(isValidBlock.error) return { error:new Error(isValidBlock.error) }
+    if(isValidBlock.error) return { error:isValidBlock.error }
     else{
 
       let isNextBlock = newBlock.blockNumber == this.getLatestBlock().blockNumber + 1
