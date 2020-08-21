@@ -1176,6 +1176,7 @@ class Node {
         let validator = new ValidationController({
           balanceTable:this.chain.balance,
           accountTable:this.chain.accountTable,
+          contractTable:this.chain.contractTable
         })
 
         await validator.startThread()
