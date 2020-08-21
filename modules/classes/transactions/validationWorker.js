@@ -28,7 +28,10 @@ class ValidationWorker{
                 let transaction = message.validate
 
             }else if(message.test){
+                let start = process.hrtime()
                 let valid = await this.validateSimpleTransaction(message.test)
+                let end = process.hrtime(start)
+                logger('Validation:', end[1] / 1000000)
                 parentPort.postMessage({ validated:valid })
             }
         })
