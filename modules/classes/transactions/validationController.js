@@ -42,7 +42,6 @@ class ValidationController{
             signature: 'qtVYe/rtrnzng1FAcKgPoAarDfLoOWn9TA60LHd1eM+mUCPfeKFxUOL1DDC86lSE3kAGBYgE+pq2X7X/s1S1KQ=='
           }
           
-          console.log(await this.contractTable.getAllContracts())
           
         const worker = new Worker(__dirname+'/validationWorker.js', {
             workerData: {

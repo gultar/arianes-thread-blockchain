@@ -12,6 +12,7 @@ class ValidationWorker{
         this.balances = workerData.balanceStates
         this.accounts = workerData.accounts
         this.contracts = workerData.contracts
+        console.log('This contracts', this.contracts)
         this.transactionSizeLimit = 10 * 1024
     }
 
