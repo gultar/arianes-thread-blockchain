@@ -14,7 +14,7 @@ class ValidationWorker{
     }
 
     init(){
-        parentPort.on('message', (message)=>{
+        parentPort.on('message', async (message)=>{
             if(message.account){
                 let account = message.account
                 this.accounts[account.name] = account
