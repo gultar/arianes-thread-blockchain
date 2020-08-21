@@ -1473,7 +1473,7 @@ class Blockchain{
         let errors = {}
         for await (let hash of txHashes){
           let transaction = block.transactions[hash];
-          let valid = await this.validateTransaction(transaction);
+          let valid = await this.validationController.validateTransaction(transaction);
           if(valid.error) errors[hash] = valid.error
           if(valid.exists){
             let txLocatedInBlockNumber = valid.blockNumber
@@ -1498,7 +1498,7 @@ class Blockchain{
         let errors = {}
         for await (let hash of txHashes){
           let transaction = block.transactions[hash];
-          let valid = await this.validateTransaction(transaction);
+          let valid = await this.validationController.validateTransaction(transaction);
           if(valid.error) errors[hash] = valid.error
         }
         if(Object.keys(errors).length > 0) resolve({error:errors})
@@ -1514,7 +1514,7 @@ class Blockchain{
     for await(let hash of Object.keys(transactions)){
       let transaction = transactions[hash]
 
-      let isValid = await this.validateTransaction(transaction);
+      let isValid = await this.validationController.validateTransaction(transaction);
       if(isValid && !isValid.error){  
         let alreadyExistsInBlockchain = this.spentTransactionHashes[hash]
         if(!alreadyExistsInBlockchain) acceptedTransactions[hash] = transaction
@@ -1579,7 +1579,7 @@ class Blockchain{
         let errors = {}
         for await (let hash of txHashes){
           let transaction = block.transactions[hash];
-          let valid = await this.validateTransaction(transaction);
+          let valid = await this.validationController.validateTransaction(transaction);
           if(valid.error) errors[hash] = valid.error
         }
         if(Object.keys(errors).length > 0) resolve({error:errors})
