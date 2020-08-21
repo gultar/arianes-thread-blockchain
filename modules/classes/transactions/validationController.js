@@ -64,6 +64,7 @@ class ValidationController{
         }
 
         worker.postMessage({ test:call })
+        console.log('Testing routing validation')
         worker.postMessage({ test:tx })
     
     }
