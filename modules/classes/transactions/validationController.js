@@ -10,7 +10,6 @@ class ValidationController{
     }
 
     async startThread(){
-        console.log(await this.balanceTable.getCurrentBalances())
         this.worker = new Worker(__dirname+'/validationWorker.js', {
             workerData: {
                 balances:await this.balanceTable.getCurrentBalances(),
