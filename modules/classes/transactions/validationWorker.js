@@ -29,13 +29,6 @@ class ValidationWorker{
                 let transaction = message.validate
                 let result = await this.validateTransaction(transaction)
                 parentPort.postMessage({ [transaction.hash]:result, transaction:transaction })
-            }else if(message.test){
-                let start = process.hrtime()
-                // let valid = await this.validateSimpleTransaction(message.test)
-                let valid = await this.validateTransaction(message.test)
-                let end = process.hrtime(start)
-                logger('Validation:', end[1] / 1000000)
-                parentPort.postMessage({ validated:valid })
             }
         })
     }

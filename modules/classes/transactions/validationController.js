@@ -30,9 +30,9 @@ class ValidationController{
                     else resolve(message.transaction)
                 }
             }
-            this.worker.on('message', receiveResult)
+            this.worker.once('message', receiveResult)
             this.worker.postMessage({ validate:transaction })
-            this.worker.removeListener('message', receiveResult)
+            
         })
     }
 
