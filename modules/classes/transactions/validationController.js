@@ -32,7 +32,9 @@ class ValidationController{
         });
 
         worker.on('message', (message)=>{
-            if(message.validated){}
+            if(message.validated){
+                console.log('Validation result:', message.validated)
+            }
             else if(message.getBalance){}
             else{}
         })

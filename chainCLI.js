@@ -82,12 +82,12 @@ program
 })
 
 program
-.command('stresstest')
+.command('testValidator')
 .description('Requests a snapshot of the ten most recent blocks')
 .action(()=>{
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
-            socket.emit('stresstest');
+            socket.emit('testValidator');
         })
     }else{
         console.log('ERROR: Missing node address')
