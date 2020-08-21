@@ -2751,7 +2751,9 @@ class Blockchain{
           this.validationController = new ValidationController({
             balanceTable:this.balance,
             accountTable:this.accountTable,
-            contractTable:this.contractTable
+            contractTable:this.contractTable,
+            spentTransactions:this.spentTransactionHashes,
+            spentActions:this.spentActionHashes
           })
           let validatorStarted = await this.validationController.startThread()
           if(savedBalances.error){

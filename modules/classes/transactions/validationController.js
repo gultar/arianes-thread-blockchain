@@ -4,10 +4,12 @@ const chalk = require('chalk')
 const EventEmitter = require('events')
 
 class ValidationController{
-    constructor({ balanceTable, accountTable, contractTable }){
+    constructor({ balanceTable, accountTable, contractTable, spentTransactions, spentActions }){
         this.balanceTable = balanceTable
         this.accountTable = accountTable
         this.contractTable = contractTable
+        this.spentTransactions = spentTransactions
+        this.spentActions = spentActions
         this.worker = {}
         this.resultEvents = new EventEmitter()
     }
@@ -44,11 +46,27 @@ class ValidationController{
             if(message.validatedTransaction){
                 let transaction = message.validatedTransaction.transaction
                 let result = message.validatedTransaction.result
-                this.resultEvents.emit(transaction.hash, { result:result, transaction:transaction })
+                if(this.spentTransactions[transaction.hash]){
+                    this.resultEvents.emit(transaction.hash, {  
+                            result: { error:`ERROR: Transaction ${transaction.hash.substr(0, 15)}... is already spent` }, 
+                            transaction:transaction 
+                    })
+                }else{
+                    this.resultEvents.emit(transaction.hash, { result:result, transaction:transaction })
+                }
+                
             }else if(message.validatedAction){
                 let action = message.validatedAction.action
                 let result = message.validatedAction.result
-                this.resultEvents.emit(transaction.hash, { result:result, action:action })
+                if(this.spentActions[action.hash]){
+                    this.resultEvents.emit(action.hash, {  
+                            result: { error:`ERROR: Transaction ${action.hash.substr(0, 15)}... is already spent` }, 
+                            action:action 
+                    })
+                }else{
+                    this.resultEvents.emit(action.hash, { result:result, action:action })
+                }
+                
             }
         })
     
