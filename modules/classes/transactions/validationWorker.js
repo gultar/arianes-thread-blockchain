@@ -31,7 +31,7 @@ class ValidationWorker{
             }else if(message.test){
                 let start = process.hrtime()
                 // let valid = await this.validateSimpleTransaction(message.test)
-                let valid = await this.validateTransactionCall(message.test)
+                let valid = await this.validateTransaction(message.test)
                 let end = process.hrtime(start)
                 logger('Validation:', end[1] / 1000000)
                 parentPort.postMessage({ validated:valid })
@@ -53,6 +53,43 @@ class ValidationWorker{
         return this.contracts[contractName]
     }
 
+            /**
+     *  To run a proper transaction validation, one must look back at all the previous transactions that have been made by
+     *  emitting peer every time this is checked, to avoid double spending. An initial coin distribution is made once the genesis
+     *  block has been made. This needs some work since it is easy to send a false transaction and accumulate credits
+     *
+     * @param {Object} $transaction - transaction to be validated
+     * @param {function} $callback - Sends back the validity of the transaction
+     */
+
+    async validateTransaction(transaction){
+        try{
+            if(transaction){
+                var isMiningReward = transaction.fromAddress == 'coinbase';
+                var isTransactionCall = transaction.type == 'call'
+                var isStake = transaction.type == 'stake'
+                var isResourceAllocation = transaction.type == 'allocation'
+                var isPayable = transaction.type == 'payable'
+
+                let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
+                if(alreadyExistsInBlockchain) resolve({exists:'Transaction already exists in blockchain', blockNumber:alreadyExistsInBlockchain})
+
+                if(isTransactionCall) return await this.validateTransactionCall(transaction)
+                else if(isMiningReward) return await this.validateCoinbaseTransaction(transaction)
+                else if(isPayable) return await this.validatePayable(transaction)
+                else if(isStake) {}
+                else if(isResourceAllocation){}
+                else  return await this.validateSimpleTransaction(transaction)
+            }else{
+                return { error:'ERROR: Cannot validate transaction. Transaction is undefined' }
+            }
+        }catch(e){
+            return { error:e }
+        }
+
+    
+    }
+
     async validateTransactionCall(transaction){
         return new Promise(async (resolve, reject)=>{
           if(transaction){
@@ -68,7 +105,7 @@ class ValidationWorker{
                   let toAccount = await this.getAccount(transaction.toAddress) //Check if is contract
                   if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
 
-                  let toAccountIsContract = this.getContract(transaction.toAddress)//toAccount.type == 'contract'
+                  let toAccountIsContract = this.getContract(toAccount.name)//toAccount.type == 'contract'
                   if(!toAccountIsContract) resolve({error: 'REJECTED: Transaction calls must be made to contract accounts'})
     
                   var isChecksumValid = this.validateChecksum(transaction);
@@ -192,6 +229,86 @@ class ValidationWorker{
     
         
       }
+
+      async validateCoinbaseTransaction(transaction, block){
+        return new Promise(async (resolve, reject)=>{
+          if(transaction && transaction.blockNumber){
+    
+            try{
+              
+              let isChecksumValid = this.validateChecksum(transaction);
+              if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+
+              let hasTheRightMiningRewardAmount = transaction.amount <= (this.miningReward);
+              if(!hasTheRightMiningRewardAmount) resolve({error:'REJECTED: Coinbase transaction does not contain the right mining reward: '+ transaction.amount});
+              
+              let transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
+              if(!transactionSizeIsNotTooBig) resolve({error:'COINBASE TX REJECTED: Transaction size is above '+this.transactionSizeLimit+'Kb'});
+              
+              resolve(true)
+                  
+            }catch(err){
+              resolve({error:err.message})
+            }
+      
+          }else{
+            resolve({error:'ERROR: Coinbase transaction is undefined'})
+          }
+      
+        }) 
+      }
+
+      async validatePayable(transaction){
+        return new Promise(async (resolve, reject)=>{
+          if(transaction){
+            try{
+    
+                let fromAccount = await this.getAccount(transaction.fromAddress)
+                if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
+                else{
+    
+                  let isSignatureValid = await this.validateActionSignature(transaction.reference, fromAccount.ownerKey)
+                  let toAccount = await this.getAccount(transaction.toAddress) 
+                  let fromContract = await this.getContract(transaction.fromContract)
+                  var isChecksumValid = this.validateChecksum(transaction);
+                  var amountHigherOrEqualToZero = transaction.amount >= 0;
+                  let hasMiningFee = true//transaction.miningFee >= this.calculateTransactionMiningFee(transaction); //check size and fee 
+                  var transactionSizeIsNotTooBig = Transaction.getTransactionSize(transaction) < this.transactionSizeLimit //10 Kbytes
+                  let isNotCircular = fromAccount.name !== toAccount.name
+                  var balanceOfSendingAddr = await this.getBalance(fromAccount.ownerKey) //+ this.checkFundsThroughPendingTransactions(transaction.fromAddress);
+                  let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
+                  let hasValidReference = await this.validatePayableReference(transaction.reference, transaction, fromAccount, fromContract)
+    
+                  if(!toAccount) resolve({error:`REJECTED: Receiving account ${transaction.toAddress} is unknown`});
+                  if(!isChecksumValid) resolve({error:'REJECTED: Transaction checksum is invalid'});
+                  if(!amountHigherOrEqualToZero) resolve({error:'REJECTED: Amount needs to be higher than or equal to zero'});
+                  if(!hasMiningFee) resolve({error:"REJECTED: Mining fee is insufficient"});
+                  if(!transactionSizeIsNotTooBig) resolve({error:'REJECTED: Transaction size is above 10KB'});
+                  if(!isSignatureValid) resolve({error:'REJECTED: Payable reference signature is invalid'});
+                  if(!fromContract || fromContract.error) resolve({error: 'REJECTED: Payable must be made within contract calls'})
+                  if(!isNotCircular) resolve({error:"REJECTED: Sending account can't be the same as receiving account"}); 
+                  if(!hasEnoughFunds) resolve({error: 'REJECTED: Sender does not have sufficient funds'})
+                  if(hasValidReference.error) resolve({error:hasValidReference.error})
+    
+                }
+                
+    
+                resolve(true)
+    
+            }catch(err){
+              resolve({error:err.message})
+            }
+      
+          }else{
+            logger('ERROR: Transaction is undefined');
+            resolve({error:'ERROR: Transaction is undefined'})
+          }
+      
+        })
+        
+    
+      }
+
 
     /**
         Checks the validity of the action signature
