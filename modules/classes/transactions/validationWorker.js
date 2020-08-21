@@ -134,14 +134,14 @@ class ValidationWorker{
     /**
         Checks the validity of the transaction signature
         @param {object} $transaction - Transaction to be inspected
-        @param {object} $publicKey - Public key of the owner account
+        @param {object} $fromAddress - Public key of the owner account
         @return {boolean} Signature is valid or not
     */
-    async validateSignature(transaction, publicKey){
+    async validateSignature(transaction, fromAddress){
         try{
-            if(transaction && publicKey){
-                if(validatePublicKey(publicKey)){
-                    const publicKey = await ECDSA.fromCompressedPublicKey(publicKey);
+            if(transaction && fromAddress){
+                if(validatePublicKey(fromAddress)){
+                    const publicKey = await ECDSA.fromCompressedPublicKey(fromAddress);
                     if(publicKey){
                         const verified = await publicKey.verify(transaction.hash, transaction.signature)
                         return verified
