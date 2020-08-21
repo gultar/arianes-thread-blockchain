@@ -13,6 +13,7 @@ class ValidationController{
     }
 
     async startThread(){
+        
         this.worker = new Worker(__dirname+'/validationWorker.js', {
             workerData: {
                 balances:await this.balanceTable.getCurrentBalances(),
@@ -20,6 +21,8 @@ class ValidationController{
                 contracts:await this.contractTable.getAllContracts()
             }
         });
+
+        logger('Validation Worker thread started')
 
         this.balanceTable.balanceEvents.on('newState', (balances)=>{
             this.worker.postMessage({ balances:balances })
@@ -31,10 +34,10 @@ class ValidationController{
         this.contractTable.contractEvents.on('newContract', contract => this.worker.postMessage({ newContract:contract }))
         this.contractTable.contractEvents.on('deleteContract', contractName => this.worker.postMessage({ deleteContract:contractName }))
 
-        this.worker.on('error', (error)=>{
+        this.worker.on('error', async (error)=>{
             logger(chalk.red('VALIDATION CONTROL ERROR'), error)
             this.worker.terminate()
-            //this.startThread()
+            await this.startThread()
         })
 
         this.worker.on('message', (message)=>{
