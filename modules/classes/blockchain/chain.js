@@ -2022,7 +2022,6 @@ class Blockchain{
 
       return { applied:true }
     }else{
-      console.log('No state changes', states)
       return { noStateChanged:true }
     }
   }
