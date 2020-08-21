@@ -14,6 +14,7 @@ class ContractTable{
         this.contractStateDB = new Database('states')
         this.stateStorage = {}
         this.stateMemory = {}
+        this.contractEvents = new EventEmitter()
     }
 
     async init(){
