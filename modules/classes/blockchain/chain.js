@@ -32,7 +32,6 @@ const fs = require('fs');
 let _ = require('private-parts').createKey();
 const genesis = require('../../tools/getGenesis')
 const Database = require('../database/db');
-const ValidationController = require('../transactions/validationController');
 const blockExecutionDebug = require('debug')('blockExecution')
 /**
   * @desc Basic blockchain class.
