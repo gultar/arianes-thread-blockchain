@@ -53,7 +53,7 @@ class ValidationWorker{
           if(transaction){
             try{
     
-                let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
+                let fromAccount = await this.getAccount(transaction.fromAddress)
                 let txDebug = require('debug')('txValidate')
                 if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
                 else{
