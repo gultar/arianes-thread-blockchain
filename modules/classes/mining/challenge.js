@@ -11,7 +11,7 @@ class Difficulty{
     this.difficultyBomb = genesisConfig.difficultyBomb || 100 * 1000;
     this.minimumDifficulty = (typeof genesisConfig.difficulty == 'string' ? parseInt(genesisConfig.difficulty, 16) : genesisConfig.difficulty)
     this.difficultyBoundDivider = genesisConfig.difficultyBoundDivider || 512
-    this.difficultyDivider = BigInt(128)//BigInt(384) //Has to be a big int
+    this.difficultyDivider = BigInt(384) //Has to be a big int
   }
 
   setNewDifficulty(previousBlock, newBlock){

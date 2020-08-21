@@ -383,20 +383,11 @@ class BalanceTable{
             }
        }
 
-    //   saveStates(){
-    //       return new Promise((resolve, reject)=>{
-    //         try{
-    //             let saved = writeToFile({states:this.states, history:this.history}, './data/balances.json');
-    //             if(saved){
-    //                 logger('Saved balance states table');
-    //                 resolve(saved)
-    //             }
-    //         }catch(e){
-    //             reject(e)
-    //         }
-    //       })
-        
-    //   }
+       async getCurrentBalances(){
+           return this.states
+       }
+
+       
 
 }
 

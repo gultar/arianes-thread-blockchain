@@ -1759,16 +1759,8 @@ class Blockchain{
       if(transaction){
         try{
 
-
-            
-
             let fromAccount = await this.accountTable.getAccount(transaction.fromAddress)
             let txDebug = require('debug')('txValidate')
-
-            let startTestPublicKey = process.hrtime()
-            let tested = validatePublicKey(fromAccount.ownerKey)
-            let endTestPubKey = process.hrtime(startTestPublicKey)
-            txDebug(`Test pub key ${endTestPubKey[1]/1000000}`)
             if(!fromAccount) resolve({error:`REJECTED: Sending account ${transaction.fromAddress} is unknown`});
             else{
 
@@ -2716,72 +2708,6 @@ class Blockchain{
     
     
   }
-
-  // /**
-  //  * Keeps a trace of the top most recent blocks and their link to previous blocks
-  //  * @param {Block} newBlock 
-  //  */
-  // async manageChainSnapshotQueue(newBlock){
-  //   try{
-  //     if(newBlock){
-  //       let maxNumberOfHashes = 10;
-  
-  //       this.chainSnapshot[newBlock.hash] = {
-  //         blockNumber:newBlock.blockNumber,
-  //         previousHash:newBlock.previousHash,
-  //         difficulty:newBlock.difficulty,
-  //         totalDifficulty:newBlock.totalDifficulty
-  //       }
-        
-  //       let elements = Object.keys(this.chainSnapshot)
-  //       if(elements.length > maxNumberOfHashes){
-  //         let firstHash =  elements[0]
-  //         delete this.chainSnapshot[firstHash]
-          
-  //       }
-  //     }else{
-  //       await this.createNewSnapshot()
-        
-  //     }
-  //   }catch(e){
-  //     return e.message
-  //   }
-  // }
-
-  //   /**
-  //  * Keeps a trace of the top most recent blocks and their link to previous blocks
-  //  *  
-  //  */
-  // createNewSnapshot(){
-  //   return new Promise(async (resolve)=> {
-  //     try{
-  //       let maxNumberOfHashes = 10;
-  //       let blockNumber = this.getLatestBlock().blockNumber
-  //       this.chainSnapshot = {}
-  //       for(var i=blockNumber - 10; i  <= blockNumber; i++){
-  //         let newBlock = this.chain[i]
-  //         let maxNumberOfHashes = 10;
-  
-  //         this.chainSnapshot[newBlock.hash] = {
-  //           blockNumber:newBlock.blockNumber,
-  //           previousHash:newBlock.previousHash,
-  //           difficulty:newBlock.difficulty,
-  //           totalDifficulty:newBlock.totalDifficulty
-  //         }
-          
-  //         let elements = Object.keys(this.chainSnapshot)
-  //         if(elements.length > maxNumberOfHashes){
-  //           let firstHash =  elements[0]
-  //           delete this.chainSnapshot[firstHash]
-            
-  //         }
-  //       }
-  //     }catch(e){
-  //       resolve({error:e.message})
-  //     }
-  //   })
-
-  // }
 
     /**
     Fetches a block from chainDB

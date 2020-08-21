@@ -61,7 +61,7 @@ class AccountTable{
             let allAccounts = await this.accountsDB.getAll()
             
 
-            for(let row of allAccounts){
+            for await(let row of allAccounts){
                 let account = row.account
                 if(account){
                     if(account.ownerKey == key){
@@ -74,6 +74,21 @@ class AccountTable{
 
             resolve(foundAccounts)
         })
+      }
+
+      async getAllAccounts(){
+        let allAccountEntries = await this.accountsDB.getAll()
+        if(allAccountEntries.error) return { error:allAccountEntries.error }
+        
+        let accounts = {}
+        for await(let row of allAccountEntries){
+            let account = row.account
+            if(account){
+                accounts[account.name] = account
+            }
+        }
+
+        return accounts
       }
 
       //Deprecated

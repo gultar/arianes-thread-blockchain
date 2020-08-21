@@ -1170,10 +1170,15 @@ class Node {
         console.log('Finished', recalculated)
      })
 
-     socket.on('connectClass', async (address)=>{
-        let connected = await this.peerManager.connect(address)
-        if(connected) console.log('Success')
-        else console.log('failed')
+     socket.on('testValidator', async (address)=>{
+        let ValidationController = require('./modules/classes/transactions/validationController')
+
+        let validator = new ValidationController({
+          balanceTable:this.chain.balanceTable,
+          accountTable:this.chain.accountTable,
+        })
+
+        validator.startThread()
      })
 
       socket.on('getContract', async (name)=>{
