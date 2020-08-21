@@ -133,11 +133,7 @@ class Blockchain{
         return this.getLatestBlock()
       }
     })
-    this.validationController = new ValidationController({
-      balanceTable:this.balance,
-      accountTable:this.accountTable,
-      contractTable:this.contractTable
-    })
+    this.validatorController = {}
     this.spentTransactionHashes = {}
     this.spentActionHashes = {}
     this.isSyncingBlocks = false
@@ -2751,13 +2747,19 @@ class Blockchain{
         this.isLoadingBlocks = false
         if(loaded){
           let contractTableStarted = await this.contractTable.init()
-          let validatorStarted = await this.validationController.startThread()
+          
           let savedBalances = await this.balance.loadBalances(this.getLatestBlock().blockNumber)
+          this.validationController = new ValidationController({
+            balanceTable:this.balance,
+            accountTable:this.accountTable,
+            contractTable:this.contractTable
+          })
+          let validatorStarted = await this.validationController.startThread()
           if(savedBalances.error){
             reject(savedBalances.error)
-          }else{
-            resolve(savedBalances)
           }
+          
+          resolve(savedBalances)
           
         }else{
           reject('Could not load blocks')
