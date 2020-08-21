@@ -137,6 +137,95 @@ class ValidationWorker{
     
   }
 
+    validateContractAction(action, account){
+        return new Promise(async (resolve, reject)=>{
+            if(action){
+                //Is linked to calling action
+                //Is calling action actually calling contract
+                let isChecksumValid = await this.validateActionChecksum(action);
+                if(!isChecksumValid) resolve({error:"ERROR: Action checksum is invalid"})
+
+                let hasMiningFee = action.fee > 0; //check if amount is correct
+                if(!hasMiningFee) resolve({error:'ERROR: Action needs to contain mining fee propertional to its size'})
+
+                let actionIsNotTooBig = Transaction.getTransactionSize(action) < this.transactionSizeLimit;
+                if(!actionIsNotTooBig) resolve({error:'ERROR: Action size is above '+this.transactionSizeLimit+'Kb'})
+
+                let balanceOfSendingAddr = await this.getBalance(action.fromAccount.ownerKey)// + this.checkFundsThroughPendingTransactions(action.fromAccount.ownerKey);
+                let sendingAcccount = await this.getAccount(action.fromAccount)
+                if(balanceOfSendingAddr < action.fee) resolve({error:"ERROR: Sender's balance is too low"})
+                
+                let isLinkedToWallet = await validatePublicKey(sendingAcccount.ownerKey);
+                if(!isLinkedToWallet) resolve({error:"ERROR: Action ownerKey is invalid"})
+
+                let references = action.actionReference;
+
+                if(!isSignatureValid) resolve({error:"ERROR: Action signature is invalid"})
+
+                resolve(true);
+
+            }else{
+                resolve({error:'Account or Action is undefined'})
+            }
+        
+        
+        })
+        
+    }
+
+    validateActionReference(actionReference, contractAction){
+        return new Promise(async (resolve)=>{
+            let contractName = actionReference.data.contractName
+            //let referenceExists = false
+            let referenceExists = true
+            /**
+             * *************************
+             * Need to create a spent TX db
+             * ***********************
+             * for await(let block of this.chain){
+                        referenceExists = block.txHashes[hash]
+                    if(!referenceExists){
+                        referenceExists = block.actionHashes[hash]
+                    }
+                }
+             */
+            let contract = await this.getContract(contractName)
+            resolve({error:`ERROR: Contract ${contractName} does exist`})
+            
+            let contractAPI = contract.contractAPI;
+            resolve({error:`ERROR: Contract ${contractName} does not have an API`})
+
+            let contractMethod = contractAPI[actionReference.data.method];
+            resolve({error:`ERROR: Contract method ${actionReference.data.method} does not exist`})
+
+            let pointsToCorrectMethod = contractMethod.returns == 'contract action';
+            resolve({error:`ERROR: Action reference does not point to method returning a contract action`})
+
+            
+            /**
+             * Todo:
+             * add a returns field to contractAPIs
+             * 
+             * Logic:
+             * ---> send action calling method that returns contract action
+             * <--- sends contract action, linking action as reference
+             *      for all references:
+             *        - validate if original action is linked to contract action
+             *        - validate action content
+             *  Mine contract action and execute
+             * ***********************************
+             * If block contains contract action:
+             * - check action reference to see if exists
+             * - check if already used before
+             * - check if reference points to valid method
+             * 
+             *
+             * 
+             */
+        })
+    }
+
+
     async validateTransactionCall(transaction){
         return new Promise(async (resolve, reject)=>{
           if(transaction){

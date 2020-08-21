@@ -98,7 +98,7 @@ class ContractTable{
         let names = {}
         let contracts =  await this.contractDB.getAll()
         for await(let contract of contracts){
-            names[contract.name] = contract.name
+            names[contract.name] = { name:contract.name, contractAPI:contract.contractAPI }
         }
         return names
     }
