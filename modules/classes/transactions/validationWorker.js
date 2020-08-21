@@ -74,7 +74,7 @@ class ValidationWorker{
               let isNotCircular = fromAddress !== toAddress;
               if(!isNotCircular) resolve({error:"REJECTED: Sending address can't be the same as receiving address"});
     
-              var balanceOfSendingAddr = await this.checkBalance(fromAddress)
+              var balanceOfSendingAddr = await this.getBalance(fromAddress)
               let hasEnoughFunds = balanceOfSendingAddr >= transaction.amount + transaction.miningFee
               if(!hasEnoughFunds) resolve({error:'REJECTED: Sender does not have sufficient funds'});
               
