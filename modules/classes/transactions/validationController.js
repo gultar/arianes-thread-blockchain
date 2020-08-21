@@ -59,9 +59,9 @@ class ValidationController{
             else{}
         })
 
-        // for(var i=0; i < 100; i++){
-        //     worker.postMessage({ test:call })
-        // }
+        for(var i=0; i < 100; i++){
+            worker.postMessage({ test:call })
+        }
 
         worker.postMessage({ test:call })
     
