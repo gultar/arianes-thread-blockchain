@@ -64,6 +64,7 @@ class ValidationController{
         }
 
         worker.postMessage({ test:call })
+        worker.postMessage({ test:tx })
     
     }
 
