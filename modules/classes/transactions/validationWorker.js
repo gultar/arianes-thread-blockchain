@@ -107,7 +107,7 @@ class ValidationWorker{
         @param {object} $ownerKey - Public key of the owner account
         @return {boolean} Signature is valid or not
     */
-    validateActionSignature(action, ownerKey){
+    async validateActionSignature(action, ownerKey){
         try{
             if(action && ownerKey){
                 if(validatePublicKey(ownerKey)){
@@ -137,7 +137,7 @@ class ValidationWorker{
         @param {object} $publicKey - Public key of the owner account
         @return {boolean} Signature is valid or not
     */
-    validateSignature(transaction, publicKey){
+    async validateSignature(transaction, publicKey){
         try{
             if(transaction && publicKey){
                 if(validatePublicKey(publicKey)){
