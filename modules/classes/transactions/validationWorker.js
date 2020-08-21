@@ -11,6 +11,7 @@ class ValidationWorker{
         this.controller = parentPort
         this.balances = workerData.balanceStates
         this.accounts = workerData.accounts
+        this.transactionSizeLimit = 10 * 1024
     }
 
     init(){
