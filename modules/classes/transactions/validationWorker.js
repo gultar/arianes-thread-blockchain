@@ -8,8 +8,8 @@ const chalk = require('chalk')
 
 class ValidationWorker{
     constructor(){
-        this.controller = parentPort
-        this.balances = workerData.balanceStates
+        
+        this.balances = workerData.balances
         this.accounts = workerData.accounts
         this.contracts = workerData.contracts
         this.transactionSizeLimit = 10 * 1024
