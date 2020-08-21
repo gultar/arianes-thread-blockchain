@@ -2751,7 +2751,7 @@ class Blockchain{
         this.isLoadingBlocks = false
         if(loaded){
           let contractTableStarted = await this.contractTable.init()
-          
+          let validatorStarted = await this.validationController.startThread()
           let savedBalances = await this.balance.loadBalances(this.getLatestBlock().blockNumber)
           if(savedBalances.error){
             reject(savedBalances.error)
