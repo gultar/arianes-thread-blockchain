@@ -1,6 +1,7 @@
 const { Worker } = require('worker_threads');
 const { logger } = require('../../tools/utils')
 const chalk = require('chalk')
+const EventEmitter = require('events')
 
 class ValidationController{
     constructor({ balanceTable, accountTable, contractTable }){
@@ -8,6 +9,7 @@ class ValidationController{
         this.accountTable = accountTable
         this.contractTable = contractTable
         this.worker = {}
+        this.resultEvents = new EventEmitter()
     }
 
     async startThread(){
@@ -24,19 +26,27 @@ class ValidationController{
             this.worker.terminate()
             //this.startThread()
         })
+
+        this.worker.on('message', (message)=>{
+            if(message.validatedTransaction){
+                let transaction = message.validatedTransaction.transaction
+                let result = message.validatedTransaction.result
+                this.resultEvents.emit(transaction.hash, { result:result, transaction:transaction })
+            }else if(message.validatedAction){
+                let action = message.validatedAction.action
+                let result = message.validatedAction.result
+                this.resultEvents.emit(transaction.hash, { result:result, action:action })
+            }
+        })
     
     }
 
     validateTransaction(transaction){
         return new Promise((resolve)=>{
-            const receiveResult = (message)=>{
-                if(message[transaction.hash]){
-                    let result = message[transaction.hash]
-                    if(result.error) resolve({ error:result.error })
-                    else resolve(message.transaction)
-                }
-            }
-            this.worker.once('message', receiveResult)
+            this.resultEvents.once(transaction.hash, ({ result, transaction })=>{
+                if(result.error) resolve({ error:result.error })
+                else resolve({ result:result, transaction:transaction })
+            })
             this.worker.postMessage({ validateTransaction:transaction })
             
         })
@@ -44,14 +54,11 @@ class ValidationController{
 
     validateAction(action){
         return new Promise((resolve)=>{
-            const receiveResult = (message)=>{
-                if(message[action.hash]){
-                    let result = message[action.hash]
-                    if(result.error) resolve({ error:result.error })
-                    else resolve(message.action)
-                }
-            }
-            this.worker.once('message', receiveResult)
+            
+            this.resultEvents.once(action.hash, ({ result, action })=>{
+                if(result.error) resolve({ error:result.error })
+                else resolve({ result:result, action:action })
+            })
             this.worker.postMessage({ validateAction:action })
             
         })

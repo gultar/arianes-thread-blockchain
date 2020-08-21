@@ -28,11 +28,11 @@ class ValidationWorker{
             }else if(message.validateTransaction){
                 let transaction = message.validateTransaction
                 let result = await this.validateTransaction(transaction)
-                parentPort.postMessage({ [transaction.hash]:result, transaction:transaction })
+                parentPort.postMessage({ validatedTransaction:{ result:result, transaction:transaction } })
             }else if(message.validateAction){
                 let action = message.validateAction
                 let result = await this.validateAction(action)
-                parentPort.postMessage({ [action.hash]:result, action:action })
+                parentPort.postMessage({ validatedAction:{ result:result, action:action } })
             }
         })
     }
