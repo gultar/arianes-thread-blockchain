@@ -102,7 +102,6 @@ class Database{
             
             let entry = await this.database.get(this.name, '*');
             let results = entry.result
-            console.log('Res in DB.js', entry)
            
             if(Array.isArray(results) && results.length > 0){
                 return results

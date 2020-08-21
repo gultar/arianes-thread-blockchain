@@ -679,7 +679,7 @@ class Mempool{
         return new Promise(async (resolve)=>{
             let txEntry = await this.transactions.getAll()
             let actionEntry = await this.actions.getAll()
-            console.log('Transactions: ',txEntry)
+            
             if(txEntry && txEntry.length){
                 for await(let index of txEntry){
                     let hash = index._id
