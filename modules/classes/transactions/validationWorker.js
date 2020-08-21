@@ -444,7 +444,7 @@ class ValidationWorker{
 const runValidator = () =>{
     let validator = new ValidationWorker()
     validator.init()
-    console.log(validator)
+    // console.log(validator)
 }
 
 runValidator()
