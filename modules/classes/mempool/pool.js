@@ -350,7 +350,7 @@ class Mempool{
                     let transaction = await this.getTransaction(hash)
                     if(transaction){
                         if(transaction.error) errors[hash] = transaction.error
-                        this.usedTxReceipts[hash] = this.createTransactionReceipt(transaction)
+                        this.usedTxReceipts[hash] = await this.createTransactionReceipt(transaction)
                         let used = await this.removeTransaction(hash)
                         if(used && !used.error) transactions[transaction.hash] = transaction
                     }
@@ -380,14 +380,14 @@ class Mempool{
                         if(putback.error) errors[hash] = putback.error
                     }
                 }
-               
-                
             }
 
             if(Object.keys(errors).length > 0) resolve({error:errors})
             else resolve(true)
         })
     }
+
+
     gatherActionsForBlock(){
         return new Promise( async (resolve)=>{
             let actions = {}
@@ -679,23 +679,17 @@ class Mempool{
         return new Promise(async (resolve)=>{
             let txEntry = await this.transactions.getAll()
             let actionEntry = await this.actions.getAll()
-            
+            console.log('Transactions: ',txEntry)
             if(txEntry && txEntry.length){
                 for await(let index of txEntry){
-                    
                     let hash = index._id
                     this.txReceipts[hash] = index[hash]
-                    // console.log(txEntry)
-                    // let tx = txEntry[index]
-                    // this.txReceipts[tx.hash] = tx
                 }
             }
             if(actionEntry && actionEntry.length){
                 for await(let index of actionEntry){
                     let hash = index._id
                     this.actionReceipts[hash] = index[hash]
-                    // let action = actionEntry[index]
-                    // this.actionReceipts[action.hash] = action
                 }
             }
 
@@ -705,19 +699,6 @@ class Mempool{
 
     saveMempool(){
         return new Promise( async (resolve)=>{
-            // // let savedTxReceipts = await this.transactions.add({
-            // //     _id:'receipts',
-            // //     'receipts':this.txReceipts
-            // // })
-
-            // // let savedActionReceipts = await this.actions.add({
-            // //     _id:'receipts',
-            // //     'receipts':this.actionsReceipts
-            // // })
-
-            // if(savedTxReceipts.error) resolve({error:savedTxReceipts.error})
-            // if(savedActionReceipts.error) resolve({error:savedActionReceipts.error})
-
             resolve(true)
         })
     }

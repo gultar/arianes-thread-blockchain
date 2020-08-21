@@ -2023,13 +2023,13 @@ class Node {
         let savedStates = await this.chain.balance.saveBalances(this.chain.getLatestBlock());
         let savedNodeList = await this.nodeList.saveNodeList();
         let savedNetworkConfig = await this.networkManager.save()
-        let savedMempool = await this.mempool.saveMempool();
+        //let savedMempool = await this.mempool.saveMempool();
         let savedWalletManager = await this.walletManager.saveState();
         let savedNodeConfig = await this.saveNodeConfig();
         if( 
                blockchainSaved
             && savedNodeList 
-            && savedMempool
+            //&& savedMempool
             && savedWalletManager
             && savedNodeConfig
             && savedStates
