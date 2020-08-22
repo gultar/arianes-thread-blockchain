@@ -878,7 +878,11 @@ class Blockchain{
 
   isBlockLinkedToPrevious(block){
     if(block){
-      var previousBlock = this.chain[block.blockNumber - 1];
+      let blockNumber = block.blockNumber
+      if(typeof block.blockNumber == 'string'){
+        blockNumber = parseInt(block.blockNumber)
+      }
+      var previousBlock = this.chain[blockNumber - 1];
       if(previousBlock.hash == block.previousHash) return true;
       else return { error:`ERROR: Block ${block.blockNumber} ${block.hash.substr(0,15)} not linked to ${previousBlock.hash.substr(0,15)} ` };
     }else{
