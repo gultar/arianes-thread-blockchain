@@ -133,20 +133,19 @@ class MinerAPI{
     }
 
     async addMinedBlock(block){
-        let isValid = await this.chain.validateBlock(block)
-        if(isValid){
-          if(isValid.error){
-            if(this.verbose) logger("INVALID BLOCK:", isValid)
-            return { error:isValid.error }
-          }  //
-          else{
-              
+        let isValidHeader = await this.chain.validateHeader(block)
+        let isValidBody = await this.chain.validateBlockBody(block)
+        if(isValidHeader.error) return { error:isValidHeader.error }
+        else if(isValidBody.error) return { error:isValidBody.error }
+        else{
+            
             if(this.isNodeRoutingBlock) return { error:`ERROR: Couldn't add block ${block.blockNumber}, node is routing block` }
             //To guard against accidentally creating doubles
             let isNextBlock = block.blockNumber == this.chain.getLatestBlock().blockNumber + 1
             let headerExists = this.chain[block.blockNumber]
             if(!headerExists) headerExists = await this.chain.getBlockbyHash(block.hash)
             let exists = await this.chain.getBlockFromDB(block.blockNumber)
+            
             if(!exists && !headerExists && isNextBlock){
                 
                 //Broadcast new block found
@@ -165,10 +164,6 @@ class MinerAPI{
             }else if(!isNextBlock){
                 return { error:`ERROR: Mined Block ${block.blockNumber} is not next block` }
             }
-          }
-          
-        }else{
-          return { error:'ERROR: Mined Block is not valid!' }
         }
     }
 
