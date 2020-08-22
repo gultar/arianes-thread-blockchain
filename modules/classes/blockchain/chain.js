@@ -1268,8 +1268,7 @@ class Blockchain{
           if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
         }
         
-        var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
-        if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
+        
 
         return true
         
@@ -1290,6 +1289,9 @@ class Blockchain{
 
         var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
+
+        var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
+        if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
 
         return true
 

@@ -128,138 +128,138 @@ class PeerManager{
         }
     }
 
-    /**
-        Basis for P2P connection
-    */
-    connectToPeer(address){
+    // /**
+    //     Basis for P2P connection
+    // */
+    // connectToPeer(address){
         
-        if(address && this.address != address){
-            if(!this.connectionsToPeers[address]){
-                //This is to enable connections on the same machine, if disabled, can only connect to remote nodes
-                if(!this.noLocalhost){
-                    if(address.includes(this.host) && (this.host !== '127.0.0.1' || this.host !== 'localhost')){
-                        let [ prefix, hostAndPort ] = address.split('://')
-                        let [ host, port ] = hostAndPort.split(':')
-                        address = `${prefix}://${this.lanHost}:${port}`
-                        // console.log('NEW ADDRESS', address)
-                    }else{
-                        let [ prefix, hostAndPort ] = address.split('://')
-                        let [ host, port ] = hostAndPort.split(':')
-                        address = `${prefix}://127.0.0.1:${port}`
-                    }
-                }
-                let connectionAttempts = 0;
-                let peer;
-                try{
-                    let networkConfig = this.networkManager.getNetwork()
-                    let token = {
-                        address:this.address,
-                        networkConfig:networkConfig
-                    }
+    //     if(address && this.address != address){
+    //         if(!this.connectionsToPeers[address]){
+    //             //This is to enable connections on the same machine, if disabled, can only connect to remote nodes
+    //             if(!this.noLocalhost){
+    //                 if(address.includes(this.host) && (this.host !== '127.0.0.1' || this.host !== 'localhost')){
+    //                     let [ prefix, hostAndPort ] = address.split('://')
+    //                     let [ host, port ] = hostAndPort.split(':')
+    //                     address = `${prefix}://${this.lanHost}:${port}`
+    //                     // console.log('NEW ADDRESS', address)
+    //                 }else{
+    //                     let [ prefix, hostAndPort ] = address.split('://')
+    //                     let [ host, port ] = hostAndPort.split(':')
+    //                     address = `${prefix}://127.0.0.1:${port}`
+    //                 }
+    //             }
+    //             let connectionAttempts = 0;
+    //             let peer;
+    //             try{
+    //                 let networkConfig = this.networkManager.getNetwork()
+    //                 let token = {
+    //                     address:this.address,
+    //                     networkConfig:networkConfig
+    //                 }
                     
-                    let config = {
-                        'reconnection limit' : 1000,
-                        'max reconnection attempts' : 3,
-                        'pingInterval': 200, 
-                        'pingTimeout': 10000,
-                        'secure':true,
-                        'rejectUnauthorized':false,
-                        'query':
-                        {
-                            token: JSON.stringify(token),
-                        }
-                    }
+    //                 let config = {
+    //                     'reconnection limit' : 1000,
+    //                     'max reconnection attempts' : 3,
+    //                     'pingInterval': 200, 
+    //                     'pingTimeout': 10000,
+    //                     'secure':true,
+    //                     'rejectUnauthorized':false,
+    //                     'query':
+    //                     {
+    //                         token: JSON.stringify(token),
+    //                     }
+    //                 }
 
-                    if(this.noLocalhost && (address.includes('localhost') || address.includes('127.0.0.1') || address.includes('0.0.0.0'))){
-                        logger('Connections to localhost not allowed')
-                        return null;
-                    }
+    //                 if(this.noLocalhost && (address.includes('localhost') || address.includes('127.0.0.1') || address.includes('0.0.0.0'))){
+    //                     logger('Connections to localhost not allowed')
+    //                     return null;
+    //                 }
 
-                    let peerReputation = this.reputationTable.getPeerReputation(address)
-                    if(peerReputation == 'untrusted'){
-                        logger(`Refused connection to untrusted peer ${address}`)
-                        response.success = false
-                        return { willNotConnect:'Peer is untrustworthy' }
-                    }
+    //                 let peerReputation = this.reputationTable.getPeerReputation(address)
+    //                 if(peerReputation == 'untrusted'){
+    //                     logger(`Refused connection to untrusted peer ${address}`)
+    //                     response.success = false
+    //                     return { willNotConnect:'Peer is untrustworthy' }
+    //                 }
                     
-                    peer = ioClient(address, config);
-                    peer.heartbeatTimeout = 120000;
-                    peer.address = address
+    //                 peer = ioClient(address, config);
+    //                 peer.heartbeatTimeout = 120000;
+    //                 peer.address = address
 
-                    if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
-                    this.UILog('Requesting connection to '+ address+ ' ...');
+    //                 if(this.verbose) logger('Requesting connection to '+ address+ ' ...');
+    //                 this.UILog('Requesting connection to '+ address+ ' ...');
 
-                    peer.on('connect_timeout', (timeout)=>{
-                        if(connectionAttempts >= 3) peer.destroy()
-                        else connectionAttempts++;
-                    })
+    //                 peer.on('connect_timeout', (timeout)=>{
+    //                     if(connectionAttempts >= 3) peer.destroy()
+    //                     else connectionAttempts++;
+    //                 })
 
-                    peer.on('error', (error)=>{
-                        logger(chalk.red('PEER ERROR'),error)
-                    })
+    //                 peer.on('error', (error)=>{
+    //                     logger(chalk.red('PEER ERROR'),error)
+    //                 })
 
 
-                    peer.on('connect', async () =>{
-                        if(!this.connectionsToPeers[address]){
+    //                 peer.on('connect', async () =>{
+    //                     if(!this.connectionsToPeers[address]){
                             
-                            peer.emit('authentication', networkConfig);
-                            peer.on('authenticated',async  (response)=>{
+    //                         peer.emit('authentication', networkConfig);
+    //                         peer.on('authenticated',async  (response)=>{
                                 
-                                if(!peerReputation){
-                                    logger(`New peer is unkown. Creating new reputation entry`)
-                                    let created = await this.reputationTable.createPeerReputation(address)
-                                    if(created.error){
-                                        logger('Could not create peer reputation entry. An error occured')
-                                        logger(created.error)
-                                    }
-                                }
+    //                             if(!peerReputation){
+    //                                 logger(`New peer is unkown. Creating new reputation entry`)
+    //                                 let created = await this.reputationTable.createPeerReputation(address)
+    //                                 if(created.error){
+    //                                     logger('Could not create peer reputation entry. An error occured')
+    //                                     logger(created.error)
+    //                                 }
+    //                             }
 
-                                if(response.success){
-                                    this.connectionsToPeers[address] = peer;
-                                    logger(chalk.green('Connected to ', address))
-                                    this.UILog('Connected to ', address)
+    //                             if(response.success){
+    //                                 this.connectionsToPeers[address] = peer;
+    //                                 logger(chalk.green('Connected to ', address))
+    //                                 this.UILog('Connected to ', address)
                                     
-                                    peer.emit('message', `Peer ${this.address} connected` );
-                                    let status = await this.buildBlockchainStatus()
-                                    peer.emit('connectionRequest', this.address);
-                                    this.nodeList.addNewAddress(address) 
+    //                                 peer.emit('message', `Peer ${this.address} connected` );
+    //                                 let status = await this.buildBlockchainStatus()
+    //                                 peer.emit('connectionRequest', this.address);
+    //                                 this.nodeList.addNewAddress(address) 
                                 
-                                    this.requestNewPeers(peer)
-                                    this.onPeerAuthenticated(peer)
+    //                                 this.requestNewPeers(peer)
+    //                                 this.onPeerAuthenticated(peer)
 
-                                }else{
-                                    logger('Could not connect to remote node', response)
-                                    /**
-                                     * if(response.network){
-                                            let exists = this.networkManager.getNetwork(response.network.network)
-                                            if(!exists){
-                                                let added = await this.networkManager.addNetwork(response.network)
-                                                if(added.error) logger('PEER TOKEN ERROR', added.error)
-                                                logger('Discovered new network ', response.network.network)
-                                            }
-                                        }
-                                     */
-                                    peer.disconnect()
-                                }
+    //                             }else{
+    //                                 logger('Could not connect to remote node', response)
+    //                                 /**
+    //                                  * if(response.network){
+    //                                         let exists = this.networkManager.getNetwork(response.network.network)
+    //                                         if(!exists){
+    //                                             let added = await this.networkManager.addNetwork(response.network)
+    //                                             if(added.error) logger('PEER TOKEN ERROR', added.error)
+    //                                             logger('Discovered new network ', response.network.network)
+    //                                         }
+    //                                     }
+    //                                  */
+    //                                 peer.disconnect()
+    //                             }
                                 
-                            });
+    //                         });
                             
                         
                         
-                        }else{}
-                    })
+    //                     }else{}
+    //                 })
 
 
-                }catch(err){
-                    console.log(err)
-                }
+    //             }catch(err){
+    //                 console.log(err)
+    //             }
 
-            }else{
-                // logger('Already initiated peer connection')
-            }
+    //         }else{
+    //             // logger('Already initiated peer connection')
+    //         }
 
-        }
-    }
+    //     }
+    // }
 
     getPeer(address){
         return this.connectionsToPeers[address]
