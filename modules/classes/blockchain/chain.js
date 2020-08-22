@@ -1252,8 +1252,10 @@ class Blockchain{
         var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
         if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
 
-        var isLinkedToPreviousBlock = this.isBlockLinkedToPrevious(block)
-        if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
+        if(block.blockNumber <= this.getLatestBlock().blockNumber + 1){
+          var isLinkedToPreviousBlock = this.isBlockLinkedToPrevious(block)
+          if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
+        }
 
         return true
         
