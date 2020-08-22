@@ -334,7 +334,7 @@ class Blockchain{
 
   async routeBlock(newBlock, skipCallExecution=false){
     let startValidateBlock = process.hrtime()
-    let isValidBlock = await this.validateBlock(newBlock)
+    let isValidBlock = await this.validateHeader(newBlock)
     let endValidateBlock = process.hrtime(startValidateBlock)
     blockExecutionDebug(`Validate Block: ${endValidateBlock[1]/1000000}`)
     if(isValidBlock.error) return { error:isValidBlock.error }
@@ -395,6 +395,9 @@ class Blockchain{
       if(previousBlockExists.error) return { error:new Error(previousBlockExists.error) }
     }
     else previousBlockExists = true
+
+    let isValidBlockBody = await this.validateBlockBody(newBlock)
+    if(isValidBlockBody.error) return { error:isValidBlockBody.error }
 
     let newHeader = this.extractHeader(newBlock)
     // if(this.chain.length == newHeader.blockNumber + 1){
@@ -873,6 +876,16 @@ class Blockchain{
     return false;
   }
 
+  isBlockLinkedToPrevious(block){
+    if(block){
+      var previousBlock = this.chain[block.blockNumber - 1];
+      if(previousBlock.hash == block.previousHash) return true;
+      else return { error:`ERROR: Block ${block.blockNumber} ${block.hash.substr(0,15)} not linked to ${previousBlock.hash.substr(0,15)} ` };
+    }else{
+      return { error:`ERROR: Cannot check if block is linked, block provided is undefined ` }
+    }
+  }
+
   isBlockLinked(block){
     if(block){
       var lastBlock = this.getLatestBlock();
@@ -1218,7 +1231,56 @@ class Blockchain{
     return true
   }
 
+  async validateHeader(){
+    try{
+        var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
+        if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
+        
+        var isValidHash = block.hash == RecalculateHash(block);
+        if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
 
+        var isValidTimestamp = await this.validateBlockTimestamp(block)
+        if(!isValidTimestamp) logger(chalk.red('TIMESTAMP ERROR'), `on block ${block.blockNumber}` )
+        
+        var isValidConsensus = await this.consensus.validate(block)
+        if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
+
+        var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
+        if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
+
+        var isLinkedToPreviousBlock = this.isBlockLinkedToPrevious(block)
+        if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
+
+        return true
+        
+    }catch(e){
+       return { error:e }
+    }
+  }
+
+  async validateBlockBody(){
+      try{
+        var isFork = this.getLatestBlock().blockNumber == block.blockNumber || this.getLatestBlock().blockNumber + 1 == block.blockNumber
+        
+        var doesNotContainDoubleSpend = this.blockDoesNotContainDoubleSpend(block)
+        if(doesNotContainDoubleSpend && doesNotContainDoubleSpend < block.blockNumber - 1) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
+        
+        var areValidTx = await this.validateBlockTransactions(block)
+        if(areValidTx.error && !isFork) return { error:"ERROR: Block contains spent transactions"} 
+
+        var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
+        if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
+        
+        var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
+        if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
+        
+
+        return true
+
+      }catch(e){
+        return { error:e }
+      }
+  }
   /**
     Criterias for validation are as follows:
     - Block has successfully calculated a valid hash
