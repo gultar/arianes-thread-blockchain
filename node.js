@@ -1525,7 +1525,7 @@ class Node {
       if(transaction && this.chain instanceof Blockchain){
         if(isValidTransactionJSON(transaction) || isValidTransactionCallJSON(transaction)){
   
-            let valid = await  this.chain.validateTransaction(transaction)
+            let valid = await  this.chain.validationController.validateTransaction(transaction)
             if(!valid.error){
                 await this.mempool.addTransaction(transaction);
                 this.UILog('<-'+' Received valid transaction : '+ transaction.hash.substr(0, 15)+"...")
