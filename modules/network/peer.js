@@ -34,8 +34,8 @@ class Peer{
                     this.socket.heartbeatTimeout = 120000;
                     this.socket.address = this.address
 
-                    logger('Connecting to '+ this.address+ ' ...');
-                    this.UILog('Requesting connection to '+ this.address+ ' ...');
+                    // logger('Connecting to '+ this.address+ ' ...');
+                    // this.UILog('Requesting connection to '+ this.address+ ' ...');
 
                     this.socket.on('error', e =>  { reject(e) })
                     this.socket.on('connect_timeout', (timeout)=>{
