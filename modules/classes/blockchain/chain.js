@@ -1231,7 +1231,7 @@ class Blockchain{
     return true
   }
 
-  async validateHeader(){
+  async validateHeader(block){
     try{
         var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
         if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
@@ -1258,7 +1258,7 @@ class Blockchain{
     }
   }
 
-  async validateBlockBody(){
+  async validateBlockBody(block){
       try{
         var isFork = this.getLatestBlock().blockNumber == block.blockNumber || this.getLatestBlock().blockNumber + 1 == block.blockNumber
         
