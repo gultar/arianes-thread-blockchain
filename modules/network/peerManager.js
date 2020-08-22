@@ -219,7 +219,7 @@ class PeerManager{
                                     logger(chalk.green('Connected to ', address))
                                     this.UILog('Connected to ', address)
                                     
-                                    peer.emit('message', 'Connection established by '+ this.address);
+                                    peer.emit('message', `Peer ${this.address} connected` );
                                     let status = await this.buildBlockchainStatus()
                                     peer.emit('connectionRequest', this.address);
                                     this.nodeList.addNewAddress(address) 

@@ -100,7 +100,7 @@ class Peer{
             else if(updated.busy) logger(chalk.yellow('CHAIN STATUS:', updated.busy))
         })
         this.socket.emit('connectionRequest', this.nodeAddress);
-        this.socket.emit('message', 'Connection established by '+ this.nodeAddress);
+        this.socket.emit('message', `Peer ${this.nodeAddress} connected` );
 
         
     }
