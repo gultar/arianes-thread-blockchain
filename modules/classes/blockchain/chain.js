@@ -1227,7 +1227,7 @@ class Blockchain{
         logger('Validating block '+header.blockNumber)
         let block = await this.getBlockFromDB(header.blockNumber.toString())
         
-        let isValidBlock = await this.isValidBlock(block)
+        let isValidBlock = await this.validateHeader(block)
         if(!isValidBlock) return { error: `Block number ${block.blockNumber} is not valid` }
       }
     }
@@ -1235,6 +1235,17 @@ class Blockchain{
     return true
   }
 
+    /**
+    Criteria for validation:
+    - Block has successfully calculated a valid hash
+    - Block linked with previous block by including previous hash in its own hash calculation
+    - Total challenge score matches 
+    - Chain doesn't already contain this block
+    - Timestamp is greater than previous timestamp
+    - All transactions are valid
+    - No double spend took place in chain
+    @param {string} $block - Block to be validated
+  */
   async validateHeader(block){
     try{
         var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
@@ -1256,6 +1267,9 @@ class Blockchain{
           var isLinkedToPreviousBlock = this.isBlockLinkedToPrevious(block)
           if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
         }
+        
+        var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
+        if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
 
         return true
         
@@ -1276,10 +1290,6 @@ class Blockchain{
 
         var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
         if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
-        
-        var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
-        if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
-        
 
         return true
 
@@ -1287,44 +1297,34 @@ class Blockchain{
         return { error:e }
       }
   }
-  /**
-    Criterias for validation are as follows:
-    - Block has successfully calculated a valid hash
-    - Block linked with previous block by including previous hash in its own hash calculation
-    - Total challenge score matches 
-    - Chain doesn't already contain this block
-    - Timestamp is greater than previous timestamp
-    - All transactions are valid
-    - No double spend took place in chain
-    @param {string} $block - Block to be validated
-  */
-  async validateBlock(block){
-      try{
-        var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
-        var isFork = this.getLatestBlock().blockNumber == block.blockNumber || this.getLatestBlock().blockNumber + 1 == block.blockNumber
-        var doesNotContainDoubleSpend = this.blockDoesNotContainDoubleSpend(block)
-        var areValidTx = await this.validateBlockTransactions(block)
-        var isValidHash = block.hash == RecalculateHash(block);
-        var isValidTimestamp = await this.validateBlockTimestamp(block)
-        var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
-        var isValidConsensus = await this.consensus.validate(block)
-        var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
-        var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
+
+  // async validateBlock(block){
+  //     try{
+  //       var chainAlreadyContainsBlock = await this.getBlockbyHash(block.hash);
+  //       var isFork = this.getLatestBlock().blockNumber == block.blockNumber || this.getLatestBlock().blockNumber + 1 == block.blockNumber
+  //       var doesNotContainDoubleSpend = this.blockDoesNotContainDoubleSpend(block)
+  //       var areValidTx = await this.validateBlockTransactions(block)
+  //       var isValidHash = block.hash == RecalculateHash(block);
+  //       var isValidTimestamp = await this.validateBlockTimestamp(block)
+  //       var singleCoinbase = await this.validateUniqueCoinbaseTx(block)
+  //       var isValidConsensus = await this.consensus.validate(block)
+  //       var coinbaseIsAttachedToBlock = this.coinbaseIsAttachedToBlock(singleCoinbase, block)
+  //       var merkleRootIsValid = await this.isValidMerkleRoot(block.merkleRoot, block.transactions);
       
-        if(doesNotContainDoubleSpend && doesNotContainDoubleSpend < block.blockNumber - 1) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
-        if(areValidTx.error && !isFork) return { error:"ERROR: Block contains spent transactions"} 
-        if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
-        if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
-        if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
-        if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
-        if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
-        if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
+  //       if(doesNotContainDoubleSpend && doesNotContainDoubleSpend < block.blockNumber - 1) return { error:`ERROR: Block ${block.blockNumber} contains double spend` }
+  //       if(areValidTx.error && !isFork) return { error:"ERROR: Block contains spent transactions"} 
+  //       if(!isValidConsensus || isValidConsensus.error) return { error:(isValidConsensus ? isValidConsensus.error : 'ERROR: Block does not meet consensus requirements') }
+  //       if(!coinbaseIsAttachedToBlock) return {error:'ERROR: Coinbase transaction is not attached to block '+block.blockNumber}
+  //       if(!singleCoinbase) return {error:'ERROR: Block must contain only one coinbase transaction'}
+  //       if(!merkleRootIsValid) return {error:'ERROR: Merkle root of block is not valid'}
+  //       if(!isValidHash) return {error:'ERROR: Is not valid block hash'}
+  //       if(chainAlreadyContainsBlock) return {error:'ERROR: Chain already contains block'}
         
-        return true
-      }catch(e){
-        return { error:e.message }
-      }
-  }
+  //       return true
+  //     }catch(e){
+  //       return { error:e.message }
+  //     }
+  // }
 
   async blockDoesNotContainDoubleSpend(block){
     let txHashes = Object.keys(block.transactions);
