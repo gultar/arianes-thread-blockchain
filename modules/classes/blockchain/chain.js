@@ -1269,7 +1269,7 @@ class Blockchain{
 
         if(block.blockNumber <= this.getLatestBlock().blockNumber + 1){
           var isLinkedToPreviousBlock = this.isBlockLinkedToPrevious(block)
-          console.log('Is linked to previous?', isLinkedToPreviousBlock)
+          // console.log('Is linked to previous?', isLinkedToPreviousBlock)
           if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
         }
         
