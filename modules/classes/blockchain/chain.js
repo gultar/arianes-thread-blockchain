@@ -1202,8 +1202,11 @@ class Blockchain{
     let previousBlock = this.chain[block.blockNumber - 1] || this.getLatestBlock()
     let previousTimestamp = previousBlock.timestamp
     if(timestamp > previousTimestamp && timestamp < (Date.now() + twentyMinutesInTheFuture) ){
-      if(block.timestamp < medianBlockTimestamp) return false
-      else return true
+      /**
+       * if(block.timestamp < medianBlockTimestamp) return false
+        else return true
+       */
+      return true
     }else{
       return false
     }
@@ -2075,7 +2078,10 @@ class Blockchain{
             resolve(result)
           }
         }else{
+          let startExecute = process.hrtime()
           let results = await this.executeManyCalls(calls)
+          let endExecute = process.hrtime(startExecute)
+          console.log(`Executed ${Object.keys(calls).length} calls in block in: ${endExecute[1]}`)
           if(results){
             if(results.error) resolve({error:results.error})
             else if(Object.keys(results).length > 0){
