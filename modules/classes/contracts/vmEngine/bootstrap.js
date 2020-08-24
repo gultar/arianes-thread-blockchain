@@ -136,13 +136,17 @@ class Bootstrap{
         }
     }
 
-    buildVM({ contractName }){
+    buildVM({ contractName, contract, state }){
         return new Promise(async (resolve)=>{
 
             
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
-                workerData: {},
+                workerData: {
+                    contractName:contractName,
+                    contract:contract,
+                    state:state
+                },
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
@@ -332,7 +336,8 @@ class Bootstrap{
         if(this.workers[contractName]){
             return this.workers[contractName]
         }else{
-            this.workers[contractName] = await this.buildVM({ contractName:contractName })
+            let memory = this.workerMemory[contractName]
+            this.workers[contractName] = await this.buildVM({ contractName:contractName, contract:memory.contract, state:memory.contract })
             return this.workers[contractName];
         }
     }

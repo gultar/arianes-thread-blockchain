@@ -11,7 +11,7 @@ const ContractPayable = require('../../transactions/payable')
 const makeExternal = require('../toolbox/makeExternal')
 const EventEmitter = require('events')
 const { isValidActionJSON, isValidAccountJSON, isValidContractActionJSON, isValidPayableJSON, isValidCallPayloadJSON } = require('../../../tools/jsonvalidator')
-
+const { workerData } = require('worker_threads')
 //Kind of useless
 class Signals extends EventEmitter{
     constructor(){
@@ -248,6 +248,8 @@ class ContractVM{
                 }
             }
         }
+
+        
 
         this.vm = new NodeVM(this.sandbox.context)
     }
