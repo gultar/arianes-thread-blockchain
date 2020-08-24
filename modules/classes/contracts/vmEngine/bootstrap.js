@@ -317,6 +317,8 @@ class Bootstrap{
                         contractName:message.contractName
                     })
 
+                }else if(message.log){
+                    console.log('VM:', message.log)
                 }
             
            })

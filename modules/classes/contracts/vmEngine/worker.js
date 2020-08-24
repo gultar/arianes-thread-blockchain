@@ -32,6 +32,10 @@ vm.signals.on('emitContractAction', (contractAction)=> parentPort.postMessage({ 
 vm.signals.on('emitPayable', (payable)=> parentPort.postMessage({ emitPayable:JSON.stringify(payable) }))
 vm.signals.on('getBalance', (accountName)=> parentPort.postMessage({ getBalance:accountName }))
 
+const log = (message) =>{
+    parentPort.postMessage({ log:message })
+}
+
 parentPort.on('message', async (message)=>{
 
         if(message.run){
@@ -85,6 +89,8 @@ parentPort.on('message', async (message)=>{
                 let { contractName, contractCode, setContractState } = message;
                 if(contractName && contractCode){
                     await vm.setContractClass(message.contractName, message.contractCode)
+                    log(`State supplied`)
+                    log(setContractState)
                     let stateSet = await vm.setState(setContractState, contractName)
                     if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:message.contractName })
                 }else{
