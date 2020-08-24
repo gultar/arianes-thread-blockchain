@@ -137,9 +137,11 @@ class Bootstrap{
 
     buildVM({ contractName }){
         return new Promise(async (resolve)=>{
+
+            
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
-                workerData: workerData,
+                workerData: {},
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }

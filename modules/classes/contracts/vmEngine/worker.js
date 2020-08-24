@@ -1,9 +1,8 @@
-const { parentPort, workerData } = require('worker_threads')
+const { parentPort } = require('worker_threads')
 const ContractVM = require('./ContractVM')
 
-let { contract, state } = workerData
 
-let vm = new ContractVM(contract, state)
+let vm = new ContractVM()
 
 vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
 vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)

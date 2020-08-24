@@ -23,7 +23,7 @@ let signals = new Signals()
 signals.setMaxListeners(50)
 
 class ContractVM{
-    constructor(contract, state){
+    constructor(){
         this.signals = signals
         this.codes = {}
         this.headers = {}
