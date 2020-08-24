@@ -95,8 +95,9 @@ class Bootstrap{
         
         let worker = await this.getWorker(contractName)
         
-        worker.postMessage({contractName:contractName, contractCode:contractCode})
-        worker.postMessage({setState:state, contractName:contractName})
+        // worker.postMessage({contractName:contractName, contractCode:contractCode})
+        // worker.postMessage({setState:state, contractName:contractName})
+        worker.postMessage({ setContract:contractCode, contractName:contractName, setContractState:state })
         
 
         return { sent: true }

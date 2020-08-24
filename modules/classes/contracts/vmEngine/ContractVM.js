@@ -276,7 +276,6 @@ class ContractVM{
 
     setState(nextState, contractName){
         if(nextState && Object.keys(nextState).length > 0 && contractName){
-            console.log('New state set', JSON.stringify(nextState, null, 2))
             this.sandbox.contractStates[contractName] = nextState
             return true
         }else{
