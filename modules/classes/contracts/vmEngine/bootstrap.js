@@ -121,6 +121,11 @@ class Bootstrap{
 
     buildVM({ contractName }){
         return new Promise(async (resolve)=>{
+
+            this.workerMemory[contractName] = {
+                contract: await this.contractConnector.getContractCode(contractName),
+                state: await this.contractConnector.getLatestState(contractName)
+            }
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: {

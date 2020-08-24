@@ -83,3 +83,5 @@ const runContractVM = async () =>{
             else if(message.ping) parentPort.postMessage({pong:true})
     })
 }
+
+runContractVM()
