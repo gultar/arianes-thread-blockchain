@@ -70,38 +70,39 @@ class VMController{
     async executeCalls(codes){
 
         let calls = {}
-        
-        for await(let contractName of Object.keys(codes)){
-            let moreCalls = codes[contractName].calls
-            if(moreCalls){
-                
-                if(Object.keys(calls).length > 0) calls = { ...calls, ...moreCalls }
-                else calls = { ...moreCalls }
-                
-            }else{
-                return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
-            }
-            // let contractCode = await this.contractConnector.getContractCode(contractName)
-            // if(contractCode){
-            //     let added = await this.vmBootstrap.addContract(contractName, contractCode)
-            //     if(added.error) return { error:added.error } 
 
-            //     let state = await this.contractConnector.getLatestState(contractName)
-            //     if(state && Object.keys(state).length > 0){
-                    
-            //         let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
-            //         if(stateAdded.error) return { error:stateAdded.error }
-
-                    
-            //     }else{
-            //         return { error:`ERROR: Could not find state of ${contractName} while executing multiple calls` }
-            //     }
-                
-                
-            // }else{
-            //     return { error:`Could not find code of contract ${contractName}` }
-            // }
+        let moreCalls = codes[contractName].calls
+        if(moreCalls){
+            
+            if(Object.keys(calls).length > 0) calls = { ...calls, ...moreCalls }
+            else calls = { ...moreCalls }
+            
+        }else{
+            return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
         }
+        
+        // for await(let contractName of Object.keys(codes)){
+        //     let contractCode = await this.contractConnector.getContractCode(contractName)
+        //     if(contractCode){
+        //         let added = await this.vmBootstrap.addContract(contractName, contractCode)
+        //         if(added.error) return { error:added.error } 
+
+        //         let state = await this.contractConnector.getLatestState(contractName)
+        //         if(state && Object.keys(state).length > 0){
+                    
+        //             let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
+        //             if(stateAdded.error) return { error:stateAdded.error }
+
+                    
+        //         }else{
+        //             return { error:`ERROR: Could not find state of ${contractName} while executing multiple calls` }
+        //         }
+                
+                
+        //     }else{
+        //         return { error:`Could not find code of contract ${contractName}` }
+        //     }
+        // }
        
         let blockExecutionDebug = require('debug')('blockExecution')
         let start = process.hrtime() /**  Checking execution time */
