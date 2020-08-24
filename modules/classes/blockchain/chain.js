@@ -883,9 +883,13 @@ class Blockchain{
         blockNumber = parseInt(block.blockNumber)
       }
       var previousBlock = this.chain[blockNumber - 1];
-      if(previousBlock.hash == block.previousHash) return true;
-      else{
-        return { error:`ERROR: Block ${block.blockNumber} ${block.hash.substr(0,10)} not linked to ${previousBlock.hash.substr(0,10)} ` };
+      if(previousBlock){
+        if(previousBlock.hash == block.previousHash) return true;
+        else{
+          return { error:`ERROR: Block ${block.blockNumber} ${block.hash.substr(0,10)} not linked to ${previousBlock.hash.substr(0,10)} ` };
+        }
+      }else if(!previousBlock && blockNumber > this.getLatestBlock().blockNumber){
+        return { higherBlockNumber:true }
       }
     }else{
       return { error:`ERROR: Cannot check if block is linked, block provided is undefined ` }
