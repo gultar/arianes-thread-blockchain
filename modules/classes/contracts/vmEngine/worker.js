@@ -77,7 +77,8 @@ parentPort.on('message', async (message)=>{
                 let { contractName, contractCode, setContractState } = message;
                 if(contractName && contractCode){
                     await vm.setContractClass(message.contractName, message.contractCode)
-                    await vm.setState(setContractState, contractName)
+                    let stateSet = await vm.setState(setContractState, contractName)
+                    if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:message.contractName })
                 }else{
                     parentPort.postMessage({error:'ERROR: Must provide contractName, contractCode and contractState', hash:message.hash, contractName:message.contractName})
                 }
