@@ -894,6 +894,14 @@ class Blockchain{
     }
   }
 
+  isBlockLinkedToPooledBlock(block){
+    if(block){
+      return this.blockPool[block.previousHash]
+    }else{
+      return { error:`ERROR: Cannot check if block is linked, block provided is undefined ` }
+    }
+  }
+
   isBlockLinked(block){
     if(block){
       var lastBlock = this.getLatestBlock();
@@ -1270,7 +1278,11 @@ class Blockchain{
         if(block.blockNumber <= this.getLatestBlock().blockNumber + 1){
           var isLinkedToPreviousBlock = this.isBlockLinkedToPrevious(block)
           // console.log('Is linked to previous?', isLinkedToPreviousBlock)
-          if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
+          if(isLinkedToPreviousBlock.error){
+              let isLinkedToPool = await this.getBlockFromPool(block.previousHash)
+              if(isLinkedToPool) return { pooled:isLinkedToPool }
+              else return { error:isLinkedToPreviousBlock.error }
+          }
         }
         
         
