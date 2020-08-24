@@ -1,5 +1,5 @@
 const EventEmitter = require('events')
-const { Worker } = require('worker_threads')
+const { Worker, workerData } = require('worker_threads')
 let start = false
 let end = false
 let callLog = {}
