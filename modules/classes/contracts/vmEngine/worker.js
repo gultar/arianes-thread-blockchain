@@ -106,4 +106,4 @@ const runContractVM = async () =>{
     })
 }
 
-await runContractVM()
+runContractVM()
