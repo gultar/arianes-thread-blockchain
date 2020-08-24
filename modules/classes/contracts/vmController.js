@@ -80,7 +80,7 @@ class VMController{
             // if(!state) return { error:`ERROR: Could not find state of ${contractName} while executing multiple calls` }
             // else if(state.error) return { error:state.error }
             // else if(Object.keys(state).length == 0) return  { error:`ERROR: State of ${contractName} is an empty object` }
-            let stateAdded = await this.vmBootstrap.initContract(contractName, contractCode, state)
+            let stateAdded = await this.vmBootstrap.initContract(contractName)
             if(stateAdded.error) return { error:stateAdded.error }
 
             let moreCalls = codes[contractName].calls
