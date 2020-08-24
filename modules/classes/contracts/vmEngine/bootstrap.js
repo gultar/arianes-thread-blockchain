@@ -123,11 +123,7 @@ class Bootstrap{
         return new Promise(async (resolve)=>{
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
-                workerData: {
-                    contractName:contractName,
-                    contract:this.workerMemory[contractName].contract || await this.contractConnector.getContractCode(contractName),
-                    state: this.workerMemory[contractName].state || await this.contractConnector.getLatestState(contractName)
-                },
+                workerData: workerData,
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
