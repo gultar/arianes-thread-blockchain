@@ -71,7 +71,7 @@ parentPort.on('message', async (message)=>{
         }else if(message.setContract){
             try{
                 let { contractName, contractCode, setContractState } = message;
-                if(contractName && contractCode){
+                if(contractName && contractCode && setContractState && Object.keys(setContractState).length > 0){
                     let classSet = await vm.setContractClass(contractName, contractCode)
                     let stateSet = await vm.setState(setContractState, contractName)
                     if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:contractName })
