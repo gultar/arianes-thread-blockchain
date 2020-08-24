@@ -161,6 +161,9 @@ class Bootstrap{
                     contract: await this.contractConnector.getContractCode(contractName),
                     state: await this.contractConnector.getState(contractName)
                 }
+                memory = this.workerMemory[contractName]
+                worker.postMessage({ contractName:contractName, contractCode:memory.contract })
+                worker.postMessage({ contractName:contractName, setState:memory.state })
             }
 
            worker.on('error', err => {
