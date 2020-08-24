@@ -119,16 +119,8 @@ class Bootstrap{
         }
     }
 
-    buildVM({ contractName, contractCode, state }){
+    buildVM({ contractName }){
         return new Promise(async (resolve)=>{
-
-            let memory = this.workerMemory[contractName]
-            if(!memory){
-                this.workerMemory[contractName] = {
-                    contract: await this.contractConnector.getContractCode(contractName),
-                    state: await this.contractConnector.getLatestState(contractName)
-                }
-            }
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: {
@@ -323,12 +315,7 @@ class Bootstrap{
         if(this.workers[contractName]){
             return this.workers[contractName]
         }else{
-            let contract = await this.contractConnector.getContractCode(contractName)
-            let state = await this.contractConnector.getLatestState(contractName)
-            if(contract.error) throw new Error(contract.error)
-            if(state.error) throw new Error(state.error)
-            
-            this.workers[contractName] = await this.buildVM({ contractName:contractName, contractCode:contract, state:state })
+            this.workers[contractName] = await this.buildVM({ contractName:contractName })
             return this.workers[contractName];
         }
     }
