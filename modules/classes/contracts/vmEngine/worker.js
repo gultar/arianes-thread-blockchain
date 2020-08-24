@@ -39,7 +39,7 @@ parentPort.on('message', async (message)=>{
         if(message.run){
 
             try{
-                    
+                log('Testing log!!')
                 let result = await vm.run(message.run)
 
                 let resultString = JSON.stringify(result)
