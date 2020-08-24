@@ -11,8 +11,16 @@ let vm = new ContractVM()
 // let stateSet = await vm.setState(state, contractName)
 // if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:contractName })
 
-vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
-vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)
+vm.signals.on('saved', (state)=> {
+    console.log('Saved state from saved listener')
+    console.log('State', state)
+    vm.sandbox.stateStorage = state
+})
+vm.signals.on('saveState', ({ state, contractName })=> {
+    console.log('Saved state from saveState listener')
+    console.log('State', state)
+    vm.sandbox.contractStates[contractName] = state
+})
 vm.signals.on('failed', (failure)=> parentPort.postMessage({error:failure.error, hash:failure.hash}))
 vm.signals.on('getState', (contractName)=> parentPort.postMessage({ getState:contractName }))
 vm.signals.on('getContract', (contractName)=> parentPort.postMessage({ getContract:contractName }))
