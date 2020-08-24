@@ -136,17 +136,13 @@ class Bootstrap{
         }
     }
 
-    buildVM({ contractName, contract, state }){
+    buildVM({ contractName}){
         return new Promise(async (resolve)=>{
 
             
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
-                workerData: {
-                    contractName:contractName,
-                    contract:contract,
-                    state:state
-                },
+                workerData: {},
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
@@ -155,12 +151,12 @@ class Bootstrap{
            
            this.workers[contractName] = worker
 
-        //    if(this.workerMemory[contractName] && Object.keys(this.workerMemory[contractName]).length > 0){
-        //             worker.postMessage({ contractName:contractName, contractCode:this.workerMemory[contractName].contract })
-        //             if(this.workerMemory[contractName].state && Object.keys(this.workerMemory[contractName].state) > 0) {
-        //                 worker.postMessage({ contractName:contractName, setState:this.workerMemory[contractName].state })
-        //             }
-        //     }
+           if(this.workerMemory[contractName] && Object.keys(this.workerMemory[contractName]).length > 0){
+                    worker.postMessage({ contractName:contractName, contractCode:this.workerMemory[contractName].contract })
+                    if(this.workerMemory[contractName].state && Object.keys(this.workerMemory[contractName].state) > 0) {
+                        worker.postMessage({ contractName:contractName, setState:this.workerMemory[contractName].state })
+                    }
+            }
 
            worker.on('error', err => {
             console.log('Bootstrap Error',err)
@@ -337,7 +333,7 @@ class Bootstrap{
             return this.workers[contractName]
         }else{
             let memory = this.workerMemory[contractName]
-            this.workers[contractName] = await this.buildVM({ contractName:contractName, contract:memory.contract, state:memory.contract })
+            this.workers[contractName] = await this.buildVM({ contractName:contractName })
             return this.workers[contractName];
         }
     }

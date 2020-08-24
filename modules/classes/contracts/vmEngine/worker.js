@@ -6,15 +6,15 @@ const runContractVM = async () =>{
 
     let vm = new ContractVM()
 
-    let { contractName, contractCode, state } = workerData
+    // let { contractName, contractCode, state } = workerData
 
-    console.log('Worker data', workerData)
+    // console.log('Worker data', workerData)
 
-    let set = await vm.setContractClass(contractName, contractCode)
-    let stateSet = await vm.setState(contractName, state)
-    if(stateSet.error){
-        parentPort.postMessage({ error:stateSet.error, contractName:contractName })
-    }
+    // let set = await vm.setContractClass(contractName, contractCode)
+    // let stateSet = await vm.setState(contractName, state)
+    // if(stateSet.error){
+    //     parentPort.postMessage({ error:stateSet.error, contractName:contractName })
+    // }
 
 
     vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
