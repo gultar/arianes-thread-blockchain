@@ -87,6 +87,34 @@ class Bootstrap{
 
     restartVM(){}
 
+    async initContract(contractName){
+        let contractCode = await this.contractConnector.getContractCode(contractName)
+        console.log('Got contract Code', typeof contractCode)
+        let state = await this.contractConnector.getState(contractName)
+        console.log('Got state of contract', state)
+        if(state && Object.keys(state).length > 0){
+            this.workerMemory[contractName] = {
+                contract:contractCode,
+                state: state
+            }
+
+            console.log('Worker memory', this.workerMemory)
+            let worker = await this.getWorker(contractName)
+        
+            worker.postMessage({ 
+                initContract:{
+                    contractCode, contractName:contractName, setContractState:state
+                } 
+            })
+            
+
+            return { sent: true }
+        }
+        else {
+            throw new Error('ERROR: Could not get state of contract', contractName)
+        }
+    }
+
     async setContract(contractName, contractCode, state){
         this.workerMemory[contractName] = {
             contract:contractCode,
@@ -149,22 +177,22 @@ class Bootstrap{
            
            this.workers[contractName] = worker
 
-           let memory = this.workerMemory[contractName]
-           if(memory && Object.keys(memory).length > 0){
-                    worker.postMessage({ contractName:contractName, contractCode:memory.contract })
-                    if(memory.state && Object.keys(memory.state) > 0) {
-                        worker.postMessage({ contractName:contractName, setState:memory.state })
-                    }
-            }else{
-                console.log('Resetting worker memory')
-                this.workerMemory[contractName] = {
-                    contract: await this.contractConnector.getContractCode(contractName),
-                    state: await this.contractConnector.getState(contractName)
-                }
-                memory = this.workerMemory[contractName]
-                worker.postMessage({ contractName:contractName, contractCode:memory.contract })
-                worker.postMessage({ contractName:contractName, setState:memory.state })
-            }
+        //    let memory = this.workerMemory[contractName]
+        //    if(memory && Object.keys(memory).length > 0){
+        //             worker.postMessage({ contractName:contractName, contractCode:memory.contract })
+        //             if(memory.state && Object.keys(memory.state) > 0) {
+        //                 worker.postMessage({ contractName:contractName, setState:memory.state })
+        //             }
+        //     }else{
+        //         console.log('Resetting worker memory')
+        //         this.workerMemory[contractName] = {
+        //             contract: await this.contractConnector.getContractCode(contractName),
+        //             state: await this.contractConnector.getState(contractName)
+        //         }
+        //         memory = this.workerMemory[contractName]
+        //         worker.postMessage({ contractName:contractName, contractCode:memory.contract })
+        //         worker.postMessage({ contractName:contractName, setState:memory.state })
+        //     }
 
            worker.on('error', err => {
             console.log('Bootstrap Error',err)
@@ -340,6 +368,7 @@ class Bootstrap{
         if(this.workers[contractName]){
             return this.workers[contractName]
         }else{
+            
             this.workers[contractName] = await this.buildVM({ contractName:contractName })
             return this.workers[contractName];
         }
