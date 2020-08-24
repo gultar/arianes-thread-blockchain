@@ -3,6 +3,8 @@ const ContractVM = require('./ContractVM')
 
 let vm = new ContractVM()
 
+let { contract, state } = workerData
+
 vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
 vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)
 vm.signals.on('failed', (failure)=> parentPort.postMessage({error:failure.error, hash:failure.hash}))
