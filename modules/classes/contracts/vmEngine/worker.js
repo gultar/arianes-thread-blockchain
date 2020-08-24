@@ -83,7 +83,7 @@ const runContractVM = async () =>{
     
             }else if(message.initContract){
                 try{
-                    console.log('Fucking content', message)
+                    
                     let { contractName, contractCode, state } = message.initContract;
                     if(contractName && contractCode && state && Object.keys(state).length > 0){
                         let classSet = await vm.setContractClass(contractName, contractCode)

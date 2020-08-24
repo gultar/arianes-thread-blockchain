@@ -98,7 +98,6 @@ class Bootstrap{
                 state: state
             }
 
-            console.log('Worker memory', this.workerMemory)
             let worker = await this.getWorker(contractName)
         
             worker.postMessage({ 
