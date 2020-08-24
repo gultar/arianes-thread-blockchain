@@ -102,7 +102,7 @@ class Bootstrap{
         
             worker.postMessage({ 
                 initContract:{
-                    contractCode, contractName:contractName, setContractState:state
+                    contractCode, contractName:contractName, state:state
                 } 
             })
             
