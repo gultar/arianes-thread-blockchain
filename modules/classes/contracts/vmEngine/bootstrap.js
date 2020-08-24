@@ -94,7 +94,7 @@ class Bootstrap{
         
         this.workerMemory[contractName] = {
             contract:contractCode,
-            state: {}
+            state: state
         }
         
 
