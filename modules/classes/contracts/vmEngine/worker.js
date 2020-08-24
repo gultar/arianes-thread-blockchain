@@ -72,6 +72,21 @@ parentPort.on('message', async (message)=>{
             }
             
 
+        }else if(message.setContract){
+            try{
+                let { contractName, contractCode, setContractState } = message;
+                if(contractName && contractCode){
+                    await vm.setContractClass(message.contractName, message.contractCode)
+                    await vm.setState(setContractState, contractName)
+                }else{
+                    parentPort.postMessage({error:'ERROR: Must provide contractName, contractCode and contractState', hash:message.hash, contractName:message.contractName})
+                }
+            }catch(e){
+                console.log('Caught in workerVM', e)
+                parentPort.postMessage({error:e.message, hash:message.hash, contractName:message.contractName})
+            }
+            
+
         }else if(message.state) vm.signals.emit('state', message.state)
         else if(message.currentBlock) vm.signals.emit('currentBlock', message.currentBlock)
         else if(message.contract) vm.signals.emit('contract', message.contract)

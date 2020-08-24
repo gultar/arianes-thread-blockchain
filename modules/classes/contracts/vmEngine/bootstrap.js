@@ -87,6 +87,20 @@ class Bootstrap{
 
     restartVM(){}
 
+    async setContract(contractName, contractCode, state){
+        let worker = await this.getWorker(contractName)
+        worker.postMessage({contractName:contractName, contractCode:contractCode})
+        worker.postMessage({ contractName:contractName, setContract:contractCode, setContractState:state })
+        
+        this.workerMemory[contractName] = {
+            contract:contractCode,
+            state: {}
+        }
+        
+
+        return { sent: true }
+    }
+
     async addContract(contractName){
         let contractCode = await this.contractConnector.getContractCode(contractName)
         if(contractCode){

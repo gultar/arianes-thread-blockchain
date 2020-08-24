@@ -23,7 +23,7 @@ let signals = new Signals()
 signals.setMaxListeners(50)
 
 class ContractVM{
-    constructor(options){
+    constructor(){
         this.signals = signals
         this.codes = {}
         this.headers = {}
@@ -248,6 +248,8 @@ class ContractVM{
                 }
             }
         }
+        this.sandbox.contractStates[contractName] = nextState
+
         this.vm = new NodeVM(this.sandbox.context)
     }
 

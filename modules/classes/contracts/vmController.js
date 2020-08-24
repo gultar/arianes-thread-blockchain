@@ -73,33 +73,55 @@ class VMController{
         
         for await(let contractName of Object.keys(codes)){
             let contractCode = await this.contractConnector.getContractCode(contractName)
-            if(contractCode){
-                let added = await this.vmBootstrap.addContract(contractName, contractCode)
-                if(added.error) return { error:added.error } 
+            if (!contractCode) return { error:`Could not find code of contract ${contractName}` }
+            else if(contractCode && contractCode.error) return { error:contractCode.error }
 
-                let state = await this.contractConnector.getLatestState(contractName)
-                if(state && Object.keys(state).length > 0){
-                    
-                    let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
-                    if(stateAdded.error) return { error:stateAdded.error }
+            let state = await this.contractConnector.getLatestState(contractName)
+            if(!state) return { error:`ERROR: Could not find state of ${contractName} while executing multiple calls` }
+            else if(state.error) return { error:state.error }
+            else if(Object.keys(state).length > 0) return  { error:`ERROR: State of ${contractName} is an empty object` }
 
-                    let moreCalls = codes[contractName].calls
-                    if(moreCalls){
-                        
-                        if(Object.keys(calls).length > 0) calls = { ...calls, ...moreCalls }
-                        else calls = { ...moreCalls }
-                        
-                    }else{
-                        return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
-                    }
-                }else{
-                    return { error:`ERROR: Could not find state of ${contractName} while executing multiple calls` }
-                }
+            let stateAdded = await this.vmBootstrap.setContract(contractName, contractCode, state)
+            if(stateAdded.error) return { error:stateAdded.error }
+
+            let moreCalls = codes[contractName].calls
+            if(moreCalls){
                 
+                if(Object.keys(calls).length > 0) calls = { ...calls, ...moreCalls }
+                else calls = { ...moreCalls }
                 
             }else{
-                return { error:`Could not find code of contract ${contractName}` }
+                return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
             }
+            
+            // let contractCode = await this.contractConnector.getContractCode(contractName)
+            // if(contractCode){
+            //     let added = await this.vmBootstrap.addContract(contractName, contractCode)
+            //     if(added.error) return { error:added.error } 
+
+            //     let state = await this.contractConnector.getLatestState(contractName)
+            //     if(state && Object.keys(state).length > 0){
+                    
+            //         let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
+            //         if(stateAdded.error) return { error:stateAdded.error }
+
+            //         let moreCalls = codes[contractName].calls
+            //         if(moreCalls){
+                        
+            //             if(Object.keys(calls).length > 0) calls = { ...calls, ...moreCalls }
+            //             else calls = { ...moreCalls }
+                        
+            //         }else{
+            //             return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
+            //         }
+            //     }else{
+            //         return { error:`ERROR: Could not find state of ${contractName} while executing multiple calls` }
+            //     }
+                
+                
+            // }else{
+            //     return { error:`Could not find code of contract ${contractName}` }
+            // }
         }
        
         let blockExecutionDebug = require('debug')('blockExecution')
