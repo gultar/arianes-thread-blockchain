@@ -458,6 +458,7 @@ class ContractVM{
                     
                     if(result){
                         if(state && Object.keys(state).length > 0){
+                            console.log('NEW STATE', state)
                             this.sandbox.contractStates[call.contractName] = state
                         }
                         // var executionTime = process.hrtime(start);
