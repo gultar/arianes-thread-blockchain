@@ -2063,7 +2063,7 @@ class Blockchain{
           else calls[call.hash] = call
         }
 
-        
+         
       }
 
       if(Object.keys(calls).length > 0){
@@ -2081,7 +2081,7 @@ class Blockchain{
           let startExecute = process.hrtime()
           let results = await this.executeManyCalls(calls)
           let endExecute = process.hrtime(startExecute)
-          console.log(`Executed ${Object.keys(calls).length} calls in block in: ${endExecute[1]}`)
+          console.log(`Executed ${Object.keys(calls).length} calls in block in: ${endExecute[1]/1000*1000}`)
           if(results){
             if(results.error) resolve({error:results.error})
             else if(Object.keys(results).length > 0){
