@@ -8,6 +8,8 @@ const runContractVM = async () =>{
 
     let { contractName, contractCode, state } = workerData
 
+    console.log('Worker data', workerData)
+
     let set = await vm.setContractClass(contractName, contractCode)
     let stateSet = await vm.setState(contractName, state)
     if(stateSet.error){
