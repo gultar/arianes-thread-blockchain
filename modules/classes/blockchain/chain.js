@@ -884,7 +884,11 @@ class Blockchain{
       }
       var previousBlock = this.chain[blockNumber - 1];
       if(previousBlock.hash == block.previousHash) return true;
-      else return { error:`ERROR: Block ${block.blockNumber} ${block.hash.substr(0,15)} not linked to ${previousBlock.hash.substr(0,15)} ` };
+      else{
+        console.log('Previous Block', previousBlock)
+        console.log('New Block', block)
+        return { error:`ERROR: Block ${block.blockNumber} ${block.hash.substr(0,10)} not linked to ${previousBlock.hash.substr(0,10)} ` };
+      }
     }else{
       return { error:`ERROR: Cannot check if block is linked, block provided is undefined ` }
     }
@@ -937,17 +941,17 @@ class Blockchain{
   }
 
   gatherMiningFees(transactions, actions){
-    return new Promise((resolve)=>{
+    return new Promise(async (resolve)=>{
       if(transactions){
         let reward = 0;
         var txHashes = Object.keys(transactions);
-        for(var hash of txHashes){
+        for await(var hash of txHashes){
             reward += transactions[hash].miningFee;
         }
   
         if(actions){
           var actionHashes = Object.keys(transactions);
-          for(var hash of actionHashes){
+          for await(var hash of actionHashes){
               reward += actions[hash].fee;
           }
         }
@@ -1083,32 +1087,32 @@ class Blockchain{
     }
   }
 
-  /**
-    Shows which block is conflicting
-  */
-  isChainValid(){
-    for(let i=1;i < this.chain.length; i++){
+  // /**
+  //   Shows which block is conflicting
+  // */
+  // isChainValid(){
+  //   for(let i=1;i < this.chain.length; i++){
 
-      const currentBlock = this.chain[i];
-      const previousBlock = this.chain[i - 1];
+  //     const currentBlock = this.chain[i];
+  //     const previousBlock = this.chain[i - 1];
 
-      if(currentBlock.hash !== RecalculateHash(currentBlock)){
-        console.log('*******************************************************************');
-        console.log('currentblock hash does not match the recalculation ');
-        console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-        console.log('*******************************************************************');
-        return {conflict:i};
-      }else if(currentBlock.previousHash !== previousBlock.hash){
-        console.log('*******************************************************************');
-        console.log('* currentblock hash does not match previousblock hash *');
-        console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-        console.log('*******************************************************************');
-        return {conflict:i};
-      }
-    }
+  //     if(currentBlock.hash !== RecalculateHash(currentBlock)){
+  //       console.log('*******************************************************************');
+  //       console.log('currentblock hash does not match the recalculation ');
+  //       console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
+  //       console.log('*******************************************************************');
+  //       return {conflict:i};
+  //     }else if(currentBlock.previousHash !== previousBlock.hash){
+  //       console.log('*******************************************************************');
+  //       console.log('* currentblock hash does not match previousblock hash *');
+  //       console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
+  //       console.log('*******************************************************************');
+  //       return {conflict:i};
+  //     }
+  //   }
 
-    return true;
-  }
+  //   return true;
+  // }
 
   async isBlockchainValid(){
     let previousHeader = false
@@ -1265,6 +1269,7 @@ class Blockchain{
 
         if(block.blockNumber <= this.getLatestBlock().blockNumber + 1){
           var isLinkedToPreviousBlock = this.isBlockLinkedToPrevious(block)
+          console.log('Is linked to previous?', isLinkedToPreviousBlock)
           if(isLinkedToPreviousBlock.error) return { error:isLinkedToPreviousBlock.error }
         }
         

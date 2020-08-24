@@ -353,6 +353,9 @@ class Node {
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
+      socket.on('getPendingTxHashes', async()=> {
+
+      })
       socket.on('error', async(err)=> logger('Socket error:',err))
 
       socket.on('disconnect', async()=>{ 
@@ -480,6 +483,10 @@ class Node {
     }catch(e){
       console.log('Get All Contract States',e)
     }
+  }
+
+  async getPendingTxHashes(){
+    let hashes = await this.mempool
   }
 
   async getBlockFromHash(socket, hash){
@@ -886,6 +893,10 @@ class Node {
     
   }
 
+  async shareTransactionHashes(){
+
+  }
+
   async updateBlockchain(){
     if(!this.chain.isRollingBack){
       let peer = await this.getBestPeer()
@@ -897,7 +908,7 @@ class Node {
         return { broadcasted:true }
       }
     }else{
-      return {busy:'Warning: Could not update now. Node is rolling back blocks'}
+      return {busy:`WARNING: Can't update now, rolling back blocks`}
     }
     
   }
@@ -1747,7 +1758,7 @@ class Node {
    */
   async validateBlockchain(allowRollback){
     if(this.chain instanceof Blockchain){
-      let isValid = this.chain.isChainValid();
+      let isValid = this.chain.isBlockchainValid();
       if(isValid.conflict){
         let atBlockNumber = isValid.conflict;
         if(allowRollback){
