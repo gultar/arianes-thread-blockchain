@@ -9,7 +9,7 @@ const runContractVM = async () =>{
     let { contractName, contractCode, state } = workerData
 
     let set = await vm.setContractClass(contractName, contractCode)
-    let stateSet = await vm.setContractState(contractName, state)
+    let stateSet = await vm.setState(contractName, state)
     if(stateSet.error){
         parentPort.postMessage({ error:stateSet.error, contractName:contractName })
     }
