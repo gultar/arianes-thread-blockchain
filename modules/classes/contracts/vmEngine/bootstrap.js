@@ -1,5 +1,6 @@
 const EventEmitter = require('events')
 const { Worker, workerData } = require('worker_threads')
+let blockExecutionDebug = require('debug')('blockExecution')
 let start = false
 let end = false
 let callLog = {}
@@ -153,7 +154,7 @@ class Bootstrap{
                
                 if(message.singleResult){
                     
-                    let blockExecutionDebug = require('debug')('blockExecution')
+                    
                     
                     let result = JSON.parse(message.singleResult)
                     let endOfExec = process.hrtime(callLog[result.hash])
