@@ -248,7 +248,6 @@ class ContractVM{
                 }
             }
         }
-        this.sandbox.contractStates[contractName] = nextState
 
         this.vm = new NodeVM(this.sandbox.context)
     }
