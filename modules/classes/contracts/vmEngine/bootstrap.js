@@ -121,22 +121,16 @@ class Bootstrap{
 
     buildVM({ contractName }){
         return new Promise(async (resolve)=>{
-
-            let memory = this.workerMemory[contractName]
-            if(!memory){
-                this.workerMemory[contractName] = {
-                    contract: await this.contractConnector.getContractCode(contractName),
-                    state: await this.contractConnector.getLatestState(contractName)
-                }
-                workerData = this.workerMemory[contractName]
-            }
             
+            let startWorker = process.hrtime()
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: workerData,
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
            })
+           let endStartWorker = process.hrtime(startWorker)
+           blockExecutionDebug(`Start worker thread: ${endStartWorker[1]/1000000}`)
 
            
            this.workers[contractName] = worker
