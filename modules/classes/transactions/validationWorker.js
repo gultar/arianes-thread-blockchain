@@ -299,6 +299,8 @@ class ValidationWorker{
     
             if(fromAddressIsAccount){
               fromAddress = fromAddressIsAccount.ownerKey
+              let isContract = fromAddressIsAccount.type == 'contract'
+              if(isContract) return { error:'ERROR: Normal transactions cannot be made by contract accounts' }
             }
             if(toAddressIsAccount){
               toAddress = toAddressIsAccount.ownerKey
