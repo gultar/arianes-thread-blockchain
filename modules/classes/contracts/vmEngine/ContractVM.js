@@ -23,7 +23,7 @@ let signals = new Signals()
 signals.setMaxListeners(50)
 
 class ContractVM{
-    constructor(){
+    constructor(contract, state){
         this.signals = signals
         this.codes = {}
         this.headers = {}
@@ -276,6 +276,7 @@ class ContractVM{
 
     setState(nextState, contractName){
         if(nextState && Object.keys(nextState).length > 0 && contractName){
+            console.log('New state set', JSON.stringify(nextState, null, 2))
             this.sandbox.contractStates[contractName] = nextState
             return true
         }else{
@@ -458,7 +459,6 @@ class ContractVM{
                     
                     if(result){
                         if(state && Object.keys(state).length > 0){
-                            console.log('NEW STATE', state)
                             this.sandbox.contractStates[call.contractName] = state
                         }
                         // var executionTime = process.hrtime(start);

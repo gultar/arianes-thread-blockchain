@@ -1,24 +1,12 @@
 const { parentPort, workerData } = require('worker_threads')
 const ContractVM = require('./ContractVM')
-const blockExecutionDebug = require('debug')('blockExecution')
-let vm = new ContractVM()
 
-// let { contractName, contract, state } = workerData
+let { contract, state } = workerData
 
-// let classSet = await vm.setContractClass(contractName, contract)
-// if(classSet.error) parentPort.postMessage({error:classSet.error, contractName:contractName })
+let vm = new ContractVM(contract, state)
 
-// let stateSet = await vm.setState(state, contractName)
-// if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:contractName })
-
-vm.signals.on('saved', (state)=> {
-    log('From saved', state)
-    vm.sandbox.stateStorage = state
-})
-vm.signals.on('saveState', ({ state, contractName })=> {
-    log(`From saveState:`, state)
-    vm.sandbox.contractStates[contractName] = state
-})
+vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
+vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)
 vm.signals.on('failed', (failure)=> parentPort.postMessage({error:failure.error, hash:failure.hash}))
 vm.signals.on('getState', (contractName)=> parentPort.postMessage({ getState:contractName }))
 vm.signals.on('getContract', (contractName)=> parentPort.postMessage({ getContract:contractName }))
@@ -39,7 +27,6 @@ parentPort.on('message', async (message)=>{
         if(message.run){
 
             try{
-                log('Testing log!!')
                 let result = await vm.run(message.run)
 
                 let resultString = JSON.stringify(result)
@@ -86,9 +73,9 @@ parentPort.on('message', async (message)=>{
             try{
                 let { contractName, contractCode, setContractState } = message;
                 if(contractName && contractCode){
-                    await vm.setContractClass(message.contractName, message.contractCode)
+                    let classSet = await vm.setContractClass(contractName, contractCode)
                     let stateSet = await vm.setState(setContractState, contractName)
-                    if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:message.contractName })
+                    if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:contractName })
                 }else{
                     parentPort.postMessage({error:'ERROR: Must provide contractName, contractCode and contractState', hash:message.hash, contractName:message.contractName})
                 }

@@ -88,14 +88,15 @@ class Bootstrap{
     restartVM(){}
 
     async setContract(contractName, contractCode, state){
-        let worker = await this.getWorker(contractName)
-        // worker.postMessage({contractName:contractName, contractCode:contractCode})
-        worker.postMessage({ contractName:contractName, setContract:contractCode, setContractState:state })
-        
         this.workerMemory[contractName] = {
             contract:contractCode,
             state: state
         }
+        
+        let worker = await this.getWorker(contractName)
+        
+        worker.postMessage({contractName:contractName, contractCode:contractCode})
+        worker.postMessage({setState:state, contractName:contractName})
         
 
         return { sent: true }
