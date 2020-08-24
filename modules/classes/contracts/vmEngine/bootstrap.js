@@ -95,8 +95,6 @@ class Bootstrap{
         
         let worker = await this.getWorker(contractName)
         
-        // worker.postMessage({contractName:contractName, contractCode:contractCode})
-        // worker.postMessage({setState:state, contractName:contractName})
         worker.postMessage({ setContract:contractCode, contractName:contractName, setContractState:state })
         
 
@@ -151,11 +149,18 @@ class Bootstrap{
            
            this.workers[contractName] = worker
 
-           if(this.workerMemory[contractName] && Object.keys(this.workerMemory[contractName]).length > 0){
-                    worker.postMessage({ contractName:contractName, contractCode:this.workerMemory[contractName].contract })
-                    if(this.workerMemory[contractName].state && Object.keys(this.workerMemory[contractName].state) > 0) {
-                        worker.postMessage({ contractName:contractName, setState:this.workerMemory[contractName].state })
+           let memory = this.workerMemory[contractName]
+           if(memory && Object.keys(memory).length > 0){
+                    worker.postMessage({ contractName:contractName, contractCode:memory.contract })
+                    if(memory.state && Object.keys(memory.state) > 0) {
+                        worker.postMessage({ contractName:contractName, setState:memory.state })
                     }
+            }else{
+                console.log('Resetting worker memory')
+                this.workerMemory[contractName] = {
+                    contract: await this.contractConnector.getContractCode(contractName),
+                    state: await this.contractConnector.getState(contractName)
+                }
             }
 
            worker.on('error', err => {
@@ -332,7 +337,6 @@ class Bootstrap{
         if(this.workers[contractName]){
             return this.workers[contractName]
         }else{
-            let memory = this.workerMemory[contractName]
             this.workers[contractName] = await this.buildVM({ contractName:contractName })
             return this.workers[contractName];
         }
