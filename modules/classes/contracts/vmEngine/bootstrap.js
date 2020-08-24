@@ -315,7 +315,7 @@ class Bootstrap{
                     })
 
                 }else if(message.log){
-                    console.log('VM:', message.log)
+                    console.log(...message.log)
                 }
             
            })

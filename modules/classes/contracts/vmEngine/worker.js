@@ -12,13 +12,11 @@ let vm = new ContractVM()
 // if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:contractName })
 
 vm.signals.on('saved', (state)=> {
-    blockExecutionDebug('Saved state from saved listener')
-    blockExecutionDebug('State', state)
+    log('From saved', state)
     vm.sandbox.stateStorage = state
 })
 vm.signals.on('saveState', ({ state, contractName })=> {
-    blockExecutionDebug('Saved state from saveState listener')
-    blockExecutionDebug('State', state)
+    log(`From saveState:`, state)
     vm.sandbox.contractStates[contractName] = state
 })
 vm.signals.on('failed', (failure)=> parentPort.postMessage({error:failure.error, hash:failure.hash}))
@@ -32,8 +30,8 @@ vm.signals.on('emitContractAction', (contractAction)=> parentPort.postMessage({ 
 vm.signals.on('emitPayable', (payable)=> parentPort.postMessage({ emitPayable:JSON.stringify(payable) }))
 vm.signals.on('getBalance', (accountName)=> parentPort.postMessage({ getBalance:accountName }))
 
-const log = (message) =>{
-    parentPort.postMessage({ log:message })
+const log = (...message) =>{
+    parentPort.postMessage({ log:[...message] })
 }
 
 parentPort.on('message', async (message)=>{
