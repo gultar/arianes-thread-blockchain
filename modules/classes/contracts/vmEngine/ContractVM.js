@@ -387,7 +387,7 @@ class ContractVM{
     run(call){
         return new Promise((resolve)=>{
             try{
-                
+                let startPrep = process.hrtime()
                 const createTimer = (time, resolve) =>{
                     return setTimeout(()=>{
                         this.sandbox.contractStates[call.contractName] = this.sandbox.contractStates[call.contractName]
@@ -446,13 +446,11 @@ class ContractVM{
                     depth:0
                 }
 
-                let blockExecutionDebug = require('debug')('blockExecution')
-                let startExecute = process.hrtime()
+                let endPrep = process.hrtime(startPrep)
+                console.log(`PREP FOR ${call.hash.substr(0,15)}... : ${endPrep[1/1000000]}`)
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
                 execute(async (result, state)=>{
-                    let endExecute = process.hrtime(startExecute)
-                    blockExecutionDebug(`Executed ${call.hash.substr(0, 15)}... : ${endExecute[1]/1000000}`)
                     if(result){
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
