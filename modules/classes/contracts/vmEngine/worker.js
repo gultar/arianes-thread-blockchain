@@ -74,7 +74,7 @@ const runContractVM = async () =>{
                     
                     let { contract, contractName, state } = message.initContract;
                     if(contractName && contract && state && Object.keys(state).length > 0){
-                        let classSet = await vm.setContractClass(contractName, contractCode)
+                        let classSet = await vm.setContractClass(contractName, contract)
                         let stateSet = await vm.setState(state, contractName)
                         console.log('Set state success', stateSet)
                         if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:contractName })
