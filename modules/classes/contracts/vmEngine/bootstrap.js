@@ -177,8 +177,8 @@ class Bootstrap{
            })
            
            this.workers[contractName] = worker
-           worker.postMessage({ testTime:Date.now() })
-           worker.postMessage({ testTime:Date.now() })
+           worker.postMessage({ testTime:Date.now(), number:1 })
+           worker.postMessage({ testTime:Date.now(), number:2 })
 
            worker.on('exit', ()=>{ })
            worker.on('error', err => {

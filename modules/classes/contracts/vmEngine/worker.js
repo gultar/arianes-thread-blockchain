@@ -38,7 +38,7 @@ parentPort.on('message', async (message)=>{
         }else if(message.testTime){
 
             let start = message.testTime
-            console.log(`End : ${Date.now() - start}`)
+            console.log(`End ${message.number} : ${Date.now() - start}`)
         
         }else if(message.setState){
             
