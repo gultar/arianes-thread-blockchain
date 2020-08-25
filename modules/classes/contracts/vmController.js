@@ -139,6 +139,7 @@ class VMController{
             
             let sendCalls = process.hrtime()
             this.vmChannel.emit('runCalls', calls)
+            for await(let hash of Object.keys(calls)){
                 this.vmChannel.on(call.hash, async (result)=>{
                         if(result.error){
                             errors[hash] = result
@@ -165,6 +166,7 @@ class VMController{
     
                         this.vmChannel.removeAllListeners(hash)
                 })
+            }
 
             let endSendCalls = process.hrtime(sendCalls)
             blockExecutionDebug(`Send calls for await: ${endSendCalls[1]/1000000}`)
