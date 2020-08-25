@@ -129,6 +129,7 @@ class ContractVM{
                                 if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
+                                    console.log('getting state from worker')
                                     this.signals.once('state', (state)=>{
                                         if(state && Object.keys(state).length > 0){
                                             resolve(state) 
