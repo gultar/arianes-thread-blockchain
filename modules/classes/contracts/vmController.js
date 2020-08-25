@@ -92,7 +92,7 @@ class VMController{
        
         let endExecute = process.hrtime(startExecute)
 
-        blockExecutionDebug(`Init contract ${contractName}: ${endExecute[1] / 1000000}`)
+        blockExecutionDebug(`Init contracts ${endExecute[1] / 1000000}`)
 
         let start = process.hrtime() /**  Checking execution time */
         let result = await this.sendCallsToVM(calls)
