@@ -90,6 +90,7 @@ class Bootstrap{
     restartVM(){}
 
     async initContract(contractName){
+        
         let memory = this.workerMemory[contractName]
         if(!memory){
             console.log('Worker memory is not set yet')
@@ -107,6 +108,7 @@ class Bootstrap{
             }
         }else{
             console.log('Worker memory is set')
+            console.log('Memory', memory.state)
         }
 
         let worker = await this.getWorker(contractName)
