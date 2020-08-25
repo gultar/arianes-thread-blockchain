@@ -35,10 +35,19 @@ parentPort.on('message', async (message)=>{
         }else if(message.error){
             parentPort.postMessage({ error:message.error, hash:message.hash, contractName:message.contractName })
         
-        }else if(message.testTime){
-
-            let start = message.testTime
-            console.log(`End ${message.number} : ${Date.now() - start}`)
+        }else if(message.runCalls){
+            try{
+                for await(let hash of Object.keys(message.runCalls)){
+                    let call = message.runCalls[hash]
+                    let result = await vm.run(call)
+                    let resultString = JSON.stringify(result)
+                    parentPort.postMessage({singleResult:resultString})
+                }
+            
+            }catch(e){
+                console.log('Caught in workerVM', e)
+                parentPort.postMessage({error:e, hash:message.hash, contractName:message.contractName})
+            }
         
         }else if(message.setState){
             

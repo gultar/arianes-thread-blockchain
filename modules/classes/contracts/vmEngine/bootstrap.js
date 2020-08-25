@@ -34,6 +34,15 @@ class Bootstrap{
     }
 
     startVM(){
+        this.events.on('runCalls', async (codes)=>{
+            for await(let hash of Object.keys(codes)){
+                this.calls[code.hash] = code
+                callLog[code.hash] = process.hrtime()
+            }
+            
+            let worker = await this.getWorker(codes.contractName)
+            worker.postMessage({runCodes:codes, contractName:codes.contractName})
+        })
         this.events.on('run', async (code)=>{
             callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
@@ -177,8 +186,6 @@ class Bootstrap{
            })
            
            this.workers[contractName] = worker
-           worker.postMessage({ testTime:Date.now(), number:1 })
-           worker.postMessage({ testTime:Date.now(), number:2 })
 
            worker.on('exit', ()=>{ })
            worker.on('error', err => {

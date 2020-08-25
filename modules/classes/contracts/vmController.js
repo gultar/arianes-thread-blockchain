@@ -96,7 +96,8 @@ class VMController{
         blockExecutionDebug(`Init contracts ${endExecute[1] / 1000000}`)
 
         let start = process.hrtime() /**  Checking execution time */
-        let result = await this.sendCallsToVM(calls)
+        //let result = await this.sendCallsToVM(calls)
+        let result = await this.submitCallsToVM(calls)
         let hrend = process.hrtime(start)
 
         blockExecutionDebug(`Send calls ${Object.keys(calls).length} to VM: ${hrend[1] / 1000000}`)
@@ -106,6 +107,69 @@ class VMController{
             return { results:results, state:state }
         }
 
+    }
+
+    submitCallsToVM(calls){
+        return new Promise(async (resolve)=>{
+            let callsPending = { ...calls }
+            let results = {}
+            let errors = {}
+            let states = {}
+            const updateStates = async (states)=>{
+                for await(let contractName of Object.keys(states)){
+                    let state = states[contractName]
+                    if(state && Object.keys(state).length > 0){
+                        let updated = await this.contractConnector.updateState({
+                            name:contractName,
+                            newState:state,
+                        })
+                        if(updated.error) return { error:updated.error}
+
+                        let terminated = await this.vmBootstrap.terminateVM(contractName)
+                        if(terminated.error) return { error:terminated.error }
+                        
+                        // return updated
+                    }else{
+                        return { error:'ERROR: Did not update state. New state has not been returned by any call' }
+                    }
+                }
+                return { results:results, states:states }
+            }
+
+            
+            let sendCalls = process.hrtime()
+            this.vmChannel.emit('runCalls', calls)
+                this.vmChannel.on(call.hash, async (result)=>{
+                        if(result.error){
+                            errors[hash] = result
+                        }else if(result.timeout){
+                            errors[hash] = result
+                        }else{
+                            if(result.state && Object.keys(result.state).length > 0){
+                                states[result.contractName] = result.state
+                                results[hash] = result
+                            }else{
+                                errors[hash] = result
+                            }
+                        }
+    
+                        delete callsPending[hash]
+                        if(Object.keys(callsPending).length == 0){
+                            let startUpdate = process.hrtime()
+                            let updated = await updateStates(states)
+                            let endUpdate = process.hrtime(startUpdate)
+                            blockExecutionDebug(`Update states: ${endUpdate[1]/1000000}`)
+                            if(updated.error) resolve({error:updated.error})
+                            else resolve({ results:results, state:states, updated:updated })
+                        }
+    
+                        this.vmChannel.removeAllListeners(hash)
+                })
+
+            let endSendCalls = process.hrtime(sendCalls)
+            blockExecutionDebug(`Send calls for await: ${endSendCalls[1]/1000000}`)
+            
+        })
     }
 
     sendCallsToVM(calls){
