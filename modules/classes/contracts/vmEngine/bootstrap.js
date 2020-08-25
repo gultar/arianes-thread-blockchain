@@ -118,28 +118,7 @@ class Bootstrap{
             } 
         })
         return { sent: true }
-        // let contractCode = await this.contractConnector.getContractCode(contractName)
-        // let state = await this.contractConnector.getState(contractName)
-        // if(state && Object.keys(state).length > 0){
-        //     this.workerMemory[contractName] = {
-        //         contract:contractCode,
-        //         state: state
-        //     }
-
-        //     let worker = await this.getWorker(contractName)
         
-        //     worker.postMessage({ 
-        //         initContract:{
-        //             contractCode, contractName:contractName, state:state
-        //         } 
-        //     })
-            
-
-        //     return { sent: true }
-        // }
-        // else {
-        //     throw new Error('ERROR: Could not get state of contract', contractName)
-        // }
     }
 
     async setContract(contractName, contractCode, state){
