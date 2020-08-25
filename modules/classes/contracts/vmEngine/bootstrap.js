@@ -36,6 +36,7 @@ class Bootstrap{
     startVM(){
         this.events.on('runCalls', async (codes)=>{
             for await(let hash of Object.keys(codes)){
+                let code = codes[hash]
                 this.calls[code.hash] = code
                 callLog[code.hash] = process.hrtime()
             }
