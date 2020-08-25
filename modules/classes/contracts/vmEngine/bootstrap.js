@@ -177,17 +177,45 @@ class Bootstrap{
            })
            
            this.workers[contractName] = worker
-           worker.postMessage({ testTime:process.hrtime() })
+           worker.postMessage({ testTime:Date.now() })
+           worker.postMessage({ testTime:Date.now() })
 
+           worker.on('exit', ()=>{ })
            worker.on('error', err => {
             console.log('Bootstrap Error',err)
             this.terminateVM(contractName)
             resolve({error:err.message})
            })
-           worker.on('exit', ()=>{ })
+           
            worker.on('message', async (message)=>{
                 
                 if(message.singleResult){
+                    
+                    let result = JSON.parse(message.singleResult)
+                    let endOfExec = process.hrtime(callLog[result.hash])
+                    blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
+                    delete this.calls[result.hash]
+
+                    if(result.error){
+
+                        //VM Returned an error
+                        this.events.emit(result.hash, {
+                            error:result.error,
+                            contractName:result.contractName,
+                            hash:result.hash
+                        })
+
+                    }else{
+                        
+                        this.events.emit(result.hash, {
+                            value:result.value,
+                            contractName:result.contractName,
+                            state:result.state,
+                            hash:result.hash
+                        })
+                    }
+                    
+                }else if(message.result){
                     
                     let result = JSON.parse(message.singleResult)
                     let endOfExec = process.hrtime(callLog[result.hash])
