@@ -78,6 +78,10 @@ class Bootstrap{
             let worker = await this.getWorker(contractName)
             worker.terminate()
             this.stopVMTimer(contractName)
+            let memory = this.workerMemory[contractName]
+            console.log('Before:', JSON.stringify(memory.state,null,2))
+            memory.state = await this.contractConnector.getLatestState(contractName)
+            console.log('After:',JSON.stringify(memory.state,null,2))
             delete this.workers[contractName]
             return true
         }catch(e){

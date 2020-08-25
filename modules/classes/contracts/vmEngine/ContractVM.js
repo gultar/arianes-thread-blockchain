@@ -130,7 +130,6 @@ class ContractVM{
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
                                     this.signals.once('state', (state)=>{
-                                        console.log('Requested state, not received it', state)
                                         if(state && Object.keys(state).length > 0){
                                             resolve(state) 
                                         }else{
