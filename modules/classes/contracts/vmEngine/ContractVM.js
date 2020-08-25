@@ -126,7 +126,6 @@ class ContractVM{
                         "getState":(contractName)=>{
                             //Promise is necessary here because of the event listener call back
                             return new Promise((resolve)=>{
-                                console.log('State before execution', JSON.stringify(this.sandbox.contractStates[contractName],null,2))
                                 if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
@@ -454,7 +453,6 @@ class ContractVM{
                 execute(async (result, state)=>{
                     
                     if(result){
-                        console.log('State after execution', JSON.stringify(state,null,2))
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
                         }
