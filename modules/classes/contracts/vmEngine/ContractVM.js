@@ -457,6 +457,7 @@ class ContractVM{
                 execute(async (result, state)=>{
                     
                     if(result){
+                        console.log('State after execution', JSON.stringify(state,null,2))
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
                         }
