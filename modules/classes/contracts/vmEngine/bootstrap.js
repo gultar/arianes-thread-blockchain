@@ -78,8 +78,8 @@ class Bootstrap{
             let worker = await this.getWorker(contractName)
             worker.terminate()
             this.stopVMTimer(contractName)
-            let memory = this.workerMemory[contractName]
-            memory.state = await this.contractConnector.getLatestState(contractName)
+            // let memory = this.workerMemory[contractName]
+            // memory.state = await this.contractConnector.getLatestState(contractName)
             delete this.workers[contractName]
             return true
         }catch(e){
@@ -112,7 +112,9 @@ class Bootstrap{
         }
 
         let worker = await this.getWorker(contractName)
-        
+        console.log('Sending this to vm', {
+            contractCode:memory.contractCode, state:memory.state, contractName:contractName,
+        } )
         worker.postMessage({ 
             initContract:{
                 contractCode:memory.contractCode, state:memory.state, contractName:contractName,
