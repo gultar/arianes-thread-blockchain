@@ -2,6 +2,7 @@
 const vmBootstrap = require('./vmEngine/bootstrap')
 const ContractConnector = require('./contractConnector')
 const { getDirectorySize } = require('../../tools/utils')
+let blockExecutionDebug = require('debug')('blockExecution')
 
 class VMController{
     constructor({ 
@@ -68,7 +69,7 @@ class VMController{
     }
 
     async executeCalls(codes){
-        let blockExecutionDebug = require('debug')('blockExecution')
+        
         let calls = {}
         let startExecute = process.hrtime() /**  Checking execution time */
         
@@ -156,7 +157,10 @@ class VMController{
     
                         delete callsPending[hash]
                         if(Object.keys(callsPending).length == 0){
+                            let startUpdate = process.hrtime()
                             let updated = await updateStates(states)
+                            let endUpdate = process.hrtime(startUpdate)
+                            blockExecutionDebug(`Update states: ${endUpdate[1]}`)
                             if(updated.error) resolve({error:updated.error})
                             else resolve({ results:results, state:states, updated:updated })
                         }
