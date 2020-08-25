@@ -89,9 +89,7 @@ class Bootstrap{
 
     async initContract(contractName){
         let contractCode = await this.contractConnector.getContractCode(contractName)
-        console.log('Got contract Code', typeof contractCode)
         let state = await this.contractConnector.getState(contractName)
-        console.log('Got state of contract', state)
         if(state && Object.keys(state).length > 0){
             this.workerMemory[contractName] = {
                 contract:contractCode,
@@ -165,33 +163,16 @@ class Bootstrap{
         return new Promise(async (resolve)=>{
 
             
-            
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: {},
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
            })
-
+           blockExecutionDebug('Started worker thread for ', contractName)
            
            this.workers[contractName] = worker
 
-        //    let memory = this.workerMemory[contractName]
-        //    if(memory && Object.keys(memory).length > 0){
-        //             worker.postMessage({ contractName:contractName, contractCode:memory.contract })
-        //             if(memory.state && Object.keys(memory.state) > 0) {
-        //                 worker.postMessage({ contractName:contractName, setState:memory.state })
-        //             }
-        //     }else{
-        //         console.log('Resetting worker memory')
-        //         this.workerMemory[contractName] = {
-        //             contract: await this.contractConnector.getContractCode(contractName),
-        //             state: await this.contractConnector.getState(contractName)
-        //         }
-        //         memory = this.workerMemory[contractName]
-        //         worker.postMessage({ contractName:contractName, contractCode:memory.contract })
-        //         worker.postMessage({ contractName:contractName, setState:memory.state })
-        //     }
 
            worker.on('error', err => {
             console.log('Bootstrap Error',err)

@@ -3,19 +3,7 @@ const ContractVM = require('./ContractVM')
 
 const runContractVM = async () =>{
 
-
     let vm = new ContractVM()
-
-    // let { contractName, contractCode, state } = workerData
-
-    // console.log('Worker data', workerData)
-
-    // let set = await vm.setContractClass(contractName, contractCode)
-    // let stateSet = await vm.setState(contractName, state)
-    // if(stateSet.error){
-    //     parentPort.postMessage({ error:stateSet.error, contractName:contractName })
-    // }
-
 
     vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
     vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)

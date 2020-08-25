@@ -126,9 +126,7 @@ class ContractVM{
                         "getState":(contractName)=>{
                             //Promise is necessary here because of the event listener call back
                             return new Promise((resolve)=>{
-                                console.log('Trying to get current state', this.sandbox.contractStates[contractName])
                                 if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
-                                    
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
                                     this.signals.once('state', (state)=>{
