@@ -71,12 +71,10 @@ const runContractVM = async () =>{
     
             }else if(message.initContract){
                 try{
-                    
                     let { contract, contractName, state } = message.initContract;
                     if(contractName && contract && state && Object.keys(state).length > 0){
                         let classSet = await vm.setContractClass(contractName, contract)
                         let stateSet = await vm.setState(state, contractName)
-                        console.log('Set state success', stateSet)
                         if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:contractName })
                     }else{
                         parentPort.postMessage({error:'ERROR: Must provide contractName, contractCode and contractState', hash:message.hash, contractName:message.contractName})
