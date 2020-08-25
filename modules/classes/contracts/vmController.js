@@ -101,7 +101,7 @@ class VMController{
         let result = await this.sendCallsToVM(calls)
         let hrend = process.hrtime(start)
 
-        blockExecutionDebug(`Send calls ${Object.keys(calls)} to VM: ${hrend[1] / 1000000}`)
+        blockExecutionDebug(`Send calls ${Object.keys(calls).length} to VM: ${hrend[1] / 1000000}`)
         if(result.error) return { error:result.error }
         else{
             let { results, state } = result;
