@@ -447,7 +447,7 @@ class ContractVM{
                 }
 
                 let endPrep = process.hrtime(startPrep)
-                console.log(`PREP FOR ${call.hash.substr(0,15)}... : ${endPrep[1/1000000]}`)
+                console.log(`PREP FOR ${call.hash.substr(0,15)}... : ${endPrep[1]/1000000}`)
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
                 execute(async (result, state)=>{
