@@ -178,7 +178,6 @@ class Bootstrap{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
            })
-           blockExecutionDebug('Started worker thread for ', contractName)
            
            this.workers[contractName] = worker
 

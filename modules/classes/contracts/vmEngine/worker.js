@@ -18,10 +18,7 @@ const runContractVM = async () =>{
     vm.signals.on('emitPayable', (payable)=> parentPort.postMessage({ emitPayable:JSON.stringify(payable) }))
     vm.signals.on('getBalance', (accountName)=> parentPort.postMessage({ getBalance:accountName }))
     
-    const log = (...message) =>{
-        parentPort.postMessage({ log:[...message] })
-    }
-    
+   
     parentPort.on('message', async (message)=>{
     
             if(message.run){

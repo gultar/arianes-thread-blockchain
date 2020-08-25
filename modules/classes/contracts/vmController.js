@@ -68,8 +68,9 @@ class VMController{
     }
 
     async executeCalls(codes){
-
+        let blockExecutionDebug = require('debug')('blockExecution')
         let calls = {}
+        let startExecute = process.hrtime() /**  Checking execution time */
         
         for await(let contractName of Object.keys(codes)){
             
@@ -89,7 +90,10 @@ class VMController{
             
         }
        
-        let blockExecutionDebug = require('debug')('blockExecution')
+        let endExecute = process.hrtime(startExecute)
+
+        blockExecutionDebug(`Init contract ${contractName}: ${endExecute[1] / 1000000}`)
+
         let start = process.hrtime() /**  Checking execution time */
         let result = await this.sendCallsToVM(calls)
         let hrend = process.hrtime(start)
@@ -135,10 +139,8 @@ class VMController{
             for await(let hash of Object.keys(calls)){
                 
                 let call = calls[hash]
-                
                 this.vmChannel.emit('run', call)
                 this.vmChannel.on(call.hash, async (result)=>{
-                    
                         if(result.error){
                             errors[hash] = result
                         }else if(result.timeout){
