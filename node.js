@@ -121,15 +121,9 @@ class Node {
       nodeList:this.nodeList,
       noLocalhost:this.noLocalhost,
       peersConnected:this.peersConnected,
-      receiveBlockchainStatus:(peer, status)=>{
-        return this.receiveBlockchainStatus(peer, status)
-      },
-      UILog:(...args)=>{
-        return this.UILog(...args)
-      },
-      buildBlockchainStatus:async ()=>{
-        return this.buildBlockchainStatus()
-      }
+      receiveBlockchainStatus:(peer, status)=>{return this.receiveBlockchainStatus(peer, status) },
+      UILog:(...args)=>{ return this.UILog(...args) },
+      buildBlockchainStatus:async ()=>{ return this.buildBlockchainStatus() }
     })
     //APIs
     this.httpAPI = new HttpAPI({
@@ -137,18 +131,10 @@ class Node {
       mempool:this.mempool,
       channel:this.minerChannel,
       nodeList:this.nodeList,
-      broadcastAction:async (action)=>{
-        return await this.broadcastAction(action)
-      },
-      broadcastTransaction:async (transaction, test)=>{
-        return await this.broadcastTransaction(transaction, test)
-      },
-      testAction:async (action)=>{
-        return await this.testAction(action)
-      },
-      getChainInfo:()=>{
-        return this.getChainInfo()
-      }
+      broadcastAction:async (action)=>{ return await this.broadcastAction(action) },
+      broadcastTransaction:async (transaction, test)=>{ return await this.broadcastTransaction(transaction, test) },
+      testAction:async (action)=>{ return await this.testAction(action) },
+      getChainInfo:()=>{ return this.getChainInfo() }
     })
     
   }
@@ -703,8 +689,13 @@ class Node {
 
             const closeConnection = (error=false) =>{
               peer.off('nextBlock')
+              if(requestTimer){
+                  clearTimeout(requestTimer)
+                  requestTimer = false
+              }
               this.minerChannel.emit('nodeEvent','finishedDownloading')
               this.isDownloading = false;
+              
             }
 
             const createTimer = (alreadyRetried=false, resendPayload) =>{
