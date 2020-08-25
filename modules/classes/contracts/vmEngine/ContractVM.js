@@ -288,11 +288,11 @@ class ContractVM{
     }
 
     //to be removed
-    setInitialState(state){
-        if(state){
-            this.sandbox.stateStorage = state
+    setInitialState(state, contractName){
+        if(state && Object.keys(state).length > 0){
+            this.sandbox.contractStates[contractName] = state
         }else{
-            return { setInitialStateError:'Must pass valid initial state' }
+            return { error:'Must pass valid initial state for contract '+contractName }
         }
     }
 
