@@ -180,7 +180,7 @@ class Bootstrap{
 
            worker.on('error', err => {
             console.log('Bootstrap Error',err)
-            this.destroyVM(contractName)
+            this.terminateVM(contractName)
             resolve({error:err.message})
            })
            worker.on('exit', ()=>{ })
@@ -228,6 +228,7 @@ class Bootstrap{
                     }
 
                 }else if(message.getContract){
+                    console.log('Getting contract from bootstrap')
                     let contract = await this.contractConnector.getContractCode(message.getContract);
 
                     if(contract && Object.keys(contract).length > 0){
