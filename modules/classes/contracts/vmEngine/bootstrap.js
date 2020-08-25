@@ -6,7 +6,8 @@ let end = false
 let callLog = {}
 class Bootstrap{
     constructor({ 
-        contractConnector, 
+        contractConnector,
+        contractTable, 
         accountTable, 
         buildCode, 
         deferContractAction, 
@@ -15,6 +16,7 @@ class Bootstrap{
         emitPayable, 
         getCurrentBlock, 
         getBalance, }){
+        this.contractTable = contractTable
         this.getBalance = getBalance
         this.contractConnector = contractConnector
         this.accountTable = accountTable
@@ -168,14 +170,20 @@ class Bootstrap{
 
     buildVM({ contractName}){
         return new Promise(async (resolve)=>{
+            let gettingFromConnector = process.hrtime()
+            let state = await this.contractConnector.getLatestState('Tokens')
+            console.log(`State from connector : ${process.hrtime(gettingFromConnector)[1]/1000000}`)
 
+            let gettingFromTable = process.hrtime()
+            let stateFromTable = await this.contractTable.getLatestState('Tokens')
+            console.log(`State from table : ${process.hrtime(gettingFromTable)[1]/1000000}`)
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: {},
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
-           })
+            })
            
            this.workers[contractName] = worker
 

@@ -29,6 +29,7 @@ class VMController{
         this.buildCode = buildCode
         this.vmBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
+            contractTable:this.contractTable,
             accountTable:accountTable,
             buildCode:buildCode,
             deferContractAction:this.deferContractAction,
@@ -87,8 +88,6 @@ class VMController{
             }else{
                 return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
             }
-            
-            
         }
        
         let endExecute = process.hrtime(startExecute)
