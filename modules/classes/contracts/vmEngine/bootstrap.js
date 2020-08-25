@@ -113,11 +113,11 @@ class Bootstrap{
 
         let worker = await this.getWorker(contractName)
         console.log('Sending this to vm', {
-            contractCode:memory.contractCode, state:memory.state, contractName:contractName,
+            contract:memory.contractCode, state:memory.state, contractName:contractName,
         } )
         worker.postMessage({ 
             initContract:{
-                contractCode:memory.contractCode, state:memory.state, contractName:contractName,
+                contract:memory.contractCode, state:memory.state, contractName:contractName,
             } 
         })
         return { sent: true }
