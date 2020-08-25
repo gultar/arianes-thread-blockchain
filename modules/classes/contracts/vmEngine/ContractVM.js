@@ -130,7 +130,7 @@ class ContractVM{
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
                                     this.signals.once('state', (state)=>{
-                                    
+                                        console.log('Requested state, not received it', state)
                                         if(state && Object.keys(state).length > 0){
                                             resolve(state) 
                                         }else{
@@ -403,13 +403,13 @@ class ContractVM{
                 let instruction = call.code
                 let contractName = call.contractName
                 let methodToRun = call.methodToRun
-                let contractCode = this.contractClasses[call.contractName]
-                let state = this.sandbox.contractStates[call.contractName]
-                let setState = `
-                let stateString = '${JSON.stringify(state)}';
-                let state = JSON.parse(stateString);
-                await instance.setState(state);
-                `
+                // let contractCode = this.contractClasses[call.contractName]
+                // let state = this.sandbox.contractStates[call.contractName]
+                // let setState = `
+                // let stateString = '${JSON.stringify(state)}';
+                // let state = JSON.parse(stateString);
+                // await instance.setState(state);
+                // `
                 let stateHeaderInstruction = `
                 let state = await getState("${call.contractName}");
                 await instance.setState(state);
@@ -452,7 +452,6 @@ class ContractVM{
                     method:methodToRun,
                     depth:0
                 }
-                // var start = process.hrtime();
                 
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
@@ -462,8 +461,7 @@ class ContractVM{
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
                         }
-                        // var executionTime = process.hrtime(start);
-                        // console.log('Execution time:', executionTime)
+                        
                         clearTimeout(this.timers[call.hash])
                         delete this.contractCallThreads[call.hash]
                         if(result.error){
