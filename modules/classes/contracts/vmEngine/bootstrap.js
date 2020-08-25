@@ -95,7 +95,6 @@ class Bootstrap{
         if(!memory){
             console.log('Worker memory is not set yet')
             let contractCode = await this.contractConnector.getContractCode(contractName)
-            console.log('Code', contractCode)
             let state = await this.contractConnector.getState(contractName)
             if(state && Object.keys(state).length > 0){
                 this.workerMemory[contractName] = {
