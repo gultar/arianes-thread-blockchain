@@ -140,8 +140,7 @@ class VMController{
             let sendCalls = process.hrtime()
             this.vmChannel.emit('runCalls', calls)
             for await(let hash of Object.keys(calls)){
-                let call = calls[hash]
-                this.vmChannel.on(call.hash, async (result)=>{
+                this.vmChannel.on(hash, async (result)=>{
                         if(result.error){
                             errors[hash] = result
                         }else if(result.timeout){
