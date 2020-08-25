@@ -12,14 +12,9 @@ const makeExternal = require('../toolbox/makeExternal')
 const EventEmitter = require('events')
 const { isValidActionJSON, isValidAccountJSON, isValidContractActionJSON, isValidPayableJSON, isValidCallPayloadJSON } = require('../../../tools/jsonvalidator')
 const { workerData } = require('worker_threads')
-//Kind of useless
-class Signals extends EventEmitter{
-    constructor(){
-        super()
-    }
-}
+
 //Serves to communicate back and forth between VM
-let signals = new Signals()
+let signals = new EventEmitter()
 signals.setMaxListeners(50)
 
 class ContractVM{

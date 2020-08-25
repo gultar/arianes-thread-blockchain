@@ -3,6 +3,7 @@ const ContractVM = require('./ContractVM')
 
 let vm = new ContractVM()
 
+
 vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
 vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)
 vm.signals.on('failed', (failure)=> parentPort.postMessage({error:failure.error, hash:failure.hash}))
@@ -33,10 +34,15 @@ parentPort.on('message', async (message)=>{
 
         }else if(message.error){
             parentPort.postMessage({ error:message.error, hash:message.hash, contractName:message.contractName })
+        
+        }else if(message.testTime){
+            let start = message.testTime
+            console.log('End: ', process.hrtime(start)[1]/1000000)
+        
         }else if(message.setState){
+            
             try{
                 if(typeof message.setState == 'object' && message.contractName){
-            
                     let stateSet = await vm.setState(message.setState, message.contractName)
                     if(stateSet.error) parentPort.postMessage({error:stateSet.error, contractName:message.contractName })
                     

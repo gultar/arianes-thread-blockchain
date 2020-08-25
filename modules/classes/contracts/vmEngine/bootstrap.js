@@ -38,6 +38,7 @@ class Bootstrap{
             callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
+            worker.postMessage({ testTime:process.hrtime() })
             this.calls[code.hash] = code
         })
         return this.events
@@ -193,13 +194,14 @@ class Bootstrap{
                     blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
                     delete this.calls[result.hash]
                     if(result.error){
+
                         //VM Returned an error
-                        
                         this.events.emit(result.hash, {
                             error:result.error,
                             contractName:result.contractName,
                             hash:result.hash
                         })
+
                     }else{
                         
                         this.events.emit(result.hash, {
@@ -216,55 +218,41 @@ class Bootstrap{
                     let state = await this.contractConnector.getState(message.getState);
                     let contractName = message.getState
                     let worker = await this.getWorker(contractName)
-                    
                     if(state && Object.keys(state).length > 0){
-
                         if(state.error) worker.postMessage({error:state.error})
-                        else{
-                            worker.postMessage({ state:state })
-                        }
-                    }else{
-                        worker.postMessage({error:'Could not find state of '+message.getState})
-                    }
+                        else worker.postMessage({ state:state })
+                    }else worker.postMessage({error:'Could not find state of '+message.getState})
 
                 }else if(message.getContract){
+
                     console.log('Getting contract from bootstrap')
                     let contract = await this.contractConnector.getContractCode(message.getContract);
-
                     if(contract && Object.keys(contract).length > 0){
                         if(contract.error) worker.postMessage({error:contract.error})
-                        else{
-                            worker.postMessage({ contract:contract })
-                        }
-                    }else{
-                        worker.postMessage({ contract:{} })
-                    }
+                        else worker.postMessage({ contract:contract })
+                    }else worker.postMessage({ contract:{} })
 
                 }else if(message.getAccount){
 
                     let { name, contractName } = message.getAccount
                     let account = await this.accountTable.getAccount(name);
-
                     if(account && Object.keys(account).length > 0){
                         if(account.error) worker.postMessage({error:account.error})
-                        else{
-                            worker.postMessage({ account:account })
-                        }
-                    }else{
-                        worker.postMessage({ account:{} })
-                    }
+                        else worker.postMessage({ account:account })
+                    }else worker.postMessage({ account:{} })
 
                 }else if(message.getBalance){
 
                     let name = message.getBalance
                     let balance = await this.getBalance(name);
-
                     if(balance.error) worker.postMessage({error:balance.error})
                     else worker.postMessage({ balance:balance })
 
                 }else if(message.getCurrentBlock){
+
                     let currentBlock = await this.getCurrentBlock()
                     worker.postMessage({ currentBlock:currentBlock })
+
                 }else if(message.deferContractAction){
                     
                     let contractAction = JSON.parse(message.deferContractAction)
@@ -272,12 +260,8 @@ class Bootstrap{
                         let deferred = await this.deferContractAction(contractAction);
                         if(deferred){
                             if(deferred.error) worker.postMessage({error:deferred.error})
-                            else{
-                                worker.postMessage({ deferred:deferred })
-                            }
-                        }else{
-                            worker.postMessage(false)
-                        }
+                            else worker.postMessage({ deferred:deferred })
+                        }else worker.postMessage(false)
                     }
 
                 }else if(message.deferPayable){
@@ -287,12 +271,8 @@ class Bootstrap{
                         let deferred = await this.deferPayable(payable);
                         if(deferred){
                             if(deferred.error) worker.postMessage({error:deferred.error})
-                            else{
-                                worker.postMessage({ deferred:deferred })
-                            }
-                        }else{
-                            worker.postMessage(false)
-                        }
+                            else worker.postMessage({ deferred:deferred })
+                        }else worker.postMessage(false)
                     }
 
                 }else if(message.emitContractAction){
@@ -317,12 +297,8 @@ class Bootstrap{
                         let emitted = await this.emitPayable(payable);
                         if(emitted){
                             if(emitted.error) worker.postMessage({error:emitted.error})
-                            else{
-                                worker.postMessage({ emitted:emitted })
-                            }
-                        }else{
-                            worker.postMessage(false)
-                        }
+                            else worker.postMessage({ emitted:emitted })
+                        }else worker.postMessage(false)
                     }
                     
                 }else if(message.error){
@@ -355,12 +331,8 @@ class Bootstrap{
     }
 
     destroyVM(contractName){
-        if(this.workers[contractName]){
-            delete this.workers[contractName]
-        }
-
+        if(this.workers[contractName]) delete this.workers[contractName]
         return true
-        
     }
     
 
