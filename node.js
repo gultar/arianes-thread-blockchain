@@ -256,6 +256,7 @@ class Node {
                               this.nodeList.addNewAddress(peerAddress);
                               nodeDebug(`Added peer ${peerAddress} to node list`)
                               this.nodeEventHandlers(socket, peerAddress);
+                              await this.rebroadcastKnownTransactions()
 
                             }else{
                                 logger('Multiple connections by peers are not allowed')
@@ -1907,8 +1908,6 @@ class Node {
         let transaction = await this.mempool.getTransaction(hash)
         this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2))
       }
-
-
   }
 
   /**
