@@ -240,9 +240,7 @@ program
     if(nodeAddress){
         openSocket(nodeAddress, (socket)=>{
                 socket.emit('recalculateBalance');
-                socket.on('rollbackResult', ()=>{
-                    socket.close()
-                })
+                
             
         })
     }else{

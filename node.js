@@ -339,9 +339,9 @@ class Node {
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
-      socket.on('getPendingTxHashes', async()=> {
-
-      })
+      socket.on('isTransactionKnown', async(hash)=>await this.isTransactionKnown(hash))
+      socket.on('isActionKnown', async(hash)=>await this.isActionKnown(hash))
+      
       socket.on('error', async(err)=> logger('Socket error:',err))
 
       socket.on('disconnect', async()=>{ 
@@ -518,6 +518,30 @@ class Node {
           socket.emit('blockHeader', {error:'Header not found'})
         }
       }
+  }
+
+  async isTransactionKnown(hash){
+    if(this.spentTransactionHashes[hash]){
+      socket.emit('transactionKnown', { inBlockNumber:this.spentTransactionHashes[hash] })
+    }else{
+      let isInMempool = await this.mempool.getTransaction(hash)
+      if(isInMempool){
+        if(isInMempool.error) socket.emit('transactionKnown', false)
+        else socket.emit('transactionSpent', { inPool:true })
+      }else socket.emit('transactionKnown', false)
+    }
+  }
+
+  async isActionKnown(hash){
+    if(this.spentActionHashes[hash]){
+      socket.emit('actionKnown', { inBlockNumber:this.spentActionHashes[hash] })
+    }else{
+      let isInMempool = await this.mempool.getAction(hash)
+      if(isInMempool){
+        if(isInMempool.error) socket.emit('actionKnown', false)
+        else socket.emit('actionSpent', { inPool:true })
+      }else socket.emit('actionKnown', false)
+    }
   }
 
   async getBlockchainStatus(socket, peerStatus){
@@ -1442,6 +1466,41 @@ class Node {
 
   }
 
+  
+  /**
+    Basis for gossip protocol on network
+    Generates a message uid to be temporarilly stored by all nodes
+    to avoid doubles, then erased so that memory does not overflow.
+    @param {string} $type - peer message type
+  */
+  sendDirectPeerMessage(type, data, peer){
+    if(type){
+        try{
+            if(typeof data == 'object')
+            data = JSON.stringify(data);
+            
+            var message = { 
+                'type':type, 
+                'messageId':'', 
+                'originAddress':this.address, 
+                'data':data,
+                'relayPeer':this.address,
+                'timestamp':Date.now(),
+                'expiration':Date.now() + this.peerMessageExpiration// 30 seconds
+            }
+            let messageId = sha1(JSON.stringify(message));
+            message.messageId = messageId
+            this.messageBuffer[messageId] = messageId;
+            peer.emit('peerMessage', message);
+
+        }catch(e){
+            console.log(e);
+        }
+
+    }
+
+  }
+
   /**
    * @desc Validates and add peer message to buffer, then route peer message accordingly
    * @param {String} $type - Peer message type
@@ -1802,32 +1861,28 @@ class Node {
               resolve({error:'Transaction signature failed. Missing signature'})
             }else{
               
-              this.chain.createTransaction(transaction)
-                .then( async (valid) =>{
-                  if(!valid.error){
-
-                    let txBroadcasted = await this.handleTransactionType(transaction, test)
-                    if(txBroadcasted.error){
-                      this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                      resolve({error:txBroadcasted.error});
-                    }else if(txBroadcasted.isReadOnly){
-                      //Is a transaction call linked to read only method
-                      resolve({ value: txBroadcasted.isReadOnly });
-                    }else{
-                      this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); 
-                      this.UILog('->'+' Emitted transaction : '+ transaction.hash.substr(0, 15)+"...")
-                      if(this.verbose) logger(chalk.cyan('->'+' Emitted transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                      resolve(txBroadcasted);
-                    }
-
-                  }else{
-                    this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
-                    if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
-                    resolve({error:valid.error});
+              let valid = await this.chain.createTransaction(transaction)
+              if(valid.error){
+                this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                resolve({error:valid.error});
   
-                  }
-                })
+              }else{
+                let txBroadcasted = await this.handleTransactionType(transaction, test)
+                if(txBroadcasted.error){
+                  this.UILog('!!!'+' Rejected transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) logger(chalk.red('!!!'+' Rejected transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                  resolve({error:txBroadcasted.error});
+                }else if(txBroadcasted.isReadOnly){
+                  //Is a transaction call linked to read only method
+                  resolve({ value: txBroadcasted.isReadOnly });
+                }else{
+                  this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2)); 
+                  this.UILog('->'+' Emitted transaction : '+ transaction.hash.substr(0, 15)+"...")
+                  if(this.verbose) logger(chalk.cyan('->'+' Emitted transaction : ')+ transaction.hash.substr(0, 15)+"...")
+                  resolve(txBroadcasted);
+                }
+              }
             }
           }
          
@@ -1837,6 +1892,23 @@ class Node {
       }
       
     })
+  }
+
+
+
+  async rebroadcastKnownTransactions(){
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+      let hashes = await this.mempool.getTransactionHashes()
+      for await(let hash of hashes){
+        await delay(100)
+        let transaction = await this.mempool.getTransaction(hash)
+        this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2))
+      }
+
+
   }
 
   /**
