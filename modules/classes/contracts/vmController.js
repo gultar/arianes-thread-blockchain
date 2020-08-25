@@ -136,7 +136,7 @@ class VMController{
             }
 
             
-            
+            let sendCalls = process.hrtime()
             for await(let hash of Object.keys(calls)){
                 
                 let call = calls[hash]
@@ -160,7 +160,7 @@ class VMController{
                             let startUpdate = process.hrtime()
                             let updated = await updateStates(states)
                             let endUpdate = process.hrtime(startUpdate)
-                            blockExecutionDebug(`Update states: ${endUpdate[1]}`)
+                            blockExecutionDebug(`Update states: ${endUpdate[1]/1000000}`)
                             if(updated.error) resolve({error:updated.error})
                             else resolve({ results:results, state:states, updated:updated })
                         }
@@ -170,6 +170,8 @@ class VMController{
                 
             }
 
+            let endSendCalls = process.hrtime(sendCalls)
+            blockExecutionDebug(`Send calls for await: ${endSendCalls[1]/1000000}`)
             
         })
     }
