@@ -177,7 +177,7 @@ class Bootstrap{
            })
            
            this.workers[contractName] = worker
-           worker.postMessage({ testTime:process.hrtime(), hash:code.hash })
+           worker.postMessage({ testTime:process.hrtime() })
 
            worker.on('error', err => {
             console.log('Bootstrap Error',err)
