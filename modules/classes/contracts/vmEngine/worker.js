@@ -1,6 +1,6 @@
 const { parentPort, workerData } = require('worker_threads')
 const ContractVM = require('./ContractVM')
-
+const blockExecutionDebug = require('debug')('blockExecution')
 const runContractVM = async () =>{
 
     let vm = new ContractVM()
@@ -24,8 +24,9 @@ const runContractVM = async () =>{
             if(message.run){
     
                 try{
+                    let startRunning = process.hrtime()
                     let result = await vm.run(message.run)
-    
+                    blockExecutionDebug(`Running call from parentPort: ${process.hrtime(startRunning)[1]/1000000}`)
                     let resultString = JSON.stringify(result)
                     parentPort.postMessage({singleResult:resultString})
                 

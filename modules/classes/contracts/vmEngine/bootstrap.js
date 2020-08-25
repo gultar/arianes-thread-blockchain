@@ -37,7 +37,6 @@ class Bootstrap{
         this.events.on('run', async (code)=>{
             callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
-            blockExecutionDebug('Got worker for running call', process.hrtime(callLog[code.hash])[1]/1000000)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
             this.calls[code.hash] = code
         })
