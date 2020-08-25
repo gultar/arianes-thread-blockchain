@@ -1330,6 +1330,10 @@ class Node {
         socket.emit('actionFromDB', action)
       })
 
+      socket.on('getSizeOfSpent', ()=>{
+        socket.emit('sizeOfSpent', { tx:Object.keys(this.chain.spentTransactionHashes).length, actions:Object.keys(this.chain.spentActionHashes).length })
+      })
+
       socket.on('disconnect', ()=>{
         var index = this.userInterfaces.length
         this.userInterfaces.splice(index-1, 1)

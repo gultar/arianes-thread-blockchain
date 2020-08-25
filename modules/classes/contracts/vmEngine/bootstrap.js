@@ -117,52 +117,52 @@ class Bootstrap{
         
     }
 
-    async setContract(contractName, contractCode, state){
-        this.workerMemory[contractName] = {
-            contract:contractCode,
-            state: state
-        }
+    // async setContract(contractName, contractCode, state){
+    //     this.workerMemory[contractName] = {
+    //         contract:contractCode,
+    //         state: state
+    //     }
         
-        let worker = await this.getWorker(contractName)
+    //     let worker = await this.getWorker(contractName)
         
-        worker.postMessage({ setContract:contractCode, contractName:contractName, setContractState:state })
+    //     worker.postMessage({ setContract:contractCode, contractName:contractName, setContractState:state })
         
 
-        return { sent: true }
-    }
+    //     return { sent: true }
+    // }
 
-    async addContract(contractName){
-        let contractCode = await this.contractConnector.getContractCode(contractName)
-        if(contractCode){
+    // async addContract(contractName){
+    //     let contractCode = await this.contractConnector.getContractCode(contractName)
+    //     if(contractCode){
             
-            let worker = await this.getWorker(contractName)
-            worker.postMessage({contractName:contractName, contractCode:contractCode})
+    //         let worker = await this.getWorker(contractName)
+    //         worker.postMessage({contractName:contractName, contractCode:contractCode})
             
-            this.workerMemory[contractName] = {
-                contract:contractCode,
-                state: {}
-            }
+    //         this.workerMemory[contractName] = {
+    //             contract:contractCode,
+    //             state: {}
+    //         }
             
 
-            return { sent: true }
-        }else{
-            return { error:'ERROR: Could not get contract code of '+contractName }
-        }
-    }
+    //         return { sent: true }
+    //     }else{
+    //         return { error:'ERROR: Could not get contract code of '+contractName }
+    //     }
+    // }
 
-    async setContractState(contractName, state){
-        if(contractName && state){
-            let worker = await this.getWorker(contractName)
-            worker.postMessage({setState:state, contractName:contractName})
+    // async setContractState(contractName, state){
+    //     if(contractName && state){
+    //         let worker = await this.getWorker(contractName)
+    //         worker.postMessage({setState:state, contractName:contractName})
 
-            let memory = this.workerMemory[contractName]
-            memory.state = state
+    //         let memory = this.workerMemory[contractName]
+    //         memory.state = state
 
-            return true
-        }else{
-            return { error:'ERROR: Must provide valid contract name and state to setup vm statestorage'}
-        }
-    }
+    //         return true
+    //     }else{
+    //         return { error:'ERROR: Must provide valid contract name and state to setup vm statestorage'}
+    //     }
+    // }
 
     buildVM({ contractName}){
         return new Promise(async (resolve)=>{

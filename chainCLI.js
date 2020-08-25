@@ -114,6 +114,26 @@ program
     
 })
 
+
+program
+.command('sizeOfSpent')
+.description('Requests a snapshot of the ten most recent blocks')
+.action((num)=>{
+    if(nodeAddress){
+        openSocket(nodeAddress, (socket)=>{
+            socket.emit('getSizeOfSpent');
+            socket.on('sizeOfSpent', (info)=>{
+                console.log(info)
+                socket.close()
+            })
+        
+        })
+    }else{
+        console.log('ERROR: Missing node address')
+    }
+    
+})
+
 program
 .command('verbose')
 .description('Toggles verbose mode on node')
