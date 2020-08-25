@@ -36,9 +36,9 @@ parentPort.on('message', async (message)=>{
             parentPort.postMessage({ error:message.error, hash:message.hash, contractName:message.contractName })
         
         }else if(message.testTime){
-            
+
             let start = message.testTime
-            console.log(`End of ${message.hash}: ${process.hrtime(start)[1]/1000000}`)
+            console.log(`End : ${process.hrtime(start)[1]/1000000}`)
         
         }else if(message.setState){
             

@@ -38,7 +38,7 @@ class Bootstrap{
             callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
-            worker.postMessage({ testTime:process.hrtime(), hash:code.hash })
+            
             this.calls[code.hash] = code
         })
         return this.events
@@ -177,7 +177,7 @@ class Bootstrap{
            })
            
            this.workers[contractName] = worker
-
+           worker.postMessage({ testTime:process.hrtime(), hash:code.hash })
 
            worker.on('error', err => {
             console.log('Bootstrap Error',err)
