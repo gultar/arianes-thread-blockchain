@@ -31,7 +31,7 @@ class ContractVM{
         this.compiled = ''
         this.timers = {}
         this.contractCallThreads = {}
-        this.contractCallDepthLimit = 10
+        this.contractCallDepthLimit = 5
         this.sandbox = {
             stateStorage:{},
             contractStates:{},

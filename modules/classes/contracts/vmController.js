@@ -182,14 +182,22 @@ class VMController{
             let timer = {}
             if(contractName){
                 
-                let contractSent = await this.testBootstrap.addContract(contractName)
-                if(contractSent.error) resolve({ error:`ERROR: Contract ${code.contractName} does not exist` })
+                // let contractSent = await this.testBootstrap.addContract(contractName)
+                // if(contractSent.error) resolve({ error:`ERROR: Contract ${code.contractName} does not exist` })
                 
-                let state = await this.contractConnector.getLatestState(contractName)
-                if(state){
-                    let stateAdded = await this.testBootstrap.setContractState(contractName, state)
-                    if(stateAdded.error) resolve({ error:stateAdded.error })
-                    timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
+                // let state = await this.contractConnector.getLatestState(contractName)
+                // if(state){
+                //     let stateAdded = await this.testBootstrap.setContractState(contractName, state)
+                //     if(stateAdded.error) resolve({ error:stateAdded.error })
+                    
+
+                // }else{
+                //     resolve({error:`ERROR Could not find state of contract ${contractName}`})
+                // }
+                let stateAdded = await this.testBootstrap.initContract(contractName)
+                if(stateAdded.error) return { error:stateAdded.error }
+
+                timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
                     this.testChannel.on(code.hash, async (result)=>{
                         console.log('Result:', result)
                         // let terminated = await this.vmBootstrap.terminateVM(contractName)
@@ -210,10 +218,6 @@ class VMController{
                     })
                     
                     this.testChannel.emit('run', code)
-
-                }else{
-                    resolve({error:`ERROR Could not find state of contract ${contractName}`})
-                }
                 
             }else{
                 resolve({error:'ERROR: Code to execute must contain name of contract'})
