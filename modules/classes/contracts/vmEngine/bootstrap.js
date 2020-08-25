@@ -108,12 +108,12 @@ class Bootstrap{
             }
         }else{
             console.log('Worker memory is set')
-            console.log('Memory', memory.state)
+            console.log('Memory state', memory.state)
         }
 
         let worker = await this.getWorker(contractName)
         console.log('Sending this to vm', {
-            contract:memory.contract, state:memory.state, contractName:contractName,
+             state:memory.state, contractName:contractName,
         } )
         worker.postMessage({ 
             initContract:{

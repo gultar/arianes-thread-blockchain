@@ -126,7 +126,7 @@ class ContractVM{
                         "getState":(contractName)=>{
                             //Promise is necessary here because of the event listener call back
                             return new Promise((resolve)=>{
-                                console.log('State after execution', JSON.stringify(this.sandbox.contractStates[contractName],null,2))
+                                console.log('State before execution', JSON.stringify(this.sandbox.contractStates[contractName],null,2))
                                 if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
@@ -403,13 +403,6 @@ class ContractVM{
                 let instruction = call.code
                 let contractName = call.contractName
                 let methodToRun = call.methodToRun
-                // let contractCode = this.contractClasses[call.contractName]
-                // let state = this.sandbox.contractStates[call.contractName]
-                // let setState = `
-                // let stateString = '${JSON.stringify(state)}';
-                // let state = JSON.parse(stateString);
-                // await instance.setState(state);
-                // `
                 
                 let stateHeaderInstruction = `
                 let state = await getState("${call.contractName}");
