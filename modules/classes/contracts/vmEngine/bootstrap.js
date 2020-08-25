@@ -79,9 +79,7 @@ class Bootstrap{
             worker.terminate()
             this.stopVMTimer(contractName)
             let memory = this.workerMemory[contractName]
-            console.log('Before:', JSON.stringify(memory.state,null,2))
             memory.state = await this.contractConnector.getLatestState(contractName)
-            console.log('After:',JSON.stringify(memory.state,null,2))
             delete this.workers[contractName]
             return true
         }catch(e){
@@ -92,28 +90,55 @@ class Bootstrap{
     restartVM(){}
 
     async initContract(contractName){
-        let contractCode = await this.contractConnector.getContractCode(contractName)
-        let state = await this.contractConnector.getState(contractName)
-        if(state && Object.keys(state).length > 0){
-            this.workerMemory[contractName] = {
-                contract:contractCode,
-                state: state
-            }
+        let memory = this.workerMemory[contractName]
+        if(!memory){
+            console.log('Worker memory is not set yet')
+            let contractCode = await this.contractConnector.getContractCode(contractName)
+            let state = await this.contractConnector.getState(contractName)
+            if(state && Object.keys(state).length > 0){
+                this.workerMemory[contractName] = {
+                    contract:contractCode,
+                    state: state
+                }
 
-            let worker = await this.getWorker(contractName)
+                memory = this.workerMemory[contractName]
+            }else {
+                throw new Error('ERROR: Could not get state of contract', contractName)
+            }
+        }else{
+            console.log('Worker memory is set')
+        }
+
+        let worker = await this.getWorker(contractName)
         
-            worker.postMessage({ 
-                initContract:{
-                    contractCode, contractName:contractName, state:state
-                } 
-            })
+        worker.postMessage({ 
+            initContract:{
+                contractCode:memory.contractCode, state:memory.state, contractName:contractName,
+            } 
+        })
+        return { sent: true }
+        // let contractCode = await this.contractConnector.getContractCode(contractName)
+        // let state = await this.contractConnector.getState(contractName)
+        // if(state && Object.keys(state).length > 0){
+        //     this.workerMemory[contractName] = {
+        //         contract:contractCode,
+        //         state: state
+        //     }
+
+        //     let worker = await this.getWorker(contractName)
+        
+        //     worker.postMessage({ 
+        //         initContract:{
+        //             contractCode, contractName:contractName, state:state
+        //         } 
+        //     })
             
 
-            return { sent: true }
-        }
-        else {
-            throw new Error('ERROR: Could not get state of contract', contractName)
-        }
+        //     return { sent: true }
+        // }
+        // else {
+        //     throw new Error('ERROR: Could not get state of contract', contractName)
+        // }
     }
 
     async setContract(contractName, contractCode, state){
