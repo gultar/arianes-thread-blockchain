@@ -37,12 +37,12 @@ class Bootstrap{
         this.events.on('runCalls', async (codes)=>{
             for await(let hash of Object.keys(codes)){
                 let code = codes[hash]
-                this.calls[code.hash] = code
+                this.calls[hash] = code
                 callLog[code.hash] = process.hrtime()
             }
             
             let worker = await this.getWorker(codes.contractName)
-            worker.postMessage({runCodes:codes, contractName:codes.contractName})
+            worker.postMessage({runCalls:codes, contractName:codes.contractName})
         })
         this.events.on('run', async (code)=>{
             callLog[code.hash] = process.hrtime()
