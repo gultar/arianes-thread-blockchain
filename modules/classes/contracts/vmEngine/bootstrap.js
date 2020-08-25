@@ -194,7 +194,7 @@ class Bootstrap{
                     
                     let result = JSON.parse(message.singleResult)
                     let endOfExec = process.hrtime(callLog[result.hash])
-                    blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
+                    // blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
                     delete this.calls[result.hash]
                     if(result.error){
                         //VM Returned an error
