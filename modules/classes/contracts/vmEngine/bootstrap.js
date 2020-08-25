@@ -93,7 +93,6 @@ class Bootstrap{
         
         let memory = this.workerMemory[contractName]
         if(!memory){
-            console.log('Worker memory is not set yet')
             let contractCode = await this.contractConnector.getContractCode(contractName)
             let state = await this.contractConnector.getState(contractName)
             if(state && Object.keys(state).length > 0){
@@ -106,9 +105,6 @@ class Bootstrap{
             }else {
                 throw new Error('ERROR: Could not get state of contract', contractName)
             }
-        }else{
-            console.log('Worker memory is set')
-            console.log('Memory state', memory.state)
         }
 
         let worker = await this.getWorker(contractName)
@@ -194,7 +190,7 @@ class Bootstrap{
                     
                     let result = JSON.parse(message.singleResult)
                     let endOfExec = process.hrtime(callLog[result.hash])
-                    // blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
+                    blockExecutionDebug(`${result.hash.substr(0, 15)}... execution: ${endOfExec[1]/1000000}`)
                     delete this.calls[result.hash]
                     if(result.error){
                         //VM Returned an error
