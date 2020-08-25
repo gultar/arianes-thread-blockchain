@@ -190,11 +190,8 @@ class Bootstrap{
            })
            worker.on('exit', ()=>{ })
            worker.on('message', async (message)=>{
-                // let rewinded = await this.rewindVMTimer(contractName)
-               
+                
                 if(message.singleResult){
-                    
-                    
                     
                     let result = JSON.parse(message.singleResult)
                     let endOfExec = process.hrtime(callLog[result.hash])
@@ -237,8 +234,6 @@ class Bootstrap{
 
                 }else if(message.getContract){
                     let contract = await this.contractConnector.getContractCode(message.getContract);
-                    // let contractName = message.getContract
-                    // let worker = await this.getWorker(contractName)
 
                     if(contract && Object.keys(contract).length > 0){
                         if(contract.error) worker.postMessage({error:contract.error})
@@ -253,8 +248,6 @@ class Bootstrap{
 
                     let { name, contractName } = message.getAccount
                     let account = await this.accountTable.getAccount(name);
-
-                    // let worker = await this.getWorker(contractName)
 
                     if(account && Object.keys(account).length > 0){
                         if(account.error) worker.postMessage({error:account.error})
@@ -357,8 +350,10 @@ class Bootstrap{
         if(this.workers[contractName]){
             return this.workers[contractName]
         }else{
-            
+            let startBuildVM = process.hrtime()
             this.workers[contractName] = await this.buildVM({ contractName:contractName })
+            let endBuildVM = process.hrtime(startBuildVM)
+            blockExecutionDebug('Building worker', endBuildVM[1]/1000000)
             return this.workers[contractName];
         }
     }
