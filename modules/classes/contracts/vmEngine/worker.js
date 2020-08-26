@@ -17,7 +17,7 @@ vm.signals.on('emitContractAction', (contractAction)=> parentPort.postMessage({ 
 vm.signals.on('emitPayable', (payable)=> parentPort.postMessage({ emitPayable:JSON.stringify(payable) }))
 vm.signals.on('getBalance', (accountName)=> parentPort.postMessage({ getBalance:accountName }))
 
-setTimeout(()=>{parentPort.postMessage({ muppet:Date.now() })}, 2000)
+
 parentPort.on('message', async (message)=>{
 
         if(message.run){
@@ -90,3 +90,5 @@ parentPort.on('message', async (message)=>{
         else if(message.balance) vm.signals.emit('balance', message.balance)
         else if(message.ping) parentPort.postMessage({pong:true})
 })
+
+setTimeout(()=>{parentPort.postMessage({ muppet:Date.now() })}, 2000)
