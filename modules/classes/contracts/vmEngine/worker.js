@@ -2,15 +2,15 @@ const { parentPort, workerData } = require('worker_threads')
 const ContractVM = require('./ContractVM')
 
 const initContractVM = async () =>{
-    let { contractName, contractCode, state } = workerData
+    //let { contractName, contractCode, state } = workerData
     
     let vm = new ContractVM()
     
-    let contractSet = await vm.setContractClass(contractName, contractCode)
-    if(contractSet.error) throw new Error(contractSet.error)
+    //let contractSet = await vm.setContractClass(contractName, contractCode)
+    //if(contractSet.error) throw new Error(contractSet.error)
 
-    let stateSet = vm.setState(state, contractName)
-    if(stateSet.error) throw new Error(stateSet.error)
+    //let stateSet = vm.setState(state, contractName)
+    //if(stateSet.error) throw new Error(stateSet.error)
     
     vm.signals.on('saved', (state)=> vm.sandbox.stateStorage = state)
     vm.signals.on('saveState', ({ state, contractName })=> vm.sandbox.contractStates[contractName] = state)
