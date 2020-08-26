@@ -2,7 +2,6 @@
 const vmBootstrap = require('./vmEngine/bootstrap')
 const ContractConnector = require('./contractConnector')
 const { getDirectorySize } = require('../../tools/utils')
-let blockExecutionDebug = require('debug')('blockExecution')
 
 class VMController{
     constructor({ 
@@ -17,7 +16,6 @@ class VMController{
         getBalance }){
 
         this.getBalance = getBalance
-        this.contractTable = contractTable
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
         });
@@ -30,7 +28,6 @@ class VMController{
         this.buildCode = buildCode
         this.vmBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
-            contractTable:this.contractTable,
             accountTable:accountTable,
             buildCode:buildCode,
             deferContractAction:this.deferContractAction,
@@ -42,19 +39,26 @@ class VMController{
         });
         this.testBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
-            contractTable:this.contractTable,
             accountTable:this.accountTable,
             buildCode:this.buildCode,
             getBalance:this.getBalance,
+            deferContractAction:()=>{
+                return { deferred:true }
+            },
             getCurrentBlock:this.getCurrentBlock,
-            emitContractAction: ()=>{ return { emitted:true } },
-            emitPayable:()=>{ return { emitted:true } },
-            deferPayable:()=>{ return { deferred:true } },
-            deferContractAction:()=>{ return { deferred:true } },
+            emitContractAction: ()=>{
+                return { emitted:true }
+            },
+            emitPayable:()=>{
+                return { emitted:true }
+            },
+            deferPayable:()=>{
+                return { deferred:true }
+            }
         });
         this.testChannel = this.testBootstrap.startVM()
+
         this.vmChannel = this.vmBootstrap.startVM()
-        
         this.vmChannel.setMaxListeners(500)
     }
 
@@ -64,35 +68,46 @@ class VMController{
     }
 
     async executeCalls(codes){
-        
+
         let calls = {}
-        let startExecute = process.hrtime() /**  Checking execution time */
         
         for await(let contractName of Object.keys(codes)){
-            
-            let stateAdded = await this.vmBootstrap.initContract(contractName)
-            if(stateAdded.error) return { error:stateAdded.error }
+            let contractCode = await this.contractConnector.getContractCode(contractName)
+            if(contractCode){
+                let added = await this.vmBootstrap.addContract(contractName, contractCode)
+                if(added.error) return { error:added.error } 
 
-            let moreCalls = codes[contractName].calls
-            if(moreCalls){
+                let state = await this.contractConnector.getLatestState(contractName)
+                if(state && Object.keys(state).length > 0){
+                    
+                    let stateAdded = await this.vmBootstrap.setContractState(contractName, state)
+                    if(stateAdded.error) return { error:stateAdded.error }
+
+                    let moreCalls = codes[contractName].calls
+                    if(moreCalls){
+                        
+                        if(Object.keys(calls).length > 0) calls = { ...calls, ...moreCalls }
+                        else calls = { ...moreCalls }
+                        
+                    }else{
+                        return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
+                    }
+                }else{
+                    return { error:`ERROR: Could not find state of ${contractName} while executing multiple calls` }
+                }
                 
-                if(Object.keys(calls).length > 0) calls = { ...calls, ...moreCalls }
-                else calls = { ...moreCalls }
                 
             }else{
-                return { error:`ERROR: Code payload of contract ${contractName} does not contain any calls` }
+                return { error:`Could not find code of contract ${contractName}` }
             }
         }
        
-        let endExecute = process.hrtime(startExecute)
-
-        blockExecutionDebug(`Init contracts ${endExecute[1] / 1000000}`)
-
+        let blockExecutionDebug = require('debug')('blockExecution')
         let start = process.hrtime() /**  Checking execution time */
         let result = await this.sendCallsToVM(calls)
         let hrend = process.hrtime(start)
 
-        blockExecutionDebug(`Send calls ${Object.keys(calls).length} to VM: ${hrend[1] / 1000000}`)
+        blockExecutionDebug(`Send calls to VM: ${hrend[1] / 1000000}`)
         if(result.error) return { error:result.error }
         else{
             let { results, state } = result;
@@ -129,12 +144,14 @@ class VMController{
             }
 
             
-            let sendCalls = process.hrtime()
+            
             for await(let hash of Object.keys(calls)){
                 
                 let call = calls[hash]
+                
                 this.vmChannel.emit('run', call)
                 this.vmChannel.on(call.hash, async (result)=>{
+                    
                         if(result.error){
                             errors[hash] = result
                         }else if(result.timeout){
@@ -150,10 +167,7 @@ class VMController{
     
                         delete callsPending[hash]
                         if(Object.keys(callsPending).length == 0){
-                            let startUpdate = process.hrtime()
                             let updated = await updateStates(states)
-                            let endUpdate = process.hrtime(startUpdate)
-                            blockExecutionDebug(`Update states: ${endUpdate[1]/1000000}`)
                             if(updated.error) resolve({error:updated.error})
                             else resolve({ results:results, state:states, updated:updated })
                         }
@@ -163,8 +177,6 @@ class VMController{
                 
             }
 
-            let endSendCalls = process.hrtime(sendCalls)
-            blockExecutionDebug(`Send calls for await: ${endSendCalls[1]/1000000}`)
             
         })
     }
@@ -175,12 +187,18 @@ class VMController{
             let timer = {}
             if(contractName){
                 
-                let stateAdded = await this.testBootstrap.initContract(contractName)
-                if(stateAdded.error) return { error:stateAdded.error }
-
-                timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
+                let contractSent = await this.testBootstrap.addContract(contractName)
+                if(contractSent.error) resolve({ error:`ERROR: Contract ${code.contractName} does not exist` })
+                
+                let state = await this.contractConnector.getLatestState(contractName)
+                if(state){
+                    let stateAdded = await this.testBootstrap.setContractState(contractName, state)
+                    if(stateAdded.error) resolve({ error:stateAdded.error })
+                    timer = setTimeout(()=>{ resolve({error:'Call test failed. VM returned no result'}) }, 1000)
                     this.testChannel.on(code.hash, async (result)=>{
                         console.log('Result:', result)
+                        // let terminated = await this.vmBootstrap.terminateVM(contractName)
+                        // if(terminated.error) resolve({ error:terminated.error })
 
                         if(result && !result.error && result.value){
                             clearTimeout(timer)
@@ -197,6 +215,10 @@ class VMController{
                     })
                     
                     this.testChannel.emit('run', code)
+
+                }else{
+                    resolve({error:`ERROR Could not find state of contract ${contractName}`})
+                }
                 
             }else{
                 resolve({error:'ERROR: Code to execute must contain name of contract'})

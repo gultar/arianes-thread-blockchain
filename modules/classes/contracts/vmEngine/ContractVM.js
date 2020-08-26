@@ -11,14 +11,19 @@ const ContractPayable = require('../../transactions/payable')
 const makeExternal = require('../toolbox/makeExternal')
 const EventEmitter = require('events')
 const { isValidActionJSON, isValidAccountJSON, isValidContractActionJSON, isValidPayableJSON, isValidCallPayloadJSON } = require('../../../tools/jsonvalidator')
-const { workerData } = require('worker_threads')
 
+//Kind of useless
+class Signals extends EventEmitter{
+    constructor(){
+        super()
+    }
+}
 //Serves to communicate back and forth between VM
-let signals = new EventEmitter()
+let signals = new Signals()
 signals.setMaxListeners(50)
 
 class ContractVM{
-    constructor(){
+    constructor(options){
         this.signals = signals
         this.codes = {}
         this.headers = {}
@@ -26,7 +31,7 @@ class ContractVM{
         this.compiled = ''
         this.timers = {}
         this.contractCallThreads = {}
-        this.contractCallDepthLimit = 5
+        this.contractCallDepthLimit = 10
         this.sandbox = {
             stateStorage:{},
             contractStates:{},
@@ -124,8 +129,8 @@ class ContractVM{
                                 if(this.sandbox.contractStates[contractName] && Object.keys(this.sandbox.contractStates[contractName]).length > 0){
                                     resolve(this.sandbox.contractStates[contractName])
                                 }else{
-                                    
                                     this.signals.once('state', (state)=>{
+                                    
                                         if(state && Object.keys(state).length > 0){
                                             resolve(state) 
                                         }else{
@@ -243,9 +248,6 @@ class ContractVM{
                 }
             }
         }
-
-
-
         this.vm = new NodeVM(this.sandbox.context)
     }
 
@@ -283,11 +285,11 @@ class ContractVM{
     }
 
     //to be removed
-    setInitialState(state, contractName){
-        if(state && Object.keys(state).length > 0){
-            this.sandbox.contractStates[contractName] = state
+    setInitialState(state){
+        if(state){
+            this.sandbox.stateStorage = state
         }else{
-            return { error:'Must pass valid initial state for contract '+contractName }
+            return { setInitialStateError:'Must pass valid initial state' }
         }
     }
 
@@ -398,7 +400,13 @@ class ContractVM{
                 let instruction = call.code
                 let contractName = call.contractName
                 let methodToRun = call.methodToRun
-                
+                let contractCode = this.contractClasses[call.contractName]
+                let state = this.sandbox.contractStates[call.contractName]
+                let setState = `
+                let stateString = '${JSON.stringify(state)}';
+                let state = JSON.parse(stateString);
+                await instance.setState(state);
+                `
                 let stateHeaderInstruction = `
                 let state = await getState("${call.contractName}");
                 await instance.setState(state);
@@ -441,15 +449,18 @@ class ContractVM{
                     method:methodToRun,
                     depth:0
                 }
-
+                // var start = process.hrtime();
+                
                 let execute = this.vm.run(( isWhileListed? importHeader : '') + code, './') //
                 
                 execute(async (result, state)=>{
+                    
                     if(result){
                         if(state && Object.keys(state).length > 0){
                             this.sandbox.contractStates[call.contractName] = state
                         }
-                        
+                        // var executionTime = process.hrtime(start);
+                        // console.log('Execution time:', executionTime)
                         clearTimeout(this.timers[call.hash])
                         delete this.contractCallThreads[call.hash]
                         if(result.error){
