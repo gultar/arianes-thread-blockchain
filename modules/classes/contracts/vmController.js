@@ -41,22 +41,15 @@ class VMController{
         });
         this.testBootstrap = new vmBootstrap({
             contractConnector:this.contractConnector,
+            contractTable:this.contractTable,
             accountTable:this.accountTable,
             buildCode:this.buildCode,
             getBalance:this.getBalance,
-            deferContractAction:()=>{
-                return { deferred:true }
-            },
             getCurrentBlock:this.getCurrentBlock,
-            emitContractAction: ()=>{
-                return { emitted:true }
-            },
-            emitPayable:()=>{
-                return { emitted:true }
-            },
-            deferPayable:()=>{
-                return { deferred:true }
-            }
+            emitContractAction: ()=>{ return { emitted:true } },
+            emitPayable:()=>{ return { emitted:true } },
+            deferPayable:()=>{ return { deferred:true } },
+            deferContractAction:()=>{ return { deferred:true } },
         });
         this.testChannel = this.testBootstrap.startVM()
 
