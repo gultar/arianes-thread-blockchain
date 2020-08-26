@@ -216,8 +216,6 @@ class Bootstrap{
                         })
                     }
                     
-                }else if(message.muppet){
-                    console.log('Received muppet in ', Date.now() - message.muppet)
                 }else if(message.result){
                     
                     let result = JSON.parse(message.singleResult)

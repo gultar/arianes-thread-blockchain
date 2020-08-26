@@ -35,6 +35,9 @@ parentPort.on('message', async (message)=>{
         }else if(message.error){
             parentPort.postMessage({ error:message.error, hash:message.hash, contractName:message.contractName })
         
+        }else if(message.muppet){
+            console.log('Received muppet in ', Date.now() - message.muppet)
+        
         }else if(message.setState){
             
             try{
@@ -90,5 +93,3 @@ parentPort.on('message', async (message)=>{
         else if(message.balance) vm.signals.emit('balance', message.balance)
         else if(message.ping) parentPort.postMessage({pong:true})
 })
-
-setTimeout(()=>{parentPort.postMessage({ muppet:Date.now() })}, 2000)
