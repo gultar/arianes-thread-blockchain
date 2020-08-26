@@ -187,7 +187,7 @@ class Bootstrap{
             resolve({error:err.message})
            })
            
-           
+           worker.postMessage({ muppet:Date.now() })
            worker.on('message', async (message)=>{
                 
                 if(message.singleResult){
