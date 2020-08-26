@@ -17,7 +17,7 @@ vm.signals.on('emitContractAction', (contractAction)=> parentPort.postMessage({ 
 vm.signals.on('emitPayable', (payable)=> parentPort.postMessage({ emitPayable:JSON.stringify(payable) }))
 vm.signals.on('getBalance', (accountName)=> parentPort.postMessage({ getBalance:accountName }))
 
-parentPort.postMessage({ muppet:Date.now() })
+setTimeout(()=>{parentPort.postMessage({ muppet:Date.now() })}, 2000)
 parentPort.on('message', async (message)=>{
 
         if(message.run){
