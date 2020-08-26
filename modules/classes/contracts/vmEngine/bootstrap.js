@@ -111,13 +111,13 @@ class Bootstrap{
             }
         }
 
-        let worker = await this.bootVM({ contractName, contractCode:memory.contract, state:memory.state })
+        let worker = await this.bootVM({ contractName, contractCode:contractCode, state:state })
         /**worker.postMessage({ 
             initContract:{
                 contract:memory.contract, state:memory.state, contractName:contractName,
             } 
         }) */
-        return { sent: true }
+        return { contractIntialized: true }
         
     }
 
