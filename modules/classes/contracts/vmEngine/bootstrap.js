@@ -38,6 +38,7 @@ class Bootstrap{
     startVM(){
         
         this.events.on('run', async (code)=>{
+            console.log('In run listener')
             callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
@@ -111,12 +112,12 @@ class Bootstrap{
             }
         }
 
-        let worker = await this.getWorker(contractName)
-        worker.postMessage({ 
+        let worker = await this.bootVM({ contractName, contractCode:memory.contract, state:memory.state })
+        /**worker.postMessage({ 
             initContract:{
                 contract:memory.contract, state:memory.state, contractName:contractName,
             } 
-        })
+        }) */
         return { sent: true }
         
     }
@@ -168,11 +169,19 @@ class Bootstrap{
     //     }
     // }
 
-    buildVM({ contractName}){
+    async bootVM({ contractName, contractCode, state }){
+        let worker = await this.buildVM({ contractName:contractName, contractCode:contractCode, state:state })
+        return worker
+    }
+
+    buildVM({ contractName, contractCode, state }){
         return new Promise(async (resolve)=>{
-            
+            console.log('About to build worker')
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
-                workerData: {},
+                workerData: {
+                    contractCode:contractCode,
+                    state:state
+                },
                 ressourceLimits:{
                     maxOldGenerationSizeMb:this.workerSizeMb
                 }
