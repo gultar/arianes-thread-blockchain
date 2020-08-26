@@ -38,7 +38,6 @@ class Bootstrap{
     startVM(){
         
         this.events.on('run', async (code)=>{
-            console.log('In run listener')
             callLog[code.hash] = process.hrtime()
             let worker = await this.getWorker(code.contractName)
             worker.postMessage({run:code, hash:code.hash, contractName:code.contractName})
@@ -176,7 +175,7 @@ class Bootstrap{
 
     buildVM({ contractName, contractCode, state }){
         return new Promise(async (resolve)=>{
-            console.log('About to build worker')
+            
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: {
                     contractName:contractName,
@@ -197,7 +196,7 @@ class Bootstrap{
             resolve({error:err.message})
            })
            
-           worker.postMessage({ muppet:Date.now() })
+           
            worker.on('message', async (message)=>{
                 
                 if(message.singleResult){

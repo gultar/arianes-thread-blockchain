@@ -43,9 +43,6 @@ const initContractVM = async () =>{
             }else if(message.error){
                 parentPort.postMessage({ error:message.error, hash:message.hash, contractName:message.contractName })
             
-            }else if(message.muppet){
-                console.log('Received muppet in ', Date.now() - message.muppet)
-            
             }else if(message.setState){
                 
                 try{
