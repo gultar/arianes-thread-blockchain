@@ -103,11 +103,11 @@ class Bootstrap{
                 state: state
             }
 
-            memory = this.workerMemory[contractName]
+            
         }else {
             throw new Error('ERROR: Could not get state of contract', contractName)
         }
-
+        let memory = this.workerMemory[contractName]
         let worker = await this.getWorker(contractName)
         worker.postMessage({ 
             initContract:{
