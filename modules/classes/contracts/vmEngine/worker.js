@@ -3,6 +3,7 @@ const ContractVM = require('./ContractVM')
 
 const initContractVM = async () =>{
     let { contractName, contractCode, state } = workerData
+    
     let vm = new ContractVM()
     
     let contractSet = await vm.setContractClass(contractName, contractCode)

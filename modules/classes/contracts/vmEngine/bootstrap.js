@@ -179,6 +179,7 @@ class Bootstrap{
             console.log('About to build worker')
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: {
+                    contractName:contractName,
                     contractCode:contractCode,
                     state:state
                 },
