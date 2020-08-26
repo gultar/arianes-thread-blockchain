@@ -170,13 +170,6 @@ class Bootstrap{
 
     buildVM({ contractName}){
         return new Promise(async (resolve)=>{
-            let gettingFromConnector = process.hrtime()
-            let state = await this.contractConnector.getLatestState('Tokens')
-            console.log(`State from connector : ${process.hrtime(gettingFromConnector)[1]/1000000}`)
-
-            let gettingFromTable = process.hrtime()
-            let stateFromTable = await this.contractTable.getLatestState('Tokens')
-            console.log(`State from table : ${process.hrtime(gettingFromTable)[1]/1000000}`)
             
             let worker = new Worker('./modules/classes/contracts/vmEngine/worker.js', {
                 workerData: {},
@@ -193,6 +186,7 @@ class Bootstrap{
             this.terminateVM(contractName)
             resolve({error:err.message})
            })
+           
            
            worker.on('message', async (message)=>{
                 
@@ -222,6 +216,8 @@ class Bootstrap{
                         })
                     }
                     
+                }else if(message.muppet){
+                    console.log('Received muppet in ', Date.now() - message.muppet)
                 }else if(message.result){
                     
                     let result = JSON.parse(message.singleResult)

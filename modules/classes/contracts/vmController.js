@@ -53,8 +53,8 @@ class VMController{
             deferContractAction:()=>{ return { deferred:true } },
         });
         this.testChannel = this.testBootstrap.startVM()
-
         this.vmChannel = this.vmBootstrap.startVM()
+        
         this.vmChannel.setMaxListeners(500)
     }
 
