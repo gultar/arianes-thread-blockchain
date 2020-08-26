@@ -95,28 +95,25 @@ class Bootstrap{
 
     async initContract(contractName){
         
-        let memory = this.workerMemory[contractName]
-        if(!memory){
-            let contractCode = await this.contractConnector.getContractCode(contractName)
-            let state = await this.contractConnector.getState(contractName)
-            if(state && Object.keys(state).length > 0){
-                this.workerMemory[contractName] = {
-                    contract:contractCode,
-                    state: state
-                }
-
-                memory = this.workerMemory[contractName]
-            }else {
-                throw new Error('ERROR: Could not get state of contract', contractName)
+        let contractCode = await this.contractConnector.getContractCode(contractName)
+        let state = await this.contractConnector.getLatestState(contractName)
+        if(state && Object.keys(state).length > 0){
+            this.workerMemory[contractName] = {
+                contract:contractCode,
+                state: state
             }
+
+            memory = this.workerMemory[contractName]
+        }else {
+            throw new Error('ERROR: Could not get state of contract', contractName)
         }
 
-        let worker = await this.bootVM({ contractName, contractCode:memory.contract, state:memory.state })
-        /**worker.postMessage({ 
+        let worker = await this.getWorker(contractName)
+        worker.postMessage({ 
             initContract:{
                 contract:memory.contract, state:memory.state, contractName:contractName,
             } 
-        }) */
+        })
         return { contractInitialized: true }
         
     }
