@@ -17,6 +17,7 @@ class VMController{
         getBalance }){
 
         this.getBalance = getBalance
+        this.contractTable = contractTable
         this.contractConnector = new ContractConnector({
             contractTable:contractTable
         });
