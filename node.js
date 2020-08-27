@@ -705,6 +705,7 @@ class Node {
          if(!this.isDownloading){
             this.isDownloading = true
             let requestTimer = false
+            let alreadyRolledback = false
             logger('Downloading blocks from peer ', peer.address)
 
             this.minerChannel.emit('nodeEvent','isDownloading')
@@ -754,7 +755,7 @@ class Node {
               clearTimeout(requestTimer)
               requestTimer = false
               createTimer(false, this.chain.getLatestBlock())
-
+              
               if(block.end){
 
                 this.isOutOfSync = false
@@ -773,17 +774,25 @@ class Node {
 
               }else if(block.previousFound){
                 //Represents a fork
-                let fork = block.previousFound
-                nodeDebug(`Next block ${block.blockNumber} was not found but previous ${fork.blockNumber} was.`)
-                
-                let rolledback = await this.chain.rollback(fork.blockNumber - 2)
-                if(rolledback.error) logger('ROLLBACK ERROR:',rolledback.error)
-
-                request(this.chain.getLatestBlock())
+                if(!alreadyRolledback){
+                    let fork = block.previousFound
+                    nodeDebug(`Next block ${block.blockNumber} was not found but previous ${fork.blockNumber} was.`)
+                    
+                    let rolledback = await this.chain.rollback(fork.blockNumber - 2)
+                    if(rolledback.error){
+                        closeConnection({ error:rolledback.error })
+                        resolve({ error:rolledback.error })
+                    }
+                    alreadyRolledback = rolledback
+                    request(this.chain.getLatestBlock())
+                }else{
+                    closeConnection({ error:true })
+                    resolve({ error:'ERROR: Cannot rollback twice during download. Peer out of sync' })
+                }
 
               }else if(block.previousNotFound){
+
                 nodeDebug(`Next block ${block.blockNumber} not found. Walking back chain blocks.`)
-                
                 request(this.chain.getBlockHeader(goingBackInChainCounter))
                 goingBackInChainCounter--
 
