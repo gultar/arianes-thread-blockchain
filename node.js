@@ -341,7 +341,13 @@ class Node {
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
       socket.on('isTransactionKnown', async(hash)=>await this.isTransactionKnown(hash))
+      socket.on('areTransactionsKnown', async(hashes)=>await this.areTransactionsKnown(hashes))
       socket.on('isActionKnown', async(hash)=>await this.isActionKnown(hash))
+      socket.on('directMessage', (directMessage, acknowledge)=>{
+       if(!this.messageBuffer[directMessage.messageId]){
+           this.handleDirectMessage(directMessage, acknowledge)
+       }
+      })
       
       socket.on('error', async(err)=> logger('Socket error:',err))
 
@@ -532,6 +538,26 @@ class Node {
       }else socket.emit('transactionKnown', false)
     }
   }
+ 
+ async areTransactionsKnown(hashes){
+    if(hashes && hashes.length){
+     let unknown = {}
+      for await(let hash of hashes){
+       let isInMempool = await this.mempool.getTransaction(hash)
+        if(!isInMempool){
+          unknown[hash] = { inMempool:true }
+        }
+        if(!this.spentTransactionHashes[hash]){
+          unknown[hash] = { inBlockNumber:this.spentTransactionHashes[hash] }
+        }
+      }
+     
+     return unknown
+    }else{
+      return { error:'ERROR: Did not provide valid transaction hashes array' }
+    }
+  }
+
 
   async isActionKnown(hash){
     if(this.spentActionHashes[hash]){
@@ -1483,7 +1509,7 @@ class Node {
     to avoid doubles, then erased so that memory does not overflow.
     @param {string} $type - peer message type
   */
-  sendDirectPeerMessage(type, data, peer){
+  sendDirectMessage(type, data, peer){
     if(type){
         try{
             if(typeof data == 'object')
@@ -1494,14 +1520,13 @@ class Node {
                 'messageId':'', 
                 'originAddress':this.address, 
                 'data':data,
-                'relayPeer':this.address,
                 'timestamp':Date.now(),
                 'expiration':Date.now() + this.peerMessageExpiration// 30 seconds
             }
             let messageId = sha1(JSON.stringify(message));
             message.messageId = messageId
             this.messageBuffer[messageId] = messageId;
-            peer.emit('peerMessage', message);
+            peer.emit('directMessage', message);
 
         }catch(e){
             console.log(e);
@@ -1554,6 +1579,42 @@ class Node {
     }
     
   }
+ 
+ async handleDirectMessage(directMessage, acknowledge, extend){
+    let { type, originAddress, messageId, data, timestamp, expiration } = directMessage
+    if(data){
+      try{
+
+        var originalMessage = { 
+            'type':type, 
+            'messageId':'', 
+            'originAddress':originAddress, 
+            'data':data,
+            'timestamp':timestamp,
+            'expiration':expiration// 30 seconds
+        }
+
+        let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
+        if(isValidHash){
+          if(directMessage.timestamp <= Date.now() + this.peerMessageExpiration){
+            
+            this.addToMessageQueue(directMessage)
+            acknowledge({received:messageId})
+            await this.defineDirectMessageTypes(directMessage)
+              
+          }else{
+            logger(`Peer ${originAddress} sent an outdated direct message`)
+          }
+        }else{
+          logger(`Direct message from ${originAddress} has an invalid hash`)
+        }
+        
+      }catch(e){
+        console.log(e)
+      }  
+    }
+    
+  }
 
   /**
    * Properly route peer message once is has been validated
@@ -1588,6 +1649,28 @@ class Node {
         await this.handleNetworkEvent(peerMessage)
         break;
       
+    }
+  }
+ 
+   /**
+   * Properly route peer message once is has been validated
+   * @param {Object} peerMessage 
+   */
+  async defineDirectMessageTypes(directMessage){
+    let { type, data } = directMessage
+    switch(type){
+      case 'transaction':
+        var transaction = JSON.parse(data);
+        let executedTx = await this.receiveTransaction(transaction);
+        if(executedTx.error && this.verbose) logger(chalk.red('TRANSACTION ERROR'), executedTx.error)
+        else return { executed:executedTx }
+        break;
+      case 'action':
+        let action = JSON.parse(data);
+        let executedAction = await this.receiveAction(action);
+        if(executedAction.error && this.verbose) logger(chalk.red('ACTION ERROR'), executedAction.error)
+        else return { executed:executedAction }
+        break
     }
   }
 
@@ -1913,7 +1996,7 @@ class Node {
 
       let hashes = await this.mempool.getTransactionHashes()
       for await(let hash of hashes){
-        await delay(100)
+        await delay(1000)
         let transaction = await this.mempool.getTransaction(hash)
         this.sendPeerMessage('transaction', JSON.stringify(transaction, null, 2))
       }
