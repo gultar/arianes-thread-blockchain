@@ -340,14 +340,8 @@ class Node {
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
-      socket.on('isTransactionKnown', async(hash)=>await this.isTransactionKnown(hash))
-      socket.on('areTransactionsKnown', async(hashes)=>await this.areTransactionsKnown(hashes))
-      socket.on('isActionKnown', async(hash)=>await this.isActionKnown(hash))
-      socket.on('directMessage', (directMessage, acknowledge)=>{
-       if(!this.messageBuffer[directMessage.messageId]){
-           this.handleDirectMessage(directMessage, acknowledge)
-       }
-      })
+      socket.on('pooledTransactionHashes', async()=>{ await this.sendPooledTransactionHashes(socket) })
+      socket.on('getTransactionsFromPool', async(hashes)=>{ await this.getTransactionsFromPool(socket, hashes) })
       
       socket.on('error', async(err)=> logger('Socket error:',err))
 
@@ -376,6 +370,12 @@ class Node {
           nodeDebug('SOCKET: Message:', peerMessage)
           this.handlePeerMessage(peerMessage, acknowledge);
         }
+      })
+     
+     socket.on('directMessage', (directMessage, acknowledge)=>{
+       if(!this.messageBuffer[directMessage.messageId]){
+           this.handleDirectMessage(directMessage, acknowledge)
+       }
       })
 
       socket.on('getGenesisBlock', async ()=>{
@@ -525,6 +525,27 @@ class Node {
           socket.emit('blockHeader', {error:'Header not found'})
         }
       }
+  }
+ 
+ async sendPooledTransactionHashes(socket){
+    let hashes = await this.mempool.getTransactionsHashes()
+    socket.emit('pooledTransactionHashes', hashes)
+ }
+ 
+ async getTransactionsFromPool(socket, hashes){
+     let counter = 0
+     let transactions = {}
+     if(hashes && hashes.length){
+        for await(let hash of hashes){
+           if(counter <= this.transactionRequestLimit){
+              let transaction = await this.mempool.getTransaction(hash)
+              if(transaction && !transaction.error) transactions[hash] = transaction
+              counter++
+           }else break;
+        }
+     }
+  
+     return transactions
   }
 
   async isTransactionKnown(hash){
