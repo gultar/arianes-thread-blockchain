@@ -478,10 +478,6 @@ class Node {
     }
   }
 
-  async getPendingTxHashes(){
-    let hashes = await this.mempool
-  }
-
   async getBlockFromHash(socket, hash){
     // await rateLimiter.consume(socket.handshake.address).catch(e => { console.log("Peer sent too many 'getBlockFromHash' events") }); // consume 1 point per event from IP
       if(hash && typeof hash == 'string'){
@@ -545,7 +541,7 @@ class Node {
         }
      }
   
-     return transactions
+     socket.emit('pooledTransactions',transactions)
   }
 
   async isTransactionKnown(hash){
@@ -728,6 +724,33 @@ class Node {
         console.log(peer)
       }
       
+    })
+  }
+ 
+  downloadTransactionHashes(peer){
+    return new Promise((resolve)=>{
+        let timeout = setTimeout(()=>{
+           resolve([])
+        }, 1000)
+        peer.on('pooledTransactionHashes', (hashes)=> {
+           clearTimeout(timeout)
+           resolve(hashes)
+        })
+        peer.emit('getPooledTransactionHashes')
+    })
+  }
+ 
+ downloadTransactions(peer, hashes){
+    return new Promise((resolve)=>{
+        let timeout = setTimeout(()=>{
+           logger('Transaction download timed out')
+           resolve({})
+        }, 10000)
+        peer.on('pooledTransactions', (transactions)=> {
+           clearTimeout(timeout)
+           resolve(transactions)
+        })
+        peer.emit('getPooledTransactions', hashes)
     })
   }
 
@@ -2318,6 +2341,28 @@ DHT_PORT=${this.peerDiscoveryPort}
   housekeeping(){
 
   }
+ 
+ async queryPooledTransactions(peerAddress){
+    let peer = this.connectionsToPeers[peerAddress]
+    if(!peer) return { error:`ERROR: Pooled Tx query failed. Peer ${peerAddress} not found` }
+  
+    let hashes = await this.downloadTransactionHashes(peer)
+    if(!hashes) return { error:`ERROR: Transaction Hashes download failed. No hashes array found` }
+  
+    let unknownHashes = await this.areTransactionsKnown(hashes)
+    if(unknownHashes.error) return { error:unknownHashes.error }
+  
+    let transactions = await this.downloadTransactions(peer, hashes)
+    if(transactions.error) return { error:transactions.error }
+    
+    for await(let hash of Object.keys(transactions)){
+      let transaction = transactions[hash]
+      await this.receiveTransaction(transaction)
+    }
+  
+    return { queried:unknownHashes }
+    
+ }
 
   /**
    * @desc Displays message to any client connected to local API server
