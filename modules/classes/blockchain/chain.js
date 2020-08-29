@@ -1097,33 +1097,7 @@ class Blockchain{
     }
   }
 
-  // /**
-  //   Shows which block is conflicting
-  // */
-  // isChainValid(){
-  //   for(let i=1;i < this.chain.length; i++){
-
-  //     const currentBlock = this.chain[i];
-  //     const previousBlock = this.chain[i - 1];
-
-  //     if(currentBlock.hash !== RecalculateHash(currentBlock)){
-  //       console.log('*******************************************************************');
-  //       console.log('currentblock hash does not match the recalculation ');
-  //       console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-  //       console.log('*******************************************************************');
-  //       return {conflict:i};
-  //     }else if(currentBlock.previousHash !== previousBlock.hash){
-  //       console.log('*******************************************************************');
-  //       console.log('* currentblock hash does not match previousblock hash *');
-  //       console.log('Invalid block is :' + i + ' with hash: ' + currentBlock.hash + ' and previous hash: ' + previousBlock.hash);
-  //       console.log('*******************************************************************');
-  //       return {conflict:i};
-  //     }
-  //   }
-
-  //   return true;
-  // }
-
+  
   async isBlockchainValid(){
     let previousHeader = false
     for await(let block of this.chain){
@@ -2261,27 +2235,6 @@ class Blockchain{
     
   }
 
-  // /**
-  //   Checks if the transaction hash matches it content
-  //   @param {object} $transaction - Transaction to be inspected
-  //   @return {boolean} Checksum is valid or not
-  // */
-  // validateChecksum(transaction){
-  //   if(transaction){
-  //      if(sha256(
-  //               transaction.fromAddress+ 
-  //               transaction.toAddress+ 
-  //               (transaction.amount == 0 ? '0' : transaction.amount.toString())+ 
-  //               (typeof transaction.data == 'string' ? transaction.data : JSON.stringify(transaction.data))+ 
-  //               transaction.timestamp.toString()+
-  //               transaction.nonce.toString()
-  //               ) === transaction.hash){
-  //       return true;
-  //     }
-  //   }
-  //   return false;
-  // }
-
   /**
     Checks if the action hash matches its content
     @param {object} $action - Action to be inspected
@@ -2303,33 +2256,6 @@ class Blockchain{
       }
     }
   }
-
-  /**
-  //   Checks the validity of the transaction signature
-  //   @param {object} $transaction - Transaction to be inspected
-  //   @return {boolean} Signature is valid or not
-  // */
-  // validateSignature(transaction, fromAddress){
-  //   return new Promise(async (resolve, reject)=>{
-  //     if(transaction){
-  //       if(validatePublicKey(fromAddress)){
-  //         const publicKey = await ECDSA.fromCompressedPublicKey(fromAddress);
-  //         if(publicKey){
-  //           const verified = await publicKey.verify(transaction.hash, transaction.signature)
-  //           resolve(verified)
-  //         }else{
-  //           resolve(false)
-  //         }
-          
-  //       }else{
-  //         resolve(false)
-  //       }
-  //     }else{
-  //       resolve(false);
-  //     }
-  //   })
-  // }
-
 
   /**
     Checks the validity of the action signature
@@ -2377,21 +2303,6 @@ class Blockchain{
     let sizeFee = size * 0.0001;
     return sizeFee;
   }
-
-  // /**
-  //   Determine whether a coinbase transaction is linked to a block
-  //   @param {object} $transaction - Transaction to be inspected
-  //   @return {object} Block to which the coinbase transaction is linked
-  // */
-  // coinbaseTxIsAttachedToBlock(transaction, block){
-  //   if(block.coinbaseTransactionHash === transaction.hash){
-  //     return true
-  //   }else{
-  //     return false
-  //   }
-    
-    
-  // }
 
     /**
     Fetches a block from chainDB

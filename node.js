@@ -104,6 +104,7 @@ class Node {
     this.lastThreeSyncs = []
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
+    this.rebroadcastDelay = 5 * 60 * 1000;
     this.synchronizeDelay = 2*1000;
     this.messageBufferSize = options.messageBufferSize || 30
     this.peerMessageExpiration = 30 * 1000
@@ -192,7 +193,7 @@ class Node {
             else logger('WARNING: Could not save port to .env file')
             let loadedReputations = await this.peerManager.reputationTable.loadReputations()
             if(loadedReputations.error) logger('REPUTATION',loadedReputations.error)
-            this.heartbeat();
+            this.rebroadcastHeartbeat()
             nodeDebug('Started heartbeat cycle')
             this.syncHeartBeat();
             nodeDebug('Started sync heartbeat cycle')
@@ -257,6 +258,7 @@ class Node {
                               nodeDebug(`Added peer ${peerAddress} to node list`)
                               this.nodeEventHandlers(socket, peerAddress);
                               await this.rebroadcastKnownTransactions()
+                              await this.rebroadcastKnownActions()
 
                             }else{
                                 logger('Multiple connections by peers are not allowed')
@@ -2046,6 +2048,19 @@ class Node {
       }
   }
 
+  async rebroadcastKnownActions(){
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+      let hashes = await this.mempool.getActionHashes()
+      for await(let hash of hashes){
+        await delay(100)
+        let action = await this.mempool.getAction(hash)
+        this.sendPeerMessage('action', JSON.stringify(action, null, 2))
+      }
+  }
+
   /**
    * Simple helper function to properly convert a transaction of type call
    * to an actual call
@@ -2338,8 +2353,11 @@ DHT_PORT=${this.peerDiscoveryPort}
     }, this.synchronizeDelay)
   }
 
-  housekeeping(){
-
+  rebroadcastHeartbeat(){
+    setInterval(async()=>{
+      await this.rebroadcastKnownTransactions()
+      await this.rebroadcastKnownActions()
+    }, this.rebroadcastDelay)
   }
  
  async queryPooledTransactions(peerAddress){
