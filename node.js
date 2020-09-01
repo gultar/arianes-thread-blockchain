@@ -257,8 +257,9 @@ class Node {
                               this.nodeList.addNewAddress(peerAddress);
                               nodeDebug(`Added peer ${peerAddress} to node list`)
                               this.nodeEventHandlers(socket, peerAddress);
-                              await this.rebroadcastKnownTransactions()
-                              await this.rebroadcastKnownActions()
+                              // await this.rebroadcastKnownTransactions()
+                              // await this.rebroadcastKnownActions()
+                              await this.queryPooledTransactions(peerAddress)
 
                             }else{
                                 logger('Multiple connections by peers are not allowed')
@@ -2353,10 +2354,13 @@ DHT_PORT=${this.peerDiscoveryPort}
     }, this.synchronizeDelay)
   }
 
+
+
   rebroadcastHeartbeat(){
     setInterval(async()=>{
-      await this.rebroadcastKnownTransactions()
-      await this.rebroadcastKnownActions()
+      // await this.rebroadcastKnownTransactions()
+      // await this.rebroadcastKnownActions()
+      
     }, this.rebroadcastDelay)
   }
  
