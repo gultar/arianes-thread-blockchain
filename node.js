@@ -527,7 +527,7 @@ class Node {
   }
  
  async sendPooledTransactionHashes(socket){
-    let hashes = await this.mempool.getTransactionsHashes()
+    let hashes = await this.mempool.getTransactionHashes()
     console.log('Peer Requested txHashes:', hashes)
     socket.emit('pooledTransactionHashes', hashes)
  }
