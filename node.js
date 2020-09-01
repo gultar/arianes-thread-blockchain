@@ -259,7 +259,11 @@ class Node {
                               this.nodeEventHandlers(socket, peerAddress);
                               // await this.rebroadcastKnownTransactions()
                               // await this.rebroadcastKnownActions()
-                              await this.queryPooledTransactions(peerAddress)
+                              setTimeout(async ()=>{
+                                await this.queryPooledTransactions(peerAddress)
+
+                              }, 1000)
+
 
                             }else{
                                 logger('Multiple connections by peers are not allowed')
