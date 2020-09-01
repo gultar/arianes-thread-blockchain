@@ -343,7 +343,7 @@ class Node {
       socket.on('getBlockFromHash', async(hash)=> await this.getBlockFromHash(socket, hash))
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
-      socket.on('pooledTransactionHashes', async()=>{ await this.sendPooledTransactionHashes(socket) })
+      socket.on('getPooledTransactionHashes', async()=>{ await this.sendPooledTransactionHashes(socket) })
       socket.on('getTransactionsFromPool', async(hashes)=>{ await this.getTransactionsFromPool(socket, hashes) })
       
       socket.on('error', async(err)=> logger('Socket error:',err))
@@ -528,6 +528,7 @@ class Node {
  
  async sendPooledTransactionHashes(socket){
     let hashes = await this.mempool.getTransactionsHashes()
+    console.log('Peer Requested txHashes:', hashes)
     socket.emit('pooledTransactionHashes', hashes)
  }
  
