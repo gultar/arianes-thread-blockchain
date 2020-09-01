@@ -104,6 +104,7 @@ class Node {
     this.lastThreeSyncs = []
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
+    this.transactionRequestLimit = 100
     this.rebroadcastDelay = 5 * 60 * 1000;
     this.synchronizeDelay = 2*1000;
     this.messageBufferSize = options.messageBufferSize || 30
@@ -348,7 +349,7 @@ class Node {
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
       socket.on('getPooledTransactionHashes', async()=>{ await this.sendPooledTransactionHashes(socket) })
-      socket.on('getPooledTransactions', async(hashes)=>{ await this.getTransactionsFromPool(socket, hashes) })
+      socket.on('getPooledTransactions', async(hashes)=>{ await this.getPooledTransactions(socket, hashes) })
       
       socket.on('error', async(err)=> logger('Socket error:',err))
 
@@ -535,7 +536,7 @@ class Node {
     socket.emit('pooledTransactionHashes', hashes)
  }
  
- async getTransactionsFromPool(socket, hashes){
+ async getPooledTransactions(socket, hashes){
      let counter = 0
      let transactions = {}
      if(hashes && hashes.length){
