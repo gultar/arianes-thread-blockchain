@@ -565,14 +565,11 @@ class Node {
  
  async areTransactionsKnown(hashes){
     if(hashes && hashes.length){
-     let unknown = {}
+     let unknown = []
       for await(let hash of hashes){
        let isInMempool = await this.mempool.getTransaction(hash)
-        if(!isInMempool){
-          unknown[hash] = { inMempool:true }
-        }
-        if(!this.chain.spentTransactionHashes[hash]){
-          unknown[hash] = { inBlockNumber:this.chain.spentTransactionHashes[hash] }
+        if(!isInMempool && !this.chain.spentTransactionHashes[hash]){
+          unknown.push(hash)
         }
       }
      
