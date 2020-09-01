@@ -348,7 +348,7 @@ class Node {
       socket.on('getBlockchainStatus', async(peerStatus)=> await this.getBlockchainStatus(socket, peerStatus))
       socket.on('getPeers', async() =>{ await this.getPeers(socket) })
       socket.on('getPooledTransactionHashes', async()=>{ await this.sendPooledTransactionHashes(socket) })
-      socket.on('getTransactionsFromPool', async(hashes)=>{ await this.getTransactionsFromPool(socket, hashes) })
+      socket.on('getPooledTransactions', async(hashes)=>{ await this.getTransactionsFromPool(socket, hashes) })
       
       socket.on('error', async(err)=> logger('Socket error:',err))
 
