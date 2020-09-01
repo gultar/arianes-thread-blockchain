@@ -532,7 +532,6 @@ class Node {
  
  async sendPooledTransactionHashes(socket){
     let hashes = await this.mempool.getTransactionHashes()
-    console.log('Peer Requested txHashes:', hashes)
     socket.emit('pooledTransactionHashes', hashes)
  }
  
@@ -553,8 +552,8 @@ class Node {
   }
 
   async isTransactionKnown(hash){
-    if(this.spentTransactionHashes[hash]){
-      socket.emit('transactionKnown', { inBlockNumber:this.spentTransactionHashes[hash] })
+    if(this.chain.spentTransactionHashes[hash]){
+      socket.emit('transactionKnown', { inBlockNumber:this.chain.spentTransactionHashes[hash] })
     }else{
       let isInMempool = await this.mempool.getTransaction(hash)
       if(isInMempool){
@@ -572,8 +571,8 @@ class Node {
         if(!isInMempool){
           unknown[hash] = { inMempool:true }
         }
-        if(!this.spentTransactionHashes[hash]){
-          unknown[hash] = { inBlockNumber:this.spentTransactionHashes[hash] }
+        if(!this.chain.spentTransactionHashes[hash]){
+          unknown[hash] = { inBlockNumber:this.chain.spentTransactionHashes[hash] }
         }
       }
      
