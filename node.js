@@ -2369,12 +2369,15 @@ DHT_PORT=${this.peerDiscoveryPort}
     if(!peer) return { error:`ERROR: Pooled Tx query failed. Peer ${peerAddress} not found` }
   
     let hashes = await this.downloadTransactionHashes(peer)
+    console.log('Hashes: ', hashes.length)
     if(!hashes) return { error:`ERROR: Transaction Hashes download failed. No hashes array found` }
   
     let unknownHashes = await this.areTransactionsKnown(hashes)
+    console.log('Unkown:', unknownHashes.length)
     if(unknownHashes.error) return { error:unknownHashes.error }
   
-    let transactions = await this.downloadTransactions(peer, hashes)
+    let transactions = await this.downloadTransactions(peer, unknownHashes)
+    console.log('Transactions:', Object.keys(transactions).length)
     if(transactions.error) return { error:transactions.error }
     
     for await(let hash of Object.keys(transactions)){
