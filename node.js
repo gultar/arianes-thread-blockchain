@@ -104,7 +104,7 @@ class Node {
     this.lastThreeSyncs = []
     this.messageBuffer = {};
     this.messageBufferCleanUpDelay = 30 * 1000;
-    this.transactionRequestLimit = 1000
+    this.transactionRequestLimit = 1000*1000
     this.rebroadcastDelay = 5 * 60 * 1000;
     this.synchronizeDelay = 2*1000;
     this.messageBufferSize = options.messageBufferSize || 30
