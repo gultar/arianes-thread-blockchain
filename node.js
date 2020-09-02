@@ -2380,7 +2380,7 @@ DHT_PORT=${this.peerDiscoveryPort}
     if(unknownHashes){
       if(unknownHashes.error) return { error:unknownHashes.error }
 
-      logger(`Received ${hashes.length} transactions, ${unkownHashes.length} are new`)
+      logger(`Received ${hashes.length} transactions, ${unknownHashes.length} are new`)
 
       if(unknownHashes.length > 0){
         let transactions = await this.downloadTransactions(peer, unknownHashes)
