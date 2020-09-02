@@ -587,9 +587,9 @@ class Node {
     }else{
       let isInMempool = await this.mempool.getAction(hash)
       if(isInMempool){
-        if(isInMempool.error) socket.emit('actionKnown', false)
+        if(isInMempool.error) socket.emit('actionKnown', [])
         else socket.emit('actionSpent', { inPool:true })
-      }else socket.emit('actionKnown', false)
+      }else socket.emit('actionKnown', [])
     }
   }
 
