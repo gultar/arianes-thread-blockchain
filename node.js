@@ -2360,8 +2360,9 @@ DHT_PORT=${this.peerDiscoveryPort}
 
   rebroadcastHeartbeat(){
     setInterval(async()=>{
-      // await this.rebroadcastKnownTransactions()
-      // await this.rebroadcastKnownActions()
+      for await(let address of Object.keys(this.connectionsToPeers)){
+        await this.queryPooledTransactions(address)
+      }
       
     }, this.rebroadcastDelay)
   }
@@ -2369,13 +2370,17 @@ DHT_PORT=${this.peerDiscoveryPort}
  async queryPooledTransactions(peerAddress){
     let peer = this.connectionsToPeers[peerAddress]
     if(!peer) return { error:`ERROR: Pooled Tx query failed. Peer ${peerAddress} not found` }
-  
+
+    logger('Requesting pooled transactions from', peerAddress)
+
     let hashes = await this.downloadTransactionHashes(peer)
     if(!hashes) return { error:`ERROR: Transaction Hashes download failed. No hashes array found` }
   
     let unknownHashes = await this.areTransactionsKnown(hashes)
     if(unknownHashes.error) return { error:unknownHashes.error }
-  
+
+    logger(`Received ${hashes.length} transactions, ${unkownHashes.length} are new`)
+
     if(unknownHashes.length > 0){
       let transactions = await this.downloadTransactions(peer, unknownHashes)
       console.log('Transactions:', Object.keys(transactions).length)
