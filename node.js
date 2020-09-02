@@ -2377,22 +2377,26 @@ DHT_PORT=${this.peerDiscoveryPort}
     if(!hashes) return { error:`ERROR: Transaction Hashes download failed. No hashes array found` }
   
     let unknownHashes = await this.areTransactionsKnown(hashes)
-    if(unknownHashes.error) return { error:unknownHashes.error }
+    if(unknownHashes){
+      if(unknownHashes.error) return { error:unknownHashes.error }
 
-    logger(`Received ${hashes.length} transactions, ${unkownHashes.length} are new`)
+      logger(`Received ${hashes.length} transactions, ${unkownHashes.length} are new`)
 
-    if(unknownHashes.length > 0){
-      let transactions = await this.downloadTransactions(peer, unknownHashes)
-      console.log('Transactions:', Object.keys(transactions).length)
-      if(transactions.error) return { error:transactions.error }
-      
-      for await(let hash of Object.keys(transactions)){
-        let transaction = transactions[hash]
-        await this.receiveTransaction(transaction)
+      if(unknownHashes.length > 0){
+        let transactions = await this.downloadTransactions(peer, unknownHashes)
+        console.log('Transactions:', Object.keys(transactions).length)
+        if(transactions.error) return { error:transactions.error }
+        
+        for await(let hash of Object.keys(transactions)){
+          let transaction = transactions[hash]
+          await this.receiveTransaction(transaction)
+        }
       }
-    }
+
+      return { queried:unknownHashes }
+    }else return { queried:[] }
   
-    return { queried:unknownHashes }
+    
     
  }
 
