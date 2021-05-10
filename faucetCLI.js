@@ -46,63 +46,60 @@ program
 .action(async ()=>{
     console.log('Sending to ', nodeAddress)
     if(program.walletName && program.password && nodeAddress){
-            if(program.toAddress){
-                if(program.amount){
-                    var amount = JSON.parse(program.amount);
-                    
-                    let data = ''
-                    if(program.data){
-                        data = await parseDataArgument(program.data)
-                    }
-                    
-                    let transaction = new FaucetTransaction
-                        ({
-                            toAddress:program.toAddress,
-                            amount:amount,
-                            data:data,
-                            type:program.type
-                        });
-                        let wallet = await manager.loadByWalletName(program.walletName)
-                        if(wallet){
-                            let unlocked = await wallet.unlock(program.password)
-                            if(unlocked){
-                                let signature = await wallet.sign(transaction.hash);
-                                if(signature){
-                                    transaction.signature = signature;
-                                    
-                                    if(!program.offline){
-                                        openSocket(`${nodeAddress}`, (socket)=>{
-                                            socket.emit('transaction', transaction)
+        if(program.toAddress){
+            if(program.amount){
+                var amount = JSON.parse(program.amount);
+                
+                let data = ''
+                if(program.data){
+                    data = await parseDataArgument(program.data)
+                }
+                
+                let transaction = new FaucetTransaction
+                    ({
+                        toAddress:program.toAddress,
+                        amount:amount,
+                        data:data,
+                        type:program.type
+                    });
+                    let wallet = await manager.loadByWalletName(program.walletName)
+                    if(wallet){
+                        let unlocked = await wallet.unlock(program.password)
+                        if(unlocked){
+                            let signature = await wallet.sign(transaction.hash);
+                            if(signature){
+                                transaction.signature = signature;
+                                
+                                if(!program.offline){
+                                    openSocket(`${nodeAddress}`, (socket)=>{
+                                        socket.emit('transaction', transaction)
 
-                                        })
+                                    })
 
-                                        // axios.post(`${nodeAddress}/transaction`, transaction)
-                                        // .then( success => {
-                                        //     if(success.data.result) console.log(JSON.stringify(success.data.result, null, 2))
-                                        //     else console.log(JSON.stringify(success.data, null, 2))
-                                        // })
-                                        // .catch( e => console.log(e))
-                                    }else{
-                                        console.log(JSON.stringify(transaction, null, 2))
-                                    }
+                                    // axios.post(`${nodeAddress}/transaction`, transaction)
+                                    // .then( success => {
+                                    //     if(success.data.result) console.log(JSON.stringify(success.data.result, null, 2))
+                                    //     else console.log(JSON.stringify(success.data, null, 2))
+                                    // })
+                                    // .catch( e => console.log(e))
                                 }else{
-                                    console.log('ERROR: Could not sign transaction')
+                                    console.log(JSON.stringify(transaction, null, 2))
                                 }
                             }else{
-                                console.log('ERROR: Could not unlock wallet')
+                                console.log('ERROR: Could not sign transaction')
                             }
                         }else{
-                            console.log('ERROR: Could not find wallet')
+                            console.log('ERROR: Could not unlock wallet')
                         }
-                        
-                }else{
-                    console.log('ERROR: Need to provide amount to transfer')
-                }
+                    }else{
+                        console.log('ERROR: Could not find wallet')
+                    }
+                    
             }else{
-                console.log('ERROR: Need to provide receiving address')
+                console.log('ERROR: Need to provide amount to transfer')
             }
         }else{
-            console.log('ERROR: Need to provide sender address')
+            console.log('ERROR: Need to provide receiving address')
         }
     }else{
         console.log('ERROR: Need to provide wallet name & password')
