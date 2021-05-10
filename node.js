@@ -108,7 +108,7 @@ class Node {
     this.rebroadcastDelay = 5 * 60 * 1000;
     this.synchronizeDelay = 2*1000;
     this.messageBufferSize = options.messageBufferSize || 30
-    this.peerMessageExpiration = 100 * 1000
+    this.peerMessageExpiration = 1000 * 1000
     this.isDownloading = false;
     this.autoRollback = true || options.autoRollback;
     this.tolerableBlockGap = 1 // blocks
