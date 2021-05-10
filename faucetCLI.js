@@ -39,7 +39,6 @@ const openSocket = async (address, runFunction) =>{
 program
 .option('-w, --walletName <walletName>', "Sender's wallet name")
 .option('-p, --password <password>', "Sender's wallet password")
-.option('-f, --fromAddress <fromAddress>', "Sender's public key")
 .option('-t, --toAddress <toAddress>', "Receiver's public key")
 .option('-a, --amount <amount>', "Amount of coins to be transfered")
 .option('-o, --offline', 'Print out a transaction without sending it')
@@ -47,7 +46,6 @@ program
 .action(async ()=>{
     console.log('Sending to ', nodeAddress)
     if(program.walletName && program.password && nodeAddress){
-        if(program.fromAddress){
             if(program.toAddress){
                 if(program.amount){
                     var amount = JSON.parse(program.amount);
