@@ -1609,8 +1609,6 @@ class Node {
         let isValidHash = messageId === sha1(JSON.stringify(originalMessage))
         if(isValidHash){
 
-          console.log('Msg timestamp : ', peerMessage.timestamp)
-          console.log('Limit', Date.now() + this.peerMessageExpiration)
           if(peerMessage.timestamp <= Date.now() + this.peerMessageExpiration){
             
             peerMessage.relayPeer = this.address
