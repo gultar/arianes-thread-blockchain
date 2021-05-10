@@ -4,7 +4,9 @@ const { logger, validatePublicKey } = require('../../tools/utils');
 const { isValidTransactionJSON, isValidAccountJSON } = require('../../tools/jsonvalidator')
 const sha256 = require('../../tools/sha256')
 const Transaction = require('./transaction')
+const FaucetTransaction = require('./faucetTransaction')
 const chalk = require('chalk')
+const genesis = require('../../tools/getGenesis')
 
 class ValidationWorker{
     constructor(){
@@ -74,13 +76,12 @@ class ValidationWorker{
                 var isStake = transaction.type == 'stake'
                 var isResourceAllocation = transaction.type == 'allocation'
                 var isPayable = transaction.type == 'payable'
-
-                // let alreadyExistsInBlockchain = this.spentTransactionHashes[transaction.hash]
-                // if(alreadyExistsInBlockchain) resolve({exists:'Transaction already exists in blockchain', blockNumber:alreadyExistsInBlockchain})
-
+                var isFaucetTransaction = transaction.fromAddress == 'faucet'
+                
                 if(isTransactionCall) return await this.validateTransactionCall(transaction)
                 else if(isMiningReward) return await this.validateCoinbaseTransaction(transaction)
                 else if(isPayable) return await this.validatePayable(transaction)
+                else if(isFaucetTransaction) return await this.validateFaucetTransaction(transaction)
                 else if(isStake) {}
                 else if(isResourceAllocation){}
                 else  return await this.validateSimpleTransaction(transaction)
@@ -372,6 +373,22 @@ class ValidationWorker{
         return true
     
         
+      }
+
+      async validateFaucetTransaction(transaction){
+        if(isValidTransactionJSON(transaction)){
+          let areFaucetTransactionsAuthorized = genesis.faucetActive
+          if(!areFaucetTransactionsAuthorized) return { error:`ERROR: Faucet transactions are not active on this network` }
+
+          let isFromFaucet = transaction.fromAddress == "faucet"
+          if(!isFromFaucet) return { error:`ERROR: Faucet transaction needs to be sent from the faucet` }
+      
+          let isChecksumValid = this.validateChecksum(transaction);
+          if(!isChecksumValid ||isChecksumValid.error) return { error:`ERROR: Faucet transaction's checksum is invalid` }
+
+          return true
+
+        }
       }
 
       async validateCoinbaseTransaction(transaction, block){
