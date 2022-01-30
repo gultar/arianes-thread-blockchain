@@ -52,7 +52,7 @@ Almost all configurations for the generation of blocks are found in the
   "actions": {},
   "previousHash": "",
   "totalDifficulty": "0x1024",
-//Sets the initial difficulty for mining 
+// ---- Sets the initial difficulty for mining 
   "difficulty": "0x1024",
   "merkleRoot": "59C9BCB224111E86BC4DEA7ECE299BFAA5B1662E88D69BA898BAC09C16D7AD97",
   "nonce": 0,
@@ -63,27 +63,27 @@ Almost all configurations for the generation of blocks are found in the
   "endMineTime": 0,
   "coinbaseTransactionHash": "",
   "signatures": {},
-//Sets the ideal interval between blocks
-//Miner will adjust difficulty according to create
-//blocks within this interval
+/*  Sets the ideal interval between blocks
+    Miner will adjust difficulty according to create
+    blocks within this interval     */
   "blockTime": 10,
-//Mode of consensus, either Proof of Work, or Authorized (private chain)
+// ---- Mode of consensus, either Proof of Work, or Authorized (private chain)
   "consensus": "Proof of Work",
-//Name of network (default being mainnet)
+// ---- Name of network (default being mainnet)
   "network": "mainnet",
-//Set the maximum coin supply
+// ---- Set the maximum coin supply
   "maxCoinSupply": 10000000000,
-//Enables a faucet for coin distribution
+// ---- Enables a faucet for coin distribution
   "faucetActive": true,
   "states": {
     "coinbase": {
       "balance": 1000000000000
     },
-//If faucet option is enabled, will allow the faucet account to freely distribute coins
+// ---- If faucet option is enabled, will allow the faucet account to freely distribute coins
     "faucet": {
       "balance": 1e+22
     },
-//---list of addresses which will hold coins when first generating the blockchain network---"
+// ---- list of addresses which will hold coins when first generating the blockchain network---"
     "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG": {
       "balance": 10000
     },
