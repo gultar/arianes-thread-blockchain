@@ -1,5 +1,5 @@
 /**
- TFLB | Thousandfold Blockchain
+ ATB | Ariane's Thread Blockchain
  @author: Sacha-Olivier Dulac
 */
 
