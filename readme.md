@@ -1,4 +1,4 @@
-# Gizeh.js Blockchain framework
+# Ariane's Thread Blockchain framework
 
 A Nodejs + Socket.io + Rocket-Store Blockchain platform with support for smart contracts written in Nodejs and pluggable consensus protocol. The platform is shipped with Proof of Work and Permissioned capabilities. It's still a WIP and will likely remain so for a while but feel free to reach out or contribute to this project as I would like to see it put to good use eventually
 
@@ -31,6 +31,74 @@ npm install
 Almost all configurations for the generation of blocks are found in the
 ./config/genesis.json. 
 
+```
+{
+  "blockNumber": 0,
+  "timestamp": 1554987342039,
+  "transactions": {
+    "maxCurrency": {
+      "fromAddress": "coinbase",
+      "toAddress": "coinbase",
+      "amount": 1000000000000,
+      "data": "Maximum allowed currency in circulation",
+      "type": "coinbaseReserve",
+      "hash": false,
+      "miningFee": 0,
+      "timestamp": 1554987342039,
+      "nonce": 0,
+      "delayToBlock": 0
+    }
+  },
+  "actions": {},
+  "previousHash": "",
+  "totalDifficulty": "0x1024",
+//Sets the initial difficulty for mining 
+  "difficulty": "0x1024",
+  "merkleRoot": "59C9BCB224111E86BC4DEA7ECE299BFAA5B1662E88D69BA898BAC09C16D7AD97",
+  "nonce": 0,
+  "hash": "09899ef0175512358bcee24d5a1c3db63f816ee5eec03bc977df3dd0cb06f7d0",
+  "minedBy": "",
+  "challenge": "7ee2825ab3eb2ed69d1e7b6a50ca38ffc08ebed2a60a6894b170c24ad79ae",
+  "startMineTime": 1554987342039,
+  "endMineTime": 0,
+  "coinbaseTransactionHash": "",
+  "signatures": {},
+//Sets the ideal interval between blocks
+//Miner will adjust difficulty according to create
+//blocks within this interval
+  "blockTime": 10,
+//Mode of consensus, either Proof of Work, or Authorized (private chain)
+  "consensus": "Proof of Work",
+//Name of network (default being mainnet)
+  "network": "mainnet",
+//Set the maximum coin supply
+  "maxCoinSupply": 10000000000,
+//Enables a faucet for coin distribution
+  "faucetActive": true,
+  "states": {
+    "coinbase": {
+      "balance": 1000000000000
+    },
+//If faucet option is enabled, will allow the faucet account to freely distribute coins
+    "faucet": {
+      "balance": 1e+22
+    },
+//---list of addresses which will hold coins when first generating the blockchain network---"
+    "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG": {
+      "balance": 10000
+    },
+    "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6": {
+      "balance": 10000
+    },
+    "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R": {
+      "balance": 10000
+    },
+    "A64j8yr8Yl4inPC21GwONHTXDqBR7gutm57mjJ6oWfqr": {
+      "balance": 10000
+    }
+  }
+}
+```
 You can set the balances of accounts for the ICO.
 Other configurations like block times, initial/minimum difficulty and much more 
 can be set in this file. Default configurations are those of the main network.
