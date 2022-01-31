@@ -67,7 +67,7 @@ Almost all configurations for the generation of blocks are found in the
     Miner will adjust difficulty according to create
     blocks within this interval     */
   "blockTime": 10,
-// ---- Mode of consensus, either Proof of Work, or Authorized (private chain)
+// ---- Mode of consensus, either Proof of Work, or Permissioned (private chain)
   "consensus": "Proof of Work",
 // ---- Name of network (default being mainnet)
   "network": "mainnet",
