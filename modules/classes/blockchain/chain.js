@@ -179,6 +179,9 @@ class Blockchain{
       //Other public addresses can be added to initiate their balance in the genesisBlock
       //Make sure at least one of the them has some funds, otherwise no transactions will be possible
       "coinbase":{ balance:1000 * 1000 * 1000 * 1000 },
+     "faucet": {
+        "balance": 10000 * 10000 * 10000 * 10000 * 10000
+      },
       "Axr7tRA4LQyoNZR8PFBPrGTyEs1bWNPj5H9yHGjvF5OG":{ balance:10000 },
       "AodXnC/TMkd6rcK1m3DLWRM14G/eMuGXWTEHOcH8qQS6":{ balance:10000 },
       "A2TecK75dMwMUd9ja9TZlbL5sh3/yVQunDbTlr0imZ0R":{ balance:10000 },
