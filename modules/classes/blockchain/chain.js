@@ -169,7 +169,8 @@ class Blockchain{
     genesisBlock.challenge = setNewChallenge(genesisBlock)
     genesisBlock.blockTime = 10
     genesisBlock.consensus = "Proof of Work" //Possible values : Proof of Work, Permissioned, Proof of Stake, Proof of Importance
-    genesisBlock.network = "mainnet"
+    genesisBlock.network = "testnet"
+    genesisBlock.faucetActive = true; //If you are to create a live mainnet, you might want to disable this function
     genesisBlock.maxCoinSupply = Math.pow(10, 10);
     genesisBlock.signatures = {}
     genesisBlock.hash = sha256( genesisBlock.maxCoinSupply + genesisBlock.difficulty + genesisBlock.challenge + genesisBlock.merkleRoot + genesisBlock.signatures )
